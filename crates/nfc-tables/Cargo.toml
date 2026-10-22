@@ -8,13 +8,13 @@ license.workspace = true
 publish = false
 
 [dependencies]
-sha2 = "0.10.9"
+sha2 = "0.11.1"
 
 [dev-dependencies]
 repo-model = { workspace = true }
 # The version LexLean release/v0.4 at 9796067 pins (its Cargo.lock). A cross-check
 # of the Unicode version and of the decision, never the decision.
-unicode-normalization = "=0.1.25"
+unicode-normalization = "=0.1.26"
 
 [lints]
 workspace = true
