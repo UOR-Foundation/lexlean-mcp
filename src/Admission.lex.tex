@@ -20,7 +20,8 @@ inductive{
     {name: OutsideRoots, fields: []},
     {name: NotLexTex, fields: []},
     {name: TooManyFiles, fields: []},
-    {name: TooManyBytes, fields: []}
+    {name: TooManyBytes, fields: []},
+    {name: DuplicatePath, fields: []}
   ]
 }
 
@@ -715,6 +716,632 @@ theorem{
 }
 
 theorem{
+  name: filesChainDup,
+  parameters: [u : Bool, f : Bool, b : Bool, d : Bool, c : Bool],
+  statement: ((((u && (f && b)) && d) && c) = ((f && c) && ((u && b) && d))),
+  proof: cases{
+    branches: [
+      {
+        proof: cases{
+          branches: [
+            {
+              proof: cases{
+                branches: [
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "false"
+                  },
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "true"
+                  }
+                ],
+                scrutinee: b
+              },
+              binders: [],
+              constructor: "false"
+            },
+            {
+              proof: cases{
+                branches: [
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "false"
+                  },
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "true"
+                  }
+                ],
+                scrutinee: b
+              },
+              binders: [],
+              constructor: "true"
+            }
+          ],
+          scrutinee: f
+        },
+        binders: [],
+        constructor: "false"
+      },
+      {
+        proof: cases{
+          branches: [
+            {
+              proof: cases{
+                branches: [
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "false"
+                  },
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "true"
+                  }
+                ],
+                scrutinee: b
+              },
+              binders: [],
+              constructor: "false"
+            },
+            {
+              proof: cases{
+                branches: [
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "false"
+                  },
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "true"
+                  }
+                ],
+                scrutinee: b
+              },
+              binders: [],
+              constructor: "true"
+            }
+          ],
+          scrutinee: f
+        },
+        binders: [],
+        constructor: "true"
+      }
+    ],
+    scrutinee: u
+  }
+}
+
+theorem{
+  name: bytesChainDup,
+  parameters: [u : Bool, f : Bool, b : Bool, d : Bool, c : Bool],
+  statement: ((((u && (f && b)) && d) && c) = ((b && c) && ((u && f) && d))),
+  proof: cases{
+    branches: [
+      {
+        proof: cases{
+          branches: [
+            {
+              proof: cases{
+                branches: [
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "false"
+                  },
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "true"
+                  }
+                ],
+                scrutinee: b
+              },
+              binders: [],
+              constructor: "false"
+            },
+            {
+              proof: cases{
+                branches: [
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "false"
+                  },
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "true"
+                  }
+                ],
+                scrutinee: b
+              },
+              binders: [],
+              constructor: "true"
+            }
+          ],
+          scrutinee: f
+        },
+        binders: [],
+        constructor: "false"
+      },
+      {
+        proof: cases{
+          branches: [
+            {
+              proof: cases{
+                branches: [
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "false"
+                  },
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "true"
+                  }
+                ],
+                scrutinee: b
+              },
+              binders: [],
+              constructor: "false"
+            },
+            {
+              proof: cases{
+                branches: [
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "false"
+                  },
+                  {
+                    proof: cases{
+                      branches: [
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "false"
+                        },
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: "false"},
+                              {proof: reflexivity{}, binders: [], constructor: "true"}
+                            ],
+                            scrutinee: c
+                          },
+                          binders: [],
+                          constructor: "true"
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: "true"
+                  }
+                ],
+                scrutinee: b
+              },
+              binders: [],
+              constructor: "true"
+            }
+          ],
+          scrutinee: f
+        },
+        binders: [],
+        constructor: "true"
+      }
+    ],
+    scrutinee: u
+  }
+}
+
+theorem{
   name: pathChain,
   parameters: [a : Bool, c : Bool, r : Bool, s : Bool, h : Bool],
   statement: (((a && (c && (r && s))) && h) = ((c && h) && (a && (r && s)))),
@@ -1337,7 +1964,8 @@ definition{
     | Refusal.OutsideRoots => 6
     | Refusal.NotLexTex => 7
     | Refusal.TooManyFiles => 8
-    | Refusal.TooManyBytes => 9),
+    | Refusal.TooManyBytes => 9
+    | Refusal.DuplicatePath => 10),
   executable: true
 }
 
@@ -1390,10 +2018,30 @@ theorem{
 }
 
 definition{
+  name: countRowsInto,
+  parameters: [rows : (List (Bytes * Bytes)), total : Nat],
+  result: Nat,
+  body: (match rows | List.nil => total | List.cons row rest => (countRowsInto rest (total + 1))),
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
   name: countRows,
   parameters: [rows : (List (Bytes * Bytes))],
   result: Nat,
-  body: (match rows | List.nil => 0 | List.cons row rest => ((countRows rest) + 1)),
+  body: (countRowsInto rows 0),
+  executable: true
+}
+
+definition{
+  name: totalBytesInto,
+  parameters: [rows : (List (Bytes * Bytes)), total : Nat],
+  result: Nat,
+  body: (match rows
+    | List.nil => total
+    | List.cons row rest => (totalBytesInto rest (total + (prim length (second row) : Nat)))),
+  executable: true,
   recursive_argument: rows
 }
 
@@ -1401,9 +2049,21 @@ definition{
   name: totalBytes,
   parameters: [rows : (List (Bytes * Bytes))],
   result: Nat,
+  body: (totalBytesInto rows 0),
+  executable: true
+}
+
+definition{
+  name: rowsStageWith,
+  parameters: [tables : (Bytes * Bytes), roots : (List Bytes), rows : (List (Bytes * Bytes))],
+  result: Verdict,
   body: (match rows
-    | List.nil => 0
-    | List.cons row rest => ((prim length (second row) : Nat) + (totalBytes rest))),
+    | List.nil => (ctor Verdict.Admitted)
+    | List.cons row rest => (let verdict : Verdict := (admitPathWith tables roots (first row)); (match verdict
+      | Verdict.Admitted => (rowsStageWith tables roots rest)
+      | Verdict.Refused reason => (ctor Verdict.Refused reason)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
   recursive_argument: rows
 }
 
@@ -1411,11 +2071,43 @@ definition{
   name: rowsStage,
   parameters: [roots : (List Bytes), rows : (List (Bytes * Bytes))],
   result: Verdict,
-  body: (match rows
-    | List.nil => (ctor Verdict.Admitted)
-    | List.cons row rest => (andThen (admitPath roots (first row)) (rowsStage roots rest))),
+  body: (rowsStageWith (NfcTables::tables) roots rows),
   axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: pathsInto,
+  parameters: [rows : (List (Bytes * Bytes)), done : (List (List Nat))],
+  result: (List (List Nat)),
+  body: (match rows
+    | List.nil => done
+    | List.cons row rest => (pathsInto rest (cons (Nfc::octetsOfBytes (first row)) done))),
+  axioms: [Quot.sound, propext],
+  executable: true,
   recursive_argument: rows
+}
+
+definition{
+  name: occurs,
+  parameters: [path : (List Nat), others : (List (List Nat))],
+  result: Bool,
+  body: (match others
+    | List.nil => false
+    | List.cons other more => (if (Nfc::sameScalars path other) then true else (occurs path more))),
+  executable: true,
+  recursive_argument: others
+}
+
+definition{
+  name: anyRepeat,
+  parameters: [paths : (List (List Nat))],
+  result: Bool,
+  body: (match paths
+    | List.nil => false
+    | List.cons path rest => (if (occurs path rest) then true else (anyRepeat rest))),
+  executable: true,
+  recursive_argument: paths
 }
 
 definition{
@@ -1424,7 +2116,8 @@ definition{
   result: Verdict,
   body: (match exceeded
     | Bool.true => (ctor Verdict.Refused reason)
-    | Bool.false => (ctor Verdict.Admitted))
+    | Bool.false => (ctor Verdict.Admitted)),
+  executable: true
 }
 
 theorem{
@@ -1453,22 +2146,99 @@ definition{
   name: filesStage,
   parameters: [maxFiles : Nat, rows : (List (Bytes * Bytes))],
   result: Verdict,
-  body: (limitVerdict (ctor Refusal.TooManyFiles) (maxFiles <? (countRows rows)))
+  body: (limitVerdict (ctor Refusal.TooManyFiles) (maxFiles <? (countRows rows))),
+  executable: true
 }
 
 definition{
   name: bytesStage,
   parameters: [maxBytes : Nat, rows : (List (Bytes * Bytes))],
   result: Verdict,
-  body: (limitVerdict (ctor Refusal.TooManyBytes) (maxBytes <? (totalBytes rows)))
+  body: (limitVerdict (ctor Refusal.TooManyBytes) (maxBytes <? (totalBytes rows))),
+  executable: true
+}
+
+definition{
+  name: duplicatesStage,
+  parameters: [rows : (List (Bytes * Bytes))],
+  result: Verdict,
+  body: (limitVerdict (ctor Refusal.DuplicatePath) (anyRepeat (pathsInto rows (nil (List Nat))))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: duplicatesAfter,
+  parameters: [earlier : Verdict, rows : (List (Bytes * Bytes))],
+  result: Verdict,
+  body: (match earlier
+    | Verdict.Admitted => (duplicatesStage rows)
+    | Verdict.Refused reason => (ctor Verdict.Refused reason)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: admitDraftWith,
+  parameters: [
+    tables : (Bytes * Bytes),
+    maxFiles : Nat,
+    maxBytes : Nat,
+    roots : (List Bytes),
+    rows : (List (Bytes * Bytes))
+  ],
+  result: Verdict,
+  body: (duplicatesAfter (andThen (rowsStageWith tables roots rows) (andThen (filesStage maxFiles rows) (bytesStage maxBytes rows))) rows),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
 }
 
 definition{
   name: admitDraft,
   parameters: [maxFiles : Nat, maxBytes : Nat, roots : (List Bytes), rows : (List (Bytes * Bytes))],
   result: Verdict,
-  body: (andThen (rowsStage roots rows) (andThen (filesStage maxFiles rows) (bytesStage maxBytes rows))),
-  axioms: [Classical.choice, Quot.sound, propext]
+  body: (admitDraftWith (NfcTables::tables) maxFiles maxBytes roots rows),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: admitDraftRun,
+  parameters: [
+    low : Bytes,
+    high : Bytes,
+    maxFiles : Nat,
+    maxBytes : Nat,
+    roots : (List Bytes),
+    rows : (List (Bytes * Bytes))
+  ],
+  result: (List Nat),
+  body: (verdictOctets (admitDraftWith (low, high) maxFiles maxBytes roots rows)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow], targets: [rust-std]}
+}
+
+theorem{
+  name: duplicatesAfterAdmitted,
+  parameters: [earlier : Verdict, rows : (List (Bytes * Bytes))],
+  statement: ((isAdmitted (duplicatesAfter earlier rows)) = ((isAdmitted earlier) && (isAdmitted (duplicatesStage rows)))),
+  proof: cases{
+    branches: [
+      {
+        proof: simplify{definitions: [duplicatesAfter, isAdmitted, trueAnd]},
+        binders: [],
+        constructor: Admitted
+      },
+      {
+        proof: simplify{definitions: [duplicatesAfter, falseAnd, isAdmitted]},
+        binders: [reason],
+        constructor: Refused
+      }
+    ],
+    scrutinee: earlier
+  },
+  axioms: [Quot.sound, propext]
 }
 
 theorem{
@@ -1492,7 +2262,15 @@ theorem{
   parameters: [maxFiles : Nat, maxBytes : Nat, roots : (List Bytes), rows : (List (Bytes * Bytes))],
   statement: (((isAdmitted (admitDraft maxFiles maxBytes roots rows)) && (maxFiles <? (countRows rows))) = false),
   proof: simplify{
-    definitions: [admitDraft, andThenAdmitted, falseAnd, filesChain, filesStageClean]
+    definitions: [
+      admitDraft,
+      admitDraftWith,
+      andThenAdmitted,
+      duplicatesAfterAdmitted,
+      falseAnd,
+      filesChainDup,
+      filesStageClean
+    ]
   },
   axioms: [Classical.choice, Quot.sound, propext]
 }
@@ -1502,7 +2280,15 @@ theorem{
   parameters: [maxFiles : Nat, maxBytes : Nat, roots : (List Bytes), rows : (List (Bytes * Bytes))],
   statement: (((isAdmitted (admitDraft maxFiles maxBytes roots rows)) && (maxBytes <? (totalBytes rows))) = false),
   proof: simplify{
-    definitions: [admitDraft, andThenAdmitted, bytesChain, bytesStageClean, falseAnd]
+    definitions: [
+      admitDraft,
+      admitDraftWith,
+      andThenAdmitted,
+      bytesChainDup,
+      bytesStageClean,
+      duplicatesAfterAdmitted,
+      falseAnd
+    ]
   },
   axioms: [Classical.choice, Quot.sound, propext]
 }
@@ -1839,6 +2625,101 @@ theorem{
   name: emptyDraftAdmitted,
   parameters: [],
   statement: ((admitDraft 0 0 (cons 0x737263 (nil Bytes)) (nil (Bytes * Bytes))) = (ctor Verdict.Admitted)),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: draftDuplicatePath,
+  parameters: [],
+  statement: ((admitDraft 5 100 (cons 0x737263 (nil Bytes)) (cons (0x7372632f612e6c65782e746578, 0x61) (cons (0x7372632f612e6c65782e746578, 0x62) (nil (Bytes * Bytes))))) = (ctor Verdict.Refused (ctor Refusal.DuplicatePath))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: draftDuplicatePathApart,
+  parameters: [],
+  statement: ((admitDraft 5 100 (cons 0x737263 (nil Bytes)) (cons (0x7372632f612e6c65782e746578, 0x61) (cons (0x7372632f622e6c65782e746578, 0x62) (cons (0x7372632f612e6c65782e746578, 0x63) (nil (Bytes * Bytes)))))) = (ctor Verdict.Refused (ctor Refusal.DuplicatePath))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: draftPathRefusalBeforeTheLimits,
+  parameters: [],
+  statement: ((admitDraft 1 1 (cons 0x737263 (nil Bytes)) (cons (0x7372632f612e747874, 0x6162) (cons (0x7372632f622e6c65782e746578, 0x6364) (nil (Bytes * Bytes))))) = (ctor Verdict.Refused (ctor Refusal.NotLexTex))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: draftEarlierRowRefusedFirst,
+  parameters: [],
+  statement: ((admitDraft 9 99 (cons 0x737263 (nil Bytes)) (cons (0x7372632f612e747874, 0x61) (cons (0x7372632f2e2e2f622e6c65782e746578, 0x62) (nil (Bytes * Bytes))))) = (ctor Verdict.Refused (ctor Refusal.NotLexTex))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: draftTooManyFilesBeforeTooManyBytes,
+  parameters: [],
+  statement: ((admitDraft 1 1 (cons 0x737263 (nil Bytes)) (cons (0x7372632f612e6c65782e746578, 0x6162) (cons (0x7372632f622e6c65782e746578, 0x6364) (nil (Bytes * Bytes))))) = (ctor Verdict.Refused (ctor Refusal.TooManyFiles))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: draftTooManyFilesBeforeDuplicate,
+  parameters: [],
+  statement: ((admitDraft 1 100 (cons 0x737263 (nil Bytes)) (cons (0x7372632f612e6c65782e746578, 0x61) (cons (0x7372632f612e6c65782e746578, 0x62) (nil (Bytes * Bytes))))) = (ctor Verdict.Refused (ctor Refusal.TooManyFiles))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: draftTooManyBytesBeforeDuplicate,
+  parameters: [],
+  statement: ((admitDraft 5 1 (cons 0x737263 (nil Bytes)) (cons (0x7372632f612e6c65782e746578, 0x61) (cons (0x7372632f612e6c65782e746578, 0x62) (nil (Bytes * Bytes))))) = (ctor Verdict.Refused (ctor Refusal.TooManyBytes))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitDraftIsAdmitDraftWithTheTables,
+  parameters: [maxFiles : Nat, maxBytes : Nat, roots : (List Bytes), rows : (List (Bytes * Bytes))],
+  statement: ((admitDraft maxFiles maxBytes roots rows) = (admitDraftWith (NfcTables::tables) maxFiles maxBytes roots rows)),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitDraftRunIsTheVerdictOfAdmitDraftWith,
+  parameters: [
+    low : Bytes,
+    high : Bytes,
+    maxFiles : Nat,
+    maxBytes : Nat,
+    roots : (List Bytes),
+    rows : (List (Bytes * Bytes))
+  ],
+  statement: ((admitDraftRun low high maxFiles maxBytes roots rows) = (verdictOctets (admitDraftWith (low, high) maxFiles maxBytes roots rows))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitDraftRunIsTheVerdictOfAdmitDraft,
+  parameters: [maxFiles : Nat, maxBytes : Nat, roots : (List Bytes), rows : (List (Bytes * Bytes))],
+  statement: ((admitDraftRun (first (NfcTables::tables)) (second (NfcTables::tables)) maxFiles maxBytes roots rows) = (verdictOctets (admitDraft maxFiles maxBytes roots rows))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitDraftRunRefusesADuplicatePath,
+  parameters: [],
+  statement: ((admitDraftRun (first (NfcTables::tables)) (second (NfcTables::tables)) 5 100 (cons 0x737263 (nil Bytes)) (cons (0x7372632f612e6c65782e746578, 0x61) (cons (0x7372632f612e6c65782e746578, 0x62) (nil (Bytes * Bytes))))) = (cons 1 (cons 10 (nil Nat)))),
   proof: reflexivity{},
   axioms: [Classical.choice, Quot.sound, propext]
 }

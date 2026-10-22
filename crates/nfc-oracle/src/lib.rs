@@ -1,11 +1,12 @@
-//! Runs the packages LexLean exports for the NFC decision and for path admission
-//! (issue #25).
+//! Runs the packages LexLean exports for the NFC decision, for path admission
+//! (issue #25) and for draft admission (issue #9).
 //!
 //! Dev and CI only. The decision is LexLean source in `src/Nfc.lex.tex`; the
 //! first package is LexLean's own export of the root `LexLeanMcp.Nfc.nfcRun`, the
-//! second its export of `LexLeanMcp.Admission.admitRun`. This file only converts
-//! between scalar values, paths and the packages' octets and `u64` lists. It
-//! normalizes and admits nothing itself.
+//! second its export of `LexLeanMcp.Admission.admitRun`, the third its export of
+//! `LexLeanMcp.Admission.admitDraftRun`. This file only converts between scalar
+//! values, paths, rows and the packages' octets and `u64` lists. It normalizes and
+//! admits nothing itself.
 
 // The package carries its own lint table (`warnings = deny`, `clippy::all = deny`
 // with ten named exceptions) and is clean under it as a crate. Included here as a
@@ -50,6 +51,30 @@ mod package;
 #[rustfmt::skip]
 #[path = "../generated/lexlean_mcp_admission/src/lib.rs"]
 mod admission_package;
+
+// The draft admission package: the same lint exceptions, for the same reasons.
+#[allow(
+    dead_code,
+    unused,
+    missing_docs,
+    clippy::type_complexity,
+    clippy::too_many_arguments,
+    clippy::large_enum_variant,
+    clippy::result_large_err,
+    clippy::result_unit_err,
+    clippy::single_match,
+    clippy::manual_unwrap_or,
+    clippy::manual_unwrap_or_default,
+    clippy::manual_map,
+    clippy::manual_ok_err
+)]
+#[rustfmt::skip]
+#[path = "../generated/lexlean_mcp_draft_admission/src/lib.rs"]
+mod draft_package;
+
+/// The text of the generated draft admission package this crate compiled.
+pub const DRAFT_SOURCE: &str =
+    include_str!("../generated/lexlean_mcp_draft_admission/src/lib.rs");
 
 /// The text of the generated admission package this crate compiled.
 pub const ADMISSION_SOURCE: &str = include_str!("../generated/lexlean_mcp_admission/src/lib.rs");
@@ -207,4 +232,48 @@ pub fn admit_on(image: Image, roots: &[&[u8]], path: &[u8]) -> Vec<u64> {
 /// The verdict of path admission on the full tables.
 pub fn admit(roots: &[&[u8]], path: &[u8]) -> Vec<u64> {
     admit_on(Image::Full, roots, path)
+}
+
+/// What the exported root `admitDraftRun` returns for a draft on the full tables:
+/// `[0]` for admitted, `[1, index]` for the refusal at `index` in the constructor
+/// order of `Refusal`. A row is a path and the content stored under it. The tests,
+/// not this crate, name the refusals.
+///
+/// # Panics
+/// When the root reports a resource failure rather than a verdict.
+pub fn admit_draft(
+    max_files: u64,
+    max_bytes: u64,
+    roots: &[&[u8]],
+    rows: &[(Vec<u8>, Vec<u8>)],
+) -> Vec<u64> {
+    let mut root_list = draft_package::List::nil();
+    for root in roots.iter().rev() {
+        root_list = draft_package::List::cons(draft_package::Bytes::lit(root), root_list);
+    }
+    let mut row_list = draft_package::List::nil();
+    for (path, content) in rows.iter().rev() {
+        row_list = draft_package::List::cons(
+            (
+                draft_package::Bytes::lit(path),
+                draft_package::Bytes::lit(content),
+            ),
+            row_list,
+        );
+    }
+    let mut verdict = draft_package::run(
+        draft_package::Bytes::lit(LOW),
+        draft_package::Bytes::lit(HIGH),
+        max_files,
+        max_bytes,
+        root_list,
+        row_list,
+    )
+    .expect("the draft admission root does not overflow on this input");
+    let mut out = Vec::new();
+    while let Some((head, tail)) = verdict.uncons() {
+        out.push(head);
+        verdict = tail;
+    }
+    out
 }

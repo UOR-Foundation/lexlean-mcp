@@ -788,6 +788,7 @@ pub enum Adt1 {
     C7,
     C8,
     C9,
+    C10,
 }
 
 #[derive(Clone)]
@@ -855,6 +856,9 @@ pub fn f3(v0: Adt1) -> u64 {
         }
         Adt1::C9 => {
             9u64
+        }
+        Adt1::C10 => {
+            10u64
         }
     }
 }
