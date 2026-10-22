@@ -1,0 +1,813 @@
+\begin{lexlean}{Security}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\useglossary{prism.arch@1.0.0}
+\useglossary{prism.sec@1.0.0}
+\importmodule{Foundation.Sec}
+\importmodule{Product}
+\importmodule{Architecture}
+\title{LexLean MCP threat model}
+\begin{semanticmodule}
+inductive{
+  name: MeasureStatus,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Executed, fields: [String]},
+    {name: Pending, fields: [String]},
+    {name: Residual, fields: [String]}
+  ]
+}
+
+structure{
+  name: Named,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: index, type: Nat}, {name: name, type: String}, {name: text, type: String}]
+}
+
+structure{
+  name: RiskAssessment,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: index, type: Nat},
+    {name: assetIndex, type: Nat},
+    {name: threatIndex, type: Nat},
+    {name: likelihood, type: Product::OwnerValue},
+    {name: impact, type: Foundation.Sec::Impact}
+  ]
+}
+
+structure{
+  name: Placement,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: asset, type: Nat}, {name: component, type: Nat}]
+}
+
+structure{
+  name: Measurement,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: risk, type: Nat},
+    {name: check, type: String},
+    {name: status, type: MeasureStatus}
+  ]
+}
+
+structure{
+  name: Residual,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: risk, type: Nat}, {name: rationale, type: String}]
+}
+
+definition{
+  name: assetVerificationRecords,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 0, componentIndex := 6})
+}
+
+definition{
+  name: assetSigningKey,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 1, componentIndex := 6})
+}
+
+definition{
+  name: assetDraftsAndResults,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 2, componentIndex := 8})
+}
+
+definition{
+  name: assetVerifierHost,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 3, componentIndex := 5})
+}
+
+definition{
+  name: assetProfileBundles,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 4, componentIndex := 4})
+}
+
+definition{
+  name: assetRequestStateKey,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 5, componentIndex := 2})
+}
+
+definition{
+  name: threatForgedAttestation,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 0})
+}
+
+definition{
+  name: threatMisstatingEntry,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 1})
+}
+
+definition{
+  name: threatWebOriginAccess,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 2})
+}
+
+definition{
+  name: threatExhaustion,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 3})
+}
+
+definition{
+  name: threatPathEscape,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 4})
+}
+
+definition{
+  name: threatRequestTimeAcquisition,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 5})
+}
+
+definition{
+  name: threatContentSteering,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 6})
+}
+
+definition{
+  name: threatKeyCompromise,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 7})
+}
+
+definition{
+  name: threatRequestStateForgery,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 8})
+}
+
+definition{
+  name: threatLocalProcessImpersonation,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 9})
+}
+
+definition{
+  name: riskForgedAttestation,
+  parameters: [],
+  result: RiskAssessment,
+  body: (record RiskAssessment {index := 0, assetIndex := 0, threatIndex := 0, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.critical)})
+}
+
+definition{
+  name: riskMisstatingEntry,
+  parameters: [],
+  result: RiskAssessment,
+  body: (record RiskAssessment {index := 1, assetIndex := 4, threatIndex := 1, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.critical)})
+}
+
+definition{
+  name: riskWebOriginAccess,
+  parameters: [],
+  result: RiskAssessment,
+  body: (record RiskAssessment {index := 2, assetIndex := 2, threatIndex := 2, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.critical)})
+}
+
+definition{
+  name: riskExhaustion,
+  parameters: [],
+  result: RiskAssessment,
+  body: (record RiskAssessment {index := 3, assetIndex := 3, threatIndex := 3, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.major)})
+}
+
+definition{
+  name: riskPathEscape,
+  parameters: [],
+  result: RiskAssessment,
+  body: (record RiskAssessment {index := 4, assetIndex := 3, threatIndex := 4, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.critical)})
+}
+
+definition{
+  name: riskRequestTimeAcquisition,
+  parameters: [],
+  result: RiskAssessment,
+  body: (record RiskAssessment {index := 5, assetIndex := 4, threatIndex := 5, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.major)})
+}
+
+definition{
+  name: riskContentSteering,
+  parameters: [],
+  result: RiskAssessment,
+  body: (record RiskAssessment {index := 6, assetIndex := 2, threatIndex := 6, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.major)})
+}
+
+definition{
+  name: riskKeyCompromise,
+  parameters: [],
+  result: RiskAssessment,
+  body: (record RiskAssessment {index := 7, assetIndex := 1, threatIndex := 7, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.critical)})
+}
+
+definition{
+  name: riskRequestStateForgery,
+  parameters: [],
+  result: RiskAssessment,
+  body: (record RiskAssessment {index := 8, assetIndex := 5, threatIndex := 8, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.major)})
+}
+
+definition{
+  name: riskLocalProcessImpersonation,
+  parameters: [],
+  result: RiskAssessment,
+  body: (record RiskAssessment {index := 9, assetIndex := 2, threatIndex := 9, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.major)})
+}
+
+definition{
+  name: controlSignedRecords,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 0, riskIndex := 0})
+}
+
+definition{
+  name: controlReviewedPackages,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 1, riskIndex := 1})
+}
+
+definition{
+  name: controlLoopbackOrigin,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 2, riskIndex := 2})
+}
+
+definition{
+  name: controlLimits,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 3, riskIndex := 3})
+}
+
+definition{
+  name: controlPathAdmission,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 4, riskIndex := 4})
+}
+
+definition{
+  name: controlEgressDenied,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 5, riskIndex := 5})
+}
+
+definition{
+  name: controlTypedResults,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 6, riskIndex := 6})
+}
+
+definition{
+  name: controlKeyHistory,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 7, riskIndex := 7})
+}
+
+definition{
+  name: controlRequestStateIntegrity,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 8, riskIndex := 8})
+}
+
+definition{
+  name: activityRotateSigningKey,
+  parameters: [],
+  result: Foundation.Sec::SecurityActivity,
+  body: (record Foundation.Sec::SecurityActivity {index := 0, controlIndex := 7})
+}
+
+definition{
+  name: activityRotateRequestStateKey,
+  parameters: [],
+  result: Foundation.Sec::SecurityActivity,
+  body: (record Foundation.Sec::SecurityActivity {index := 1, controlIndex := 8})
+}
+
+definition{
+  name: activityReviewLexiconPackages,
+  parameters: [],
+  result: Foundation.Sec::SecurityActivity,
+  body: (record Foundation.Sec::SecurityActivity {index := 2, controlIndex := 1})
+}
+
+definition{
+  name: activityDriftCheck,
+  parameters: [],
+  result: Foundation.Sec::SecurityActivity,
+  body: (record Foundation.Sec::SecurityActivity {index := 3, controlIndex := 1})
+}
+
+definition{
+  name: assetRecords,
+  parameters: [],
+  result: (List Foundation.Sec::Asset),
+  body: (cons (assetVerificationRecords) (cons (assetSigningKey) (cons (assetDraftsAndResults) (cons (assetVerifierHost) (cons (assetProfileBundles) (cons (assetRequestStateKey) (nil Foundation.Sec::Asset)))))))
+}
+
+definition{
+  name: placements,
+  parameters: [],
+  result: (List Placement),
+  body: (cons (record Placement {asset := 0, component := 6}) (cons (record Placement {asset := 0, component := 8}) (cons (record Placement {asset := 1, component := 6}) (cons (record Placement {asset := 2, component := 8}) (cons (record Placement {asset := 3, component := 5}) (cons (record Placement {asset := 4, component := 4}) (cons (record Placement {asset := 5, component := 2}) (nil Placement))))))))
+}
+
+definition{
+  name: threatRecords,
+  parameters: [],
+  result: (List Foundation.Sec::Threat),
+  body: (cons (threatForgedAttestation) (cons (threatMisstatingEntry) (cons (threatWebOriginAccess) (cons (threatExhaustion) (cons (threatPathEscape) (cons (threatRequestTimeAcquisition) (cons (threatContentSteering) (cons (threatKeyCompromise) (cons (threatRequestStateForgery) (cons (threatLocalProcessImpersonation) (nil Foundation.Sec::Threat)))))))))))
+}
+
+definition{
+  name: riskRecords,
+  parameters: [],
+  result: (List RiskAssessment),
+  body: (cons (riskForgedAttestation) (cons (riskMisstatingEntry) (cons (riskWebOriginAccess) (cons (riskExhaustion) (cons (riskPathEscape) (cons (riskRequestTimeAcquisition) (cons (riskContentSteering) (cons (riskKeyCompromise) (cons (riskRequestStateForgery) (cons (riskLocalProcessImpersonation) (nil RiskAssessment)))))))))))
+}
+
+definition{
+  name: controlRecords,
+  parameters: [],
+  result: (List Foundation.Sec::ApplicationSecurityControl),
+  body: (cons (controlSignedRecords) (cons (controlReviewedPackages) (cons (controlLoopbackOrigin) (cons (controlLimits) (cons (controlPathAdmission) (cons (controlEgressDenied) (cons (controlTypedResults) (cons (controlKeyHistory) (cons (controlRequestStateIntegrity) (nil Foundation.Sec::ApplicationSecurityControl))))))))))
+}
+
+definition{
+  name: activityRecords,
+  parameters: [],
+  result: (List Foundation.Sec::SecurityActivity),
+  body: (cons (activityRotateSigningKey) (cons (activityRotateRequestStateKey) (cons (activityReviewLexiconPackages) (cons (activityDriftCheck) (nil Foundation.Sec::SecurityActivity)))))
+}
+
+definition{
+  name: assetNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "A1 Integrity of verification records", text := "Held by the signer and the store."}) (cons (record Named {index := 1, name := "A2 Signing key", text := "Held by the signer."}) (cons (record Named {index := 2, name := "A3 Drafts and results", text := "Held by the store."}) (cons (record Named {index := 3, name := "A4 Verifier host", text := "The host of the verifier."}) (cons (record Named {index := 4, name := "A5 Profile bundles and lexicons", text := "Held by the engine-host."}) (cons (record Named {index := 5, name := "A6 `requestState` integrity key", text := "Held by the protocol core."}) (nil Named)))))))
+}
+
+definition{
+  name: threatNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "R1 threat", text := "A forged attestation, recomputed so its ID is consistent, presented as genuine (LexLean SPEC §22.9)"}) (cons (record Named {index := 1, name := "R2 threat", text := "A lexicon entry renders words that misstate its denotation"}) (cons (record Named {index := 2, name := "R3 threat", text := "A web page or another host reaches the server"}) (cons (record Named {index := 3, name := "R4 threat", text := "Requests exhaust verifier memory, time or capacity"}) (cons (record Named {index := 4, name := "R5 threat", text := "A draft path escapes the source roots"}) (cons (record Named {index := 5, name := "R6 threat", text := "Request-time network acquisition"}) (cons (record Named {index := 6, name := "R7 threat", text := "Returned content steers the agent as instructions"}) (cons (record Named {index := 7, name := "R8 threat", text := "Signing key compromise"}) (cons (record Named {index := 8, name := "R9 threat", text := "A client forges or alters `requestState`"}) (cons (record Named {index := 9, name := "R10 threat", text := "Another local process on the host calls the server as the principal"}) (nil Named)))))))))))
+}
+
+definition{
+  name: controlNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "K1", text := "every verification record signed as an in-toto statement in a DSSE envelope"}) (cons (record Named {index := 1, name := "K2", text := "packages enter only through a setup lock after maintainer review; the profile ID binds the review records"}) (cons (record Named {index := 2, name := "K3", text := "loopback binding; `Origin`/`Host` validation"}) (cons (record Named {index := 3, name := "K4", text := "LexLean limits (`LLS8002`), `verify.memory_kib`, one process per task, `verify.concurrency`, cancellation, `rate.tool_calls`"}) (cons (record Named {index := 4, name := "K5", text := "admission of NFC `.lex.tex` paths under a source root; materialization refuses symlinks in a profile bundle; LexLean `LLS8001` last"}) (cons (record Named {index := 5, name := "K6", text := "`engine-host` and `verifier` egress denied; `lock` not an effect"}) (cons (record Named {index := 6, name := "K7", text := "typed results; module text only in data fields"}) (cons (record Named {index := 7, name := "K8", text := "key by reference, rotated, published key history with revocations"}) (cons (record Named {index := 8, name := "K9", text := "`requestState` integrity-protected with `request-state-key`"}) (nil Named))))))))))
+}
+
+definition{
+  name: activityNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "Rotate the signing key", text := "The signing key is rotated on the owner-set period (#19); the key history records every rotation and revocation."}) (cons (record Named {index := 1, name := "Rotate the request-state-key", text := "The request-state-key is rotated on the owner-set period (#19)."}) (cons (record Named {index := 2, name := "Review lexicon packages", text := "A maintainer reviews every lexicon package before a profile that contains it is provisioned; the review record enters the profile ID."}) (cons (record Named {index := 3, name := "Drift check per profile", text := "Each profile is checked for drift: its lock, its recomputed profile ID and its toolchain hashes (#13)."}) (nil Named)))))
+}
+
+definition{
+  name: measurements,
+  parameters: [],
+  result: (List Measurement),
+  body: (cons (record Measurement {risk := 0, check := "every envelope F10/F12 return validates under the key history", status := (ctor MeasureStatus.Pending "Executed by the verify tool (#11) and the attestation lookup (#12); the key history is published by #11.")}) (cons (record Measurement {risk := 1, check := "no profile served without a review record per package digest", status := (ctor MeasureStatus.Pending "Executed where profiles are provisioned and identified (#8).")}) (cons (record Measurement {risk := 2, check := "scenario `dns-rebinding-protection` passes", status := (ctor MeasureStatus.Pending "Executed against the deployed core (#17), through the MCP conformance oracle.")}) (cons (record Measurement {risk := 3, check := "a planted over-limit draft fails with `LLS8002`, no other task affected; calls over the rate refused", status := (ctor MeasureStatus.Pending "Executed where verification runs as tasks (#11); the parameter values are owner-set (#19).")}) (cons (record Measurement {risk := 4, check := "a planted `..` path refused before any `Engine` call", status := (ctor MeasureStatus.Pending "Executed where drafts are admitted (#9).")}) (cons (record Measurement {risk := 5, check := "observed egress zero", status := (ctor MeasureStatus.Pending "Executed against the deployment (#17), where egress is denied; the effect set is declared in #7.")}) (cons (record Measurement {risk := 6, check := "every result validates against its output schema", status := (ctor MeasureStatus.Pending "Executed where the tools return results (#10, #11, #12).")}) (cons (record Measurement {risk := 7, check := "an envelope under a revoked key fails validation", status := (ctor MeasureStatus.Pending "Executed where signing and the key store exist (#11, #13); the key custody and rotation period are owner-set (#19).")}) (cons (record Measurement {risk := 8, check := "scenario `input-required-result-tampered-state` passes", status := (ctor MeasureStatus.Pending "Executed against the deployed core (#17), through the MCP conformance oracle.")}) (cons (record Measurement {risk := 9, check := "recorded as a residual risk of `mcp-loopback`", status := (ctor MeasureStatus.Residual "none in this release: authorization is outside it, closed by MCP#15's resource-server oracle")}) (nil Measurement)))))))))))
+}
+
+definition{
+  name: residuals,
+  parameters: [],
+  result: (List Residual),
+  body: (cons (record Residual {risk := 9, rationale := "none in this release: authorization is outside it, closed by MCP#15's resource-server oracle"}) (nil Residual))
+}
+
+definition{
+  name: nonEmpty,
+  parameters: [text : String],
+  result: Bool,
+  body: (if (prim equal text "" : Bool) then false else true)
+}
+
+definition{
+  name: namedIndexes,
+  parameters: [records : (List Named)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (namedIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: assetIndexes,
+  parameters: [records : (List Foundation.Sec::Asset)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (assetIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: assetComponents,
+  parameters: [records : (List Foundation.Sec::Asset)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head componentIndex) (assetComponents rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: threatIndexes,
+  parameters: [records : (List Foundation.Sec::Threat)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (threatIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: riskIndexes,
+  parameters: [records : (List RiskAssessment)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (riskIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: riskAssets,
+  parameters: [records : (List RiskAssessment)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head assetIndex) (riskAssets rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: riskThreats,
+  parameters: [records : (List RiskAssessment)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head threatIndex) (riskThreats rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: controlIndexes,
+  parameters: [records : (List Foundation.Sec::ApplicationSecurityControl)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (controlIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: controlRisks,
+  parameters: [records : (List Foundation.Sec::ApplicationSecurityControl)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head riskIndex) (controlRisks rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: activityIndexes,
+  parameters: [records : (List Foundation.Sec::SecurityActivity)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (activityIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: activityControls,
+  parameters: [records : (List Foundation.Sec::SecurityActivity)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head controlIndex) (activityControls rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: placementAssets,
+  parameters: [records : (List Placement)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head asset) (placementAssets rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: placementComponents,
+  parameters: [records : (List Placement)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head component) (placementComponents rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: measurementRisks,
+  parameters: [records : (List Measurement)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head risk) (measurementRisks rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: residualRisks,
+  parameters: [records : (List Residual)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head risk) (residualRisks rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: uncontrolled,
+  parameters: [risks : (List Nat), controlled : (List Nat)],
+  result: (List Nat),
+  body: (match risks
+    | List.nil => (nil Nat)
+    | List.cons head rest => (if (Architecture::natMember head controlled) then (uncontrolled rest controlled) else (cons head (uncontrolled rest controlled)))),
+  recursive_argument: risks
+}
+
+definition{
+  name: viewComponents,
+  parameters: [wanted : Nat, specs : (List Architecture::ViewSpec)],
+  result: (List Nat),
+  body: (match specs
+    | List.nil => (nil Nat)
+    | List.cons head rest => (if ((project head view) =? wanted) then (project head components) else (viewComponents wanted rest))),
+  recursive_argument: specs
+}
+
+definition{
+  name: placedAt,
+  parameters: [asset : Nat, component : Nat, rows : (List Placement)],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons head rest => ((((project head asset) =? asset) && ((project head component) =? component)) || (placedAt asset component rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: primaryPlaced,
+  parameters: [assets : (List Foundation.Sec::Asset), rows : (List Placement)],
+  result: Bool,
+  body: (match assets
+    | List.nil => true
+    | List.cons head rest => ((placedAt (project head index) (project head componentIndex) rows) && (primaryPlaced rest rows))),
+  recursive_argument: assets
+}
+
+definition{
+  name: likelihoodsUnbound,
+  parameters: [records : (List RiskAssessment)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((not (Product::isBound (project head likelihood))) && (likelihoodsUnbound rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: impactIsCritical,
+  parameters: [impact : Foundation.Sec::Impact],
+  result: Bool,
+  body: (match impact
+    | Foundation.Sec::Impact.minor => false
+    | Foundation.Sec::Impact.major => false
+    | Foundation.Sec::Impact.critical => true)
+}
+
+definition{
+  name: impactIsMajor,
+  parameters: [impact : Foundation.Sec::Impact],
+  result: Bool,
+  body: (match impact
+    | Foundation.Sec::Impact.minor => false
+    | Foundation.Sec::Impact.major => true
+    | Foundation.Sec::Impact.critical => false)
+}
+
+definition{
+  name: criticalRisks,
+  parameters: [records : (List RiskAssessment)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (if (impactIsCritical (project head impact)) then (cons (project head index) (criticalRisks rest)) else (criticalRisks rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: majorRisks,
+  parameters: [records : (List RiskAssessment)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (if (impactIsMajor (project head impact)) then (cons (project head index) (majorRisks rest)) else (majorRisks rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: measurementHonest,
+  parameters: [entry : Measurement, residual : (List Nat)],
+  result: Bool,
+  body: ((nonEmpty (project entry check)) && (match (project entry status)
+    | MeasureStatus.Executed reference => ((not (Architecture::natMember (project entry risk) residual)) && (nonEmpty reference))
+    | MeasureStatus.Pending reason => ((not (Architecture::natMember (project entry risk) residual)) && (nonEmpty reason))
+    | MeasureStatus.Residual rationale => ((Architecture::natMember (project entry risk) residual) && (nonEmpty rationale))))
+}
+
+definition{
+  name: measurementsHonest,
+  parameters: [records : (List Measurement), residual : (List Nat)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((measurementHonest head residual) && (measurementsHonest rest residual))),
+  recursive_argument: records
+}
+
+definition{
+  name: pendingRisks,
+  parameters: [records : (List Measurement)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (match (project head status)
+      | MeasureStatus.Executed reference => (pendingRisks rest)
+      | MeasureStatus.Pending reason => (cons (project head risk) (pendingRisks rest))
+      | MeasureStatus.Residual rationale => (pendingRisks rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: rationaleNamed,
+  parameters: [records : (List Residual)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((nonEmpty (project head rationale)) && (rationaleNamed rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: securityViewComponents,
+  parameters: [],
+  result: (List Nat),
+  body: (viewComponents 1 (Architecture::viewSpecs))
+}
+
+definition{
+  name: riskChainHolds,
+  parameters: [],
+  result: Bool,
+  body: ((Architecture::allMembers (riskIndexes (riskRecords)) (measurementRisks (measurements))) && (Architecture::sameNats (uncontrolled (riskIndexes (riskRecords)) (controlRisks (controlRecords))) (residualRisks (residuals))))
+}
+
+definition{
+  name: securityValid,
+  parameters: [],
+  result: Bool,
+  body: ((Architecture::sameNats (namedIndexes (assetNames)) (assetIndexes (assetRecords))) && ((Architecture::sameNats (namedIndexes (threatNames)) (threatIndexes (threatRecords))) && ((Architecture::sameNats (namedIndexes (controlNames)) (controlIndexes (controlRecords))) && ((Architecture::sameNats (namedIndexes (activityNames)) (activityIndexes (activityRecords))) && ((Architecture::allMembers (assetComponents (assetRecords)) (Architecture::componentIndexes (Architecture::componentRecords))) && ((Architecture::allMembers (placementComponents (placements)) (securityViewComponents)) && ((Architecture::allMembers (placementAssets (placements)) (assetIndexes (assetRecords))) && ((Architecture::allMembers (assetIndexes (assetRecords)) (placementAssets (placements))) && ((primaryPlaced (assetRecords) (placements)) && ((Architecture::allMembers (riskAssets (riskRecords)) (assetIndexes (assetRecords))) && ((Architecture::sameNats (riskThreats (riskRecords)) (threatIndexes (threatRecords))) && ((Architecture::allMembers (controlRisks (controlRecords)) (riskIndexes (riskRecords))) && ((Architecture::allMembers (activityControls (activityRecords)) (controlIndexes (controlRecords))) && ((Architecture::sameNats (measurementRisks (measurements)) (riskIndexes (riskRecords))) && ((Architecture::sameNats (uncontrolled (riskIndexes (riskRecords)) (controlRisks (controlRecords))) (residualRisks (residuals))) && ((Architecture::allMembers (residualRisks (residuals)) (riskIndexes (riskRecords))) && ((rationaleNamed (residuals)) && ((measurementsHonest (measurements) (residualRisks (residuals))) && (likelihoodsUnbound (riskRecords))))))))))))))))))))
+}
+
+theorem{
+  name: securityModelHolds,
+  parameters: [],
+  statement: ((securityValid) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: riskChainIsComplete,
+  parameters: [],
+  statement: ((riskChainHolds) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyRiskHasMeasurement,
+  parameters: [],
+  statement: ((Architecture::allMembers (riskIndexes (riskRecords)) (measurementRisks (measurements))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: uncontrolledRiskIsR10,
+  parameters: [],
+  statement: ((uncontrolled (riskIndexes (riskRecords)) (controlRisks (controlRecords))) = (cons 9 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: residualRiskIsR10,
+  parameters: [],
+  statement: ((residualRisks (residuals)) = (cons 9 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: likelihoodsAreOwnerSetAndUnbound,
+  parameters: [],
+  statement: ((likelihoodsUnbound (riskRecords)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: criticalRisksAre,
+  parameters: [],
+  statement: ((criticalRisks (riskRecords)) = (cons 0 (cons 1 (cons 2 (cons 4 (cons 7 (nil Nat))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: majorRisksAre,
+  parameters: [],
+  statement: ((majorRisks (riskRecords)) = (cons 3 (cons 5 (cons 6 (cons 8 (cons 9 (nil Nat))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: measurementsPendingForControlledRisks,
+  parameters: [],
+  statement: ((pendingRisks (measurements)) = (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (cons 8 (nil Nat))))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: assetsInSecurityView,
+  parameters: [],
+  statement: ((Architecture::allMembers (assetComponents (assetRecords)) (securityViewComponents)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: activityControlsAre,
+  parameters: [],
+  statement: ((activityControls (activityRecords)) = (cons 7 (cons 8 (cons 1 (cons 1 (nil Nat)))))),
+  proof: decide{}
+}
+\end{semanticmodule}
+\end{lexlean}

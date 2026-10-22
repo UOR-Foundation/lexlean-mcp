@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-quality-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Quality"
+component = "qualityValid"
+
+[[form]]
+id = "lexlean-mcp-quality-model"
+channel = "text"
+surface = "LexLean MCP quality model"
+canonical_source = true
+features = ["sentence-case", "singular"]
