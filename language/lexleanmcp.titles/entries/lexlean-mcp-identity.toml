@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-identity"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Identity"
+component = "profileRT"
+
+[[form]]
+id = "lexlean-mcp-identity"
+channel = "text"
+surface = "LexLean MCP identity"
+canonical_source = true
+features = ["sentence-case", "singular"]
