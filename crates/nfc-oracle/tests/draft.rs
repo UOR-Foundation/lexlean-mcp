@@ -350,7 +350,13 @@ fn the_duplicate_scan_agrees_with_a_set_on_shuffled_drafts_dl_03() {
         for _ in 0..count {
             let length = 1 + (generator.next() % 5) as usize;
             let name: String = (0..length)
-                .map(|_| if generator.next() % 2 == 0 { 'a' } else { 'b' })
+                .map(|_| {
+                    if generator.next().is_multiple_of(2) {
+                        'a'
+                    } else {
+                        'b'
+                    }
+                })
                 .collect();
             rows.push((format!("src/{name}.lex.tex").into_bytes(), Vec::new()));
         }
