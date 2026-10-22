@@ -284,16 +284,24 @@ fn a_draft_failing_several_stages_is_refused_by_the_earliest_dl_03() {
 #[test]
 fn a_duplicate_is_a_repeat_of_the_whole_path_dl_03() {
     let roots: [&[u8]; 1] = [b"src"];
-    let said = |rows: Vec<(Vec<u8>, Vec<u8>)>| {
-        verdict_text(&admit_draft(9, 99, &roots, &rows))
-    };
+    let said = |rows: Vec<(Vec<u8>, Vec<u8>)>| verdict_text(&admit_draft(9, 99, &roots, &rows));
     let row = |path: &str| (path.as_bytes().to_vec(), Vec::new());
     // Equal paths that are not adjacent, a path that is a prefix of another, and the
     // same path under another directory.
     assert_eq!(
-        said(vec![row("src/a.lex.tex"), row("src/b.lex.tex"), row("src/a.lex.tex")]),
+        said(vec![
+            row("src/a.lex.tex"),
+            row("src/b.lex.tex"),
+            row("src/a.lex.tex")
+        ]),
         "Refused DuplicatePath"
     );
-    assert_eq!(said(vec![row("src/a.lex.tex"), row("src/a.lex.tex.lex.tex")]), "Admitted");
-    assert_eq!(said(vec![row("src/a.lex.tex"), row("src/d/a.lex.tex")]), "Admitted");
+    assert_eq!(
+        said(vec![row("src/a.lex.tex"), row("src/a.lex.tex.lex.tex")]),
+        "Admitted"
+    );
+    assert_eq!(
+        said(vec![row("src/a.lex.tex"), row("src/d/a.lex.tex")]),
+        "Admitted"
+    );
 }

@@ -73,8 +73,7 @@ mod admission_package;
 mod draft_package;
 
 /// The text of the generated draft admission package this crate compiled.
-pub const DRAFT_SOURCE: &str =
-    include_str!("../generated/lexlean_mcp_draft_admission/src/lib.rs");
+pub const DRAFT_SOURCE: &str = include_str!("../generated/lexlean_mcp_draft_admission/src/lib.rs");
 
 /// The text of the generated admission package this crate compiled.
 pub const ADMISSION_SOURCE: &str = include_str!("../generated/lexlean_mcp_admission/src/lib.rs");
