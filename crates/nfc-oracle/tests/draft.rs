@@ -91,7 +91,14 @@ fn the_stages_over_the_rows_are_executable_definitions_dl_01() {
         "totalBytes",
         "rowsStage",
         "pathsInto",
-        "occurs",
+        "octetsBefore",
+        "lengthInto",
+        "singletonRuns",
+        "mergeInto",
+        "mergePairs",
+        "sortRuns",
+        "sortPaths",
+        "adjacentRepeat",
         "anyRepeat",
         "duplicatesStage",
         "admitDraft",
@@ -102,6 +109,17 @@ fn the_stages_over_the_rows_are_executable_definitions_dl_01() {
             "{name} is not executable, so it cannot be in the closure of a production root:\n{definition}"
         );
     }
+    // The duplicate scan sorts the paths and compares neighbours: no row is compared with
+    // every other row.
+    let repeat = block(&source, "definition", "anyRepeat");
+    assert!(
+        repeat.contains("adjacentRepeat (sortPaths paths)"),
+        "{repeat}"
+    );
+    assert!(
+        !source.contains("name: occurs,"),
+        "a pairwise scan has no place in draft admission"
+    );
     let root = block(&source, "definition", "admitDraftRun");
     assert!(root.contains("production: {effects: [allocation, overflow], targets: [rust-std]}"));
     assert!(
@@ -304,4 +322,49 @@ fn a_duplicate_is_a_repeat_of_the_whole_path_dl_03() {
         said(vec![row("src/a.lex.tex"), row("src/d/a.lex.tex")]),
         "Admitted"
     );
+}
+
+/// A small deterministic generator; the tests need a spread, not randomness.
+struct Lcg(u64);
+
+impl Lcg {
+    fn next(&mut self) -> u64 {
+        self.0 = self
+            .0
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        self.0 >> 33
+    }
+}
+
+#[test]
+fn the_duplicate_scan_agrees_with_a_set_on_shuffled_drafts_dl_03() {
+    // Paths over a two-letter alphabet, so that many are prefixes of others and many
+    // repeat; the verdict must be DuplicatePath exactly when a set sees a repeat.
+    let mut generator = Lcg(0x5eed);
+    let roots: [&[u8]; 1] = [b"src"];
+    let (mut repeated, mut distinct) = (0, 0);
+    for case in 0..400 {
+        let count = (generator.next() % 40) as usize;
+        let mut rows = Vec::new();
+        for _ in 0..count {
+            let length = 1 + (generator.next() % 5) as usize;
+            let name: String = (0..length)
+                .map(|_| if generator.next() % 2 == 0 { 'a' } else { 'b' })
+                .collect();
+            rows.push((format!("src/{name}.lex.tex").into_bytes(), Vec::new()));
+        }
+        let mut seen = std::collections::HashSet::new();
+        let has_repeat = rows.iter().any(|(path, _)| !seen.insert(path.clone()));
+        let got = verdict_text(&admit_draft(100, 100, &roots, &rows));
+        let expected = if has_repeat {
+            repeated += 1;
+            "Refused DuplicatePath"
+        } else {
+            distinct += 1;
+            "Admitted"
+        };
+        assert_eq!(got, expected, "case {case}: {rows:?}");
+    }
+    assert!(repeated > 50 && distinct > 50, "{repeated} and {distinct}");
 }

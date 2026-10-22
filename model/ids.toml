@@ -17,7 +17,7 @@
 #
 # The Unicode normalization decision (issue #25) is the first capability
 # registered: NF-01..NF-13. Draft admission as loops, exported as a production
-# root (issue #9, F3), registers DL-01..DL-03.
+# root (issue #9, F3), registers DL-01..DL-04.
 
 spec = "template/1"
 
@@ -116,3 +116,9 @@ id = "DL-03"
 level = "build"
 suite = "draft"
 statement = "Draft admission through the exported root admitDraftRun on the full tables gives the verdicts of the kernel-checked instances of admitDraft, with the refusal named by the constructor order of Refusal, and decides in this order: the path refusals of the rows in row order, then TooManyFiles, then TooManyBytes, then DuplicatePath."
+
+[[id]]
+id = "DL-04"
+level = "build"
+suite = "draft"
+statement = "The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound."

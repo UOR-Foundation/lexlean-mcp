@@ -108,10 +108,9 @@ struct Instance {
 fn parse_instance(name: &str, statement: &str) -> Option<Instance> {
     let (on_sample, mut rest) = if let Some(rest) = statement.strip_prefix("((admitPath (") {
         (false, rest)
-    } else if let Some(rest) = statement.strip_prefix("((admitPathWith (NfcTables::sample) (") {
-        (true, rest)
     } else {
-        return None;
+        let rest = statement.strip_prefix("((admitPathWith (NfcTables::sample) (")?;
+        (true, rest)
     };
     // `rest` starts after the "(" that opens the roots list: `cons 0x.. (cons .. (nil Bytes))` or `nil Bytes)`.
     let mut roots = Vec::new();

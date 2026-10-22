@@ -11,7 +11,7 @@
 
 mod common;
 
-use common::{on_stack, verdict_text};
+use common::{on_stack, on_stack_within, verdict_text};
 use nfc_oracle::admit_draft;
 
 const STACK: usize = 2 * 1024 * 1024;
@@ -87,4 +87,60 @@ fn a_draft_with_a_duplicate_path_is_refused_as_duplicate_path_dl_02() {
     // Two rows, the smallest draft with a repeat.
     let twice = vec![(path(7), Vec::new()), (path(7), Vec::new())];
     assert_eq!(judge(2, 0, twice), "Refused DuplicatePath");
+}
+
+/// How long the duplicate scan of a million rows may take. Sorting a million paths and
+/// comparing neighbours takes a fraction of this; a scan that compares every row with
+/// every other would make about 5 * 10^11 comparisons and does not finish. The bound
+/// separates the two; it is not a measure of speed.
+const SCAN_LIMIT: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// `count` rows with distinct paths `src/a0000000.lex.tex` and so on, in an order
+/// that is no sorted order: row `i` holds path number `i * 7919 mod count`.
+fn shuffled_rows(count: usize) -> Vec<(Vec<u8>, Vec<u8>)> {
+    assert_ne!(
+        count % 7919,
+        0,
+        "7919 is prime, so the map is a permutation"
+    );
+    (0..count)
+        .map(|i| {
+            let number = (i * 7919) % count;
+            (format!("src/a{number:07}.lex.tex").into_bytes(), Vec::new())
+        })
+        .collect()
+}
+
+fn judge_within(max_files: u64, rows: Vec<(Vec<u8>, Vec<u8>)>) -> (String, std::time::Duration) {
+    let (verdict, took) = on_stack_within(STACK, SCAN_LIMIT, move || {
+        verdict_text(&admit_draft(max_files, 1 << 40, &ROOTS, &rows))
+    });
+    (verdict, took)
+}
+
+#[test]
+fn a_draft_of_a_million_distinct_paths_is_admitted_within_the_bound_dl_04() {
+    let (verdict, took) = judge_within(MILLION as u64, shuffled_rows(MILLION));
+    println!("admitted {MILLION} rows in {took:?}");
+    assert_eq!(verdict, "Admitted");
+}
+
+#[test]
+fn the_same_draft_with_one_repeated_path_is_refused_within_the_bound_dl_04() {
+    let mut rows = shuffled_rows(MILLION);
+    rows[600_000].0 = rows[0].0.clone();
+    let (verdict, took) = judge_within(MILLION as u64, rows);
+    println!("refused {MILLION} rows in {took:?}");
+    assert_eq!(verdict, "Refused DuplicatePath");
+}
+
+#[test]
+fn a_repeat_of_the_neighbour_in_sorted_order_is_found_dl_04() {
+    // The repeated pair is the first and the last row, which no scan of adjacent rows
+    // in the order given would see.
+    let mut rows = shuffled_rows(50_000);
+    let last = rows.len() - 1;
+    rows[last].0 = rows[0].0.clone();
+    let (verdict, _) = judge_within(50_000, rows);
+    assert_eq!(verdict, "Refused DuplicatePath");
 }

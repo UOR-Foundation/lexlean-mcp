@@ -19,3 +19,10 @@ Feature: Draft admission as loops
     Given the exported draft root, the full tables and the instances of admitDraft in src/Admission.lex.tex
     When it judges the drafts of the instances and drafts that fail several stages at once
     Then each verdict is the one the instance states, and a draft that fails several stages is refused by the earliest in the order
+
+  @DL-04 @build
+  Scenario: The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound.
+    Given the exported draft root, a thread with a two MiB stack and a draft of one million rows with distinct paths in no sorted order
+    When the root judges the draft, and the draft with one path repeated, each against the time bound
+    Then the first is Admitted and the second is Refused DuplicatePath, each within the bound
+
