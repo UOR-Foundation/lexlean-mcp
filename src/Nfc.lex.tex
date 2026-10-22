@@ -6,15 +6,6 @@
 \title{LexLean MCP Unicode normalization}
 \begin{semanticmodule}
 definition{
-  name: appendList,
-  parameters: [xs : (List Nat), ys : (List Nat)],
-  result: (List Nat),
-  body: (match xs | List.nil => ys | List.cons head rest => (cons head (appendList rest ys))),
-  executable: true,
-  recursive_argument: xs
-}
-
-definition{
   name: reverseOnto,
   parameters: [xs : (List Nat), done : (List Nat)],
   result: (List Nat),
@@ -66,12 +57,12 @@ definition{
 }
 
 definition{
-  name: decodeFrom,
-  parameters: [octets : (List Nat), pending : Nat, needed : Nat],
+  name: decodeInto,
+  parameters: [octets : (List Nat), pending : Nat, needed : Nat, done : (List Nat)],
   result: (List Nat),
   body: (match octets
-    | List.nil => (nil Nat)
-    | List.cons octet rest => (if (needed =? 0) then (if (octet <? 128) then (cons octet (decodeFrom rest 0 0)) else (if (octet <? 224) then (decodeFrom rest (prim subtract octet 192 : Nat) 1) else (if (octet <? 240) then (decodeFrom rest (prim subtract octet 224 : Nat) 2) else (decodeFrom rest (prim subtract octet 240 : Nat) 3)))) else (let gathered : Nat := ((prim multiply pending 64 : Nat) + (prim subtract octet 128 : Nat)); (if (needed =? 1) then (cons gathered (decodeFrom rest 0 0)) else (decodeFrom rest gathered (prim subtract needed 1 : Nat)))))),
+    | List.nil => done
+    | List.cons octet rest => (if (needed =? 0) then (if (octet <? 128) then (decodeInto rest 0 0 (cons octet done)) else (if (octet <? 224) then (decodeInto rest (prim subtract octet 192 : Nat) 1 done) else (if (octet <? 240) then (decodeInto rest (prim subtract octet 224 : Nat) 2 done) else (decodeInto rest (prim subtract octet 240 : Nat) 3 done)))) else (let gathered : Nat := ((prim multiply pending 64 : Nat) + (prim subtract octet 128 : Nat)); (if (needed =? 1) then (decodeInto rest 0 0 (cons gathered done)) else (decodeInto rest gathered (prim subtract needed 1 : Nat) done))))),
   executable: true,
   recursive_argument: octets
 }
@@ -80,7 +71,7 @@ definition{
   name: scalarsOfOctets,
   parameters: [octets : (List Nat)],
   result: (List Nat),
-  body: (decodeFrom octets 0 0),
+  body: (reverseOnto (decodeInto octets 0 0 (nil Nat)) (nil Nat)),
   executable: true
 }
 
@@ -224,15 +215,24 @@ definition{
 }
 
 definition{
-  name: expandOnce,
-  parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
+  name: expandInto,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat), done : (List Nat)],
   result: (List Nat),
   body: (match xs
-    | List.nil => (nil Nat)
-    | List.cons code rest => (appendList (expandScalar tables code) (expandOnce tables rest))),
+    | List.nil => done
+    | List.cons code rest => (expandInto tables rest (reverseOnto (expandScalar tables code) done))),
   axioms: [Quot.sound, propext],
   executable: true,
   recursive_argument: xs
+}
+
+definition{
+  name: expandOnce,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
+  result: (List Nat),
+  body: (reverseOnto (expandInto tables xs (nil Nat)) (nil Nat)),
+  axioms: [Quot.sound, propext],
+  executable: true
 }
 
 definition{
@@ -257,27 +257,42 @@ definition{
 }
 
 definition{
-  name: insertMark,
-  parameters: [tables : (Bytes * Bytes), code : Nat, rank : Nat, placed : (List Nat)],
+  name: placeMark,
+  parameters: [
+    tables : (Bytes * Bytes),
+    code : Nat,
+    rank : Nat,
+    placed : (List Nat),
+    held : (List Nat)
+  ],
   result: (List Nat),
   body: (match placed
-    | List.nil => (cons code (nil Nat))
-    | List.cons head rest => (let headRank : Nat := (combiningClass tables head); (if (headRank =? 0) then (cons code (cons head rest)) else (if (headRank <? rank) then (cons head (insertMark tables code rank rest)) else (cons code (cons head rest)))))),
+    | List.nil => (reverseOnto held (cons code (nil Nat)))
+    | List.cons head rest => (let headRank : Nat := (combiningClass tables head); (if (headRank =? 0) then (reverseOnto held (cons code (cons head rest))) else (if (rank <? headRank) then (placeMark tables code rank rest (cons head held)) else (reverseOnto held (cons code (cons head rest))))))),
   axioms: [Quot.sound, propext],
   executable: true,
   recursive_argument: placed
 }
 
 definition{
-  name: orderMarks,
-  parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
+  name: orderInto,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat), placed : (List Nat)],
   result: (List Nat),
   body: (match xs
-    | List.nil => (nil Nat)
-    | List.cons code rest => (let rank : Nat := (combiningClass tables code); (if (rank =? 0) then (cons code (orderMarks tables rest)) else (insertMark tables code rank (orderMarks tables rest))))),
+    | List.nil => placed
+    | List.cons code rest => (let rank : Nat := (combiningClass tables code); (if (rank =? 0) then (orderInto tables rest (cons code placed)) else (orderInto tables rest (placeMark tables code rank placed (nil Nat)))))),
   axioms: [Quot.sound, propext],
   executable: true,
   recursive_argument: xs
+}
+
+definition{
+  name: orderMarks,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
+  result: (List Nat),
+  body: (reverseOnto (orderInto tables xs (nil Nat)) (nil Nat)),
+  axioms: [Quot.sound, propext],
+  executable: true
 }
 
 definition{
@@ -326,9 +341,9 @@ definition{
 
 definition{
   name: flush,
-  parameters: [starter : Nat, marks : (List Nat), later : (List Nat)],
+  parameters: [starter : Nat, marks : (List Nat), done : (List Nat)],
   result: (List Nat),
-  body: (cons starter (reverseOnto marks later)),
+  body: (reverseOnto (reverseOnto marks (nil Nat)) (cons starter done)),
   executable: true
 }
 
@@ -339,12 +354,13 @@ definition{
     xs : (List Nat),
     hasStarter : Bool,
     starter : Nat,
-    marks : (List Nat)
+    marks : (List Nat),
+    done : (List Nat)
   ],
   result: (List Nat),
   body: (match xs
-    | List.nil => (if hasStarter then (flush starter marks (nil Nat)) else (nil Nat))
-    | List.cons code rest => (let rank : Nat := (combiningClass tables code); (if hasStarter then (let composite : Nat := (unlessBlocked (blockedBy tables marks rank) (composePair tables starter code)); (if (composite =? 0) then (if (rank =? 0) then (flush starter marks (composeRun tables rest true code (nil Nat))) else (composeRun tables rest true starter (cons code marks))) else (composeRun tables rest true composite marks))) else (if (rank =? 0) then (composeRun tables rest true code (nil Nat)) else (cons code (composeRun tables rest false 0 (nil Nat))))))),
+    | List.nil => (if hasStarter then (reverseOnto (flush starter marks done) (nil Nat)) else (reverseOnto done (nil Nat)))
+    | List.cons code rest => (let rank : Nat := (combiningClass tables code); (if hasStarter then (let composite : Nat := (unlessBlocked (blockedBy tables marks rank) (composePair tables starter code)); (if (composite =? 0) then (if (rank =? 0) then (composeRun tables rest true code (nil Nat) (flush starter marks done)) else (composeRun tables rest true starter (cons code marks) done)) else (composeRun tables rest true composite marks done))) else (if (rank =? 0) then (composeRun tables rest true code (nil Nat) done) else (composeRun tables rest false 0 (nil Nat) (cons code done)))))),
   axioms: [Quot.sound, propext],
   executable: true,
   recursive_argument: xs
@@ -363,7 +379,7 @@ definition{
   name: toNfc,
   parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
   result: (List Nat),
-  body: (composeRun tables (toNfd tables xs) false 0 (nil Nat)),
+  body: (composeRun tables (toNfd tables xs) false 0 (nil Nat) (nil Nat)),
   axioms: [Quot.sound, propext],
   executable: true
 }
@@ -403,7 +419,7 @@ definition{
   body: (let tables : (Bytes * Bytes) := (low, high); (let scalars : (List Nat) := (scalarsOfOctets (octetsOfBytes input)); (if (mode =? 0) then (verdictWord (isNfc tables scalars)) else (if (mode =? 1) then scalars else (if (mode =? 2) then (toNfd tables scalars) else (toNfc tables scalars)))))),
   axioms: [Quot.sound, propext],
   executable: true,
-  production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
+  production: {effects: [allocation, overflow], targets: [rust-std]}
 }
 
 theorem{
