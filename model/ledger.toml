@@ -10,9 +10,16 @@
 # The meta-gate proves the suite never asserts an `open` claim as established,
 # and `CM-03` proves every `some-true` row cites an authority that exists.
 #
-# The ledger is empty. A claim added here needs its level chosen first, because
-# the level decides what evidence it owes.
+# The claims below are facts the NFC decision reproduces from the standard, the
+# database files and the crate it cites; the level of each is some-true.
 
 spec = "template/1"
 
-claim = []
+claim = [
+  { id = "AUTH-01", level = "some-true", statement = "UAX #15 defines NFC as canonical decomposition, canonical ordering, then canonical composition with the composition exclusions.", authority = "A-UAX15" },
+  { id = "AUTH-02", level = "some-true", statement = "The pinned UnicodeData.txt gives the combining class and canonical decomposition of every assigned code point of Unicode 17.0.0.", authority = "A-UCD-UNICODEDATA" },
+  { id = "AUTH-03", level = "some-true", statement = "The pinned CompositionExclusions.txt lists the script-specific and post-composition-version composition exclusions.", authority = "A-UCD-COMPOSITIONEXCLUSIONS" },
+  { id = "AUTH-06", level = "some-true", statement = "The pinned DerivedNormalizationProps.txt gives Full_Composition_Exclusion, the code points canonical composition never produces.", authority = "A-UCD-DERIVEDNORMALIZATIONPROPS" },
+  { id = "AUTH-04", level = "some-true", statement = "The pinned NormalizationTest.txt states the invariants a conformant normalization satisfies on each of its lines.", authority = "A-UCD-NORMALIZATIONTEST" },
+  { id = "AUTH-05", level = "some-true", statement = "unicode-normalization 0.1.25 implements Unicode 17.0.0, and LexLean release/v0.4 at 9796067 pins it.", authority = "A-UNICODE-NORMALIZATION" },
+]
