@@ -3,6 +3,8 @@
 \useglossary{lexlean.std.nat@1.2.0}
 \useglossary{lexleanmcp.titles@1.0.0}
 \importmodule{Identity}
+\importmodule{Nfc}
+\importmodule{NfcTables}
 \title{LexLean MCP path admission}
 \begin{semanticmodule}
 inductive{
@@ -11,6 +13,7 @@ inductive{
   parameters: [],
   constructors: [
     {name: NotUtf8, fields: []},
+    {name: NotNfc, fields: []},
     {name: AbsolutePath, fields: []},
     {name: EmptyComponent, fields: []},
     {name: DotComponent, fields: []},
@@ -1234,10 +1237,26 @@ definition{
 }
 
 definition{
+  name: nfcStage,
+  parameters: [tables : (Bytes * Bytes), path : Bytes],
+  result: Verdict,
+  body: (if (Nfc::isNfc tables (Nfc::scalarsOfOctets (Nfc::octetsOfBytes path))) then (ctor Verdict.Admitted) else (ctor Verdict.Refused (ctor Refusal.NotNfc))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: admitPathWith,
+  parameters: [tables : (Bytes * Bytes), roots : (List Bytes), path : Bytes],
+  result: Verdict,
+  body: (andThen (utf8Stage path) (andThen (nfcStage tables path) (admitOctets (Identity::recordsOfBytes roots) (Identity::octetsOfBytes path)))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
   name: admitPath,
   parameters: [roots : (List Bytes), path : Bytes],
   result: Verdict,
-  body: (andThen (utf8Stage path) (admitOctets (Identity::recordsOfBytes roots) (Identity::octetsOfBytes path))),
+  body: (admitPathWith (NfcTables::tables) roots path),
   axioms: [Classical.choice, Quot.sound, propext]
 }
 
@@ -1252,12 +1271,20 @@ theorem{
 }
 
 theorem{
+  name: admittedPathWithHasNoDotDot,
+  parameters: [tables : (Bytes * Bytes), roots : (List Bytes), path : Bytes],
+  statement: (((isAdmitted (admitPathWith tables roots path)) && (hasDotDot (splitSlash (Identity::octetsOfBytes path)))) = false),
+  proof: simplify{
+    definitions: [admitPathWith, admittedOctetsHaveNoDotDot, andFalse, andThenAdmitted, utf8Chain]
+  },
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
   name: admittedPathHasNoDotDot,
   parameters: [roots : (List Bytes), path : Bytes],
   statement: (((isAdmitted (admitPath roots path)) && (hasDotDot (splitSlash (Identity::octetsOfBytes path)))) = false),
-  proof: simplify{
-    definitions: [admitPath, admittedOctetsHaveNoDotDot, andFalse, andThenAdmitted, utf8Chain]
-  },
+  proof: simplify{definitions: [admitPath, admittedPathWithHasNoDotDot]},
   axioms: [Classical.choice, Quot.sound, propext]
 }
 
@@ -1583,6 +1610,54 @@ theorem{
   name: admitsPrecomposedLetter,
   parameters: [],
   statement: ((admitPath (cons 0x737263 (nil Bytes)) 0x7372632fc3a92e6c65782e746578) = (ctor Verdict.Admitted)),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: refusesDecomposedLetter,
+  parameters: [],
+  statement: ((admitPathWith (NfcTables::sample) (cons 0x737263 (nil Bytes)) 0x7372632f65cc812e6c65782e746578) = (ctor Verdict.Refused (ctor Refusal.NotNfc))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitsPrecomposedLetterOnTheSample,
+  parameters: [],
+  statement: ((admitPathWith (NfcTables::sample) (cons 0x737263 (nil Bytes)) 0x7372632fc3a92e6c65782e746578) = (ctor Verdict.Admitted)),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: notNfcIsRefusedBeforeTheRootCheck,
+  parameters: [],
+  statement: ((admitPathWith (NfcTables::sample) (cons 0x737263 (nil Bytes)) 0x6c69622f65cc812e6c65782e746578) = (ctor Verdict.Refused (ctor Refusal.NotNfc))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: notNfcIsRefusedBeforeTheSuffixCheck,
+  parameters: [],
+  statement: ((admitPathWith (NfcTables::sample) (cons 0x737263 (nil Bytes)) 0x7372632f65cc812e747874) = (ctor Verdict.Refused (ctor Refusal.NotNfc))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: notUtf8IsRefusedBeforeNfc,
+  parameters: [],
+  statement: ((admitPathWith (NfcTables::sample) (cons 0x737263 (nil Bytes)) 0x7372632f65cc2e6c65782e746578) = (ctor Verdict.Refused (ctor Refusal.NotUtf8))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitPathIsAdmitPathWithTheTables,
+  parameters: [roots : (List Bytes), path : Bytes],
+  statement: ((admitPath roots path) = (admitPathWith (NfcTables::tables) roots path)),
   proof: reflexivity{},
   axioms: [Classical.choice, Quot.sound, propext]
 }
