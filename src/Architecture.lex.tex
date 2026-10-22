@@ -1,0 +1,1120 @@
+\begin{lexlean}{Architecture}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Foundation.Arch}
+\importmodule{Product}
+\title{LexLean MCP architecture description}
+\begin{semanticmodule}
+inductive{
+  name: Anchor,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: ProtocolCore, fields: [String]},
+    {name: External, fields: []},
+    {name: Pending, fields: []}
+  ]
+}
+
+structure{
+  name: Narrative,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: index, type: Nat}, {name: name, type: String}, {name: text, type: String}]
+}
+
+structure{
+  name: Binding,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: index, type: Nat},
+    {name: name, type: String},
+    {name: systemKind, type: String},
+    {name: anchor, type: Anchor}
+  ]
+}
+
+structure{
+  name: Interest,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: stakeholder, type: Nat}, {name: concern, type: Nat}]
+}
+
+structure{
+  name: ViewpointGroup,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: index, type: Nat},
+    {name: modelKind, type: Nat},
+    {name: framings, type: (List Nat)},
+    {name: concerns, type: (List Nat)}
+  ]
+}
+
+structure{
+  name: ViewSpec,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: view, type: Nat},
+    {name: components, type: (List Nat)},
+    {name: edges, type: (List Nat)}
+  ]
+}
+
+definition{
+  name: standardIso42010,
+  parameters: [],
+  result: Foundation.Arch::StandardReference,
+  body: (record Foundation.Arch::StandardReference {standardIndex := 42010, editionIndex := 2022})
+}
+
+definition{
+  name: stakeholderRequester,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 0})
+}
+
+definition{
+  name: stakeholderAuthorAgent,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 1})
+}
+
+definition{
+  name: stakeholderReader,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 2})
+}
+
+definition{
+  name: stakeholderOperator,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 3})
+}
+
+definition{
+  name: stakeholderLexiconMaintainer,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 4})
+}
+
+definition{
+  name: stakeholderLexLeanMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 5})
+}
+
+definition{
+  name: stakeholderPrismPMMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 6})
+}
+
+definition{
+  name: stakeholderMcpMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 7})
+}
+
+definition{
+  name: concernC1MeaningFidelity,
+  parameters: [],
+  result: Foundation.Arch::Concern,
+  body: (record Foundation.Arch::Concern {index := 0})
+}
+
+definition{
+  name: concernC2IntentFidelity,
+  parameters: [],
+  result: Foundation.Arch::Concern,
+  body: (record Foundation.Arch::Concern {index := 1})
+}
+
+definition{
+  name: concernC3RepairSignal,
+  parameters: [],
+  result: Foundation.Arch::Concern,
+  body: (record Foundation.Arch::Concern {index := 2})
+}
+
+definition{
+  name: concernC4Provenance,
+  parameters: [],
+  result: Foundation.Arch::Concern,
+  body: (record Foundation.Arch::Concern {index := 3})
+}
+
+definition{
+  name: concernC5Isolation,
+  parameters: [],
+  result: Foundation.Arch::Concern,
+  body: (record Foundation.Arch::Concern {index := 4})
+}
+
+definition{
+  name: concernC6BoundedResources,
+  parameters: [],
+  result: Foundation.Arch::Concern,
+  body: (record Foundation.Arch::Concern {index := 5})
+}
+
+definition{
+  name: concernC7Compatibility,
+  parameters: [],
+  result: Foundation.Arch::Concern,
+  body: (record Foundation.Arch::Concern {index := 6})
+}
+
+definition{
+  name: concernC8StandardConformance,
+  parameters: [],
+  result: Foundation.Arch::Concern,
+  body: (record Foundation.Arch::Concern {index := 7})
+}
+
+definition{
+  name: componentClient,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 0, kind := (ctor Foundation.Arch::ComponentKind.externalSystem)})
+}
+
+definition{
+  name: componentGateway,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 1, kind := (ctor Foundation.Arch::ComponentKind.service)})
+}
+
+definition{
+  name: componentProtocolCore,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 2, kind := (ctor Foundation.Arch::ComponentKind.service)})
+}
+
+definition{
+  name: componentToolLayer,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 3, kind := (ctor Foundation.Arch::ComponentKind.service)})
+}
+
+definition{
+  name: componentEngineHost,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 4, kind := (ctor Foundation.Arch::ComponentKind.service)})
+}
+
+definition{
+  name: componentVerifier,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 5, kind := (ctor Foundation.Arch::ComponentKind.service)})
+}
+
+definition{
+  name: componentSigner,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 6, kind := (ctor Foundation.Arch::ComponentKind.service)})
+}
+
+definition{
+  name: componentTelemetryCollector,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 7, kind := (ctor Foundation.Arch::ComponentKind.service)})
+}
+
+definition{
+  name: componentStore,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 8, kind := (ctor Foundation.Arch::ComponentKind.database)})
+}
+
+definition{
+  name: componentToolchain,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 9, kind := (ctor Foundation.Arch::ComponentKind.externalSystem)})
+}
+
+definition{
+  name: edgeClientGateway,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 0, fromIndex := 0, toIndex := 1, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
+}
+
+definition{
+  name: edgeGatewayCore,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 1, fromIndex := 1, toIndex := 2, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
+}
+
+definition{
+  name: edgeCoreGateway,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 2, fromIndex := 2, toIndex := 1, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
+}
+
+definition{
+  name: edgeGatewayToolLayer,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 3, fromIndex := 1, toIndex := 3, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
+}
+
+definition{
+  name: edgeToolLayerGateway,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 4, fromIndex := 3, toIndex := 1, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
+}
+
+definition{
+  name: edgeToolLayerEngineHost,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 5, fromIndex := 3, toIndex := 4, kind := (ctor Foundation.Arch::EdgeKind.controlFlow)})
+}
+
+definition{
+  name: edgeEngineHostStore,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 6, fromIndex := 4, toIndex := 8, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
+}
+
+definition{
+  name: edgeEngineHostVerifier,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 7, fromIndex := 4, toIndex := 5, kind := (ctor Foundation.Arch::EdgeKind.controlFlow)})
+}
+
+definition{
+  name: edgeVerifierToolchain,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 8, fromIndex := 5, toIndex := 9, kind := (ctor Foundation.Arch::EdgeKind.controlFlow)})
+}
+
+definition{
+  name: edgeVerifierSigner,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 9, fromIndex := 5, toIndex := 6, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
+}
+
+definition{
+  name: edgeVerifierStore,
+  parameters: [],
+  result: Foundation.Arch::Edge,
+  body: (record Foundation.Arch::Edge {index := 10, fromIndex := 5, toIndex := 8, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
+}
+
+definition{
+  name: viewpointComponentC3AuthorAgent,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 0, stakeholderIndex := 1, concernIndex := 2, modelKindIndex := 0})
+}
+
+definition{
+  name: viewpointComponentC5Operator,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 1, stakeholderIndex := 3, concernIndex := 4, modelKindIndex := 0})
+}
+
+definition{
+  name: viewpointComponentC6Operator,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 2, stakeholderIndex := 3, concernIndex := 5, modelKindIndex := 0})
+}
+
+definition{
+  name: viewpointComponentC7AuthorAgent,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 3, stakeholderIndex := 1, concernIndex := 6, modelKindIndex := 0})
+}
+
+definition{
+  name: viewpointComponentC7LexLeanMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 4, stakeholderIndex := 5, concernIndex := 6, modelKindIndex := 0})
+}
+
+definition{
+  name: viewpointComponentC7PrismPMMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 5, stakeholderIndex := 6, concernIndex := 6, modelKindIndex := 0})
+}
+
+definition{
+  name: viewpointComponentC8AuthorAgent,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 6, stakeholderIndex := 1, concernIndex := 7, modelKindIndex := 0})
+}
+
+definition{
+  name: viewpointComponentC8PrismPMMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 7, stakeholderIndex := 6, concernIndex := 7, modelKindIndex := 0})
+}
+
+definition{
+  name: viewpointComponentC8McpMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 8, stakeholderIndex := 7, concernIndex := 7, modelKindIndex := 0})
+}
+
+definition{
+  name: viewpointSecurityC1Reader,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 9, stakeholderIndex := 2, concernIndex := 0, modelKindIndex := 1})
+}
+
+definition{
+  name: viewpointSecurityC1LexiconMaintainer,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 10, stakeholderIndex := 4, concernIndex := 0, modelKindIndex := 1})
+}
+
+definition{
+  name: viewpointSecurityC4Requester,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 11, stakeholderIndex := 0, concernIndex := 3, modelKindIndex := 1})
+}
+
+definition{
+  name: viewpointSecurityC4Reader,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 12, stakeholderIndex := 2, concernIndex := 3, modelKindIndex := 1})
+}
+
+definition{
+  name: viewpointSecurityC5Operator,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 13, stakeholderIndex := 3, concernIndex := 4, modelKindIndex := 1})
+}
+
+definition{
+  name: viewpointQualityC1Reader,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 14, stakeholderIndex := 2, concernIndex := 0, modelKindIndex := 2})
+}
+
+definition{
+  name: viewpointQualityC1LexiconMaintainer,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 15, stakeholderIndex := 4, concernIndex := 0, modelKindIndex := 2})
+}
+
+definition{
+  name: viewpointQualityC2Requester,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 16, stakeholderIndex := 0, concernIndex := 1, modelKindIndex := 2})
+}
+
+definition{
+  name: viewpointQualityC3AuthorAgent,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 17, stakeholderIndex := 1, concernIndex := 2, modelKindIndex := 2})
+}
+
+definition{
+  name: viewpointQualityC8AuthorAgent,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 18, stakeholderIndex := 1, concernIndex := 7, modelKindIndex := 2})
+}
+
+definition{
+  name: viewpointQualityC8PrismPMMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 19, stakeholderIndex := 6, concernIndex := 7, modelKindIndex := 2})
+}
+
+definition{
+  name: viewpointQualityC8McpMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Viewpoint,
+  body: (record Foundation.Arch::Viewpoint {index := 20, stakeholderIndex := 7, concernIndex := 7, modelKindIndex := 2})
+}
+
+definition{
+  name: viewComponent,
+  parameters: [],
+  result: Foundation.Arch::View,
+  body: (record Foundation.Arch::View {index := 0, viewpointIndex := 0, modelKindIndex := 0})
+}
+
+definition{
+  name: viewSecurity,
+  parameters: [],
+  result: Foundation.Arch::View,
+  body: (record Foundation.Arch::View {index := 1, viewpointIndex := 9, modelKindIndex := 1})
+}
+
+definition{
+  name: viewQuality,
+  parameters: [],
+  result: Foundation.Arch::View,
+  body: (record Foundation.Arch::View {index := 2, viewpointIndex := 14, modelKindIndex := 2})
+}
+
+definition{
+  name: stakeholders,
+  parameters: [],
+  result: (List Narrative),
+  body: (cons (record Narrative {index := 0, name := "Requester", text := "Asks for a document to be written and verified, and receives the result."}) (cons (record Narrative {index := 1, name := "Author agent", text := "The LLM agent that drafts LexLean modules through the tools and repairs them from the refusals it receives."}) (cons (record Narrative {index := 2, name := "Reader", text := "Reads the canonical rendering of a verified module and checks it against its attestation."}) (cons (record Narrative {index := 3, name := "Operator", text := "Runs the server on a host and bounds what it may do there."}) (cons (record Narrative {index := 4, name := "Lexicon maintainer", text := "Maintains the lexicon whose entries give a rendering its meaning."}) (cons (record Narrative {index := 5, name := "LexLean maintainers", text := "Maintain LexLean, the compiler and verifier the server links."}) (cons (record Narrative {index := 6, name := "PrismPM maintainers", text := "Maintain PrismPM, the modeling SDK and metamodel this model is checked with."}) (cons (record Narrative {index := 7, name := "MCP maintainers", text := "Maintain the MCP protocol core that this product links unchanged."}) (nil Narrative)))))))))
+}
+
+definition{
+  name: concerns,
+  parameters: [],
+  result: (List Narrative),
+  body: (cons (record Narrative {index := 0, name := "C1 Meaning fidelity", text := "A rendering states what the verified module denotes, and nothing else."}) (cons (record Narrative {index := 1, name := "C2 Intent fidelity", text := "What is established is what the requester asked to have established."}) (cons (record Narrative {index := 2, name := "C3 Repair signal", text := "A refusal tells the author agent what to change."}) (cons (record Narrative {index := 3, name := "C4 Provenance", text := "A document reaches its reader bound to its signed attestation."}) (cons (record Narrative {index := 4, name := "C5 Isolation", text := "The server acts only within the host, workspace and effects it is given."}) (cons (record Narrative {index := 5, name := "C6 Bounded resources", text := "A request consumes no more than its limits and budgets allow."}) (cons (record Narrative {index := 6, name := "C7 Compatibility", text := "The server stays compatible with the versions of LexLean, PrismPM and MCP it links."}) (cons (record Narrative {index := 7, name := "C8 Standard conformance", text := "The server conforms to the protocol specification and the standards the model cites."}) (nil Narrative)))))))))
+}
+
+definition{
+  name: viewpoints,
+  parameters: [],
+  result: (List Narrative),
+  body: (cons (record Narrative {index := 0, name := "Component viewpoint", text := "How the components divide the work and what each may reach."}) (cons (record Narrative {index := 1, name := "Security viewpoint", text := "Which components and flows carry the trust the product claims."}) (cons (record Narrative {index := 2, name := "Quality viewpoint", text := "Which components realize the quality requirements."}) (nil Narrative))))
+}
+
+definition{
+  name: views,
+  parameters: [],
+  result: (List Narrative),
+  body: (cons (record Narrative {index := 0, name := "Component view", text := "The Component view: How the components divide the work and what each may reach."}) (cons (record Narrative {index := 1, name := "Security view", text := "The Security view: Which components and flows carry the trust the product claims."}) (cons (record Narrative {index := 2, name := "Quality view", text := "The Quality view: Which components realize the quality requirements."}) (nil Narrative))))
+}
+
+definition{
+  name: flows,
+  parameters: [],
+  result: (List Narrative),
+  body: (cons (record Narrative {index := 0, name := "client to gateway", text := "MCP messages from the client reach the gateway. (data flow)"}) (cons (record Narrative {index := 1, name := "gateway to protocol core", text := "The gateway hands a request to the protocol core. (data flow)"}) (cons (record Narrative {index := 2, name := "protocol core to gateway", text := "The protocol core returns its response to the gateway. (data flow)"}) (cons (record Narrative {index := 3, name := "gateway to tool layer", text := "The gateway hands a tool call to the tool layer. (data flow)"}) (cons (record Narrative {index := 4, name := "tool layer to gateway", text := "The tool layer returns its result to the gateway. (data flow)"}) (cons (record Narrative {index := 5, name := "tool layer to engine-host", text := "The tool layer requests an effect of the engine host. (control flow)"}) (cons (record Narrative {index := 6, name := "engine-host to store", text := "The engine host reads and writes the store. (data flow)"}) (cons (record Narrative {index := 7, name := "engine-host to verifier", text := "The engine host starts a verification task. (control flow)"}) (cons (record Narrative {index := 8, name := "verifier to toolchain", text := "The verifier drives the toolchain. (control flow)"}) (cons (record Narrative {index := 9, name := "verifier to signer", text := "The verifier passes its result to the signer. (data flow)"}) (cons (record Narrative {index := 10, name := "verifier to store", text := "The verifier writes its result to the store. (data flow)"}) (nil Narrative))))))))))))
+}
+
+definition{
+  name: components,
+  parameters: [],
+  result: (List Binding),
+  body: (cons (record Binding {index := 0, name := "client", systemKind := "external", anchor := (ctor Anchor.External)}) (cons (record Binding {index := 1, name := "gateway", systemKind := "Api", anchor := (ctor Anchor.Pending)}) (cons (record Binding {index := 2, name := "protocol core", systemKind := "application", anchor := (ctor Anchor.ProtocolCore "MCP")}) (cons (record Binding {index := 3, name := "tool layer", systemKind := "application", anchor := (ctor Anchor.Pending)}) (cons (record Binding {index := 4, name := "engine-host", systemKind := "Worker", anchor := (ctor Anchor.Pending)}) (cons (record Binding {index := 5, name := "verifier", systemKind := "Job", anchor := (ctor Anchor.Pending)}) (cons (record Binding {index := 6, name := "signer", systemKind := "Worker", anchor := (ctor Anchor.Pending)}) (cons (record Binding {index := 7, name := "telemetry-collector", systemKind := "TelemetryCollector", anchor := (ctor Anchor.Pending)}) (cons (record Binding {index := 8, name := "store", systemKind := "Database", anchor := (ctor Anchor.Pending)}) (cons (record Binding {index := 9, name := "toolchain", systemKind := "external", anchor := (ctor Anchor.External)}) (nil Binding)))))))))))
+}
+
+definition{
+  name: interests,
+  parameters: [],
+  result: (List Interest),
+  body: (cons (record Interest {stakeholder := 0, concern := 1}) (cons (record Interest {stakeholder := 0, concern := 3}) (cons (record Interest {stakeholder := 1, concern := 2}) (cons (record Interest {stakeholder := 1, concern := 6}) (cons (record Interest {stakeholder := 1, concern := 7}) (cons (record Interest {stakeholder := 2, concern := 0}) (cons (record Interest {stakeholder := 2, concern := 3}) (cons (record Interest {stakeholder := 3, concern := 4}) (cons (record Interest {stakeholder := 3, concern := 5}) (cons (record Interest {stakeholder := 4, concern := 0}) (cons (record Interest {stakeholder := 5, concern := 6}) (cons (record Interest {stakeholder := 6, concern := 6}) (cons (record Interest {stakeholder := 6, concern := 7}) (cons (record Interest {stakeholder := 7, concern := 7}) (nil Interest)))))))))))))))
+}
+
+definition{
+  name: groups,
+  parameters: [],
+  result: (List ViewpointGroup),
+  body: (cons (record ViewpointGroup {index := 0, modelKind := 0, framings := (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (cons 8 (nil Nat)))))))))), concerns := (cons 2 (cons 4 (cons 5 (cons 6 (cons 7 (nil Nat))))))}) (cons (record ViewpointGroup {index := 1, modelKind := 1, framings := (cons 9 (cons 10 (cons 11 (cons 12 (cons 13 (nil Nat)))))), concerns := (cons 0 (cons 3 (cons 4 (nil Nat))))}) (cons (record ViewpointGroup {index := 2, modelKind := 2, framings := (cons 14 (cons 15 (cons 16 (cons 17 (cons 18 (cons 19 (cons 20 (nil Nat)))))))), concerns := (cons 0 (cons 1 (cons 2 (cons 7 (nil Nat)))))}) (nil ViewpointGroup))))
+}
+
+definition{
+  name: viewSpecs,
+  parameters: [],
+  result: (List ViewSpec),
+  body: (cons (record ViewSpec {view := 0, components := (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (cons 8 (cons 9 (nil Nat))))))))))), edges := (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (cons 8 (cons 9 (cons 10 (nil Nat))))))))))))}) (cons (record ViewSpec {view := 1, components := (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 8 (cons 9 (nil Nat)))))))))), edges := (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (cons 8 (cons 9 (cons 10 (nil Nat))))))))))))}) (cons (record ViewSpec {view := 2, components := (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (nil Nat)))))))), edges := (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 7 (cons 9 (nil Nat)))))))))}) (nil ViewSpec))))
+}
+
+definition{
+  name: stakeholderRecords,
+  parameters: [],
+  result: (List Foundation.Arch::Stakeholder),
+  body: (cons (stakeholderRequester) (cons (stakeholderAuthorAgent) (cons (stakeholderReader) (cons (stakeholderOperator) (cons (stakeholderLexiconMaintainer) (cons (stakeholderLexLeanMaintainers) (cons (stakeholderPrismPMMaintainers) (cons (stakeholderMcpMaintainers) (nil Foundation.Arch::Stakeholder)))))))))
+}
+
+definition{
+  name: concernRecords,
+  parameters: [],
+  result: (List Foundation.Arch::Concern),
+  body: (cons (concernC1MeaningFidelity) (cons (concernC2IntentFidelity) (cons (concernC3RepairSignal) (cons (concernC4Provenance) (cons (concernC5Isolation) (cons (concernC6BoundedResources) (cons (concernC7Compatibility) (cons (concernC8StandardConformance) (nil Foundation.Arch::Concern)))))))))
+}
+
+definition{
+  name: componentRecords,
+  parameters: [],
+  result: (List Foundation.Arch::Component),
+  body: (cons (componentClient) (cons (componentGateway) (cons (componentProtocolCore) (cons (componentToolLayer) (cons (componentEngineHost) (cons (componentVerifier) (cons (componentSigner) (cons (componentTelemetryCollector) (cons (componentStore) (cons (componentToolchain) (nil Foundation.Arch::Component)))))))))))
+}
+
+definition{
+  name: edgeRecords,
+  parameters: [],
+  result: (List Foundation.Arch::Edge),
+  body: (cons (edgeClientGateway) (cons (edgeGatewayCore) (cons (edgeCoreGateway) (cons (edgeGatewayToolLayer) (cons (edgeToolLayerGateway) (cons (edgeToolLayerEngineHost) (cons (edgeEngineHostStore) (cons (edgeEngineHostVerifier) (cons (edgeVerifierToolchain) (cons (edgeVerifierSigner) (cons (edgeVerifierStore) (nil Foundation.Arch::Edge))))))))))))
+}
+
+definition{
+  name: viewpointRecords,
+  parameters: [],
+  result: (List Foundation.Arch::Viewpoint),
+  body: (cons (viewpointComponentC3AuthorAgent) (cons (viewpointComponentC5Operator) (cons (viewpointComponentC6Operator) (cons (viewpointComponentC7AuthorAgent) (cons (viewpointComponentC7LexLeanMaintainers) (cons (viewpointComponentC7PrismPMMaintainers) (cons (viewpointComponentC8AuthorAgent) (cons (viewpointComponentC8PrismPMMaintainers) (cons (viewpointComponentC8McpMaintainers) (cons (viewpointSecurityC1Reader) (cons (viewpointSecurityC1LexiconMaintainer) (cons (viewpointSecurityC4Requester) (cons (viewpointSecurityC4Reader) (cons (viewpointSecurityC5Operator) (cons (viewpointQualityC1Reader) (cons (viewpointQualityC1LexiconMaintainer) (cons (viewpointQualityC2Requester) (cons (viewpointQualityC3AuthorAgent) (cons (viewpointQualityC8AuthorAgent) (cons (viewpointQualityC8PrismPMMaintainers) (cons (viewpointQualityC8McpMaintainers) (nil Foundation.Arch::Viewpoint))))))))))))))))))))))
+}
+
+definition{
+  name: viewRecords,
+  parameters: [],
+  result: (List Foundation.Arch::View),
+  body: (cons (viewComponent) (cons (viewSecurity) (cons (viewQuality) (nil Foundation.Arch::View))))
+}
+
+definition{
+  name: natMember,
+  parameters: [value : Nat, values : (List Nat)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head rest => ((value =? head) || (natMember value rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: allMembers,
+  parameters: [wanted : (List Nat), values : (List Nat)],
+  result: Bool,
+  body: (match wanted
+    | List.nil => true
+    | List.cons head rest => ((natMember head values) && (allMembers rest values))),
+  recursive_argument: wanted
+}
+
+definition{
+  name: sameNats,
+  parameters: [left : (List Nat), right : (List Nat)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons other more => false)
+    | List.cons head rest => (match right
+      | List.nil => false
+      | List.cons other more => ((head =? other) && (sameNats rest more)))),
+  recursive_argument: left
+}
+
+definition{
+  name: narrativeIndexes,
+  parameters: [records : (List Narrative)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (narrativeIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: bindingIndexes,
+  parameters: [records : (List Binding)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (bindingIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: stakeholderIndexes,
+  parameters: [records : (List Foundation.Arch::Stakeholder)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (stakeholderIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: concernIndexes,
+  parameters: [records : (List Foundation.Arch::Concern)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (concernIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: componentIndexes,
+  parameters: [records : (List Foundation.Arch::Component)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (componentIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: edgeIndexes,
+  parameters: [records : (List Foundation.Arch::Edge)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (edgeIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: viewpointIndexes,
+  parameters: [records : (List Foundation.Arch::Viewpoint)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (viewpointIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: viewIndexes,
+  parameters: [records : (List Foundation.Arch::View)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (viewIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: groupIndexes,
+  parameters: [records : (List ViewpointGroup)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (groupIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: specViews,
+  parameters: [records : (List ViewSpec)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head view) (specViews rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: viewpointStakeholders,
+  parameters: [records : (List Foundation.Arch::Viewpoint)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head stakeholderIndex) (viewpointStakeholders rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: viewpointConcerns,
+  parameters: [records : (List Foundation.Arch::Viewpoint)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head concernIndex) (viewpointConcerns rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: interestStakeholders,
+  parameters: [records : (List Interest)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head stakeholder) (interestStakeholders rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: interestConcerns,
+  parameters: [records : (List Interest)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head concern) (interestConcerns rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: appendNats,
+  parameters: [left : (List Nat), right : (List Nat)],
+  result: (List Nat),
+  body: (match left
+    | List.nil => right
+    | List.cons head rest => (cons head (appendNats rest right))),
+  recursive_argument: left
+}
+
+definition{
+  name: groupFramingLists,
+  parameters: [records : (List ViewpointGroup)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (appendNats (project head framings) (groupFramingLists rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: viewpointKindsBelow,
+  parameters: [records : (List Foundation.Arch::Viewpoint)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => (((project head modelKindIndex) <? 3) && (viewpointKindsBelow rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: viewpointsKnown,
+  parameters: [records : (List Foundation.Arch::Viewpoint)],
+  result: Bool,
+  body: ((allMembers (viewpointStakeholders records) (stakeholderIndexes (stakeholderRecords))) && ((allMembers (viewpointConcerns records) (concernIndexes (concernRecords))) && (viewpointKindsBelow records)))
+}
+
+definition{
+  name: interestsKnown,
+  parameters: [entries : (List Interest)],
+  result: Bool,
+  body: ((allMembers (interestStakeholders entries) (stakeholderIndexes (stakeholderRecords))) && ((allMembers (interestConcerns entries) (concernIndexes (concernRecords))) && (allMembers (stakeholderIndexes (stakeholderRecords)) (interestStakeholders entries))))
+}
+
+definition{
+  name: pairFramed,
+  parameters: [records : (List Foundation.Arch::Viewpoint), stakeholder : Nat, concern : Nat],
+  result: Bool,
+  body: (match records
+    | List.nil => false
+    | List.cons head rest => ((((project head stakeholderIndex) =? stakeholder) && ((project head concernIndex) =? concern)) || (pairFramed rest stakeholder concern))),
+  recursive_argument: records
+}
+
+definition{
+  name: interestsFramed,
+  parameters: [entries : (List Interest), records : (List Foundation.Arch::Viewpoint)],
+  result: Bool,
+  body: (match entries
+    | List.nil => true
+    | List.cons head rest => ((pairFramed records (project head stakeholder) (project head concern)) && (interestsFramed rest records))),
+  recursive_argument: entries
+}
+
+definition{
+  name: interestHeld,
+  parameters: [entries : (List Interest), stakeholderIndex : Nat, concernIndex : Nat],
+  result: Bool,
+  body: (match entries
+    | List.nil => false
+    | List.cons head rest => ((((project head stakeholder) =? stakeholderIndex) && ((project head concern) =? concernIndex)) || (interestHeld rest stakeholderIndex concernIndex))),
+  recursive_argument: entries
+}
+
+definition{
+  name: framingsHeld,
+  parameters: [records : (List Foundation.Arch::Viewpoint), entries : (List Interest)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((interestHeld entries (project head stakeholderIndex) (project head concernIndex)) && (framingsHeld rest entries))),
+  recursive_argument: records
+}
+
+definition{
+  name: viewpointFrames,
+  parameters: [
+    records : (List Foundation.Arch::Viewpoint),
+    wanted : Nat,
+    concern : Nat,
+    kind : Nat
+  ],
+  result: Bool,
+  body: (match records
+    | List.nil => false
+    | List.cons head rest => ((((project head index) =? wanted) && (((project head concernIndex) =? concern) && ((project head modelKindIndex) =? kind))) || (viewpointFrames rest wanted concern kind))),
+  recursive_argument: records
+}
+
+definition{
+  name: framesSomewhere,
+  parameters: [
+    records : (List Foundation.Arch::Viewpoint),
+    framings : (List Nat),
+    concern : Nat,
+    kind : Nat
+  ],
+  result: Bool,
+  body: (match framings
+    | List.nil => false
+    | List.cons head rest => ((viewpointFrames records head concern kind) || (framesSomewhere records rest concern kind))),
+  recursive_argument: framings
+}
+
+definition{
+  name: groupFramesEach,
+  parameters: [
+    records : (List Foundation.Arch::Viewpoint),
+    group : ViewpointGroup,
+    wanted : (List Nat)
+  ],
+  result: Bool,
+  body: (match wanted
+    | List.nil => true
+    | List.cons head rest => ((framesSomewhere records (project group framings) head (project group modelKind)) && (groupFramesEach records group rest))),
+  recursive_argument: wanted
+}
+
+definition{
+  name: concernOfFraming,
+  parameters: [records : (List Foundation.Arch::Viewpoint), wanted : Nat],
+  result: Nat,
+  body: (match records
+    | List.nil => 0
+    | List.cons head rest => (if ((project head index) =? wanted) then (project head concernIndex) else (concernOfFraming rest wanted))),
+  recursive_argument: records
+}
+
+definition{
+  name: framingsWithin,
+  parameters: [
+    records : (List Foundation.Arch::Viewpoint),
+    group : ViewpointGroup,
+    framings : (List Nat)
+  ],
+  result: Bool,
+  body: (match framings
+    | List.nil => true
+    | List.cons head rest => ((framesSomewhere records (cons head (nil Nat)) (concernOfFraming records head) (project group modelKind)) && ((natMember (concernOfFraming records head) (project group concerns)) && (framingsWithin records group rest)))),
+  recursive_argument: framings
+}
+
+definition{
+  name: groupsFrame,
+  parameters: [groupList : (List ViewpointGroup), records : (List Foundation.Arch::Viewpoint)],
+  result: Bool,
+  body: (match groupList
+    | List.nil => true
+    | List.cons head rest => ((groupFramesEach records head (project head concerns)) && ((framingsWithin records head (project head framings)) && (groupsFrame rest records)))),
+  recursive_argument: groupList
+}
+
+definition{
+  name: viewsConform,
+  parameters: [viewList : (List Foundation.Arch::View), groupList : (List ViewpointGroup)],
+  result: Bool,
+  body: (match viewList
+    | List.nil => (match groupList | List.nil => true | List.cons other more => false)
+    | List.cons head rest => (match groupList
+      | List.nil => false
+      | List.cons group more => ((((project head index) =? (project group index)) && ((project head modelKindIndex) =? (project group modelKind))) && ((natMember (project head viewpointIndex) (project group framings)) && (viewsConform rest more))))),
+  recursive_argument: viewList
+}
+
+definition{
+  name: edgeEndsIn,
+  parameters: [records : (List Foundation.Arch::Edge), wanted : Nat, ends : (List Nat)],
+  result: Bool,
+  body: (match records
+    | List.nil => false
+    | List.cons head rest => ((((project head index) =? wanted) && ((natMember (project head fromIndex) ends) && (natMember (project head toIndex) ends))) || (edgeEndsIn rest wanted ends))),
+  recursive_argument: records
+}
+
+definition{
+  name: edgesWithin,
+  parameters: [records : (List Foundation.Arch::Edge), wanted : (List Nat), ends : (List Nat)],
+  result: Bool,
+  body: (match wanted
+    | List.nil => true
+    | List.cons head rest => ((edgeEndsIn records head ends) && (edgesWithin records rest ends))),
+  recursive_argument: wanted
+}
+
+definition{
+  name: edgesAttach,
+  parameters: [records : (List Foundation.Arch::Edge)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((natMember (project head fromIndex) (componentIndexes (componentRecords))) && ((natMember (project head toIndex) (componentIndexes (componentRecords))) && (edgesAttach rest)))),
+  recursive_argument: records
+}
+
+definition{
+  name: specsKnown,
+  parameters: [specs : (List ViewSpec)],
+  result: Bool,
+  body: (match specs
+    | List.nil => true
+    | List.cons head rest => ((allMembers (project head components) (componentIndexes (componentRecords))) && ((edgesWithin (edgeRecords) (project head edges) (project head components)) && (specsKnown rest)))),
+  recursive_argument: specs
+}
+
+definition{
+  name: edgeIsDataFlow,
+  parameters: [edge : Foundation.Arch::Edge],
+  result: Bool,
+  body: (match (project edge kind)
+    | Foundation.Arch::EdgeKind.dataFlow => true
+    | Foundation.Arch::EdgeKind.controlFlow => false)
+}
+
+definition{
+  name: edgesByFlow,
+  parameters: [records : (List Foundation.Arch::Edge), data : Bool],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (if (if (edgeIsDataFlow head) then data else (not data)) then (cons (project head index) (edgesByFlow rest data)) else (edgesByFlow rest data))),
+  recursive_argument: records
+}
+
+definition{
+  name: anchorResolves,
+  parameters: [anchor : Anchor, model : Product::Product],
+  result: Bool,
+  body: (match anchor
+    | Anchor.ProtocolCore key => (prim equal key (project (project model protocolCore) id) : Bool)
+    | Anchor.External => true
+    | Anchor.Pending => true)
+}
+
+definition{
+  name: anchorsResolve,
+  parameters: [bindings : (List Binding), model : Product::Product],
+  result: Bool,
+  body: (match bindings
+    | List.nil => true
+    | List.cons head rest => ((anchorResolves (project head anchor) model) && (anchorsResolve rest model))),
+  recursive_argument: bindings
+}
+
+definition{
+  name: pendingNames,
+  parameters: [bindings : (List Binding)],
+  result: (List String),
+  body: (match bindings
+    | List.nil => (nil String)
+    | List.cons head rest => (match (project head anchor)
+      | Anchor.Pending => (cons (project head name) (pendingNames rest))
+      | Anchor.ProtocolCore key => (pendingNames rest)
+      | Anchor.External => (pendingNames rest))),
+  recursive_argument: bindings
+}
+
+definition{
+  name: systemKindKnown,
+  parameters: [kind : String],
+  result: Bool,
+  body: (Product::stringMember kind (cons "Api" (cons "application" (cons "Worker" (cons "Job" (cons "TelemetryCollector" (cons "Database" (cons "external" (nil String)))))))))
+}
+
+definition{
+  name: systemKindsKnown,
+  parameters: [bindings : (List Binding)],
+  result: Bool,
+  body: (match bindings
+    | List.nil => true
+    | List.cons head rest => ((systemKindKnown (project head systemKind)) && (systemKindsKnown rest))),
+  recursive_argument: bindings
+}
+
+definition{
+  name: architectureValid,
+  parameters: [],
+  result: Bool,
+  body: ((sameNats (narrativeIndexes (stakeholders)) (stakeholderIndexes (stakeholderRecords))) && ((sameNats (narrativeIndexes (concerns)) (concernIndexes (concernRecords))) && ((sameNats (narrativeIndexes (viewpoints)) (groupIndexes (groups))) && ((sameNats (narrativeIndexes (views)) (viewIndexes (viewRecords))) && ((sameNats (narrativeIndexes (flows)) (edgeIndexes (edgeRecords))) && ((sameNats (bindingIndexes (components)) (componentIndexes (componentRecords))) && ((systemKindsKnown (components)) && ((anchorsResolve (components) (Product::product)) && ((edgesAttach (edgeRecords)) && ((interestsKnown (interests)) && ((viewpointsKnown (viewpointRecords)) && ((allMembers (concernIndexes (concernRecords)) (viewpointConcerns (viewpointRecords))) && ((interestsFramed (interests) (viewpointRecords)) && ((framingsHeld (viewpointRecords) (interests)) && ((groupsFrame (groups) (viewpointRecords)) && ((allMembers (viewpointIndexes (viewpointRecords)) (groupFramingLists (groups))) && ((viewsConform (viewRecords) (groups)) && ((sameNats (specViews (viewSpecs)) (viewIndexes (viewRecords))) && (specsKnown (viewSpecs))))))))))))))))))))
+}
+
+theorem{
+  name: architectureDescriptionHolds,
+  parameters: [],
+  statement: ((architectureValid) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyConcernFramed,
+  parameters: [],
+  statement: ((allMembers (concernIndexes (concernRecords)) (viewpointConcerns (viewpointRecords))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyStakeholderConcernFramed,
+  parameters: [],
+  statement: ((interestsFramed (interests) (viewpointRecords)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyViewComponentExists,
+  parameters: [],
+  statement: ((specsKnown (viewSpecs)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: dataFlowEdges,
+  parameters: [],
+  statement: ((edgesByFlow (edgeRecords) true) = (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 6 (cons 9 (cons 10 (nil Nat)))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: controlFlowEdges,
+  parameters: [],
+  statement: ((edgesByFlow (edgeRecords) false) = (cons 5 (cons 7 (cons 8 (nil Nat))))),
+  proof: decide{}
+}
+
+theorem{
+  name: pendingInProduct,
+  parameters: [],
+  statement: ((pendingNames (components)) = (cons "gateway" (cons "tool layer" (cons "engine-host" (cons "verifier" (cons "signer" (cons "telemetry-collector" (cons "store" (nil String))))))))),
+  proof: decide{}
+}
+\end{semanticmodule}
+\end{lexlean}
