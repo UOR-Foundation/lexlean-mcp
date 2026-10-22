@@ -1,0 +1,1750 @@
+\begin{lexlean}{Identity}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Sha256}
+\title{LexLean MCP identity}
+\begin{semanticmodule}
+definition{
+  name: app,
+  parameters: [xs : (List Nat), ys : (List Nat)],
+  result: (List Nat),
+  body: (match xs | List.nil => ys | List.cons head rest => (cons head (app rest ys))),
+  recursive_argument: xs
+}
+
+definition{
+  name: len,
+  parameters: [xs : (List Nat)],
+  result: Nat,
+  body: (match xs | List.nil => 0 | List.cons head rest => ((len rest) + 1)),
+  recursive_argument: xs
+}
+
+theorem{
+  name: appAssoc,
+  parameters: [xs : (List Nat), ys : (List Nat), zs : (List Nat)],
+  statement: ((app (app xs ys) zs) = (app xs (app ys zs))),
+  proof: induction{
+    branches: [
+      {proof: simplify{definitions: [app]}, binders: [], constructor: nil},
+      {proof: simplify{definitions: [app, ih]}, binders: [head, rest, ih], constructor: cons}
+    ],
+    scrutinee: xs
+  },
+  axioms: [propext]
+}
+
+definition{
+  name: readN,
+  parameters: [count : Nat, bytes : (List Nat)],
+  result: (Option ((List Nat) * (List Nat))),
+  body: (match count
+    | Nat.zero => (ctor Option.some [((List Nat) * (List Nat))] ((nil Nat), bytes))
+    | Nat.succ previous => (match bytes
+      | List.nil => (ctor Option.none [((List Nat) * (List Nat))])
+      | List.cons head rest => (match (readN previous rest)
+        | Option.none => (ctor Option.none [((List Nat) * (List Nat))])
+        | Option.some found => (ctor Option.some [((List Nat) * (List Nat))] ((cons head (first found)), (second found)))))),
+  recursive_argument: count
+}
+
+theorem{
+  name: readNApp,
+  parameters: [xs : (List Nat), ys : (List Nat)],
+  statement: ((readN (len xs) (app xs ys)) = (ctor Option.some [((List Nat) * (List Nat))] (xs, ys))),
+  proof: induction{
+    branches: [
+      {proof: simplify{definitions: [app, len, readN]}, binders: [], constructor: nil},
+      {
+        proof: simplify{definitions: [app, ih, len, readN]},
+        binders: [head, rest, ih],
+        constructor: cons
+      }
+    ],
+    scrutinee: xs
+  },
+  axioms: [propext]
+}
+
+inductive{
+  name: Fit,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Within, fields: []}, {name: Over, fields: []}]
+}
+
+definition{
+  name: toFit,
+  parameters: [c : Nat],
+  result: Fit,
+  body: (match c | Nat.zero => (ctor Fit.Within) | Nat.succ rest => (ctor Fit.Over))
+}
+
+definition{
+  name: code,
+  parameters: [n : Nat],
+  result: Nat,
+  body: (if (n <? 18446744073709551615) then 0 else 1)
+}
+
+definition{
+  name: pickN,
+  parameters: [c : Nat, a : Nat, b : Nat],
+  result: Nat,
+  body: (if (c =? 0) then a else b)
+}
+
+definition{
+  name: pickF,
+  parameters: [c : Nat, a : Nat, b : Nat],
+  result: Nat,
+  body: (match (toFit c) | Fit.Within => a | Fit.Over => b)
+}
+
+theorem{
+  name: pickEq,
+  parameters: [c : Nat, a : Nat, b : Nat],
+  statement: ((pickF c a b) = (pickN c a b)),
+  proof: cases{
+    branches: [
+      {
+        proof: linear_arithmetic{definitions: [pickF, pickN, toFit]},
+        binders: [],
+        constructor: zero
+      },
+      {
+        proof: linear_arithmetic{definitions: [pickF, pickN, toFit]},
+        binders: [rest],
+        constructor: succ
+      }
+    ],
+    scrutinee: c
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: sat,
+  parameters: [n : Nat],
+  result: Nat,
+  body: (pickN (code n) n 18446744073709551615)
+}
+
+definition{
+  name: satF,
+  parameters: [n : Nat],
+  result: Nat,
+  body: (pickF (code n) n 18446744073709551615)
+}
+
+theorem{
+  name: satEq,
+  parameters: [n : Nat],
+  statement: ((satF n) = (sat n)),
+  proof: simplify{definitions: [pickEq, sat, satF]},
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: byteOf,
+  parameters: [value : Nat, divisor : Nat],
+  result: Nat,
+  body: (prim remainder (prim quotient value divisor 0 : Nat) 256 0 : Nat)
+}
+
+definition{
+  name: be32,
+  parameters: [value : Nat],
+  result: (List Nat),
+  body: (cons (byteOf value 16777216) (cons (byteOf value 65536) (cons (byteOf value 256) (cons (byteOf value 1) (nil Nat)))))
+}
+
+definition{
+  name: be64,
+  parameters: [value : Nat],
+  result: (List Nat),
+  body: (app (be32 (prim quotient value 4294967296 0 : Nat)) (be32 value))
+}
+
+definition{
+  name: nth,
+  parameters: [xs : (List Nat), i : Nat],
+  result: Nat,
+  body: (match xs
+    | List.nil => 0
+    | List.cons head rest => (if (i =? 0) then head else (nth rest (prim subtract i 1 : Nat)))),
+  recursive_argument: xs
+}
+
+definition{
+  name: shift,
+  parameters: [acc : Nat, byte : Nat],
+  result: Nat,
+  body: ((prim multiply acc 256 : Nat) + byte)
+}
+
+definition{
+  name: value32,
+  parameters: [xs : (List Nat)],
+  result: Nat,
+  body: (shift (shift (shift (nth xs 0) (nth xs 1)) (nth xs 2)) (nth xs 3))
+}
+
+definition{
+  name: drop4,
+  parameters: [xs : (List Nat)],
+  result: (List Nat),
+  body: (match xs
+    | List.nil => (nil Nat)
+    | List.cons a r1 => (match r1
+      | List.nil => (nil Nat)
+      | List.cons b r2 => (match r2
+        | List.nil => (nil Nat)
+        | List.cons c r3 => (match r3 | List.nil => (nil Nat) | List.cons d r4 => r4))))
+}
+
+definition{
+  name: value64,
+  parameters: [xs : (List Nat)],
+  result: Nat,
+  body: ((prim multiply (value32 xs) 4294967296 : Nat) + (value32 (drop4 xs)))
+}
+
+theorem{
+  name: v32,
+  parameters: [k : Nat, rest : (List Nat)],
+  statement: ((value32 (app (be32 k) rest)) = (prim remainder k 4294967296 0 : Nat)),
+  proof: linear_arithmetic{definitions: [app, be32, byteOf, nth, shift, value32]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: d32,
+  parameters: [k : Nat, rest : (List Nat)],
+  statement: ((drop4 (app (be32 k) rest)) = rest),
+  proof: simplify{definitions: [app, be32, drop4]},
+  axioms: [propext]
+}
+
+theorem{
+  name: v64Raw,
+  parameters: [k : Nat, rest : (List Nat)],
+  statement: ((value64 (app (be64 k) rest)) = ((prim multiply (prim remainder (prim quotient k 4294967296 0 : Nat) 4294967296 0 : Nat) 4294967296 : Nat) + (prim remainder k 4294967296 0 : Nat))),
+  proof: simplify{definitions: [appAssoc, be64, d32, v32, value64]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: satSplits,
+  parameters: [k : Nat],
+  statement: (((prim multiply (prim remainder (prim quotient (sat k) 4294967296 0 : Nat) 4294967296 0 : Nat) 4294967296 : Nat) + (prim remainder (sat k) 4294967296 0 : Nat)) = (sat k)),
+  proof: linear_arithmetic{definitions: [code, pickN, sat]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: v64Sat,
+  parameters: [k : Nat, rest : (List Nat)],
+  statement: ((value64 (app (be64 (sat k)) rest)) = (sat k)),
+  proof: simplify{definitions: [satSplits, v64Raw]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: v64SatF,
+  parameters: [k : Nat, rest : (List Nat)],
+  statement: ((value64 (app (be64 (satF k)) rest)) = (satF k)),
+  proof: simplify{definitions: [satEq, v64Sat]},
+  axioms: [Quot.sound, propext]
+}
+
+definition{name: drop8, parameters: [xs : (List Nat)], result: (List Nat), body: (drop4 (drop4 xs))}
+
+theorem{
+  name: d64,
+  parameters: [k : Nat, rest : (List Nat)],
+  statement: ((drop8 (app (be64 k) rest)) = rest),
+  proof: simplify{definitions: [appAssoc, be64, d32, drop8]},
+  axioms: [propext]
+}
+
+definition{
+  name: stripPrefix,
+  parameters: [head : (List Nat), bytes : (List Nat)],
+  result: (Option (List Nat)),
+  body: (match head
+    | List.nil => (ctor Option.some [(List Nat)] bytes)
+    | List.cons x more => (match bytes
+      | List.nil => (ctor Option.none [(List Nat)])
+      | List.cons y rest => (match (x =? y)
+        | Bool.true => (stripPrefix more rest)
+        | Bool.false => (ctor Option.none [(List Nat)])))),
+  recursive_argument: head
+}
+
+theorem{
+  name: beqSelf,
+  parameters: [x : Nat],
+  statement: ((x =? x) = true),
+  proof: linear_arithmetic{},
+  axioms: [propext]
+}
+
+theorem{
+  name: stripPrefixApp,
+  parameters: [head : (List Nat), rest : (List Nat)],
+  statement: ((stripPrefix head (app head rest)) = (ctor Option.some [(List Nat)] rest)),
+  proof: induction{
+    branches: [
+      {proof: simplify{definitions: [app, stripPrefix]}, binders: [], constructor: nil},
+      {
+        proof: simplify{definitions: [app, beqSelf, ih, stripPrefix]},
+        binders: [x, more, ih],
+        constructor: cons
+      }
+    ],
+    scrutinee: head
+  },
+  axioms: [propext]
+}
+
+definition{
+  name: encFrame,
+  parameters: [head : (List Nat), payload : (List Nat)],
+  result: (List Nat),
+  body: (app head (app (be64 (satF (len payload))) payload))
+}
+
+definition{
+  name: readGate,
+  parameters: [c : Nat, count : Nat, bytes : (List Nat)],
+  result: (Option ((List Nat) * (List Nat))),
+  body: (match (toFit c)
+    | Fit.Within => (readN count bytes)
+    | Fit.Over => (ctor Option.none [((List Nat) * (List Nat))]))
+}
+
+definition{
+  name: readWith,
+  parameters: [count : Nat, bytes : (List Nat)],
+  result: (Option ((List Nat) * (List Nat))),
+  body: (readGate (code count) count bytes)
+}
+
+definition{
+  name: readAfter,
+  parameters: [after : (List Nat)],
+  result: (Option ((List Nat) * (List Nat))),
+  body: (readWith (value64 after) (drop8 after))
+}
+
+definition{
+  name: readFrame,
+  parameters: [head : (List Nat), bytes : (List Nat)],
+  result: (Option ((List Nat) * (List Nat))),
+  body: (match (stripPrefix head bytes)
+    | Option.none => (ctor Option.none [((List Nat) * (List Nat))])
+    | Option.some after => (readAfter after))
+}
+
+theorem{
+  name: frameStep0,
+  parameters: [head : (List Nat), payload : (List Nat), rest : (List Nat)],
+  statement: ((readFrame head (app (encFrame head payload) rest)) = (readAfter (app (be64 (satF (len payload))) (app payload rest)))),
+  proof: simplify{definitions: [appAssoc, encFrame, readFrame, stripPrefixApp]},
+  axioms: [propext]
+}
+
+theorem{
+  name: frameStep0b,
+  parameters: [n : Nat, bytes : (List Nat)],
+  statement: ((readAfter (app (be64 (satF n)) bytes)) = (readWith (satF n) bytes)),
+  proof: simplify{definitions: [d64, readAfter, v64SatF]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: gateSatLocal,
+  parameters: [c : Nat, n : Nat, bytes : (List Nat)],
+  statement: ((readGate c (pickF c n 18446744073709551615) bytes) = (readGate c n bytes)),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [pickF, readGate, toFit]}, binders: [], constructor: zero},
+      {proof: simplify{definitions: [readGate, toFit]}, binders: [rest], constructor: succ}
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: gateSat,
+  parameters: [n : Nat, bytes : (List Nat)],
+  statement: ((readGate (code n) (satF n) bytes) = (readGate (code n) n bytes)),
+  proof: simplify{definitions: [gateSatLocal, satF]},
+  axioms: [propext]
+}
+
+theorem{
+  name: codeSat,
+  parameters: [n : Nat],
+  statement: ((code (sat n)) = (code n)),
+  proof: linear_arithmetic{definitions: [code, pickN, sat]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: codeSatF,
+  parameters: [n : Nat],
+  statement: ((code (satF n)) = (code n)),
+  proof: simplify{definitions: [codeSat, satEq]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: frameStep1,
+  parameters: [n : Nat, bytes : (List Nat)],
+  statement: ((readWith (satF n) bytes) = (readWith n bytes)),
+  proof: simplify{definitions: [codeSatF, gateSat, readWith]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: gateApp,
+  parameters: [c : Nat, payload : (List Nat), rest : (List Nat)],
+  statement: ((readGate c (len payload) (app payload rest)) = (match (toFit c)
+    | Fit.Within => (ctor Option.some [((List Nat) * (List Nat))] (payload, rest))
+    | Fit.Over => (ctor Option.none [((List Nat) * (List Nat))]))),
+  proof: simplify{definitions: [readGate, readNApp]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: readWithApp,
+  parameters: [payload : (List Nat), rest : (List Nat)],
+  statement: ((readWith (len payload) (app payload rest)) = (match (toFit (code (len payload)))
+    | Fit.Within => (ctor Option.some [((List Nat) * (List Nat))] (payload, rest))
+    | Fit.Over => (ctor Option.none [((List Nat) * (List Nat))]))),
+  proof: simplify{definitions: [gateApp, readWith]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: readFrameApp,
+  parameters: [head : (List Nat), payload : (List Nat), rest : (List Nat)],
+  statement: ((readFrame head (app (encFrame head payload) rest)) = (match (toFit (code (len payload)))
+    | Fit.Within => (ctor Option.some [((List Nat) * (List Nat))] (payload, rest))
+    | Fit.Over => (ctor Option.none [((List Nat) * (List Nat))]))),
+  proof: simplify{definitions: [frameStep0, frameStep0b, frameStep1, readWithApp]},
+  axioms: [Quot.sound, propext]
+}
+
+inductive{
+  name: Rows,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Nil, fields: []}, {name: Cons, fields: [(List Nat), (List Nat), Rows]}]
+}
+
+definition{
+  name: flat,
+  parameters: [rows : Rows],
+  result: (List (List Nat)),
+  body: (match rows
+    | Rows.Nil => (nil (List Nat))
+    | Rows.Cons path bytes more => (cons path (cons bytes (flat more)))),
+  recursive_argument: rows
+}
+
+definition{
+  name: unflatFrom,
+  parameters: [fields : (List (List Nat)), pending : (Option (List Nat))],
+  result: Rows,
+  body: (match fields
+    | List.nil => (ctor Rows.Nil)
+    | List.cons item rest => (match pending
+      | Option.none => (unflatFrom rest (ctor Option.some [(List Nat)] item))
+      | Option.some path => (ctor Rows.Cons path item (unflatFrom rest (ctor Option.none [(List Nat)]))))),
+  recursive_argument: fields
+}
+
+definition{
+  name: unflat,
+  parameters: [fields : (List (List Nat))],
+  result: Rows,
+  body: (unflatFrom fields (ctor Option.none [(List Nat)]))
+}
+
+theorem{
+  name: unflatFromFlat,
+  parameters: [rows : Rows],
+  statement: ((unflatFrom (flat rows) (ctor Option.none [(List Nat)])) = rows),
+  proof: induction{
+    branches: [
+      {proof: simplify{definitions: [flat, unflatFrom]}, binders: [], constructor: Nil},
+      {
+        proof: simplify{definitions: [flat, ih, unflatFrom]},
+        binders: [path, bytes, more, ih],
+        constructor: Cons
+      }
+    ],
+    scrutinee: rows
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: unflatFlat,
+  parameters: [rows : Rows],
+  statement: ((unflat (flat rows)) = rows),
+  proof: simplify{definitions: [unflat, unflatFromFlat]},
+  axioms: [propext]
+}
+
+definition{
+  name: gate,
+  type_parameters: [T],
+  parameters: [c : Nat, found : (Option 'T)],
+  result: (Option 'T),
+  body: (match (toFit c) | Fit.Within => found | Fit.Over => (ctor Option.none ['T]))
+}
+
+theorem{
+  name: gateZero,
+  type_parameters: [T],
+  parameters: [found : (Option 'T)],
+  statement: ((gate ['T] 0 found) = found),
+  proof: simplify{definitions: [gate, toFit]},
+  axioms: [propext]
+}
+
+theorem{
+  name: readFrameG,
+  parameters: [head : (List Nat), payload : (List Nat), rest : (List Nat)],
+  statement: ((readFrame head (app (encFrame head payload) rest)) = (gate [((List Nat) * (List Nat))] (code (len payload)) (ctor Option.some [((List Nat) * (List Nat))] (payload, rest)))),
+  proof: simplify{definitions: [gate, readFrameApp]},
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: both,
+  parameters: [c : Nat, d : Nat],
+  result: Nat,
+  body: (match c | Nat.zero => d | Nat.succ rest => 1)
+}
+
+theorem{
+  name: gateGate,
+  type_parameters: [T],
+  parameters: [c : Nat, d : Nat, found : (Option 'T)],
+  statement: ((gate ['T] c (gate ['T] d found)) = (gate ['T] (both c d) found)),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [both, gate, toFit]}, binders: [], constructor: zero},
+      {proof: simplify{definitions: [both, gate, toFit]}, binders: [rest], constructor: succ}
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+definition{
+  name: encFields,
+  parameters: [head : (List Nat), xs : (List (List Nat))],
+  result: (List Nat),
+  body: (match xs
+    | List.nil => (nil Nat)
+    | List.cons item rest => (app (encFrame head item) (encFields head rest))),
+  recursive_argument: xs
+}
+
+definition{
+  name: sizeF,
+  parameters: [xs : (List (List Nat))],
+  result: Nat,
+  body: (match xs | List.nil => 0 | List.cons item rest => (both (code (len item)) (sizeF rest))),
+  recursive_argument: xs
+}
+
+definition{
+  name: lenF,
+  parameters: [xs : (List (List Nat))],
+  result: Nat,
+  body: (match xs | List.nil => 0 | List.cons item rest => ((lenF rest) + 1)),
+  recursive_argument: xs
+}
+
+definition{
+  name: restOf,
+  parameters: [found : (Option ((List Nat) * (List Nat)))],
+  result: (List Nat),
+  body: (match found | Option.none => (nil Nat) | Option.some pair => (second pair))
+}
+
+definition{
+  name: consF,
+  parameters: [item : (List Nat), found : (Option ((List (List Nat)) * (List Nat)))],
+  result: (Option ((List (List Nat)) * (List Nat))),
+  body: (match found
+    | Option.none => (ctor Option.none [((List (List Nat)) * (List Nat))])
+    | Option.some pair => (ctor Option.some [((List (List Nat)) * (List Nat))] ((cons item (first pair)), (second pair))))
+}
+
+definition{
+  name: joinF,
+  parameters: [
+    found : (Option ((List Nat) * (List Nat))),
+    more : (Option ((List (List Nat)) * (List Nat)))
+  ],
+  result: (Option ((List (List Nat)) * (List Nat))),
+  body: (match found
+    | Option.none => (ctor Option.none [((List (List Nat)) * (List Nat))])
+    | Option.some pair => (consF (first pair) more))
+}
+
+definition{
+  name: decFields,
+  parameters: [head : (List Nat), count : Nat, bytes : (List Nat)],
+  result: (Option ((List (List Nat)) * (List Nat))),
+  body: (match count
+    | Nat.zero => (ctor Option.some [((List (List Nat)) * (List Nat))] ((nil (List Nat)), bytes))
+    | Nat.succ previous => (joinF (readFrame head bytes) (decFields head previous (restOf (readFrame head bytes))))),
+  recursive_argument: count
+}
+
+theorem{
+  name: consGate,
+  parameters: [item : (List Nat), s : Nat, found : (Option ((List (List Nat)) * (List Nat)))],
+  statement: ((consF item (gate [((List (List Nat)) * (List Nat))] s found)) = (gate [((List (List Nat)) * (List Nat))] s (consF item found))),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [consF, gate, toFit]}, binders: [], constructor: zero},
+      {proof: simplify{definitions: [consF, gate, toFit]}, binders: [rest], constructor: succ}
+    ],
+    scrutinee: s
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: consSome,
+  parameters: [item : (List Nat), xs : (List (List Nat)), rest : (List Nat)],
+  statement: ((consF item (ctor Option.some [((List (List Nat)) * (List Nat))] (xs, rest))) = (ctor Option.some [((List (List Nat)) * (List Nat))] ((cons item xs), rest))),
+  proof: simplify{definitions: [consF]},
+  axioms: [propext]
+}
+
+theorem{
+  name: joinGate,
+  parameters: [head : (List Nat), c : Nat, previous : Nat, item : (List Nat), rest : (List Nat)],
+  statement: ((joinF (gate [((List Nat) * (List Nat))] c (ctor Option.some [((List Nat) * (List Nat))] (item, rest))) (decFields head previous (restOf (gate [((List Nat) * (List Nat))] c (ctor Option.some [((List Nat) * (List Nat))] (item, rest)))))) = (gate [((List (List Nat)) * (List Nat))] c (consF item (decFields head previous rest)))),
+  proof: cases{
+    branches: [
+      {
+        proof: simplify{definitions: [consF, gate, joinF, restOf, toFit]},
+        binders: [],
+        constructor: zero
+      },
+      {proof: simplify{definitions: [gate, joinF, toFit]}, binders: [pred], constructor: succ}
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: fieldsRT,
+  parameters: [head : (List Nat), xs : (List (List Nat)), rest : (List Nat)],
+  statement: ((decFields head (lenF xs) (app (encFields head xs) rest)) = (gate [((List (List Nat)) * (List Nat))] (sizeF xs) (ctor Option.some [((List (List Nat)) * (List Nat))] (xs, rest)))),
+  proof: induction{
+    branches: [
+      {
+        proof: simplify{definitions: [app, decFields, encFields, gate, lenF, sizeF, toFit]},
+        binders: [],
+        constructor: nil
+      },
+      {
+        proof: simplify{
+          definitions: [
+            appAssoc,
+            consGate,
+            consSome,
+            decFields,
+            encFields,
+            gateGate,
+            ih,
+            joinGate,
+            lenF,
+            readFrameG,
+            sizeF
+          ]
+        },
+        binders: [item, more, ih],
+        constructor: cons
+      }
+    ],
+    scrutinee: xs
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: encList,
+  parameters: [countHead : (List Nat), itemHead : (List Nat), xs : (List (List Nat))],
+  result: (List Nat),
+  body: (app countHead (app (be64 (satF (lenF xs))) (encFields itemHead xs)))
+}
+
+definition{
+  name: decList,
+  parameters: [countHead : (List Nat), itemHead : (List Nat), bytes : (List Nat)],
+  result: (Option ((List (List Nat)) * (List Nat))),
+  body: (match (stripPrefix countHead bytes)
+    | Option.none => (ctor Option.none [((List (List Nat)) * (List Nat))])
+    | Option.some after => (gate [((List (List Nat)) * (List Nat))] (code (value64 after)) (decFields itemHead (value64 after) (drop8 after))))
+}
+
+theorem{
+  name: gateSatDecLocal,
+  parameters: [head : (List Nat), c : Nat, n : Nat, bytes : (List Nat)],
+  statement: ((gate [((List (List Nat)) * (List Nat))] c (decFields head (pickF c n 18446744073709551615) bytes)) = (gate [((List (List Nat)) * (List Nat))] c (decFields head n bytes))),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [gate, pickF, toFit]}, binders: [], constructor: zero},
+      {proof: simplify{definitions: [gate, toFit]}, binders: [pred], constructor: succ}
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: gateSatDec,
+  parameters: [head : (List Nat), n : Nat, bytes : (List Nat)],
+  statement: ((gate [((List (List Nat)) * (List Nat))] (code n) (decFields head (satF n) bytes)) = (gate [((List (List Nat)) * (List Nat))] (code n) (decFields head n bytes))),
+  proof: simplify{definitions: [gateSatDecLocal, satF]},
+  axioms: [propext]
+}
+
+theorem{
+  name: listRT,
+  parameters: [
+    countHead : (List Nat),
+    itemHead : (List Nat),
+    xs : (List (List Nat)),
+    rest : (List Nat)
+  ],
+  statement: ((decList countHead itemHead (app (encList countHead itemHead xs) rest)) = (gate [((List (List Nat)) * (List Nat))] (both (code (lenF xs)) (sizeF xs)) (ctor Option.some [((List (List Nat)) * (List Nat))] (xs, rest)))),
+  proof: simplify{
+    definitions: [
+      appAssoc,
+      codeSatF,
+      d64,
+      decList,
+      encList,
+      fieldsRT,
+      gateGate,
+      gateSatDec,
+      stripPrefixApp,
+      v64SatF
+    ]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: hDomain,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons 6 (cons 100 (cons 111 (cons 109 (cons 97 (cons 105 (cons 110 (nil Nat)))))))))))
+}
+
+definition{
+  name: hFilesCount,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons 5 (cons 102 (cons 105 (cons 108 (cons 101 (cons 115 (nil Nat))))))))))
+}
+
+definition{
+  name: hFileItem,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons 4 (cons 102 (cons 105 (cons 108 (cons 101 (nil Nat)))))))))
+}
+
+definition{
+  name: hReviewsCount,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons 7 (cons 114 (cons 101 (cons 118 (cons 105 (cons 101 (cons 119 (cons 115 (nil Nat))))))))))))
+}
+
+definition{
+  name: hReviewItem,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons 6 (cons 114 (cons 101 (cons 118 (cons 105 (cons 101 (cons 119 (nil Nat)))))))))))
+}
+
+definition{
+  name: hToolchain,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons 9 (cons 116 (cons 111 (cons 111 (cons 108 (cons 99 (cons 104 (cons 97 (cons 105 (cons 110 (nil Nat))))))))))))))
+}
+
+definition{
+  name: hProfileId,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons 7 (cons 112 (cons 114 (cons 111 (cons 102 (cons 105 (cons 108 (cons 101 (nil Nat))))))))))))
+}
+
+definition{
+  name: hSourcesCount,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons 7 (cons 115 (cons 111 (cons 117 (cons 114 (cons 99 (cons 101 (cons 115 (nil Nat))))))))))))
+}
+
+definition{
+  name: hSourceItem,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons 6 (cons 115 (cons 111 (cons 117 (cons 114 (cons 99 (cons 101 (nil Nat)))))))))))
+}
+
+definition{
+  name: profileDomain,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 45 (cons 109 (cons 99 (cons 112 (cons 45 (cons 112 (cons 114 (cons 111 (cons 102 (cons 105 (cons 108 (cons 101 (cons 45 (cons 118 (cons 49 (nil Nat)))))))))))))))))))))))
+}
+
+definition{
+  name: draftDomain,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 45 (cons 109 (cons 99 (cons 112 (cons 45 (cons 100 (cons 114 (cons 97 (cons 102 (cons 116 (cons 45 (cons 118 (cons 49 (nil Nat)))))))))))))))))))))
+}
+
+structure{
+  name: ProfileParts,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: files, type: Rows},
+    {name: reviews, type: (List (List Nat))},
+    {name: toolchain, type: (List Nat)}
+  ]
+}
+
+structure{
+  name: DraftParts,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: profile, type: (List Nat)}, {name: sources, type: Rows}]
+}
+
+definition{
+  name: encProfile,
+  parameters: [
+    domain : (List Nat),
+    files : Rows,
+    reviews : (List (List Nat)),
+    toolchain : (List Nat)
+  ],
+  result: (List Nat),
+  body: (app (encFrame (hDomain) domain) (app (encList (hFilesCount) (hFileItem) (flat files)) (app (encList (hReviewsCount) (hReviewItem) reviews) (encFrame (hToolchain) toolchain))))
+}
+
+definition{
+  name: encDraft,
+  parameters: [domain : (List Nat), profile : (List Nat), sources : Rows],
+  result: (List Nat),
+  body: (app (encFrame (hDomain) domain) (app (encFrame (hProfileId) profile) (encList (hSourcesCount) (hSourceItem) (flat sources))))
+}
+
+definition{
+  name: profileStageT,
+  parameters: [
+    files : Rows,
+    reviews : (List (List Nat)),
+    found : (Option ((List Nat) * (List Nat)))
+  ],
+  result: (Option (ProfileParts * (List Nat))),
+  body: (match found
+    | Option.none => (ctor Option.none [(ProfileParts * (List Nat))])
+    | Option.some pair => (ctor Option.some [(ProfileParts * (List Nat))] ((record ProfileParts {files := files, reviews := reviews, toolchain := (first pair)}), (second pair))))
+}
+
+definition{
+  name: profileStageR,
+  parameters: [files : Rows, found : (Option ((List (List Nat)) * (List Nat)))],
+  result: (Option (ProfileParts * (List Nat))),
+  body: (match found
+    | Option.none => (ctor Option.none [(ProfileParts * (List Nat))])
+    | Option.some pair => (profileStageT files (first pair) (readFrame (hToolchain) (second pair))))
+}
+
+definition{
+  name: profileStageF,
+  parameters: [found : (Option ((List (List Nat)) * (List Nat)))],
+  result: (Option (ProfileParts * (List Nat))),
+  body: (match found
+    | Option.none => (ctor Option.none [(ProfileParts * (List Nat))])
+    | Option.some pair => (profileStageR (unflat (first pair)) (decList (hReviewsCount) (hReviewItem) (second pair))))
+}
+
+definition{
+  name: profileStageD,
+  parameters: [found : (Option ((List Nat) * (List Nat)))],
+  result: (Option (ProfileParts * (List Nat))),
+  body: (match found
+    | Option.none => (ctor Option.none [(ProfileParts * (List Nat))])
+    | Option.some pair => (profileStageF (decList (hFilesCount) (hFileItem) (second pair))))
+}
+
+definition{
+  name: decProfile,
+  parameters: [bytes : (List Nat)],
+  result: (Option (ProfileParts * (List Nat))),
+  body: (profileStageD (readFrame (hDomain) bytes))
+}
+
+definition{
+  name: draftStageS,
+  parameters: [profile : (List Nat), found : (Option ((List (List Nat)) * (List Nat)))],
+  result: (Option (DraftParts * (List Nat))),
+  body: (match found
+    | Option.none => (ctor Option.none [(DraftParts * (List Nat))])
+    | Option.some pair => (ctor Option.some [(DraftParts * (List Nat))] ((record DraftParts {profile := profile, sources := (unflat (first pair))}), (second pair))))
+}
+
+definition{
+  name: draftStageP,
+  parameters: [found : (Option ((List Nat) * (List Nat)))],
+  result: (Option (DraftParts * (List Nat))),
+  body: (match found
+    | Option.none => (ctor Option.none [(DraftParts * (List Nat))])
+    | Option.some pair => (draftStageS (first pair) (decList (hSourcesCount) (hSourceItem) (second pair))))
+}
+
+definition{
+  name: draftStageD,
+  parameters: [found : (Option ((List Nat) * (List Nat)))],
+  result: (Option (DraftParts * (List Nat))),
+  body: (match found
+    | Option.none => (ctor Option.none [(DraftParts * (List Nat))])
+    | Option.some pair => (draftStageP (readFrame (hProfileId) (second pair))))
+}
+
+definition{
+  name: decDraft,
+  parameters: [bytes : (List Nat)],
+  result: (Option (DraftParts * (List Nat))),
+  body: (draftStageD (readFrame (hDomain) bytes))
+}
+
+theorem{
+  name: profileStageTGate,
+  parameters: [
+    files : Rows,
+    reviews : (List (List Nat)),
+    c : Nat,
+    found : (Option ((List Nat) * (List Nat)))
+  ],
+  statement: ((profileStageT files reviews (gate [((List Nat) * (List Nat))] c found)) = (gate [(ProfileParts * (List Nat))] c (profileStageT files reviews found))),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [gate, toFit]}, binders: [], constructor: zero},
+      {
+        proof: simplify{definitions: [gate, profileStageT, toFit]},
+        binders: [pred],
+        constructor: succ
+      }
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: profileStageRGate,
+  parameters: [files : Rows, c : Nat, found : (Option ((List (List Nat)) * (List Nat)))],
+  statement: ((profileStageR files (gate [((List (List Nat)) * (List Nat))] c found)) = (gate [(ProfileParts * (List Nat))] c (profileStageR files found))),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [gate, toFit]}, binders: [], constructor: zero},
+      {
+        proof: simplify{definitions: [gate, profileStageR, toFit]},
+        binders: [pred],
+        constructor: succ
+      }
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: profileStageFGate,
+  parameters: [c : Nat, found : (Option ((List (List Nat)) * (List Nat)))],
+  statement: ((profileStageF (gate [((List (List Nat)) * (List Nat))] c found)) = (gate [(ProfileParts * (List Nat))] c (profileStageF found))),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [gate, toFit]}, binders: [], constructor: zero},
+      {
+        proof: simplify{definitions: [gate, profileStageF, toFit]},
+        binders: [pred],
+        constructor: succ
+      }
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: profileStageDGate,
+  parameters: [c : Nat, found : (Option ((List Nat) * (List Nat)))],
+  statement: ((profileStageD (gate [((List Nat) * (List Nat))] c found)) = (gate [(ProfileParts * (List Nat))] c (profileStageD found))),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [gate, toFit]}, binders: [], constructor: zero},
+      {
+        proof: simplify{definitions: [gate, profileStageD, toFit]},
+        binders: [pred],
+        constructor: succ
+      }
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: draftStageSGate,
+  parameters: [profile : (List Nat), c : Nat, found : (Option ((List (List Nat)) * (List Nat)))],
+  statement: ((draftStageS profile (gate [((List (List Nat)) * (List Nat))] c found)) = (gate [(DraftParts * (List Nat))] c (draftStageS profile found))),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [gate, toFit]}, binders: [], constructor: zero},
+      {proof: simplify{definitions: [draftStageS, gate, toFit]}, binders: [pred], constructor: succ}
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: draftStagePGate,
+  parameters: [c : Nat, found : (Option ((List Nat) * (List Nat)))],
+  statement: ((draftStageP (gate [((List Nat) * (List Nat))] c found)) = (gate [(DraftParts * (List Nat))] c (draftStageP found))),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [gate, toFit]}, binders: [], constructor: zero},
+      {proof: simplify{definitions: [draftStageP, gate, toFit]}, binders: [pred], constructor: succ}
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: draftStageDGate,
+  parameters: [c : Nat, found : (Option ((List Nat) * (List Nat)))],
+  statement: ((draftStageD (gate [((List Nat) * (List Nat))] c found)) = (gate [(DraftParts * (List Nat))] c (draftStageD found))),
+  proof: cases{
+    branches: [
+      {proof: simplify{definitions: [gate, toFit]}, binders: [], constructor: zero},
+      {proof: simplify{definitions: [draftStageD, gate, toFit]}, binders: [pred], constructor: succ}
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: profileStageDSome,
+  parameters: [d : (List Nat), r : (List Nat)],
+  statement: ((profileStageD (ctor Option.some [((List Nat) * (List Nat))] (d, r))) = (profileStageF (decList (hFilesCount) (hFileItem) r))),
+  proof: simplify{definitions: [profileStageD]},
+  axioms: [propext]
+}
+
+theorem{
+  name: profileStageFSome,
+  parameters: [fl : (List (List Nat)), r : (List Nat)],
+  statement: ((profileStageF (ctor Option.some [((List (List Nat)) * (List Nat))] (fl, r))) = (profileStageR (unflat fl) (decList (hReviewsCount) (hReviewItem) r))),
+  proof: simplify{definitions: [profileStageF]},
+  axioms: [propext]
+}
+
+theorem{
+  name: profileStageRSome,
+  parameters: [files : Rows, rv : (List (List Nat)), r : (List Nat)],
+  statement: ((profileStageR files (ctor Option.some [((List (List Nat)) * (List Nat))] (rv, r))) = (profileStageT files rv (readFrame (hToolchain) r))),
+  proof: simplify{definitions: [profileStageR]},
+  axioms: [propext]
+}
+
+theorem{
+  name: profileStageTSome,
+  parameters: [files : Rows, reviews : (List (List Nat)), tc : (List Nat), r : (List Nat)],
+  statement: ((profileStageT files reviews (ctor Option.some [((List Nat) * (List Nat))] (tc, r))) = (ctor Option.some [(ProfileParts * (List Nat))] ((record ProfileParts {files := files, reviews := reviews, toolchain := tc}), r))),
+  proof: simplify{definitions: [profileStageT]},
+  axioms: [propext]
+}
+
+theorem{
+  name: draftStageDSome,
+  parameters: [d : (List Nat), r : (List Nat)],
+  statement: ((draftStageD (ctor Option.some [((List Nat) * (List Nat))] (d, r))) = (draftStageP (readFrame (hProfileId) r))),
+  proof: simplify{definitions: [draftStageD]},
+  axioms: [propext]
+}
+
+theorem{
+  name: draftStagePSome,
+  parameters: [pid : (List Nat), r : (List Nat)],
+  statement: ((draftStageP (ctor Option.some [((List Nat) * (List Nat))] (pid, r))) = (draftStageS pid (decList (hSourcesCount) (hSourceItem) r))),
+  proof: simplify{definitions: [draftStageP]},
+  axioms: [propext]
+}
+
+theorem{
+  name: draftStageSSome,
+  parameters: [pid : (List Nat), fl : (List (List Nat)), r : (List Nat)],
+  statement: ((draftStageS pid (ctor Option.some [((List (List Nat)) * (List Nat))] (fl, r))) = (ctor Option.some [(DraftParts * (List Nat))] ((record DraftParts {profile := pid, sources := (unflat fl)}), r))),
+  proof: simplify{definitions: [draftStageS]},
+  axioms: [propext]
+}
+
+definition{
+  name: sizeProfile,
+  parameters: [
+    domain : (List Nat),
+    files : Rows,
+    reviews : (List (List Nat)),
+    toolchain : (List Nat)
+  ],
+  result: Nat,
+  body: (both (code (len domain)) (both (both (code (lenF (flat files))) (sizeF (flat files))) (both (both (code (lenF reviews)) (sizeF reviews)) (code (len toolchain)))))
+}
+
+definition{
+  name: sizeDraft,
+  parameters: [domain : (List Nat), profile : (List Nat), sources : Rows],
+  result: Nat,
+  body: (both (code (len domain)) (both (code (len profile)) (both (code (lenF (flat sources))) (sizeF (flat sources)))))
+}
+
+theorem{
+  name: profileRT,
+  parameters: [
+    domain : (List Nat),
+    files : Rows,
+    reviews : (List (List Nat)),
+    toolchain : (List Nat),
+    rest : (List Nat)
+  ],
+  statement: ((decProfile (app (encProfile domain files reviews toolchain) rest)) = (gate [(ProfileParts * (List Nat))] (sizeProfile domain files reviews toolchain) (ctor Option.some [(ProfileParts * (List Nat))] ((record ProfileParts {files := files, reviews := reviews, toolchain := toolchain}), rest)))),
+  proof: simplify{
+    definitions: [
+      appAssoc,
+      decProfile,
+      encProfile,
+      gateGate,
+      listRT,
+      profileStageDGate,
+      profileStageDSome,
+      profileStageFGate,
+      profileStageFSome,
+      profileStageRGate,
+      profileStageRSome,
+      profileStageTGate,
+      profileStageTSome,
+      readFrameG,
+      sizeProfile,
+      unflatFlat
+    ]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: draftRT,
+  parameters: [domain : (List Nat), profile : (List Nat), sources : Rows, rest : (List Nat)],
+  statement: ((decDraft (app (encDraft domain profile sources) rest)) = (gate [(DraftParts * (List Nat))] (sizeDraft domain profile sources) (ctor Option.some [(DraftParts * (List Nat))] ((record DraftParts {profile := profile, sources := sources}), rest)))),
+  proof: simplify{
+    definitions: [
+      appAssoc,
+      decDraft,
+      draftStageDGate,
+      draftStageDSome,
+      draftStagePGate,
+      draftStagePSome,
+      draftStageSGate,
+      draftStageSSome,
+      encDraft,
+      gateGate,
+      listRT,
+      readFrameG,
+      sizeDraft,
+      unflatFlat
+    ]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: octetsEqual,
+  parameters: [left : (List Nat), right : (List Nat)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons y ys => false)
+    | List.cons x xs => (match right
+      | List.nil => false
+      | List.cons y ys => (if (x =? y) then (octetsEqual xs ys) else false))),
+  recursive_argument: left
+}
+
+inductive{
+  name: Order,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Less, fields: []}, {name: Equal, fields: []}, {name: Greater, fields: []}]
+}
+
+definition{
+  name: compareOctets,
+  parameters: [left : (List Nat), right : (List Nat)],
+  result: Order,
+  body: (match left
+    | List.nil => (match right
+      | List.nil => (ctor Order.Equal)
+      | List.cons y ys => (ctor Order.Less))
+    | List.cons x xs => (match right
+      | List.nil => (ctor Order.Greater)
+      | List.cons y ys => (if (x <? y) then (ctor Order.Less) else (if (y <? x) then (ctor Order.Greater) else (compareOctets xs ys))))),
+  recursive_argument: left
+}
+
+inductive{
+  name: Sorted,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Canonical, fields: [Rows]}, {name: DuplicatePath, fields: []}]
+}
+
+definition{
+  name: insertRow,
+  parameters: [path : (List Nat), bytes : (List Nat), rows : Rows],
+  result: Sorted,
+  body: (match rows
+    | Rows.Nil => (ctor Sorted.Canonical (ctor Rows.Cons path bytes (ctor Rows.Nil)))
+    | Rows.Cons otherPath otherBytes more => (match (compareOctets path otherPath)
+      | Order.Less => (ctor Sorted.Canonical (ctor Rows.Cons path bytes (ctor Rows.Cons otherPath otherBytes more)))
+      | Order.Equal => (ctor Sorted.DuplicatePath)
+      | Order.Greater => (match (insertRow path bytes more)
+        | Sorted.DuplicatePath => (ctor Sorted.DuplicatePath)
+        | Sorted.Canonical inserted => (ctor Sorted.Canonical (ctor Rows.Cons otherPath otherBytes inserted))))),
+  recursive_argument: rows
+}
+
+definition{
+  name: canonicalize,
+  parameters: [rows : Rows],
+  result: Sorted,
+  body: (match rows
+    | Rows.Nil => (ctor Sorted.Canonical (ctor Rows.Nil))
+    | Rows.Cons path bytes more => (match (canonicalize more)
+      | Sorted.DuplicatePath => (ctor Sorted.DuplicatePath)
+      | Sorted.Canonical sorted => (insertRow path bytes sorted))),
+  recursive_argument: rows
+}
+
+definition{
+  name: isCanonical,
+  parameters: [rows : Rows],
+  result: Bool,
+  body: (match rows
+    | Rows.Nil => true
+    | Rows.Cons path bytes more => (match more
+      | Rows.Nil => true
+      | Rows.Cons nextPath nextBytes rest => (match (compareOctets path nextPath)
+        | Order.Less => (isCanonical more)
+        | Order.Equal => false
+        | Order.Greater => false))),
+  recursive_argument: rows
+}
+
+theorem{
+  name: canonicalizePermutation1,
+  parameters: [],
+  statement: ((canonicalize (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Nil))))) = (ctor Sorted.Canonical (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Nil)))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: canonicalizePermutation2,
+  parameters: [],
+  statement: ((canonicalize (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Nil))))) = (ctor Sorted.Canonical (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Nil)))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: canonicalizePermutation3,
+  parameters: [],
+  statement: ((canonicalize (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Nil))))) = (ctor Sorted.Canonical (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Nil)))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: canonicalizePermutation4,
+  parameters: [],
+  statement: ((canonicalize (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Nil))))) = (ctor Sorted.Canonical (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Nil)))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: canonicalizePermutation5,
+  parameters: [],
+  statement: ((canonicalize (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Nil))))) = (ctor Sorted.Canonical (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Nil)))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: canonicalizePermutation6,
+  parameters: [],
+  statement: ((canonicalize (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Nil))))) = (ctor Sorted.Canonical (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Nil)))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: canonicalizeRefusesDuplicate,
+  parameters: [],
+  statement: ((canonicalize (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 111 (cons 116 (cons 104 (cons 101 (cons 114 (nil Nat)))))) (ctor Rows.Nil))))) = (ctor Sorted.DuplicatePath)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: sortedRowsAreCanonical,
+  parameters: [],
+  statement: ((isCanonical (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Nil))))) = true),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: unsortedRowsAreNotCanonical,
+  parameters: [],
+  statement: ((isCanonical (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 98 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 66 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 65 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 99 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 67 (nil Nat)) (ctor Rows.Nil))))) = false),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: duplicateRowsAreNotCanonical,
+  parameters: [],
+  statement: ((isCanonical (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 49 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 97 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 50 (nil Nat)) (ctor Rows.Nil)))) = false),
+  proof: reflexivity{}
+}
+
+definition{
+  name: natOfWord,
+  parameters: [word : UInt32],
+  result: Nat,
+  body: (first (prim iterate (fun (state : (Nat * UInt32)) => (((prim multiply (first state) 2 : Nat) + (if (prim equal (prim bit_and (second state) (2147483648 : UInt32) : UInt32) (2147483648 : UInt32) : Bool) then 1 else 0)), (Sha256::shiftLeft (second state) (1 : UInt32)))) 32 (0, word) : (Nat * UInt32))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: wordOctets,
+  parameters: [word : UInt32],
+  result: (List Nat),
+  body: (be32 (natOfWord word)),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: digestOctets,
+  parameters: [digest : Sha256::Digest],
+  result: (List Nat),
+  body: (app (wordOctets (project digest h0)) (app (wordOctets (project digest h1)) (app (wordOctets (project digest h2)) (app (wordOctets (project digest h3)) (app (wordOctets (project digest h4)) (app (wordOctets (project digest h5)) (app (wordOctets (project digest h6)) (wordOctets (project digest h7))))))))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: byteLiteral,
+  parameters: [n : Nat],
+  result: Bytes,
+  body: (if (n <? 128) then (if (n <? 64) then (if (n <? 32) then (if (n <? 16) then (if (n <? 8) then (if (n <? 4) then (if (n <? 2) then (if (n <? 1) then 0x00 else 0x01) else (if (n <? 3) then 0x02 else 0x03)) else (if (n <? 6) then (if (n <? 5) then 0x04 else 0x05) else (if (n <? 7) then 0x06 else 0x07))) else (if (n <? 12) then (if (n <? 10) then (if (n <? 9) then 0x08 else 0x09) else (if (n <? 11) then 0x0a else 0x0b)) else (if (n <? 14) then (if (n <? 13) then 0x0c else 0x0d) else (if (n <? 15) then 0x0e else 0x0f)))) else (if (n <? 24) then (if (n <? 20) then (if (n <? 18) then (if (n <? 17) then 0x10 else 0x11) else (if (n <? 19) then 0x12 else 0x13)) else (if (n <? 22) then (if (n <? 21) then 0x14 else 0x15) else (if (n <? 23) then 0x16 else 0x17))) else (if (n <? 28) then (if (n <? 26) then (if (n <? 25) then 0x18 else 0x19) else (if (n <? 27) then 0x1a else 0x1b)) else (if (n <? 30) then (if (n <? 29) then 0x1c else 0x1d) else (if (n <? 31) then 0x1e else 0x1f))))) else (if (n <? 48) then (if (n <? 40) then (if (n <? 36) then (if (n <? 34) then (if (n <? 33) then 0x20 else 0x21) else (if (n <? 35) then 0x22 else 0x23)) else (if (n <? 38) then (if (n <? 37) then 0x24 else 0x25) else (if (n <? 39) then 0x26 else 0x27))) else (if (n <? 44) then (if (n <? 42) then (if (n <? 41) then 0x28 else 0x29) else (if (n <? 43) then 0x2a else 0x2b)) else (if (n <? 46) then (if (n <? 45) then 0x2c else 0x2d) else (if (n <? 47) then 0x2e else 0x2f)))) else (if (n <? 56) then (if (n <? 52) then (if (n <? 50) then (if (n <? 49) then 0x30 else 0x31) else (if (n <? 51) then 0x32 else 0x33)) else (if (n <? 54) then (if (n <? 53) then 0x34 else 0x35) else (if (n <? 55) then 0x36 else 0x37))) else (if (n <? 60) then (if (n <? 58) then (if (n <? 57) then 0x38 else 0x39) else (if (n <? 59) then 0x3a else 0x3b)) else (if (n <? 62) then (if (n <? 61) then 0x3c else 0x3d) else (if (n <? 63) then 0x3e else 0x3f)))))) else (if (n <? 96) then (if (n <? 80) then (if (n <? 72) then (if (n <? 68) then (if (n <? 66) then (if (n <? 65) then 0x40 else 0x41) else (if (n <? 67) then 0x42 else 0x43)) else (if (n <? 70) then (if (n <? 69) then 0x44 else 0x45) else (if (n <? 71) then 0x46 else 0x47))) else (if (n <? 76) then (if (n <? 74) then (if (n <? 73) then 0x48 else 0x49) else (if (n <? 75) then 0x4a else 0x4b)) else (if (n <? 78) then (if (n <? 77) then 0x4c else 0x4d) else (if (n <? 79) then 0x4e else 0x4f)))) else (if (n <? 88) then (if (n <? 84) then (if (n <? 82) then (if (n <? 81) then 0x50 else 0x51) else (if (n <? 83) then 0x52 else 0x53)) else (if (n <? 86) then (if (n <? 85) then 0x54 else 0x55) else (if (n <? 87) then 0x56 else 0x57))) else (if (n <? 92) then (if (n <? 90) then (if (n <? 89) then 0x58 else 0x59) else (if (n <? 91) then 0x5a else 0x5b)) else (if (n <? 94) then (if (n <? 93) then 0x5c else 0x5d) else (if (n <? 95) then 0x5e else 0x5f))))) else (if (n <? 112) then (if (n <? 104) then (if (n <? 100) then (if (n <? 98) then (if (n <? 97) then 0x60 else 0x61) else (if (n <? 99) then 0x62 else 0x63)) else (if (n <? 102) then (if (n <? 101) then 0x64 else 0x65) else (if (n <? 103) then 0x66 else 0x67))) else (if (n <? 108) then (if (n <? 106) then (if (n <? 105) then 0x68 else 0x69) else (if (n <? 107) then 0x6a else 0x6b)) else (if (n <? 110) then (if (n <? 109) then 0x6c else 0x6d) else (if (n <? 111) then 0x6e else 0x6f)))) else (if (n <? 120) then (if (n <? 116) then (if (n <? 114) then (if (n <? 113) then 0x70 else 0x71) else (if (n <? 115) then 0x72 else 0x73)) else (if (n <? 118) then (if (n <? 117) then 0x74 else 0x75) else (if (n <? 119) then 0x76 else 0x77))) else (if (n <? 124) then (if (n <? 122) then (if (n <? 121) then 0x78 else 0x79) else (if (n <? 123) then 0x7a else 0x7b)) else (if (n <? 126) then (if (n <? 125) then 0x7c else 0x7d) else (if (n <? 127) then 0x7e else 0x7f))))))) else (if (n <? 192) then (if (n <? 160) then (if (n <? 144) then (if (n <? 136) then (if (n <? 132) then (if (n <? 130) then (if (n <? 129) then 0x80 else 0x81) else (if (n <? 131) then 0x82 else 0x83)) else (if (n <? 134) then (if (n <? 133) then 0x84 else 0x85) else (if (n <? 135) then 0x86 else 0x87))) else (if (n <? 140) then (if (n <? 138) then (if (n <? 137) then 0x88 else 0x89) else (if (n <? 139) then 0x8a else 0x8b)) else (if (n <? 142) then (if (n <? 141) then 0x8c else 0x8d) else (if (n <? 143) then 0x8e else 0x8f)))) else (if (n <? 152) then (if (n <? 148) then (if (n <? 146) then (if (n <? 145) then 0x90 else 0x91) else (if (n <? 147) then 0x92 else 0x93)) else (if (n <? 150) then (if (n <? 149) then 0x94 else 0x95) else (if (n <? 151) then 0x96 else 0x97))) else (if (n <? 156) then (if (n <? 154) then (if (n <? 153) then 0x98 else 0x99) else (if (n <? 155) then 0x9a else 0x9b)) else (if (n <? 158) then (if (n <? 157) then 0x9c else 0x9d) else (if (n <? 159) then 0x9e else 0x9f))))) else (if (n <? 176) then (if (n <? 168) then (if (n <? 164) then (if (n <? 162) then (if (n <? 161) then 0xa0 else 0xa1) else (if (n <? 163) then 0xa2 else 0xa3)) else (if (n <? 166) then (if (n <? 165) then 0xa4 else 0xa5) else (if (n <? 167) then 0xa6 else 0xa7))) else (if (n <? 172) then (if (n <? 170) then (if (n <? 169) then 0xa8 else 0xa9) else (if (n <? 171) then 0xaa else 0xab)) else (if (n <? 174) then (if (n <? 173) then 0xac else 0xad) else (if (n <? 175) then 0xae else 0xaf)))) else (if (n <? 184) then (if (n <? 180) then (if (n <? 178) then (if (n <? 177) then 0xb0 else 0xb1) else (if (n <? 179) then 0xb2 else 0xb3)) else (if (n <? 182) then (if (n <? 181) then 0xb4 else 0xb5) else (if (n <? 183) then 0xb6 else 0xb7))) else (if (n <? 188) then (if (n <? 186) then (if (n <? 185) then 0xb8 else 0xb9) else (if (n <? 187) then 0xba else 0xbb)) else (if (n <? 190) then (if (n <? 189) then 0xbc else 0xbd) else (if (n <? 191) then 0xbe else 0xbf)))))) else (if (n <? 224) then (if (n <? 208) then (if (n <? 200) then (if (n <? 196) then (if (n <? 194) then (if (n <? 193) then 0xc0 else 0xc1) else (if (n <? 195) then 0xc2 else 0xc3)) else (if (n <? 198) then (if (n <? 197) then 0xc4 else 0xc5) else (if (n <? 199) then 0xc6 else 0xc7))) else (if (n <? 204) then (if (n <? 202) then (if (n <? 201) then 0xc8 else 0xc9) else (if (n <? 203) then 0xca else 0xcb)) else (if (n <? 206) then (if (n <? 205) then 0xcc else 0xcd) else (if (n <? 207) then 0xce else 0xcf)))) else (if (n <? 216) then (if (n <? 212) then (if (n <? 210) then (if (n <? 209) then 0xd0 else 0xd1) else (if (n <? 211) then 0xd2 else 0xd3)) else (if (n <? 214) then (if (n <? 213) then 0xd4 else 0xd5) else (if (n <? 215) then 0xd6 else 0xd7))) else (if (n <? 220) then (if (n <? 218) then (if (n <? 217) then 0xd8 else 0xd9) else (if (n <? 219) then 0xda else 0xdb)) else (if (n <? 222) then (if (n <? 221) then 0xdc else 0xdd) else (if (n <? 223) then 0xde else 0xdf))))) else (if (n <? 240) then (if (n <? 232) then (if (n <? 228) then (if (n <? 226) then (if (n <? 225) then 0xe0 else 0xe1) else (if (n <? 227) then 0xe2 else 0xe3)) else (if (n <? 230) then (if (n <? 229) then 0xe4 else 0xe5) else (if (n <? 231) then 0xe6 else 0xe7))) else (if (n <? 236) then (if (n <? 234) then (if (n <? 233) then 0xe8 else 0xe9) else (if (n <? 235) then 0xea else 0xeb)) else (if (n <? 238) then (if (n <? 237) then 0xec else 0xed) else (if (n <? 239) then 0xee else 0xef)))) else (if (n <? 248) then (if (n <? 244) then (if (n <? 242) then (if (n <? 241) then 0xf0 else 0xf1) else (if (n <? 243) then 0xf2 else 0xf3)) else (if (n <? 246) then (if (n <? 245) then 0xf4 else 0xf5) else (if (n <? 247) then 0xf6 else 0xf7))) else (if (n <? 252) then (if (n <? 250) then (if (n <? 249) then 0xf8 else 0xf9) else (if (n <? 251) then 0xfa else 0xfb)) else (if (n <? 254) then (if (n <? 253) then 0xfc else 0xfd) else (if (n <? 255) then 0xfe else 0xff))))))))
+}
+
+definition{
+  name: bytesOfOctets,
+  parameters: [octets : (List Nat)],
+  result: Bytes,
+  body: (match octets
+    | List.nil => 0x
+    | List.cons octet rest => (prim append (byteLiteral octet) (bytesOfOctets rest) : Bytes)),
+  recursive_argument: octets
+}
+
+definition{
+  name: natOfByte,
+  parameters: [byte : UInt8],
+  result: Nat,
+  body: (match (prim checked_convert byte : (Option UInt32))
+    | Option.some word => (natOfWord word)
+    | Option.none => 0),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: octetAt,
+  parameters: [bytes : Bytes, position : Nat],
+  result: Nat,
+  body: (match (prim index bytes position : (Option UInt8))
+    | Option.some byte => (natOfByte byte)
+    | Option.none => 0),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: octetsOfBytes,
+  parameters: [bytes : Bytes],
+  result: (List Nat),
+  body: (first (prim iterate (fun [bytes] (state : ((List Nat) * Nat)) => ((cons (octetAt bytes (prim subtract (second state) 1 : Nat)) (first state)), (prim subtract (second state) 1 : Nat))) (prim length bytes : Nat) ((nil Nat), (prim length bytes : Nat)) : ((List Nat) * Nat))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: recordsOfBytes,
+  parameters: [entries : (List Bytes)],
+  result: (List (List Nat)),
+  body: (match entries
+    | List.nil => (nil (List Nat))
+    | List.cons entry rest => (cons (octetsOfBytes entry) (recordsOfBytes rest))),
+  axioms: [Quot.sound, propext],
+  recursive_argument: entries
+}
+
+definition{
+  name: rowsOfFiles,
+  parameters: [files : (List (Bytes * Bytes))],
+  result: Rows,
+  body: (match files
+    | List.nil => (ctor Rows.Nil)
+    | List.cons file rest => (ctor Rows.Cons (octetsOfBytes (first file)) (octetsOfBytes (second file)) (rowsOfFiles rest))),
+  axioms: [Quot.sound, propext],
+  recursive_argument: files
+}
+
+inductive{
+  name: Outcome,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Identified, fields: [Sha256::Digest]},
+    {name: DuplicatePath, fields: []},
+    {name: FieldTooLong, fields: []}
+  ]
+}
+
+definition{
+  name: profileDigest,
+  parameters: [files : Rows, reviews : (List (List Nat)), toolchain : (List Nat)],
+  result: Sha256::Digest,
+  body: (Sha256::sha256 (bytesOfOctets (encProfile (profileDomain) files reviews toolchain))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: draftDigest,
+  parameters: [profile : Sha256::Digest, sources : Rows],
+  result: Sha256::Digest,
+  body: (Sha256::sha256 (bytesOfOctets (encDraft (draftDomain) (digestOctets profile) sources))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: profileId,
+  parameters: [files : (List (Bytes * Bytes)), reviews : (List Bytes), toolchain : Bytes],
+  result: Outcome,
+  body: (match (canonicalize (rowsOfFiles files))
+    | Sorted.DuplicatePath => (ctor Outcome.DuplicatePath)
+    | Sorted.Canonical rows => (match (toFit (sizeProfile (profileDomain) rows (recordsOfBytes reviews) (octetsOfBytes toolchain)))
+      | Fit.Within => (ctor Outcome.Identified (profileDigest rows (recordsOfBytes reviews) (octetsOfBytes toolchain)))
+      | Fit.Over => (ctor Outcome.FieldTooLong))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: draftId,
+  parameters: [profile : Sha256::Digest, sources : (List (Bytes * Bytes))],
+  result: Outcome,
+  body: (match (canonicalize (rowsOfFiles sources))
+    | Sorted.DuplicatePath => (ctor Outcome.DuplicatePath)
+    | Sorted.Canonical rows => (match (toFit (sizeDraft (draftDomain) (digestOctets profile) rows))
+      | Fit.Within => (ctor Outcome.Identified (draftDigest profile rows))
+      | Fit.Over => (ctor Outcome.FieldTooLong))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: sameDigest,
+  parameters: [left : Sha256::Digest, right : Sha256::Digest],
+  result: Bool,
+  body: ((prim equal (project left h0) (project right h0) : Bool) && ((prim equal (project left h1) (project right h1) : Bool) && ((prim equal (project left h2) (project right h2) : Bool) && ((prim equal (project left h3) (project right h3) : Bool) && ((prim equal (project left h4) (project right h4) : Bool) && ((prim equal (project left h5) (project right h5) : Bool) && ((prim equal (project left h6) (project right h6) : Bool) && (prim equal (project left h7) (project right h7) : Bool))))))))
+}
+
+definition{
+  name: domainOf,
+  parameters: [bytes : (List Nat)],
+  result: (List Nat),
+  body: (match (readFrame (hDomain) bytes)
+    | Option.none => (nil Nat)
+    | Option.some found => (first found))
+}
+
+theorem{
+  name: profileDomainFits,
+  parameters: [],
+  statement: ((toFit (code (len (profileDomain)))) = (ctor Fit.Within)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: draftDomainFits,
+  parameters: [],
+  statement: ((toFit (code (len (draftDomain)))) = (ctor Fit.Within)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: profilePreimageDomain,
+  parameters: [
+    files : Rows,
+    reviews : (List (List Nat)),
+    toolchain : (List Nat),
+    rest : (List Nat)
+  ],
+  statement: ((domainOf (app (encProfile (profileDomain) files reviews toolchain) rest)) = (profileDomain)),
+  proof: simplify{
+    definitions: [appAssoc, domainOf, encProfile, gate, profileDomainFits, readFrameG]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: draftPreimageDomain,
+  parameters: [profile : (List Nat), sources : Rows, rest : (List Nat)],
+  statement: ((domainOf (app (encDraft (draftDomain) profile sources) rest)) = (draftDomain)),
+  proof: simplify{definitions: [appAssoc, domainOf, draftDomainFits, encDraft, gate, readFrameG]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: domainsDiffer,
+  parameters: [],
+  statement: ((octetsEqual (profileDomain) (draftDomain)) = false),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: profileAndDraftPreimagesDiffer,
+  parameters: [
+    files : Rows,
+    reviews : (List (List Nat)),
+    toolchain : (List Nat),
+    rest : (List Nat),
+    profile : (List Nat),
+    sources : Rows,
+    other : (List Nat)
+  ],
+  statement: ((octetsEqual (domainOf (app (encProfile (profileDomain) files reviews toolchain) rest)) (domainOf (app (encDraft (draftDomain) profile sources) other))) = false),
+  proof: simplify{definitions: [domainsDiffer, draftPreimageDomain, profilePreimageDomain]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: boundaryShiftDoesNotCollide,
+  parameters: [],
+  statement: ((octetsEqual (encProfile (profileDomain) (ctor Rows.Cons (cons 97 (nil Nat)) (cons 98 (cons 99 (nil Nat))) (ctor Rows.Nil)) (nil (List Nat)) (cons 116 (cons 99 (nil Nat)))) (encProfile (profileDomain) (ctor Rows.Cons (cons 97 (cons 98 (nil Nat))) (cons 99 (nil Nat)) (ctor Rows.Nil)) (nil (List Nat)) (cons 116 (cons 99 (nil Nat))))) = false),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: embeddedLabelDoesNotCollide,
+  parameters: [],
+  statement: ((octetsEqual (encProfile (profileDomain) (ctor Rows.Cons (cons 120 (cons 0 (cons 0 (cons 0 (cons 4 (cons 102 (cons 105 (cons 108 (cons 101 (cons 121 (nil Nat))))))))))) (cons 122 (nil Nat)) (ctor Rows.Nil)) (nil (List Nat)) (cons 116 (cons 99 (nil Nat)))) (encProfile (profileDomain) (ctor Rows.Cons (cons 120 (nil Nat)) (cons 121 (cons 0 (cons 0 (cons 0 (cons 4 (cons 102 (cons 105 (cons 108 (cons 101 (cons 122 (nil Nat))))))))))) (ctor Rows.Nil)) (nil (List Nat)) (cons 116 (cons 99 (nil Nat))))) = false),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: profilePreimageVector,
+  parameters: [],
+  statement: ((encProfile (profileDomain) (ctor Rows.Cons (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 46 (cons 108 (cons 111 (cons 99 (cons 107 (nil Nat))))))))))))) (cons 76 (nil Nat)) (ctor Rows.Cons (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 46 (cons 116 (cons 111 (cons 109 (cons 108 (nil Nat))))))))))))) (cons 84 (nil Nat)) (ctor Rows.Nil))) (cons (cons 114 (cons 49 (nil Nat))) (nil (List Nat))) (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 45 (cons 118 (cons 48 (cons 46 (cons 52 (nil Nat)))))))))))))) = (octetsOfBytes 0x00000006646f6d61696e00000000000000166c65786c65616e2d6d63702d70726f66696c652d76310000000566696c657300000000000000040000000466696c65000000000000000c6c65786c65616e2e6c6f636b0000000466696c6500000000000000014c0000000466696c65000000000000000c6c65786c65616e2e746f6d6c0000000466696c6500000000000000015400000007726576696577730000000000000001000000067265766965770000000000000002723100000009746f6f6c636861696e000000000000000c6c65786c65616e2d76302e34)),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileDigestVector,
+  parameters: [],
+  statement: ((profileDigest (ctor Rows.Cons (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 46 (cons 108 (cons 111 (cons 99 (cons 107 (nil Nat))))))))))))) (cons 76 (nil Nat)) (ctor Rows.Cons (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 46 (cons 116 (cons 111 (cons 109 (cons 108 (nil Nat))))))))))))) (cons 84 (nil Nat)) (ctor Rows.Nil))) (cons (cons 114 (cons 49 (nil Nat))) (nil (List Nat))) (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 45 (cons 118 (cons 48 (cons 46 (cons 52 (nil Nat)))))))))))))) = (record Sha256::Digest {h0 := (2909184448 : UInt32), h1 := (3388631768 : UInt32), h2 := (3065996373 : UInt32), h3 := (2615200073 : UInt32), h4 := (3893631503 : UInt32), h5 := (2846713016 : UInt32), h6 := (158922111 : UInt32), h7 := (3359119298 : UInt32)})),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileIdVector,
+  parameters: [],
+  statement: ((profileId (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7231 (nil Bytes)) 0x6c65786c65616e2d76302e34) = (ctor Outcome.Identified (record Sha256::Digest {h0 := (2909184448 : UInt32), h1 := (3388631768 : UInt32), h2 := (3065996373 : UInt32), h3 := (2615200073 : UInt32), h4 := (3893631503 : UInt32), h5 := (2846713016 : UInt32), h6 := (158922111 : UInt32), h7 := (3359119298 : UInt32)}))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileIdIsOrderIndependent,
+  parameters: [],
+  statement: ((profileId (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7231 (nil Bytes)) 0x6c65786c65616e2d76302e34) = (profileId (cons (0x6c65786c65616e2e746f6d6c, 0x54) (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (nil (Bytes * Bytes)))) (cons 0x7231 (nil Bytes)) 0x6c65786c65616e2d76302e34)),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileIdRefusesDuplicatePath,
+  parameters: [],
+  statement: ((profileId (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (nil (Bytes * Bytes)))) (cons 0x7231 (nil Bytes)) 0x6c65786c65616e2d76302e34) = (ctor Outcome.DuplicatePath)),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: draftPreimageVector,
+  parameters: [],
+  statement: ((encDraft (draftDomain) (cons 173 (cons 102 (cons 161 (cons 192 (cons 201 (cons 250 (cons 106 (cons 216 (cons 182 (cons 191 (cons 100 (cons 85 (cons 155 (cons 224 (cons 201 (cons 73 (cons 232 (cons 20 (cons 26 (cons 15 (cons 169 (cons 173 (cons 100 (cons 184 (cons 9 (cons 120 (cons 245 (cons 127 (cons 200 (cons 56 (cons 23 (cons 194 (nil Nat))))))))))))))))))))))))))))))))) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 65 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 120 (nil Nat)) (ctor Rows.Cons (cons 115 (cons 114 (cons 99 (cons 47 (cons 66 (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat)))))))))))))) (cons 121 (cons 122 (nil Nat))) (ctor Rows.Nil)))) = (octetsOfBytes 0x00000006646f6d61696e00000000000000146c65786c65616e2d6d63702d64726166742d76310000000770726f66696c650000000000000020ad66a1c0c9fa6ad8b6bf64559be0c949e8141a0fa9ad64b80978f57fc83817c200000007736f7572636573000000000000000400000006736f75726365000000000000000d7372632f412e6c65782e74657800000006736f7572636500000000000000017800000006736f75726365000000000000000d7372632f422e6c65782e74657800000006736f757263650000000000000002797a)),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: draftIdVector,
+  parameters: [],
+  statement: ((draftId (record Sha256::Digest {h0 := (2909184448 : UInt32), h1 := (3388631768 : UInt32), h2 := (3065996373 : UInt32), h3 := (2615200073 : UInt32), h4 := (3893631503 : UInt32), h5 := (2846713016 : UInt32), h6 := (158922111 : UInt32), h7 := (3359119298 : UInt32)}) (cons (0x7372632f412e6c65782e746578, 0x78) (cons (0x7372632f422e6c65782e746578, 0x797a) (nil (Bytes * Bytes))))) = (ctor Outcome.Identified (record Sha256::Digest {h0 := (2767594749 : UInt32), h1 := (1529922015 : UInt32), h2 := (3625999551 : UInt32), h3 := (3856253698 : UInt32), h4 := (3036499891 : UInt32), h5 := (2545116954 : UInt32), h6 := (4018481258 : UInt32), h7 := (1581466267 : UInt32)}))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: changedFileProfileId,
+  parameters: [],
+  statement: ((profileId (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x55) (nil (Bytes * Bytes)))) (cons 0x7231 (nil Bytes)) 0x6c65786c65616e2d76302e34) = (ctor Outcome.Identified (record Sha256::Digest {h0 := (6096759 : UInt32), h1 := (3458990624 : UInt32), h2 := (3414414312 : UInt32), h3 := (2715531888 : UInt32), h4 := (829052538 : UInt32), h5 := (2038291945 : UInt32), h6 := (3725847942 : UInt32), h7 := (1392191139 : UInt32)}))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: changedFileChangesProfileId,
+  parameters: [],
+  statement: ((sameDigest (record Sha256::Digest {h0 := (2909184448 : UInt32), h1 := (3388631768 : UInt32), h2 := (3065996373 : UInt32), h3 := (2615200073 : UInt32), h4 := (3893631503 : UInt32), h5 := (2846713016 : UInt32), h6 := (158922111 : UInt32), h7 := (3359119298 : UInt32)}) (record Sha256::Digest {h0 := (6096759 : UInt32), h1 := (3458990624 : UInt32), h2 := (3414414312 : UInt32), h3 := (2715531888 : UInt32), h4 := (829052538 : UInt32), h5 := (2038291945 : UInt32), h6 := (3725847942 : UInt32), h7 := (1392191139 : UInt32)})) = false),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: abcThroughTheBridge,
+  parameters: [],
+  statement: ((bytesOfOctets (cons 97 (cons 98 (cons 99 (nil Nat))))) = 0x616263),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: abcBackThroughTheBridge,
+  parameters: [],
+  statement: ((octetsOfBytes 0x616263) = (cons 97 (cons 98 (cons 99 (nil Nat))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: everyOctetValueSurvivesTheBridge,
+  parameters: [],
+  statement: ((octetsOfBytes (bytesOfOctets (cons 0 (cons 1 (cons 127 (cons 128 (cons 200 (cons 255 (cons 47 (cons 46 (nil Nat))))))))))) = (cons 0 (cons 1 (cons 127 (cons 128 (cons 200 (cons 255 (cons 47 (cons 46 (nil Nat)))))))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: fipsOneBlockThroughTheBridge,
+  parameters: [],
+  statement: ((Sha256::sha256 (bytesOfOctets (cons 97 (cons 98 (cons 99 (nil Nat)))))) = (record Sha256::Digest {h0 := (3128432319 : UInt32), h1 := (2399260650 : UInt32), h2 := (1094795486 : UInt32), h3 := (1571693091 : UInt32), h4 := (2953011619 : UInt32), h5 := (2518121116 : UInt32), h6 := (3021012833 : UInt32), h7 := (4060091821 : UInt32)})),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: fipsTwoBlocksThroughTheBridge,
+  parameters: [],
+  statement: ((Sha256::sha256 (bytesOfOctets (cons 97 (cons 98 (cons 99 (cons 100 (cons 98 (cons 99 (cons 100 (cons 101 (cons 99 (cons 100 (cons 101 (cons 102 (cons 100 (cons 101 (cons 102 (cons 103 (cons 101 (cons 102 (cons 103 (cons 104 (cons 102 (cons 103 (cons 104 (cons 105 (cons 103 (cons 104 (cons 105 (cons 106 (cons 104 (cons 105 (cons 106 (cons 107 (cons 105 (cons 106 (cons 107 (cons 108 (cons 106 (cons 107 (cons 108 (cons 109 (cons 107 (cons 108 (cons 109 (cons 110 (cons 108 (cons 109 (cons 110 (cons 111 (cons 109 (cons 110 (cons 111 (cons 112 (cons 110 (cons 111 (cons 112 (cons 113 (nil Nat))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (record Sha256::Digest {h0 := (613247585 : UInt32), h1 := (3523623096 : UInt32), h2 := (3854575251 : UInt32), h3 := (205414457 : UInt32), h4 := (2738676825 : UInt32), h5 := (1694441831 : UInt32), h6 := (4142722516 : UInt32), h7 := (433784513 : UInt32)})),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: fipsEmptyThroughTheBridge,
+  parameters: [],
+  statement: ((Sha256::sha256 (bytesOfOctets (nil Nat))) = (record Sha256::Digest {h0 := (3820012610 : UInt32), h1 := (2566659092 : UInt32), h2 := (2600203464 : UInt32), h3 := (2574235940 : UInt32), h4 := (665731556 : UInt32), h5 := (1687917388 : UInt32), h6 := (2761267483 : UInt32), h7 := (2018687061 : UInt32)})),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: digestOctetsOfAbc,
+  parameters: [],
+  statement: ((digestOctets (Sha256::sha256 0x616263)) = (cons 186 (cons 120 (cons 22 (cons 191 (cons 143 (cons 1 (cons 207 (cons 234 (cons 65 (cons 65 (cons 64 (cons 222 (cons 93 (cons 174 (cons 34 (cons 35 (cons 176 (cons 3 (cons 97 (cons 163 (cons 150 (cons 23 (cons 122 (cons 156 (cons 180 (cons 16 (cons 255 (cons 97 (cons 242 (cons 0 (cons 21 (cons 173 (nil Nat)))))))))))))))))))))))))))))))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: largestFieldLengthThatFits,
+  parameters: [],
+  statement: ((toFit (code 18446744073709551614)) = (ctor Fit.Within)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: smallestFieldLengthRefused,
+  parameters: [],
+  statement: ((toFit (code 18446744073709551615)) = (ctor Fit.Over)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: changedProfileChangesDraftId,
+  parameters: [],
+  statement: ((draftId (record Sha256::Digest {h0 := (6096759 : UInt32), h1 := (3458990624 : UInt32), h2 := (3414414312 : UInt32), h3 := (2715531888 : UInt32), h4 := (829052538 : UInt32), h5 := (2038291945 : UInt32), h6 := (3725847942 : UInt32), h7 := (1392191139 : UInt32)}) (cons (0x7372632f412e6c65782e746578, 0x78) (cons (0x7372632f422e6c65782e746578, 0x797a) (nil (Bytes * Bytes))))) = (ctor Outcome.Identified (record Sha256::Digest {h0 := (1239793494 : UInt32), h1 := (1757049406 : UInt32), h2 := (295815647 : UInt32), h3 := (951568003 : UInt32), h4 := (44983407 : UInt32), h5 := (665730734 : UInt32), h6 := (3530989234 : UInt32), h7 := (3344105788 : UInt32)}))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: changedSourceChangesDraftId,
+  parameters: [],
+  statement: ((draftId (record Sha256::Digest {h0 := (2909184448 : UInt32), h1 := (3388631768 : UInt32), h2 := (3065996373 : UInt32), h3 := (2615200073 : UInt32), h4 := (3893631503 : UInt32), h5 := (2846713016 : UInt32), h6 := (158922111 : UInt32), h7 := (3359119298 : UInt32)}) (cons (0x7372632f412e6c65782e746578, 0x78) (cons (0x7372632f422e6c65782e746578, 0x7977) (nil (Bytes * Bytes))))) = (ctor Outcome.Identified (record Sha256::Digest {h0 := (289818564 : UInt32), h1 := (96172596 : UInt32), h2 := (907073262 : UInt32), h3 := (648821127 : UInt32), h4 := (1551338238 : UInt32), h5 := (2157533707 : UInt32), h6 := (647297530 : UInt32), h7 := (3930262629 : UInt32)}))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: draftIdsDiffer,
+  parameters: [],
+  statement: (((sameDigest (record Sha256::Digest {h0 := (2767594749 : UInt32), h1 := (1529922015 : UInt32), h2 := (3625999551 : UInt32), h3 := (3856253698 : UInt32), h4 := (3036499891 : UInt32), h5 := (2545116954 : UInt32), h6 := (4018481258 : UInt32), h7 := (1581466267 : UInt32)}) (record Sha256::Digest {h0 := (1239793494 : UInt32), h1 := (1757049406 : UInt32), h2 := (295815647 : UInt32), h3 := (951568003 : UInt32), h4 := (44983407 : UInt32), h5 := (665730734 : UInt32), h6 := (3530989234 : UInt32), h7 := (3344105788 : UInt32)})) || ((sameDigest (record Sha256::Digest {h0 := (2767594749 : UInt32), h1 := (1529922015 : UInt32), h2 := (3625999551 : UInt32), h3 := (3856253698 : UInt32), h4 := (3036499891 : UInt32), h5 := (2545116954 : UInt32), h6 := (4018481258 : UInt32), h7 := (1581466267 : UInt32)}) (record Sha256::Digest {h0 := (289818564 : UInt32), h1 := (96172596 : UInt32), h2 := (907073262 : UInt32), h3 := (648821127 : UInt32), h4 := (1551338238 : UInt32), h5 := (2157533707 : UInt32), h6 := (647297530 : UInt32), h7 := (3930262629 : UInt32)})) || (sameDigest (record Sha256::Digest {h0 := (1239793494 : UInt32), h1 := (1757049406 : UInt32), h2 := (295815647 : UInt32), h3 := (951568003 : UInt32), h4 := (44983407 : UInt32), h5 := (665730734 : UInt32), h6 := (3530989234 : UInt32), h7 := (3344105788 : UInt32)}) (record Sha256::Digest {h0 := (289818564 : UInt32), h1 := (96172596 : UInt32), h2 := (907073262 : UInt32), h3 := (648821127 : UInt32), h4 := (1551338238 : UInt32), h5 := (2157533707 : UInt32), h6 := (647297530 : UInt32), h7 := (3930262629 : UInt32)})))) = false),
+  proof: reflexivity{}
+}
+\end{semanticmodule}
+\end{lexlean}

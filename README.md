@@ -13,8 +13,9 @@ the LexLean tool layer, and links that protocol core unchanged.
 
 ## Status
 
-The product, its architecture description, its threat model and its quality
-model are modeled; no capability is built yet.
+The product, its architecture description, its threat model, its quality model,
+and the pure part of profile and draft identity and of path admission are
+modeled; no capability is built yet.
 
 - The product model is LexLean language 1.2 notation (`src/`), built with
   LexLean `release/v0.4` and locked in `lexlean.lock` (`lexlean/lock/2`).
@@ -50,6 +51,9 @@ oracles of their own (UOR-Foundation/MCP#15).
 | `Architecture` | the ISO/IEC/IEEE 42010 architecture description in the `prism.arch` vocabulary: 8 stakeholders, concerns C1 to C8, the component, security and quality viewpoints, 10 components and 11 edges, checked by `architectureDescriptionHolds` |
 | `Security` | the threat model in the `prism.sec` vocabulary: assets A1 to A6 tied to architecture components, risks R1 to R10 with impact and an owner-set likelihood (unbound, #19), controls K1 to K9, four security activities, and a measurement per risk; `securityValid` and `riskChainHolds` prove that every risk has a measurement and that R10 is the only risk without a control, recorded as residual |
 | `Quality` | the quality model in the `prism.qual` vocabulary, ISO/IEC 25010:2023: requirements Q1 to Q8, each a characteristic, subcharacteristic, requirement, measure chain with an all-or-none threshold, realized by components of the quality view; `qualityValid` and `qualityChainHolds` prove the chains complete |
+| `Identity` | the pure part of profile identity (#8) and draft identity (#9): length-prefixed framing of fields and counted lists over octet strings, with a proved left inverse (`fieldsRT`, `listRT`, `profileRT`, `draftRT`), so two different profiles or drafts have different preimages whenever every field is shorter than 2^64 - 1 bytes; domain separation of the two preimages; row canonicalization (sort by path octets, typed refusal of duplicate paths); the `Bytes` to octet bridge; `profileId` and `draftId` as SHA-256 of the preimage, checked against vectors from an independent implementation. It does not claim SHA-256 collision resistance |
+| `Admission` | path admission as a total function from a path and the source roots to `Admitted` or a typed `Refusal`: UTF-8, relative, no empty, `.` or `..` component, under a source root, `.lex.tex` suffix; `max_files` and `max_bytes` of a draft; `admittedPathHasNoDotDot` proves that an admitted path has no `..` component. NFC is not checked: an exact check needs the Unicode normalization data, which this repository does not carry (open, #9) |
+| `Sha256` | the LexLean standard library module `Sha256` (FIPS 180-4), a byte-identical copy of `stdlib/src/Sha256.lex.tex` from LexLean `release/v0.4` at `9796067` (register row SL-02). The module name must equal its path, so it is `src/Sha256.lex.tex` and not under `src/Foundation/` |
 | `Foundation.Arch`, `Foundation.Sec`, `Foundation.Qual` | the architecture, security and quality vocabularies (copies of the PrismPM stdlib modules, as in prism-code) |
 
 ## Repository
