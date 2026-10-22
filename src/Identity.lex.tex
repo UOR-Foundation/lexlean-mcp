@@ -1352,6 +1352,92 @@ theorem{
   proof: reflexivity{}
 }
 
+inductive{
+  name: ReviewsSorted,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Canonical, fields: [(List (List Nat))]},
+    {name: DuplicateReview, fields: []}
+  ]
+}
+
+definition{
+  name: insertReview,
+  parameters: [entry : (List Nat), entries : (List (List Nat))],
+  result: ReviewsSorted,
+  body: (match entries
+    | List.nil => (ctor ReviewsSorted.Canonical (cons entry (nil (List Nat))))
+    | List.cons other more => (match (compareOctets entry other)
+      | Order.Less => (ctor ReviewsSorted.Canonical (cons entry (cons other more)))
+      | Order.Equal => (ctor ReviewsSorted.DuplicateReview)
+      | Order.Greater => (match (insertReview entry more)
+        | ReviewsSorted.DuplicateReview => (ctor ReviewsSorted.DuplicateReview)
+        | ReviewsSorted.Canonical inserted => (ctor ReviewsSorted.Canonical (cons other inserted))))),
+  recursive_argument: entries
+}
+
+definition{
+  name: canonicalizeReviews,
+  parameters: [entries : (List (List Nat))],
+  result: ReviewsSorted,
+  body: (match entries
+    | List.nil => (ctor ReviewsSorted.Canonical (nil (List Nat)))
+    | List.cons entry more => (match (canonicalizeReviews more)
+      | ReviewsSorted.DuplicateReview => (ctor ReviewsSorted.DuplicateReview)
+      | ReviewsSorted.Canonical sorted => (insertReview entry sorted))),
+  recursive_argument: entries
+}
+
+theorem{
+  name: reviewPermutation1,
+  parameters: [],
+  statement: ((canonicalizeReviews (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (cons (cons 114 (cons 50 (nil Nat))) (nil (List Nat)))))) = (ctor ReviewsSorted.Canonical (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (cons (cons 114 (cons 50 (nil Nat))) (nil (List Nat))))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: reviewPermutation2,
+  parameters: [],
+  statement: ((canonicalizeReviews (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 50 (nil Nat))) (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (nil (List Nat)))))) = (ctor ReviewsSorted.Canonical (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (cons (cons 114 (cons 50 (nil Nat))) (nil (List Nat))))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: reviewPermutation3,
+  parameters: [],
+  statement: ((canonicalizeReviews (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 50 (nil Nat))) (nil (List Nat)))))) = (ctor ReviewsSorted.Canonical (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (cons (cons 114 (cons 50 (nil Nat))) (nil (List Nat))))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: reviewPermutation4,
+  parameters: [],
+  statement: ((canonicalizeReviews (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (cons (cons 114 (cons 50 (nil Nat))) (cons (cons 114 (cons 49 (nil Nat))) (nil (List Nat)))))) = (ctor ReviewsSorted.Canonical (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (cons (cons 114 (cons 50 (nil Nat))) (nil (List Nat))))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: reviewPermutation5,
+  parameters: [],
+  statement: ((canonicalizeReviews (cons (cons 114 (cons 50 (nil Nat))) (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (nil (List Nat)))))) = (ctor ReviewsSorted.Canonical (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (cons (cons 114 (cons 50 (nil Nat))) (nil (List Nat))))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: reviewPermutation6,
+  parameters: [],
+  statement: ((canonicalizeReviews (cons (cons 114 (cons 50 (nil Nat))) (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (cons (cons 114 (cons 49 (nil Nat))) (nil (List Nat)))))) = (ctor ReviewsSorted.Canonical (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 49 (cons 97 (nil Nat)))) (cons (cons 114 (cons 50 (nil Nat))) (nil (List Nat))))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: canonicalizeReviewsRefusesDuplicate,
+  parameters: [],
+  statement: ((canonicalizeReviews (cons (cons 114 (cons 50 (nil Nat))) (cons (cons 114 (cons 49 (nil Nat))) (cons (cons 114 (cons 50 (nil Nat))) (nil (List Nat)))))) = (ctor ReviewsSorted.DuplicateReview)),
+  proof: reflexivity{}
+}
+
 definition{
   name: natOfWord,
   parameters: [word : UInt32],
@@ -1450,6 +1536,7 @@ inductive{
   constructors: [
     {name: Identified, fields: [Sha256::Digest]},
     {name: DuplicatePath, fields: []},
+    {name: DuplicateReview, fields: []},
     {name: FieldTooLong, fields: []}
   ]
 }
@@ -1470,16 +1557,65 @@ definition{
   axioms: [Quot.sound, propext]
 }
 
+inductive{
+  name: Framing,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Preimage, fields: [(List Nat)]},
+    {name: DuplicatePath, fields: []},
+    {name: DuplicateReview, fields: []},
+    {name: FieldTooLong, fields: []}
+  ]
+}
+
+definition{
+  name: profileFraming,
+  parameters: [files : (List (Bytes * Bytes)), reviews : (List Bytes), toolchain : Bytes],
+  result: Framing,
+  body: (match (canonicalize (rowsOfFiles files))
+    | Sorted.DuplicatePath => (ctor Framing.DuplicatePath)
+    | Sorted.Canonical rows => (match (canonicalizeReviews (recordsOfBytes reviews))
+      | ReviewsSorted.DuplicateReview => (ctor Framing.DuplicateReview)
+      | ReviewsSorted.Canonical sortedReviews => (match (toFit (sizeProfile (profileDomain) rows sortedReviews (octetsOfBytes toolchain)))
+        | Fit.Within => (ctor Framing.Preimage (encProfile (profileDomain) rows sortedReviews (octetsOfBytes toolchain)))
+        | Fit.Over => (ctor Framing.FieldTooLong)))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: identify,
+  parameters: [framing : Framing],
+  result: Outcome,
+  body: (match framing
+    | Framing.Preimage preimage => (ctor Outcome.Identified (Sha256::sha256 (bytesOfOctets preimage)))
+    | Framing.DuplicatePath => (ctor Outcome.DuplicatePath)
+    | Framing.DuplicateReview => (ctor Outcome.DuplicateReview)
+    | Framing.FieldTooLong => (ctor Outcome.FieldTooLong)),
+  axioms: [Quot.sound, propext]
+}
+
 definition{
   name: profileId,
   parameters: [files : (List (Bytes * Bytes)), reviews : (List Bytes), toolchain : Bytes],
   result: Outcome,
-  body: (match (canonicalize (rowsOfFiles files))
-    | Sorted.DuplicatePath => (ctor Outcome.DuplicatePath)
-    | Sorted.Canonical rows => (match (toFit (sizeProfile (profileDomain) rows (recordsOfBytes reviews) (octetsOfBytes toolchain)))
-      | Fit.Within => (ctor Outcome.Identified (profileDigest rows (recordsOfBytes reviews) (octetsOfBytes toolchain)))
-      | Fit.Over => (ctor Outcome.FieldTooLong))),
+  body: (identify (profileFraming files reviews toolchain)),
   axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: framedAlike,
+  parameters: [left : Framing, right : Framing],
+  result: Bool,
+  body: (match left
+    | Framing.Preimage found => (match right
+      | Framing.Preimage wanted => (octetsEqual found wanted)
+      | Framing.DuplicatePath => false
+      | Framing.DuplicateReview => false
+      | Framing.FieldTooLong => false)
+    | Framing.DuplicatePath => false
+    | Framing.DuplicateReview => false
+    | Framing.FieldTooLong => false)
 }
 
 definition{
@@ -1745,6 +1881,78 @@ theorem{
   parameters: [],
   statement: (((sameDigest (record Sha256::Digest {h0 := (2767594749 : UInt32), h1 := (1529922015 : UInt32), h2 := (3625999551 : UInt32), h3 := (3856253698 : UInt32), h4 := (3036499891 : UInt32), h5 := (2545116954 : UInt32), h6 := (4018481258 : UInt32), h7 := (1581466267 : UInt32)}) (record Sha256::Digest {h0 := (1239793494 : UInt32), h1 := (1757049406 : UInt32), h2 := (295815647 : UInt32), h3 := (951568003 : UInt32), h4 := (44983407 : UInt32), h5 := (665730734 : UInt32), h6 := (3530989234 : UInt32), h7 := (3344105788 : UInt32)})) || ((sameDigest (record Sha256::Digest {h0 := (2767594749 : UInt32), h1 := (1529922015 : UInt32), h2 := (3625999551 : UInt32), h3 := (3856253698 : UInt32), h4 := (3036499891 : UInt32), h5 := (2545116954 : UInt32), h6 := (4018481258 : UInt32), h7 := (1581466267 : UInt32)}) (record Sha256::Digest {h0 := (289818564 : UInt32), h1 := (96172596 : UInt32), h2 := (907073262 : UInt32), h3 := (648821127 : UInt32), h4 := (1551338238 : UInt32), h5 := (2157533707 : UInt32), h6 := (647297530 : UInt32), h7 := (3930262629 : UInt32)})) || (sameDigest (record Sha256::Digest {h0 := (1239793494 : UInt32), h1 := (1757049406 : UInt32), h2 := (295815647 : UInt32), h3 := (951568003 : UInt32), h4 := (44983407 : UInt32), h5 := (665730734 : UInt32), h6 := (3530989234 : UInt32), h7 := (3344105788 : UInt32)}) (record Sha256::Digest {h0 := (289818564 : UInt32), h1 := (96172596 : UInt32), h2 := (907073262 : UInt32), h3 := (648821127 : UInt32), h4 := (1551338238 : UInt32), h5 := (2157533707 : UInt32), h6 := (647297530 : UInt32), h7 := (3930262629 : UInt32)})))) = false),
   proof: reflexivity{}
+}
+
+theorem{
+  name: profileFramingIgnoresReviewOrder1,
+  parameters: [],
+  statement: ((framedAlike (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7231 (cons 0x723161 (cons 0x7232 (nil Bytes)))) 0x6c65786c65616e2d76302e34) (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7231 (cons 0x723161 (cons 0x7232 (nil Bytes)))) 0x6c65786c65616e2d76302e34)) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileFramingIgnoresReviewOrder2,
+  parameters: [],
+  statement: ((framedAlike (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7231 (cons 0x7232 (cons 0x723161 (nil Bytes)))) 0x6c65786c65616e2d76302e34) (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7231 (cons 0x723161 (cons 0x7232 (nil Bytes)))) 0x6c65786c65616e2d76302e34)) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileFramingIgnoresReviewOrder3,
+  parameters: [],
+  statement: ((framedAlike (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x723161 (cons 0x7231 (cons 0x7232 (nil Bytes)))) 0x6c65786c65616e2d76302e34) (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7231 (cons 0x723161 (cons 0x7232 (nil Bytes)))) 0x6c65786c65616e2d76302e34)) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileFramingIgnoresReviewOrder4,
+  parameters: [],
+  statement: ((framedAlike (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x723161 (cons 0x7232 (cons 0x7231 (nil Bytes)))) 0x6c65786c65616e2d76302e34) (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7231 (cons 0x723161 (cons 0x7232 (nil Bytes)))) 0x6c65786c65616e2d76302e34)) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileFramingIgnoresReviewOrder5,
+  parameters: [],
+  statement: ((framedAlike (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7232 (cons 0x7231 (cons 0x723161 (nil Bytes)))) 0x6c65786c65616e2d76302e34) (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7231 (cons 0x723161 (cons 0x7232 (nil Bytes)))) 0x6c65786c65616e2d76302e34)) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileFramingIgnoresReviewOrder6,
+  parameters: [],
+  statement: ((framedAlike (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7232 (cons 0x723161 (cons 0x7231 (nil Bytes)))) 0x6c65786c65616e2d76302e34) (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7231 (cons 0x723161 (cons 0x7232 (nil Bytes)))) 0x6c65786c65616e2d76302e34)) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileFramingReviewsVector,
+  parameters: [],
+  statement: ((framedAlike (profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7232 (cons 0x723161 (cons 0x7231 (nil Bytes)))) 0x6c65786c65616e2d76302e34) (ctor Framing.Preimage (octetsOfBytes 0x00000006646f6d61696e00000000000000166c65786c65616e2d6d63702d70726f66696c652d76310000000566696c657300000000000000040000000466696c65000000000000000c6c65786c65616e2e6c6f636b0000000466696c6500000000000000014c0000000466696c65000000000000000c6c65786c65616e2e746f6d6c0000000466696c65000000000000000154000000077265766965777300000000000000030000000672657669657700000000000000027231000000067265766965770000000000000003723161000000067265766965770000000000000002723200000009746f6f6c636861696e000000000000000c6c65786c65616e2d76302e34))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileFramingRefusesDuplicateReview,
+  parameters: [],
+  statement: ((profileFraming (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7232 (cons 0x7231 (cons 0x7232 (nil Bytes)))) 0x6c65786c65616e2d76302e34) = (ctor Framing.DuplicateReview)),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileIdRefusesDuplicateReview,
+  parameters: [],
+  statement: ((profileId (cons (0x6c65786c65616e2e6c6f636b, 0x4c) (cons (0x6c65786c65616e2e746f6d6c, 0x54) (nil (Bytes * Bytes)))) (cons 0x7232 (cons 0x7231 (cons 0x7232 (nil Bytes)))) 0x6c65786c65616e2d76302e34) = (ctor Outcome.DuplicateReview)),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
 }
 \end{semanticmodule}
 \end{lexlean}

@@ -1620,6 +1620,14 @@ theorem{
 }
 
 theorem{
+  name: maxBytesCountsContentOnly,
+  parameters: [],
+  statement: ((admitDraft 1 1 (cons 0x737263 (nil Bytes)) (cons (0x7372632f615f6c6f6e675f6469726563746f72792f615f6c6f6e675f6e616d652e6c65782e746578, 0x61) (nil (Bytes * Bytes)))) = (ctor Verdict.Admitted)),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
   name: emptyDraftAdmitted,
   parameters: [],
   statement: ((admitDraft 0 0 (cons 0x737263 (nil Bytes)) (nil (Bytes * Bytes))) = (ctor Verdict.Admitted)),
