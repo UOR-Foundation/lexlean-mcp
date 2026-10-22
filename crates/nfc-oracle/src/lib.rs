@@ -1,9 +1,11 @@
-//! Runs the package LexLean exports for the NFC decision (issue #25).
+//! Runs the packages LexLean exports for the NFC decision and for path admission
+//! (issue #25).
 //!
 //! Dev and CI only. The decision is LexLean source in `src/Nfc.lex.tex`; the
-//! package is LexLean's own export of the root `LexLeanMcp.Nfc.nfcRun`, and this
-//! file only converts between scalar values and the package's octets and `u64`
-//! lists. It normalizes nothing itself.
+//! first package is LexLean's own export of the root `LexLeanMcp.Nfc.nfcRun`, the
+//! second its export of `LexLeanMcp.Admission.admitRun`. This file only converts
+//! between scalar values, paths and the packages' octets and `u64` lists. It
+//! normalizes and admits nothing itself.
 
 // The package carries its own lint table (`warnings = deny`, `clippy::all = deny`
 // with ten named exceptions) and is clean under it as a crate. Included here as a
@@ -28,6 +30,29 @@
 #[rustfmt::skip]
 #[path = "../generated/lexlean_mcp_nfc/src/lib.rs"]
 mod package;
+
+// The admission package: the same lint exceptions, for the same reasons.
+#[allow(
+    dead_code,
+    unused,
+    missing_docs,
+    clippy::type_complexity,
+    clippy::too_many_arguments,
+    clippy::large_enum_variant,
+    clippy::result_large_err,
+    clippy::result_unit_err,
+    clippy::single_match,
+    clippy::manual_unwrap_or,
+    clippy::manual_unwrap_or_default,
+    clippy::manual_map,
+    clippy::manual_ok_err
+)]
+#[rustfmt::skip]
+#[path = "../generated/lexlean_mcp_admission/src/lib.rs"]
+mod admission_package;
+
+/// The text of the generated admission package this crate compiled.
+pub const ADMISSION_SOURCE: &str = include_str!("../generated/lexlean_mcp_admission/src/lib.rs");
 
 /// The text of the generated package this crate compiled, so a test can hash the
 /// file the oracle ran against the digest the export recorded.
@@ -143,4 +168,43 @@ pub fn nfd_on(image: Image, scalars: &[u32]) -> Vec<u32> {
 /// The scalar values the LexLean reader finds in `octets`, on `image`.
 pub fn decode_on(image: Image, octets: &[u8]) -> Vec<u32> {
     scalars_of(run_on(image, 1, octets))
+}
+
+fn tables_of(image: Image) -> (&'static [u8], &'static [u8]) {
+    match image {
+        Image::Full => (LOW, HIGH),
+        Image::Sample => (SAMPLE, SAMPLE),
+    }
+}
+
+/// What the exported root `admitRun` returns for a path: `[0]` for admitted,
+/// `[1, index]` for the refusal at `index` in the constructor order of
+/// `Refusal`. The tests, not this crate, name the refusals.
+///
+/// # Panics
+/// When the root reports a resource failure rather than a verdict.
+pub fn admit_on(image: Image, roots: &[&[u8]], path: &[u8]) -> Vec<u64> {
+    let (low, high) = tables_of(image);
+    let mut list = admission_package::List::nil();
+    for root in roots.iter().rev() {
+        list = admission_package::List::cons(admission_package::Bytes::lit(root), list);
+    }
+    let mut verdict = admission_package::run(
+        admission_package::Bytes::lit(low),
+        admission_package::Bytes::lit(high),
+        list,
+        admission_package::Bytes::lit(path),
+    )
+    .expect("the admission root does not overflow on this input");
+    let mut out = Vec::new();
+    while let Some((head, tail)) = verdict.uncons() {
+        out.push(head);
+        verdict = tail;
+    }
+    out
+}
+
+/// The verdict of path admission on the full tables.
+pub fn admit(roots: &[&[u8]], path: &[u8]) -> Vec<u64> {
+    admit_on(Image::Full, roots, path)
 }

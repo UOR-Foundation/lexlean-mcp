@@ -33,3 +33,13 @@ missing_safety_doc = "deny"
 opt-level = 3
 lto = "thin"
 codegen-units = 1
+
+# The NFC oracle runs the exported LexLean package over every line of
+# NormalizationTest.txt, every scalar value and inputs of one MiB; unoptimized, that
+# takes tens of minutes. These two packages are optimized in the dev and test
+# profiles; nothing else is.
+[profile.dev.package.nfc-oracle]
+opt-level = 3
+
+[profile.dev.package.unicode-normalization]
+opt-level = 3

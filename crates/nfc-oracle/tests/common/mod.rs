@@ -89,3 +89,59 @@ impl<T: Clone> Memo<T> {
         self.calls
     }
 }
+
+/// The text of `src/Admission.lex.tex`.
+pub fn admission_source() -> String {
+    std::fs::read_to_string(root().join("src/Admission.lex.tex"))
+        .expect("src/Admission.lex.tex reads")
+}
+
+/// The text of the `kind{name: ..., ...}` block of `name`.
+pub fn block<'a>(source: &'a str, kind: &str, name: &str) -> &'a str {
+    let head = format!("{kind}{{\n  name: {name},");
+    let start = source
+        .find(&head)
+        .unwrap_or_else(|| panic!("no {kind} {name}"));
+    let end = source[start..].find("\n}\n").expect("a block ends") + start;
+    &source[start..end]
+}
+
+/// The constructors of `Refusal`, in the order the module states them.
+pub fn refusal_names() -> Vec<String> {
+    let source = admission_source();
+    let refusal = block(&source, "inductive", "Refusal");
+    refusal
+        .split("{name: ")
+        .skip(1)
+        .map(|part| part.split(',').next().expect("a name").to_owned())
+        .collect()
+}
+
+/// The verdict words of `admitRun` as the constructor text of the module:
+/// `Admitted` or `Refused NotNfc`.
+pub fn verdict_text(words: &[u64]) -> String {
+    match words {
+        [0] => "Admitted".to_owned(),
+        [1, index] => {
+            let names = refusal_names();
+            let name = names
+                .get(usize::try_from(*index).expect("a small index"))
+                .unwrap_or_else(|| panic!("refusal index {index} is past the constructors"));
+            format!("Refused {name}")
+        }
+        other => panic!("unexpected verdict words {other:?}"),
+    }
+}
+
+/// Run `f` on a thread with a stack of `bytes`, and give back its result.
+///
+/// # Panics
+/// When the thread cannot start, or `f` panics.
+pub fn on_stack<T: Send + 'static>(bytes: usize, f: impl FnOnce() -> T + Send + 'static) -> T {
+    std::thread::Builder::new()
+        .stack_size(bytes)
+        .spawn(f)
+        .expect("the thread starts")
+        .join()
+        .expect("the work finishes on that stack without panicking")
+}
