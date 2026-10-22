@@ -16,7 +16,8 @@
 # file is built.
 #
 # The Unicode normalization decision (issue #25) is the first capability
-# registered: NF-01..NF-13.
+# registered: NF-01..NF-13. Draft admission as loops, exported as a production
+# root (issue #9, F3), registers DL-01..DL-04.
 
 spec = "template/1"
 
@@ -97,3 +98,27 @@ id = "NF-13"
 level = "build"
 suite = "nfc"
 statement = "The exported roots nfcRun and admitRun declare no recursion effect, and run a path of one MiB of scalars on a two MiB thread stack with a typed result: no stage recurses to a depth bounded by the input."
+
+[[id]]
+id = "DL-01"
+level = "build"
+suite = "draft"
+statement = "The exported root admitDraftRun declares no recursion effect, its package carries the recorded digests and the compiler semantics ID of lexlean.lock, and the stages of draft admission that run over the rows (rowsStage, the row count, the byte total and the duplicate scan) are executable definitions of src/Admission.lex.tex."
+
+[[id]]
+id = "DL-02"
+level = "build"
+suite = "draft"
+statement = "The exported root admitDraftRun runs on a two MiB thread stack with a typed result for a draft of one million rows: it refuses the draft as TooManyFiles under a small maxFiles, admits a draft whose row count equals maxFiles and whose bytes equal maxBytes, refuses a draft one byte past maxBytes as TooManyBytes, and refuses a draft with a duplicate path as DuplicatePath."
+
+[[id]]
+id = "DL-03"
+level = "build"
+suite = "draft"
+statement = "Draft admission through the exported root admitDraftRun on the full tables gives the verdicts of the kernel-checked instances of admitDraft, with the refusal named by the constructor order of Refusal, and decides in this order: the path refusals of the rows in row order, then TooManyFiles, then TooManyBytes, then DuplicatePath."
+
+[[id]]
+id = "DL-04"
+level = "build"
+suite = "draft"
+statement = "The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound."

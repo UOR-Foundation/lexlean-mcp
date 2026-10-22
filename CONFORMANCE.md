@@ -18,6 +18,15 @@ The three honesty levels (R2):
 `cargo xtask audit-limits` fails if any code path returns an error the
 model does not sanction.
 
+## draft
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `DL-01` | `build` | The exported root admitDraftRun declares no recursion effect, its package carries the recorded digests and the compiler semantics ID of lexlean.lock, and the stages of draft admission that run over the rows (rowsStage, the row count, the byte total and the duplicate scan) are executable definitions of src/Admission.lex.tex. |
+| `DL-02` | `build` | The exported root admitDraftRun runs on a two MiB thread stack with a typed result for a draft of one million rows: it refuses the draft as TooManyFiles under a small maxFiles, admits a draft whose row count equals maxFiles and whose bytes equal maxBytes, refuses a draft one byte past maxBytes as TooManyBytes, and refuses a draft with a duplicate path as DuplicatePath. |
+| `DL-03` | `build` | Draft admission through the exported root admitDraftRun on the full tables gives the verdicts of the kernel-checked instances of admitDraft, with the refusal named by the constructor order of Refusal, and decides in this order: the path refusals of the rows in row order, then TooManyFiles, then TooManyBytes, then DuplicatePath. |
+| `DL-04` | `build` | The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound. |
+
 ## nfc
 
 | ID | Level | Statement |
