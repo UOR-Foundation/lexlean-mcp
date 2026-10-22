@@ -13,12 +13,18 @@ the LexLean tool layer, and links that protocol core unchanged.
 
 ## Status
 
-Nothing is built yet.
+The product and its architecture description are modeled; no capability is
+built yet.
 
+- The product model is LexLean language 1.2 notation (`src/`), built with
+  LexLean `release/v0.4` and locked in `lexlean.lock` (`lexlean/lock/2`).
+  `lexlean verify` accepts it with an exact axiom policy on every declaration.
+  The version of the product is an owner-set value that is not yet bound (#19).
 - The claim registers in `model/` are empty, so `CONFORMANCE.md` lists no
   capability and this repository claims none.
 - The repository is not bound to a PrismPM SDK release (#4): `prismpm.lock` and
-  `template.lock` are absent, so `just vv` and the devcontainer cannot run.
+  `template.lock` are absent, so `just vv` and the devcontainer cannot run, and
+  `prismpm check` has not validated the model.
 - v0.1.0 is tracked in #20, with its upstream dependencies in LexLean, PrismPM,
   the UOR template and UOR-Foundation/MCP.
 
@@ -26,6 +32,22 @@ v0.1 is scoped to Streamable HTTP on the loopback interface, with one principal
 and no authorization: the only binding every part of which an executable MCP
 oracle covers. stdio, MCP Apps and remote, authorized deployment wait for
 oracles of their own (UOR-Foundation/MCP#15).
+
+## Model
+
+| Path | Owner |
+| --- | --- |
+| `src/` | authoritative LexLean model modules |
+| `language/prism.arch/` | the architecture vocabulary lexicon, a copy of prism-code's |
+| `language/lexleanmcp.titles/` | the lexicon phrases that title this repository's modules |
+| `lexlean.toml`, `lexlean.lock` | LexLean project and its locked package closure |
+| `lakefile.toml`, `lean-toolchain`, `lake-manifest.json` | Lean workspace bound by `lexlean.lock` |
+
+| Module | Content |
+| --- | --- |
+| `Product` | identity, owner, server identity, protocol core, source policy, platforms, and the owner-set version (unbound) |
+| `Architecture` | the ISO/IEC/IEEE 42010 architecture description in the `prism.arch` vocabulary: 8 stakeholders, concerns C1 to C8, the component, security and quality viewpoints, 10 components and 11 edges, checked by `architectureDescriptionHolds` |
+| `Foundation.Arch` | the architecture vocabulary (copy of the PrismPM stdlib module, as in prism-code) |
 
 ## Repository
 

@@ -1,0 +1,6 @@
+name = "LexLeanMcp"
+version = "0.1.0"
+defaultTargets = ["LexLeanMcp"]
+
+[[lean_lib]]
+name = "LexLeanMcp"
