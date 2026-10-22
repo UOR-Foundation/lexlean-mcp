@@ -2,7 +2,8 @@
 \useglossary{lexlean.std.bool@1.2.0}
 \useglossary{lexlean.std.nat@1.2.0}
 \useglossary{lexleanmcp.titles@1.0.0}
-\importmodule{Identity}
+\importmodule{Nfc}
+\importmodule{NfcTables}
 \title{LexLean MCP path admission}
 \begin{semanticmodule}
 inductive{
@@ -11,6 +12,7 @@ inductive{
   parameters: [],
   constructors: [
     {name: NotUtf8, fields: []},
+    {name: NotNfc, fields: []},
     {name: AbsolutePath, fields: []},
     {name: EmptyComponent, fields: []},
     {name: DotComponent, fields: []},
@@ -42,7 +44,8 @@ definition{
   result: Verdict,
   body: (match check
     | Verdict.Admitted => next
-    | Verdict.Refused reason => (ctor Verdict.Refused reason))
+    | Verdict.Refused reason => (ctor Verdict.Refused reason)),
+  executable: true
 }
 
 theorem{
@@ -142,7 +145,8 @@ definition{
       | Bool.true => (ctor Verdict.Refused (ctor Refusal.DotComponent))
       | Bool.false => (match dotdot
         | Bool.true => (ctor Verdict.Refused (ctor Refusal.DotDotComponent))
-        | Bool.false => (ctor Verdict.Admitted))))
+        | Bool.false => (ctor Verdict.Admitted)))),
+  executable: true
 }
 
 theorem{
@@ -1097,15 +1101,33 @@ theorem{
 }
 
 definition{
+  name: reverseComponents,
+  parameters: [rows : (List (List Nat)), done : (List (List Nat))],
+  result: (List (List Nat)),
+  body: (match rows
+    | List.nil => done
+    | List.cons row rest => (reverseComponents rest (cons row done))),
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: splitInto,
+  parameters: [path : (List Nat), current : (List Nat), finished : (List (List Nat))],
+  result: (List (List Nat)),
+  body: (match path
+    | List.nil => (cons (Nfc::reverseOnto current (nil Nat)) finished)
+    | List.cons octet rest => (if (octet =? 47) then (splitInto rest (nil Nat) (cons (Nfc::reverseOnto current (nil Nat)) finished)) else (splitInto rest (cons octet current) finished))),
+  executable: true,
+  recursive_argument: path
+}
+
+definition{
   name: splitSlash,
   parameters: [path : (List Nat)],
   result: (List (List Nat)),
-  body: (match path
-    | List.nil => (cons (nil Nat) (nil (List Nat)))
-    | List.cons octet rest => (if (octet =? 47) then (cons (nil Nat) (splitSlash rest)) else (match (splitSlash rest)
-      | List.nil => (cons (cons octet (nil Nat)) (nil (List Nat)))
-      | List.cons component more => (cons (cons octet component) more)))),
-  recursive_argument: path
+  body: (reverseComponents (splitInto path (nil Nat) (nil (List Nat))) (nil (List Nat))),
+  executable: true
 }
 
 definition{
@@ -1114,7 +1136,7 @@ definition{
   result: Bool,
   body: (match components
     | List.nil => false
-    | List.cons component rest => ((Identity::octetsEqual component (cons 46 (cons 46 (nil Nat)))) || (hasDotDot rest))),
+    | List.cons component rest => ((Nfc::sameScalars component (cons 46 (cons 46 (nil Nat)))) || (hasDotDot rest))),
   recursive_argument: components
 }
 
@@ -1122,7 +1144,8 @@ definition{
   name: classify,
   parameters: [component : (List Nat)],
   result: Verdict,
-  body: (classifyBits (Identity::octetsEqual component (nil Nat)) (Identity::octetsEqual component (cons 46 (nil Nat))) (Identity::octetsEqual component (cons 46 (cons 46 (nil Nat)))))
+  body: (classifyBits (Nfc::sameScalars component (nil Nat)) (Nfc::sameScalars component (cons 46 (nil Nat))) (Nfc::sameScalars component (cons 46 (cons 46 (nil Nat))))),
+  executable: true
 }
 
 definition{
@@ -1131,14 +1154,25 @@ definition{
   result: Verdict,
   body: (match components
     | List.nil => (ctor Verdict.Admitted)
-    | List.cons component rest => (andThen (classify component) (componentsStage rest))),
+    | List.cons component rest => (match (classify component)
+      | Verdict.Admitted => (componentsStage rest)
+      | Verdict.Refused reason => (ctor Verdict.Refused reason))),
+  executable: true,
   recursive_argument: components
+}
+
+theorem{
+  name: componentsStageUnfold,
+  parameters: [component : (List Nat), rest : (List (List Nat))],
+  statement: ((componentsStage (cons component rest)) = (andThen (classify component) (componentsStage rest))),
+  proof: term_cases{definitions: [andThen, componentsStage], scrutinee: (classify component)},
+  axioms: [propext]
 }
 
 theorem{
   name: classifyClean,
   parameters: [component : (List Nat)],
-  statement: (((isAdmitted (classify component)) && (Identity::octetsEqual component (cons 46 (cons 46 (nil Nat))))) = false),
+  statement: (((isAdmitted (classify component)) && (Nfc::sameScalars component (cons 46 (cons 46 (nil Nat))))) = false),
   proof: simplify{definitions: [classify, classifyBitsClean]},
   axioms: [propext]
 }
@@ -1159,7 +1193,7 @@ theorem{
           definitions: [
             andThenAdmitted,
             classifyClean,
-            componentsStage,
+            componentsStageUnfold,
             falseAnd,
             hasDotDot,
             ih,
@@ -1181,8 +1215,9 @@ definition{
   parameters: [path : (List Nat), suffix : (List Nat)],
   result: Bool,
   body: (match path
-    | List.nil => (Identity::octetsEqual (nil Nat) suffix)
-    | List.cons octet rest => ((Identity::octetsEqual (cons octet rest) suffix) || (hasSuffix rest suffix))),
+    | List.nil => (Nfc::sameScalars (nil Nat) suffix)
+    | List.cons octet rest => (if (Nfc::sameScalars (cons octet rest) suffix) then true else (hasSuffix rest suffix))),
+  executable: true,
   recursive_argument: path
 }
 
@@ -1193,16 +1228,31 @@ definition{
   body: (match (prim utf8_decode path : (Option String))
     | Option.some text => (ctor Verdict.Admitted)
     | Option.none => (ctor Verdict.Refused (ctor Refusal.NotUtf8))),
-  axioms: [Classical.choice, Quot.sound, propext]
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
 }
 
 definition{
   name: absoluteStage,
   parameters: [path : (List Nat)],
   result: Verdict,
-  body: (match (Identity::stripPrefix (cons 47 (nil Nat)) path)
-    | Option.some rest => (ctor Verdict.Refused (ctor Refusal.AbsolutePath))
-    | Option.none => (ctor Verdict.Admitted))
+  body: (match path
+    | List.nil => (ctor Verdict.Admitted)
+    | List.cons octet rest => (if (octet =? 47) then (ctor Verdict.Refused (ctor Refusal.AbsolutePath)) else (ctor Verdict.Admitted))),
+  executable: true
+}
+
+definition{
+  name: underRoot,
+  parameters: [root : (List Nat), path : (List Nat)],
+  result: Bool,
+  body: (match root
+    | List.nil => (match path | List.nil => false | List.cons octet rest => (octet =? 47))
+    | List.cons head more => (match path
+      | List.nil => false
+      | List.cons octet rest => (if (head =? octet) then (underRoot more rest) else false))),
+  executable: true,
+  recursive_argument: root
 }
 
 definition{
@@ -1211,9 +1261,8 @@ definition{
   result: Verdict,
   body: (match roots
     | List.nil => (ctor Verdict.Refused (ctor Refusal.OutsideRoots))
-    | List.cons root rest => (match (Identity::stripPrefix (Identity::app root (cons 47 (nil Nat))) path)
-      | Option.some below => (ctor Verdict.Admitted)
-      | Option.none => (rootsStage rest path))),
+    | List.cons root rest => (if (underRoot root path) then (ctor Verdict.Admitted) else (rootsStage rest path))),
+  executable: true,
   recursive_argument: roots
 }
 
@@ -1223,22 +1272,93 @@ definition{
   result: Verdict,
   body: (match (hasSuffix path (cons 46 (cons 108 (cons 101 (cons 120 (cons 46 (cons 116 (cons 101 (cons 120 (nil Nat))))))))))
     | Bool.true => (ctor Verdict.Admitted)
-    | Bool.false => (ctor Verdict.Refused (ctor Refusal.NotLexTex)))
+    | Bool.false => (ctor Verdict.Refused (ctor Refusal.NotLexTex))),
+  executable: true
 }
 
 definition{
   name: admitOctets,
   parameters: [roots : (List (List Nat)), path : (List Nat)],
   result: Verdict,
-  body: (andThen (absoluteStage path) (andThen (componentsStage (splitSlash path)) (andThen (rootsStage roots path) (suffixStage path))))
+  body: (andThen (absoluteStage path) (andThen (componentsStage (splitSlash path)) (andThen (rootsStage roots path) (suffixStage path)))),
+  executable: true
+}
+
+definition{
+  name: nfcStage,
+  parameters: [tables : (Bytes * Bytes), path : Bytes],
+  result: Verdict,
+  body: (if (Nfc::isNfc tables (Nfc::scalarsOfOctets (Nfc::octetsOfBytes path))) then (ctor Verdict.Admitted) else (ctor Verdict.Refused (ctor Refusal.NotNfc))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: recordsInto,
+  parameters: [entries : (List Bytes), done : (List (List Nat))],
+  result: (List (List Nat)),
+  body: (match entries
+    | List.nil => (reverseComponents done (nil (List Nat)))
+    | List.cons entry rest => (recordsInto rest (cons (Nfc::octetsOfBytes entry) done))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: entries
+}
+
+definition{
+  name: admitPathWith,
+  parameters: [tables : (Bytes * Bytes), roots : (List Bytes), path : Bytes],
+  result: Verdict,
+  body: (andThen (utf8Stage path) (andThen (nfcStage tables path) (admitOctets (recordsInto roots (nil (List Nat))) (Nfc::octetsOfBytes path)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
 }
 
 definition{
   name: admitPath,
   parameters: [roots : (List Bytes), path : Bytes],
   result: Verdict,
-  body: (andThen (utf8Stage path) (admitOctets (Identity::recordsOfBytes roots) (Identity::octetsOfBytes path))),
-  axioms: [Classical.choice, Quot.sound, propext]
+  body: (admitPathWith (NfcTables::tables) roots path),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: refusalIndex,
+  parameters: [reason : Refusal],
+  result: Nat,
+  body: (match reason
+    | Refusal.NotUtf8 => 0
+    | Refusal.NotNfc => 1
+    | Refusal.AbsolutePath => 2
+    | Refusal.EmptyComponent => 3
+    | Refusal.DotComponent => 4
+    | Refusal.DotDotComponent => 5
+    | Refusal.OutsideRoots => 6
+    | Refusal.NotLexTex => 7
+    | Refusal.TooManyFiles => 8
+    | Refusal.TooManyBytes => 9),
+  executable: true
+}
+
+definition{
+  name: verdictOctets,
+  parameters: [verdict : Verdict],
+  result: (List Nat),
+  body: (match verdict
+    | Verdict.Admitted => (cons 0 (nil Nat))
+    | Verdict.Refused reason => (cons 1 (cons (refusalIndex reason) (nil Nat)))),
+  executable: true
+}
+
+definition{
+  name: admitRun,
+  parameters: [low : Bytes, high : Bytes, roots : (List Bytes), path : Bytes],
+  result: (List Nat),
+  body: (verdictOctets (admitPathWith (low, high) roots path)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow], targets: [rust-std]}
 }
 
 theorem{
@@ -1252,12 +1372,20 @@ theorem{
 }
 
 theorem{
+  name: admittedPathWithHasNoDotDot,
+  parameters: [tables : (Bytes * Bytes), roots : (List Bytes), path : Bytes],
+  statement: (((isAdmitted (admitPathWith tables roots path)) && (hasDotDot (splitSlash (Nfc::octetsOfBytes path)))) = false),
+  proof: simplify{
+    definitions: [admitPathWith, admittedOctetsHaveNoDotDot, andFalse, andThenAdmitted, utf8Chain]
+  },
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
   name: admittedPathHasNoDotDot,
   parameters: [roots : (List Bytes), path : Bytes],
-  statement: (((isAdmitted (admitPath roots path)) && (hasDotDot (splitSlash (Identity::octetsOfBytes path)))) = false),
-  proof: simplify{
-    definitions: [admitPath, admittedOctetsHaveNoDotDot, andFalse, andThenAdmitted, utf8Chain]
-  },
+  statement: (((isAdmitted (admitPath roots path)) && (hasDotDot (splitSlash (Nfc::octetsOfBytes path)))) = false),
+  proof: simplify{definitions: [admitPath, admittedPathWithHasNoDotDot]},
   axioms: [Classical.choice, Quot.sound, propext]
 }
 
@@ -1583,6 +1711,86 @@ theorem{
   name: admitsPrecomposedLetter,
   parameters: [],
   statement: ((admitPath (cons 0x737263 (nil Bytes)) 0x7372632fc3a92e6c65782e746578) = (ctor Verdict.Admitted)),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: refusesDecomposedLetter,
+  parameters: [],
+  statement: ((admitPathWith (NfcTables::sample) (cons 0x737263 (nil Bytes)) 0x7372632f65cc812e6c65782e746578) = (ctor Verdict.Refused (ctor Refusal.NotNfc))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitsPrecomposedLetterOnTheSample,
+  parameters: [],
+  statement: ((admitPathWith (NfcTables::sample) (cons 0x737263 (nil Bytes)) 0x7372632fc3a92e6c65782e746578) = (ctor Verdict.Admitted)),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: notNfcIsRefusedBeforeTheRootCheck,
+  parameters: [],
+  statement: ((admitPathWith (NfcTables::sample) (cons 0x737263 (nil Bytes)) 0x6c69622f65cc812e6c65782e746578) = (ctor Verdict.Refused (ctor Refusal.NotNfc))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: notNfcIsRefusedBeforeTheSuffixCheck,
+  parameters: [],
+  statement: ((admitPathWith (NfcTables::sample) (cons 0x737263 (nil Bytes)) 0x7372632f65cc812e747874) = (ctor Verdict.Refused (ctor Refusal.NotNfc))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: notUtf8IsRefusedBeforeNfc,
+  parameters: [],
+  statement: ((admitPathWith (NfcTables::sample) (cons 0x737263 (nil Bytes)) 0x7372632f65cc2e6c65782e746578) = (ctor Verdict.Refused (ctor Refusal.NotUtf8))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitPathIsAdmitPathWithTheTables,
+  parameters: [roots : (List Bytes), path : Bytes],
+  statement: ((admitPath roots path) = (admitPathWith (NfcTables::tables) roots path)),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitRunIsTheVerdictOfAdmitPathWith,
+  parameters: [low : Bytes, high : Bytes, roots : (List Bytes), path : Bytes],
+  statement: ((admitRun low high roots path) = (verdictOctets (admitPathWith (low, high) roots path))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitRunIsTheVerdictOfAdmitPath,
+  parameters: [roots : (List Bytes), path : Bytes],
+  statement: ((admitRun (first (NfcTables::tables)) (second (NfcTables::tables)) roots path) = (verdictOctets (admitPath roots path))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitRunRefusesDecomposedLetterOnTheSample,
+  parameters: [],
+  statement: ((admitRun (first (NfcTables::sample)) (second (NfcTables::sample)) (cons 0x737263 (nil Bytes)) 0x7372632f65cc812e6c65782e746578) = (cons 1 (cons 1 (nil Nat)))),
+  proof: reflexivity{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: admitRunAdmitsPrecomposedLetterOnTheSample,
+  parameters: [],
+  statement: ((admitRun (first (NfcTables::sample)) (second (NfcTables::sample)) (cons 0x737263 (nil Bytes)) 0x7372632fc3a92e6c65782e746578) = (cons 0 (nil Nat))),
   proof: reflexivity{},
   axioms: [Classical.choice, Quot.sound, propext]
 }

@@ -1,0 +1,57 @@
+\begin{lexlean}{NfcTables}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\title{LexLean MCP Unicode tables}
+\begin{semanticmodule}
+artifact{
+  name: tablesLow,
+  type: Bytes,
+  length: 16384,
+  role: binary,
+  schema: bytes{},
+  sha256: "197657122ac6aad087a0992296e641d21fdd43eb757e93ac2077c48cc3fab6c1"
+}
+
+artifact{
+  name: tablesHigh,
+  type: Bytes,
+  length: 11943,
+  role: binary,
+  schema: bytes{},
+  sha256: "56e7b260aa0e5a62f5dad2876032e70a4ce483b34ce4c37ec3af9b05a1ad42a8"
+}
+
+artifact{
+  name: sampleImage,
+  type: Bytes,
+  length: 623,
+  role: binary,
+  schema: bytes{},
+  sha256: "417850fac4d56ca68dcd43ae211f0de94218eb1a75ff42a12e1b865c5bd6a041"
+}
+
+definition{
+  name: tables,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: ((tablesLow), (tablesHigh)),
+  executable: true
+}
+
+definition{
+  name: sample,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: ((sampleImage), (sampleImage)),
+  executable: true
+}
+
+definition{name: lowLength, parameters: [], result: Nat, body: 16384, executable: true}
+
+definition{name: decompositionDepth, parameters: [], result: Nat, body: 3, executable: true}
+
+definition{name: fastBound, parameters: [], result: Nat, body: 768, executable: true}
+
+definition{name: decomposesFrom, parameters: [], result: Nat, body: 192, executable: true}
+\end{semanticmodule}
+\end{lexlean}
