@@ -13,8 +13,8 @@ the LexLean tool layer, and links that protocol core unchanged.
 
 ## Status
 
-The product and its architecture description are modeled; no capability is
-built yet.
+The product, its architecture description, its threat model and its quality
+model are modeled; no capability is built yet.
 
 - The product model is LexLean language 1.2 notation (`src/`), built with
   LexLean `release/v0.4` and locked in `lexlean.lock` (`lexlean/lock/2`).
@@ -39,6 +39,7 @@ oracles of their own (UOR-Foundation/MCP#15).
 | --- | --- |
 | `src/` | authoritative LexLean model modules |
 | `language/prism.arch/` | the architecture vocabulary lexicon, a copy of prism-code's |
+| `language/prism.sec/`, `language/prism.qual/` | the security and quality vocabulary lexicons, copies of prism-code's |
 | `language/lexleanmcp.titles/` | the lexicon phrases that title this repository's modules |
 | `lexlean.toml`, `lexlean.lock` | LexLean project and its locked package closure |
 | `lakefile.toml`, `lean-toolchain`, `lake-manifest.json` | Lean workspace bound by `lexlean.lock` |
@@ -47,7 +48,9 @@ oracles of their own (UOR-Foundation/MCP#15).
 | --- | --- |
 | `Product` | identity, owner, server identity, protocol core, source policy, platforms, and the owner-set version (unbound) |
 | `Architecture` | the ISO/IEC/IEEE 42010 architecture description in the `prism.arch` vocabulary: 8 stakeholders, concerns C1 to C8, the component, security and quality viewpoints, 10 components and 11 edges, checked by `architectureDescriptionHolds` |
-| `Foundation.Arch` | the architecture vocabulary (copy of the PrismPM stdlib module, as in prism-code) |
+| `Security` | the threat model in the `prism.sec` vocabulary: assets A1 to A6 tied to architecture components, risks R1 to R10 with impact and an owner-set likelihood (unbound, #19), controls K1 to K9, four security activities, and a measurement per risk; `securityValid` and `riskChainHolds` prove that every risk has a measurement and that R10 is the only risk without a control, recorded as residual |
+| `Quality` | the quality model in the `prism.qual` vocabulary, ISO/IEC 25010:2023: requirements Q1 to Q8, each a characteristic, subcharacteristic, requirement, measure chain with an all-or-none threshold, realized by components of the quality view; `qualityValid` and `qualityChainHolds` prove the chains complete |
+| `Foundation.Arch`, `Foundation.Sec`, `Foundation.Qual` | the architecture, security and quality vocabularies (copies of the PrismPM stdlib modules, as in prism-code) |
 
 ## Repository
 

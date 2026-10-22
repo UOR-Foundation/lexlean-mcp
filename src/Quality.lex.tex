@@ -1,0 +1,673 @@
+\begin{lexlean}{Quality}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\useglossary{prism.arch@1.0.0}
+\useglossary{prism.qual@1.0.0}
+\importmodule{Foundation.Qual}
+\importmodule{Foundation.Arch}
+\importmodule{Architecture}
+\title{LexLean MCP quality model}
+\begin{semanticmodule}
+inductive{
+  name: EvidenceStatus,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Executed, fields: [String]}, {name: Pending, fields: [String]}]
+}
+
+structure{
+  name: Named,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: index, type: Nat}, {name: name, type: String}, {name: text, type: String}]
+}
+
+structure{
+  name: Description,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: index, type: Nat},
+    {name: observation, type: String},
+    {name: threshold, type: String}
+  ]
+}
+
+structure{
+  name: Cardinality,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: measure, type: Nat}, {name: count, type: Nat}, {name: unit, type: String}]
+}
+
+structure{
+  name: Realization,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: requirement, type: Nat}, {name: component, type: Nat}]
+}
+
+structure{
+  name: MeasureEvidence,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: measure, type: Nat}, {name: status, type: EvidenceStatus}]
+}
+
+definition{
+  name: characteristicFunctionalsuitability,
+  parameters: [],
+  result: Foundation.Qual::ProductQualityCharacteristic,
+  body: (record Foundation.Qual::ProductQualityCharacteristic {index := 0})
+}
+
+definition{
+  name: characteristicReliability,
+  parameters: [],
+  result: Foundation.Qual::ProductQualityCharacteristic,
+  body: (record Foundation.Qual::ProductQualityCharacteristic {index := 1})
+}
+
+definition{
+  name: characteristicPerformanceefficiency,
+  parameters: [],
+  result: Foundation.Qual::ProductQualityCharacteristic,
+  body: (record Foundation.Qual::ProductQualityCharacteristic {index := 2})
+}
+
+definition{
+  name: characteristicCompatibility,
+  parameters: [],
+  result: Foundation.Qual::ProductQualityCharacteristic,
+  body: (record Foundation.Qual::ProductQualityCharacteristic {index := 3})
+}
+
+definition{
+  name: characteristicMaintainability,
+  parameters: [],
+  result: Foundation.Qual::ProductQualityCharacteristic,
+  body: (record Foundation.Qual::ProductQualityCharacteristic {index := 4})
+}
+
+definition{
+  name: characteristicFlexibility,
+  parameters: [],
+  result: Foundation.Qual::ProductQualityCharacteristic,
+  body: (record Foundation.Qual::ProductQualityCharacteristic {index := 5})
+}
+
+definition{
+  name: characteristicInteractioncapability,
+  parameters: [],
+  result: Foundation.Qual::ProductQualityCharacteristic,
+  body: (record Foundation.Qual::ProductQualityCharacteristic {index := 6})
+}
+
+definition{
+  name: subcharacteristicFunctionalCorrectness,
+  parameters: [],
+  result: Foundation.Qual::QualitySubcharacteristic,
+  body: (record Foundation.Qual::QualitySubcharacteristic {index := 0, characteristicIndex := 0})
+}
+
+definition{
+  name: subcharacteristicFunctionalCompleteness,
+  parameters: [],
+  result: Foundation.Qual::QualitySubcharacteristic,
+  body: (record Foundation.Qual::QualitySubcharacteristic {index := 1, characteristicIndex := 0})
+}
+
+definition{
+  name: subcharacteristicFaultTolerance,
+  parameters: [],
+  result: Foundation.Qual::QualitySubcharacteristic,
+  body: (record Foundation.Qual::QualitySubcharacteristic {index := 2, characteristicIndex := 1})
+}
+
+definition{
+  name: subcharacteristicResourceUtilization,
+  parameters: [],
+  result: Foundation.Qual::QualitySubcharacteristic,
+  body: (record Foundation.Qual::QualitySubcharacteristic {index := 3, characteristicIndex := 2})
+}
+
+definition{
+  name: subcharacteristicInteroperability,
+  parameters: [],
+  result: Foundation.Qual::QualitySubcharacteristic,
+  body: (record Foundation.Qual::QualitySubcharacteristic {index := 4, characteristicIndex := 3})
+}
+
+definition{
+  name: subcharacteristicModularity,
+  parameters: [],
+  result: Foundation.Qual::QualitySubcharacteristic,
+  body: (record Foundation.Qual::QualitySubcharacteristic {index := 5, characteristicIndex := 4})
+}
+
+definition{
+  name: subcharacteristicInstallability,
+  parameters: [],
+  result: Foundation.Qual::QualitySubcharacteristic,
+  body: (record Foundation.Qual::QualitySubcharacteristic {index := 6, characteristicIndex := 5})
+}
+
+definition{
+  name: subcharacteristicLearnability,
+  parameters: [],
+  result: Foundation.Qual::QualitySubcharacteristic,
+  body: (record Foundation.Qual::QualitySubcharacteristic {index := 7, characteristicIndex := 6})
+}
+
+definition{
+  name: requirementFunctionalCorrectness,
+  parameters: [],
+  result: Foundation.Qual::QualityRequirement,
+  body: (record Foundation.Qual::QualityRequirement {index := 0, subcharacteristicIndex := 0})
+}
+
+definition{
+  name: requirementFunctionalCompleteness,
+  parameters: [],
+  result: Foundation.Qual::QualityRequirement,
+  body: (record Foundation.Qual::QualityRequirement {index := 1, subcharacteristicIndex := 1})
+}
+
+definition{
+  name: requirementFaultTolerance,
+  parameters: [],
+  result: Foundation.Qual::QualityRequirement,
+  body: (record Foundation.Qual::QualityRequirement {index := 2, subcharacteristicIndex := 2})
+}
+
+definition{
+  name: requirementResourceUtilization,
+  parameters: [],
+  result: Foundation.Qual::QualityRequirement,
+  body: (record Foundation.Qual::QualityRequirement {index := 3, subcharacteristicIndex := 3})
+}
+
+definition{
+  name: requirementInteroperability,
+  parameters: [],
+  result: Foundation.Qual::QualityRequirement,
+  body: (record Foundation.Qual::QualityRequirement {index := 4, subcharacteristicIndex := 4})
+}
+
+definition{
+  name: requirementModularity,
+  parameters: [],
+  result: Foundation.Qual::QualityRequirement,
+  body: (record Foundation.Qual::QualityRequirement {index := 5, subcharacteristicIndex := 5})
+}
+
+definition{
+  name: requirementInstallability,
+  parameters: [],
+  result: Foundation.Qual::QualityRequirement,
+  body: (record Foundation.Qual::QualityRequirement {index := 6, subcharacteristicIndex := 6})
+}
+
+definition{
+  name: requirementLearnability,
+  parameters: [],
+  result: Foundation.Qual::QualityRequirement,
+  body: (record Foundation.Qual::QualityRequirement {index := 7, subcharacteristicIndex := 7})
+}
+
+definition{
+  name: measureFunctionalCorrectness,
+  parameters: [],
+  result: Foundation.Qual::QualityMeasure,
+  body: (record Foundation.Qual::QualityMeasure {index := 0, requirementIndex := 0, threshold := 0})
+}
+
+definition{
+  name: measureFunctionalCompleteness,
+  parameters: [],
+  result: Foundation.Qual::QualityMeasure,
+  body: (record Foundation.Qual::QualityMeasure {index := 1, requirementIndex := 1, threshold := 0})
+}
+
+definition{
+  name: measureFaultTolerance,
+  parameters: [],
+  result: Foundation.Qual::QualityMeasure,
+  body: (record Foundation.Qual::QualityMeasure {index := 2, requirementIndex := 2, threshold := 0})
+}
+
+definition{
+  name: measureResourceUtilization,
+  parameters: [],
+  result: Foundation.Qual::QualityMeasure,
+  body: (record Foundation.Qual::QualityMeasure {index := 3, requirementIndex := 3, threshold := 0})
+}
+
+definition{
+  name: measureInteroperability,
+  parameters: [],
+  result: Foundation.Qual::QualityMeasure,
+  body: (record Foundation.Qual::QualityMeasure {index := 4, requirementIndex := 4, threshold := 0})
+}
+
+definition{
+  name: measureModularity,
+  parameters: [],
+  result: Foundation.Qual::QualityMeasure,
+  body: (record Foundation.Qual::QualityMeasure {index := 5, requirementIndex := 5, threshold := 0})
+}
+
+definition{
+  name: measureInstallability,
+  parameters: [],
+  result: Foundation.Qual::QualityMeasure,
+  body: (record Foundation.Qual::QualityMeasure {index := 6, requirementIndex := 6, threshold := 0})
+}
+
+definition{
+  name: measureLearnability,
+  parameters: [],
+  result: Foundation.Qual::QualityMeasure,
+  body: (record Foundation.Qual::QualityMeasure {index := 7, requirementIndex := 7, threshold := 0})
+}
+
+definition{
+  name: standardIso25010,
+  parameters: [],
+  result: Foundation.Arch::StandardReference,
+  body: (record Foundation.Arch::StandardReference {standardIndex := 25010, editionIndex := 2023})
+}
+
+definition{
+  name: characteristicRecords,
+  parameters: [],
+  result: (List Foundation.Qual::ProductQualityCharacteristic),
+  body: (cons (characteristicFunctionalsuitability) (cons (characteristicReliability) (cons (characteristicPerformanceefficiency) (cons (characteristicCompatibility) (cons (characteristicMaintainability) (cons (characteristicFlexibility) (cons (characteristicInteractioncapability) (nil Foundation.Qual::ProductQualityCharacteristic))))))))
+}
+
+definition{
+  name: subcharacteristicRecords,
+  parameters: [],
+  result: (List Foundation.Qual::QualitySubcharacteristic),
+  body: (cons (subcharacteristicFunctionalCorrectness) (cons (subcharacteristicFunctionalCompleteness) (cons (subcharacteristicFaultTolerance) (cons (subcharacteristicResourceUtilization) (cons (subcharacteristicInteroperability) (cons (subcharacteristicModularity) (cons (subcharacteristicInstallability) (cons (subcharacteristicLearnability) (nil Foundation.Qual::QualitySubcharacteristic)))))))))
+}
+
+definition{
+  name: requirementRecords,
+  parameters: [],
+  result: (List Foundation.Qual::QualityRequirement),
+  body: (cons (requirementFunctionalCorrectness) (cons (requirementFunctionalCompleteness) (cons (requirementFaultTolerance) (cons (requirementResourceUtilization) (cons (requirementInteroperability) (cons (requirementModularity) (cons (requirementInstallability) (cons (requirementLearnability) (nil Foundation.Qual::QualityRequirement)))))))))
+}
+
+definition{
+  name: measureRecords,
+  parameters: [],
+  result: (List Foundation.Qual::QualityMeasure),
+  body: (cons (measureFunctionalCorrectness) (cons (measureFunctionalCompleteness) (cons (measureFaultTolerance) (cons (measureResourceUtilization) (cons (measureInteroperability) (cons (measureModularity) (cons (measureInstallability) (cons (measureLearnability) (nil Foundation.Qual::QualityMeasure)))))))))
+}
+
+definition{
+  name: characteristicNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "Functional suitability", text := "A product quality characteristic of ISO/IEC 25010:2023."}) (cons (record Named {index := 1, name := "Reliability", text := "A product quality characteristic of ISO/IEC 25010:2023."}) (cons (record Named {index := 2, name := "Performance efficiency", text := "A product quality characteristic of ISO/IEC 25010:2023."}) (cons (record Named {index := 3, name := "Compatibility", text := "A product quality characteristic of ISO/IEC 25010:2023."}) (cons (record Named {index := 4, name := "Maintainability", text := "A product quality characteristic of ISO/IEC 25010:2023."}) (cons (record Named {index := 5, name := "Flexibility", text := "A product quality characteristic of ISO/IEC 25010:2023."}) (cons (record Named {index := 6, name := "Interaction capability", text := "A product quality characteristic of ISO/IEC 25010:2023."}) (nil Named))))))))
+}
+
+definition{
+  name: subcharacteristicNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "Functional correctness", text := "A subcharacteristic of Functional suitability."}) (cons (record Named {index := 1, name := "Functional completeness", text := "A subcharacteristic of Functional suitability."}) (cons (record Named {index := 2, name := "Fault tolerance", text := "A subcharacteristic of Reliability."}) (cons (record Named {index := 3, name := "Resource utilization", text := "A subcharacteristic of Performance efficiency."}) (cons (record Named {index := 4, name := "Interoperability", text := "A subcharacteristic of Compatibility."}) (cons (record Named {index := 5, name := "Modularity", text := "A subcharacteristic of Maintainability."}) (cons (record Named {index := 6, name := "Installability", text := "A subcharacteristic of Flexibility."}) (cons (record Named {index := 7, name := "Learnability", text := "A subcharacteristic of Interaction capability."}) (nil Named)))))))))
+}
+
+definition{
+  name: requirementNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "Q1", text := "a tool result equals the engine's result for the same project bytes"}) (cons (record Named {index := 1, name := "Q2", text := "each in-scope API function is reached by exactly one tool"}) (cons (record Named {index := 2, name := "Q3", text := "no verification record for a verification that did not end `verified`"}) (cons (record Named {index := 3, name := "Q4", text := "check, snapshot, format, build start no child process"}) (cons (record Named {index := 4, name := "Q5", text := "the MCP implementation conforms to 2026-07-28"}) (cons (record Named {index := 5, name := "Q6", text := "protocol and tool semantics live only in `.lex.tex`"}) (cons (record Named {index := 6, name := "Q7", text := "a draft yields the same `build_id` on every supported host (the build ID hashes only the source and semantic IDs, LexLean SPEC §21.5)"}) (cons (record Named {index := 7, name := "Q8", text := "every diagnostic code in a result resolves through F11"}) (nil Named)))))))))
+}
+
+definition{
+  name: descriptions,
+  parameters: [],
+  result: (List Description),
+  body: (cons (record Description {index := 0, observation := "canonical JSON of the structured content of `lexlean_check`, `lexlean_build`, `lexlean_verify` against the CLI's command result for the same command, over every example and the 273 negative fixtures of AC-07", threshold := "all equal"}) (cons (record Description {index := 1, observation := "map from `Engine::{check, snapshot, format, build, verify}` and `sdk::{assemble, write_module, read_module, declaration_spans}` to tools", threshold := "total"}) (cons (record Description {index := 2, observation := "fault cases: child killed, verifier killed, store full", threshold := "zero records"}) (cons (record Description {index := 3, observation := "child processes observed by host process accounting during each call", threshold := "zero"}) (cons (record Description {index := 4, observation := "`mcp-conformance-server-2026-07-28` and `mcp-schema-2026-07-28`", threshold := "50 of 50 scenarios pass; zero schema failures"}) (cons (record Description {index := 5, observation := "tool or method names in host adapter source", threshold := "zero"}) (cons (record Description {index := 6, observation := "`build_id` on `linux/amd64` against `linux/arm64`", threshold := "equal"}) (cons (record Description {index := 7, observation := "codes resolved against codes returned", threshold := "all"}) (nil Description)))))))))
+}
+
+definition{
+  name: cardinalities,
+  parameters: [],
+  result: (List Cardinality),
+  body: (cons (record Cardinality {measure := 0, count := 273, unit := "negative fixtures of AC-07"}) (cons (record Cardinality {measure := 4, count := 50, unit := "scenarios"}) (nil Cardinality)))
+}
+
+definition{
+  name: realizations,
+  parameters: [],
+  result: (List Realization),
+  body: (cons (record Realization {requirement := 0, component := 3}) (cons (record Realization {requirement := 0, component := 4}) (cons (record Realization {requirement := 1, component := 3}) (cons (record Realization {requirement := 2, component := 5}) (cons (record Realization {requirement := 2, component := 6}) (cons (record Realization {requirement := 3, component := 4}) (cons (record Realization {requirement := 4, component := 1}) (cons (record Realization {requirement := 4, component := 2}) (cons (record Realization {requirement := 5, component := 1}) (cons (record Realization {requirement := 6, component := 4}) (cons (record Realization {requirement := 7, component := 3}) (nil Realization))))))))))))
+}
+
+definition{
+  name: evidence,
+  parameters: [],
+  result: (List MeasureEvidence),
+  body: (cons (record MeasureEvidence {measure := 0, status := (ctor EvidenceStatus.Pending "Run where the tools are built: #10 for check and build, #11 for verify.")}) (cons (record MeasureEvidence {measure := 1, status := (ctor EvidenceStatus.Pending "Run once every in-scope function has a tool: #9 for the `sdk` functions, #10 and #11 for the `Engine` calls.")}) (cons (record MeasureEvidence {measure := 2, status := (ctor EvidenceStatus.Pending "Run where verification runs as tasks (#11); the store-full case needs the store (#13).")}) (cons (record MeasureEvidence {measure := 3, status := (ctor EvidenceStatus.Pending "Run where the tools are built (#10).")}) (cons (record MeasureEvidence {measure := 4, status := (ctor EvidenceStatus.Pending "Run against the deployed core (#17), through the MCP oracles.")}) (cons (record MeasureEvidence {measure := 5, status := (ctor EvidenceStatus.Pending "Run once the host adapter is generated (#7).")}) (cons (record MeasureEvidence {measure := 6, status := (ctor EvidenceStatus.Pending "Run where build is a tool (#10), on both platforms.")}) (cons (record MeasureEvidence {measure := 7, status := (ctor EvidenceStatus.Pending "Run where `lexlean_explain` (F11) is built (#10).")}) (nil MeasureEvidence)))))))))
+}
+
+definition{
+  name: nonEmpty,
+  parameters: [text : String],
+  result: Bool,
+  body: (if (prim equal text "" : Bool) then false else true)
+}
+
+definition{
+  name: namedIndexes,
+  parameters: [records : (List Named)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (namedIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: characteristicIndexes,
+  parameters: [records : (List Foundation.Qual::ProductQualityCharacteristic)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (characteristicIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: subcharacteristicIndexes,
+  parameters: [records : (List Foundation.Qual::QualitySubcharacteristic)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (subcharacteristicIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: subcharacteristicParents,
+  parameters: [records : (List Foundation.Qual::QualitySubcharacteristic)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head characteristicIndex) (subcharacteristicParents rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: requirementIndexes,
+  parameters: [records : (List Foundation.Qual::QualityRequirement)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (requirementIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: requirementParents,
+  parameters: [records : (List Foundation.Qual::QualityRequirement)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head subcharacteristicIndex) (requirementParents rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: measureIndexes,
+  parameters: [records : (List Foundation.Qual::QualityMeasure)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (measureIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: measureRequirements,
+  parameters: [records : (List Foundation.Qual::QualityMeasure)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head requirementIndex) (measureRequirements rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: measureThresholds,
+  parameters: [records : (List Foundation.Qual::QualityMeasure)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head threshold) (measureThresholds rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: descriptionIndexes,
+  parameters: [records : (List Description)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (descriptionIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: cardinalityMeasures,
+  parameters: [records : (List Cardinality)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head measure) (cardinalityMeasures rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: realizationRequirements,
+  parameters: [records : (List Realization)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head requirement) (realizationRequirements rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: realizationComponents,
+  parameters: [records : (List Realization)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head component) (realizationComponents rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: evidenceMeasures,
+  parameters: [records : (List MeasureEvidence)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head measure) (evidenceMeasures rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: descriptionsStated,
+  parameters: [records : (List Description)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => (((nonEmpty (project head observation)) && (nonEmpty (project head threshold))) && (descriptionsStated rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: allZero,
+  parameters: [values : (List Nat)],
+  result: Bool,
+  body: (match values | List.nil => true | List.cons head rest => ((head =? 0) && (allZero rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: countOf,
+  parameters: [wanted : Nat, rows : (List Cardinality)],
+  result: Nat,
+  body: (match rows
+    | List.nil => 0
+    | List.cons head rest => (if ((project head measure) =? wanted) then (project head count) else (countOf wanted rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: evidenceHonest,
+  parameters: [records : (List MeasureEvidence)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((match (project head status)
+      | EvidenceStatus.Executed reference => (nonEmpty reference)
+      | EvidenceStatus.Pending reason => (nonEmpty reason)) && (evidenceHonest rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: pendingMeasures,
+  parameters: [records : (List MeasureEvidence)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (match (project head status)
+      | EvidenceStatus.Executed reference => (pendingMeasures rest)
+      | EvidenceStatus.Pending reason => (cons (project head measure) (pendingMeasures rest)))),
+  recursive_argument: records
+}
+
+definition{
+  name: viewComponents,
+  parameters: [wanted : Nat, specs : (List Architecture::ViewSpec)],
+  result: (List Nat),
+  body: (match specs
+    | List.nil => (nil Nat)
+    | List.cons head rest => (if ((project head view) =? wanted) then (project head components) else (viewComponents wanted rest))),
+  recursive_argument: specs
+}
+
+definition{
+  name: qualityViewComponents,
+  parameters: [],
+  result: (List Nat),
+  body: (viewComponents 2 (Architecture::viewSpecs))
+}
+
+definition{
+  name: editionIs2023,
+  parameters: [],
+  result: Bool,
+  body: (((project (standardIso25010) standardIndex) =? 25010) && ((project (standardIso25010) editionIndex) =? 2023))
+}
+
+definition{
+  name: qualityChainHolds,
+  parameters: [],
+  result: Bool,
+  body: ((Architecture::allMembers (subcharacteristicParents (subcharacteristicRecords)) (characteristicIndexes (characteristicRecords))) && ((Architecture::allMembers (characteristicIndexes (characteristicRecords)) (subcharacteristicParents (subcharacteristicRecords))) && ((Architecture::allMembers (requirementParents (requirementRecords)) (subcharacteristicIndexes (subcharacteristicRecords))) && ((Architecture::allMembers (subcharacteristicIndexes (subcharacteristicRecords)) (requirementParents (requirementRecords))) && ((Architecture::allMembers (measureRequirements (measureRecords)) (requirementIndexes (requirementRecords))) && ((Architecture::allMembers (requirementIndexes (requirementRecords)) (measureRequirements (measureRecords))) && (allZero (measureThresholds (measureRecords)))))))))
+}
+
+definition{
+  name: qualityValid,
+  parameters: [],
+  result: Bool,
+  body: ((qualityChainHolds) && ((Architecture::sameNats (namedIndexes (characteristicNames)) (characteristicIndexes (characteristicRecords))) && ((Architecture::sameNats (namedIndexes (subcharacteristicNames)) (subcharacteristicIndexes (subcharacteristicRecords))) && ((Architecture::sameNats (namedIndexes (requirementNames)) (requirementIndexes (requirementRecords))) && ((Architecture::sameNats (descriptionIndexes (descriptions)) (measureIndexes (measureRecords))) && ((descriptionsStated (descriptions)) && ((Architecture::allMembers (cardinalityMeasures (cardinalities)) (measureIndexes (measureRecords))) && ((Architecture::allMembers (requirementIndexes (requirementRecords)) (realizationRequirements (realizations))) && ((Architecture::allMembers (realizationRequirements (realizations)) (requirementIndexes (requirementRecords))) && ((Architecture::allMembers (realizationComponents (realizations)) (Architecture::componentIndexes (Architecture::componentRecords))) && ((Architecture::allMembers (realizationComponents (realizations)) (qualityViewComponents)) && ((Architecture::sameNats (evidenceMeasures (evidence)) (measureIndexes (measureRecords))) && ((evidenceHonest (evidence)) && (editionIs2023))))))))))))))
+}
+
+theorem{
+  name: qualityModelHolds,
+  parameters: [],
+  statement: ((qualityValid) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: qualityChainIsComplete,
+  parameters: [],
+  statement: ((qualityChainHolds) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyRequirementHasMeasure,
+  parameters: [],
+  statement: ((Architecture::allMembers (requirementIndexes (requirementRecords)) (measureRequirements (measureRecords))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyThresholdIsAllOrNone,
+  parameters: [],
+  statement: ((allZero (measureThresholds (measureRecords))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: requirementsAreQ1ToQ8,
+  parameters: [],
+  statement: ((requirementIndexes (requirementRecords)) = (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (nil Nat)))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: fixturesRequired,
+  parameters: [],
+  statement: ((countOf 0 (cardinalities)) = 273),
+  proof: decide{}
+}
+
+theorem{
+  name: scenariosRequired,
+  parameters: [],
+  statement: ((countOf 4 (cardinalities)) = 50),
+  proof: decide{}
+}
+
+theorem{
+  name: measuresPending,
+  parameters: [],
+  statement: ((pendingMeasures (evidence)) = (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (nil Nat)))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: requirementsRealizedInQualityView,
+  parameters: [],
+  statement: ((Architecture::allMembers (realizationComponents (realizations)) (qualityViewComponents)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: editionIsIso25010Of2023,
+  parameters: [],
+  statement: ((editionIs2023) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: sevenCharacteristics,
+  parameters: [],
+  statement: ((characteristicIndexes (characteristicRecords)) = (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (nil Nat))))))))),
+  proof: decide{}
+}
+\end{semanticmodule}
+\end{lexlean}
