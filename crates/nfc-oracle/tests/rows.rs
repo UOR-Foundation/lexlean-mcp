@@ -27,15 +27,12 @@ fn the_file_has_every_line_and_the_parts_the_parser_reads_nf_03() {
 
 #[test]
 fn c2_and_c4_are_nfc_and_c1_c3_and_c5_are_nfc_exactly_when_they_equal_their_normal_form_nf_03() {
-    // The file's own statement of the NFC invariants (its header, lines 22 to 24):
+    // The criterion of issue #25 (AC1), which is the file's own statement of the NFC
+    // invariants (its header, lines 22 to 24):
     //   c2 == toNFC(c1) == toNFC(c2) == toNFC(c3)
     //   c4 == toNFC(c4) == toNFC(c5)
-    // So c2 and c4 are their own NFC, c1 and c3 are NFC exactly when they equal
-    // c2, and c5 is NFC exactly when it equals c4. (Issue #25 words this as "c1,
-    // c3, c4 and c5 are NFC exactly when they equal c2". That holds for c1 and
-    // c3 only: c4 and c5 are the compatibility forms, and for U+00A0 (c2) the
-    // c4 column U+0020 is NFC though it is not c2. 7576 of the 100170
-    // judgements would then contradict Unicode's own file.)
+    // So c2 and c4 are their own NFC, c1 and c3 are NFC exactly when they equal c2,
+    // and c5 is NFC exactly when it equals c4.
     let mut memo = Memo::new();
     let mut failures = Vec::new();
     let mut judged = 0;

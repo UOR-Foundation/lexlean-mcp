@@ -20,9 +20,13 @@ The digests are recorded again in `model/authorities.toml` and in
 
 `https://www.unicode.org/Public/17.0.0/ucd/` is not reachable from the host that
 produced this commit (its egress allows package registries and GitHub). The copies
-are the files `unicodetools/data/ucd/17.0.0/<name>` of
-<https://github.com/unicode-org/unicodetools> (`main`), fetched from
-`raw.githubusercontent.com`. The first line of each of the three versioned files
+are the publisher's own source files: the Unicode Consortium's repository
+<https://github.com/unicode-org/unicodetools>, from which the published UCD is
+built, path `unicodetools/data/ucd/17.0.0/<name>`, at commit
+`578f6c0516f5f268292ebda50b51848407a06478` (`main` on 2026-10-22). Each committed
+file is byte-identical to the file at that commit (fetched from
+`raw.githubusercontent.com/unicode-org/unicodetools/<commit>/unicodetools/data/ucd/17.0.0/<name>`
+and compared with `cmp`). The first line of each of the three versioned files
 names the release (`# NormalizationTest-17.0.0.txt`, `# DerivedNormalizationProps-17.0.0.txt`,
 `# CompositionExclusions-17.0.0.txt`); `UnicodeData.txt` has no header line.
 
@@ -50,11 +54,11 @@ script reads it for the CJK compatibility variants, which no table here uses).
 So `UnicodeData.txt`, `DerivedNormalizationProps.txt` and `NormalizationTest.txt`
 produce exactly the tables and the test vectors of the crate LexLean pins. That is
 a consequence of the files being the ones the crate was generated from; it does not
-rest on trusting the mirror. `CompositionExclusions.txt` is not read by the crate's
-script. It is pinned by digest, and the generator checks it against the derived
-property: the listed exclusions, the singleton decompositions and the non-starter
-decompositions are exactly `Full_Composition_Exclusion` of the pinned
-`DerivedNormalizationProps.txt` (`tables::check_exclusions`). What is not
-established is the identity of `CompositionExclusions.txt` with the file published at
-unicode.org, beyond its header (`# CompositionExclusions-17.0.0.txt`, 2025-08-01) and
-that agreement. The decision does not read it: it reads `Full_Composition_Exclusion`.
+rest on trusting where the copies were fetched from. `CompositionExclusions.txt`
+is not read by the crate's script. Its source is the publisher's repository at the
+commit above (its header names 17.0.0, 2025-08-01), it is pinned by digest, and the
+generator checks it against the derived property: the listed exclusions, the
+singleton decompositions and the non-starter decompositions are exactly
+`Full_Composition_Exclusion` of the pinned `DerivedNormalizationProps.txt`
+(`tables::check_exclusions`). The decision does not read it: it reads
+`Full_Composition_Exclusion`.

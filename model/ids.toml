@@ -16,7 +16,7 @@
 # file is built.
 #
 # The Unicode normalization decision (issue #25) is the first capability
-# registered: NF-01..NF-11.
+# registered: NF-01..NF-13.
 
 spec = "template/1"
 
@@ -60,7 +60,7 @@ statement = "The LexLean UTF-8 reader returns the scalar value of every Unicode 
 id = "NF-07"
 level = "build"
 suite = "nfc"
-statement = "The oracle executes the package exported from the LexLean root nfcRun, whose recorded digests and compiler semantics ID match the committed files and lexlean.lock."
+statement = "The oracle executes the packages exported from the LexLean roots nfcRun and admitRun, whose recorded digests and compiler semantics ID match the committed files and lexlean.lock."
 
 [[id]]
 id = "NF-08"
@@ -85,3 +85,15 @@ id = "NF-11"
 level = "build"
 suite = "nfc"
 statement = "Every kernel-checked instance stated in src/Nfc.lex.tex on the sample image holds, with the same value, when the exported LexLean decision runs it on the full tables."
+
+[[id]]
+id = "NF-12"
+level = "build"
+suite = "nfc"
+statement = "Path admission through the exported LexLean root admitRun on the full tables refuses e followed by U+0301 as NotNfc and admits U+00E9, refuses invalid UTF-8 as NotUtf8 before NFC, refuses a non-NFC path as NotNfc before the root and suffix checks, and agrees with the order of the kernel-checked instances of src/Admission.lex.tex."
+
+[[id]]
+id = "NF-13"
+level = "build"
+suite = "nfc"
+statement = "The exported roots nfcRun and admitRun declare no recursion effect, and run a path of one MiB of scalars on a two MiB thread stack with a typed result: no stage recurses to a depth bounded by the input."

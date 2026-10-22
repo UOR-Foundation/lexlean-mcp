@@ -39,8 +39,8 @@ Feature: Unicode normalization decision
     Then it returns the scalar value
 
   @NF-07 @build
-  Scenario: The oracle executes the package exported from the LexLean root nfcRun, whose recorded digests and compiler semantics ID match the committed files and lexlean.lock.
-    Given the committed package and its provenance record
+  Scenario: The oracle executes the packages exported from the LexLean roots nfcRun and admitRun, whose recorded digests and compiler semantics ID match the committed files and lexlean.lock.
+    Given the committed packages and their provenance records
     When the recorded digests, the compiler semantics ID and the lock are compared
     Then each equals the committed file and lexlean.lock, and the oracle compiled exactly the recorded source
 
@@ -67,3 +67,15 @@ Feature: Unicode normalization decision
     Given the instance theorems of src/Nfc.lex.tex
     When the exported LexLean decision runs each on the sample image and on the full tables
     Then each returns the value the theorem states on both
+
+  @NF-12 @build
+  Scenario: Path admission through the exported LexLean root admitRun on the full tables refuses e followed by U+0301 as NotNfc and admits U+00E9, refuses invalid UTF-8 as NotUtf8 before NFC, refuses a non-NFC path as NotNfc before the root and suffix checks, and agrees with the order of the kernel-checked instances of src/Admission.lex.tex.
+    Given the exported admission root and the full tables
+    When it judges the paths of the kernel-checked instances and the ordering vectors
+    Then each verdict is the one the instance states, with the refusal named by the constructor order of Refusal
+
+  @NF-13 @build
+  Scenario: The exported roots nfcRun and admitRun declare no recursion effect, and run a path of one MiB of scalars on a two MiB thread stack with a typed result: no stage recurses to a depth bounded by the input.
+    Given the provenance of the exported package and a thread with a two MiB stack
+    When the roots judge paths of one MiB of scalars of several shapes
+    Then no root declares recursion and each verdict is typed
