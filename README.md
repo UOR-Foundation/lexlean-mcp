@@ -70,5 +70,7 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   SDK and template update process.
 - [VERIFICATION.md](VERIFICATION.md) defines the acceptance boundary; `just vv`
   is the complete gate.
+- [CI.md](CI.md) describes the workflow that runs every gate that works without
+  the SDK, and how to read its failures.
 
 Licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE).
