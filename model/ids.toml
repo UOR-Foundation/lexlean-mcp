@@ -19,6 +19,7 @@
 # registered: NF-01..NF-13. Draft admission as loops, exported as a production
 # root (issue #9, F3), registers DL-01..DL-04. Canonical ordering by a stable
 # merge sort (issue #9, item 2 of the second finding) registers NF-14 and NF-15.
+# The first executed measurement of the threat model (issue #14, R5) registers SM-01.
 
 spec = "template/1"
 
@@ -135,3 +136,9 @@ id = "DL-04"
 level = "build"
 suite = "draft"
 statement = "The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound."
+
+[[id]]
+id = "SM-01"
+level = "build"
+suite = "security"
+statement = "The measurement of R5 (path escape) is executed by NF-09, NF-12, DL-01, DL-02, DL-03 and DL-04, whose tests pass, and Security records it as Executed; the symlink clause stays Pending on #9."
