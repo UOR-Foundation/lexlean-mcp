@@ -24,22 +24,25 @@ _annotation_property() {
   printf '%s' "$text"
 }
 
-# annotate LABEL STATUS LOGFILE: one error annotation holding the last lines of
-# LOGFILE, without terminal colour, each line cut to 400 characters.
+# annotate LEVEL TITLE LINES LOGFILE: one annotation holding the last LINES
+# lines of LOGFILE, without terminal colour, each line cut to 400 characters.
 annotate() {
-  local label=$1 status=$2 log=$3 tail_text
-  tail_text=$(tail -n "$GATE_TAIL_LINES" "$log" |
+  local level=$1 title=$2 lines=$3 log=$4 tail_text
+  tail_text=$(tail -n "$lines" "$log" |
     sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' | cut -c1-400)
-  printf '::error title=%s::%s\n' \
-    "$(_annotation_property "$label failed (exit $status)")" \
+  printf '::%s title=%s::%s\n' "$level" \
+    "$(_annotation_property "$title")" \
     "$(_annotation_data "$tail_text")"
 }
 
-# gate LABEL COMMAND...: run COMMAND, show its output, and when it fails emit the
-# annotation and return its exit status. COMMAND runs in a subshell, so it passes
-# anything to later steps through $GITHUB_PATH or $GITHUB_OUTPUT.
+# gate LABEL COMMAND...: run COMMAND and show its output. When it fails, emit an
+# error annotation of its last $GATE_TAIL_LINES lines and return its exit status.
+# When it passes, emit a notice of its last line and its duration, so a run that
+# executed nothing cannot look like a run that passed. COMMAND runs in a
+# subshell, so it passes anything to later steps through $GITHUB_PATH or
+# $GITHUB_OUTPUT.
 gate() {
-  local label=$1 log status restore
+  local label=$1 log status restore started=$SECONDS
   shift
   log=$(mktemp "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/gate.XXXXXX")
   restore=$(set +o)
@@ -48,7 +51,9 @@ gate() {
   status=${PIPESTATUS[0]}
   eval "$restore"
   if ((status != 0)); then
-    annotate "$label" "$status" "$log"
+    annotate error "$label failed (exit $status)" "$GATE_TAIL_LINES" "$log"
+  else
+    annotate notice "$label passed in $((SECONDS - started))s" 1 "$log"
   fi
   rm -f "$log"
   return "$status"
