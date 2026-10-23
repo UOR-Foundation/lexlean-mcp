@@ -55,6 +55,12 @@ model does not sanction.
 | `OV-02` | `build` | OWNER-VALUES.md and the model state the same value for every owner-set value, in both directions: every row of the proposal table is bound in the model with the same value, every value the model binds has a row, and every row names its evidence, its decider, its status and what changes if it moves. |
 | `OV-03` | `build` | Each bound value respects the constraint it follows from: draft.max_bytes and draft.max_files hold the largest example and stay within the limits of lexlean.toml, verify.concurrency times verify.memory_kib fits a 16 GiB host, verify.width is within the range of LexLean SPEC 22.11, listen.port is a registered-range port below the ephemeral range, and the product version equals the workspace package version. |
 
+## security
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `SM-01` | `build` | The measurement of R5 (path escape) is executed by NF-09, NF-12, DL-01, DL-02, DL-03 and DL-04, whose tests pass, and Security records it as Executed; the symlink clause stays Pending on #9. |
+
 ## Cited authorities
 
 Never re-derived, vendored, or gated on.
