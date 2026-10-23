@@ -16,13 +16,13 @@ the LexLean tool layer, and links that protocol core unchanged.
 The product, its architecture description, its threat model, its quality model,
 and the pure part of profile and draft identity and of path admission are
 modeled. One capability is built: the Unicode 17.0.0 NFC decision (#25),
-registered as NF-01 to NF-13 and used by path admission.
+registered as NF-01 to NF-15 and used by path admission.
 
 - The product model is LexLean language 1.2 notation (`src/`), built with
   LexLean `release/v0.4` and locked in `lexlean.lock` (`lexlean/lock/2`).
   `lexlean verify` accepts it with an exact axiom policy on every declaration.
   The version of the product is an owner-set value that is not yet bound (#19).
-- The claim registers in `model/` hold the NFC decision's rows (NF-01 to NF-13),
+- The claim registers in `model/` hold the NFC decision's rows (NF-01 to NF-15),
   its authorities (the Unicode standard annex, the four pinned Unicode Character
   Database files and `unicode-normalization` 0.1.25) and their claims;
   `CONFORMANCE.md` lists them.

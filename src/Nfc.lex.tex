@@ -257,30 +257,133 @@ definition{
 }
 
 definition{
-  name: placeMark,
-  parameters: [
-    tables : (Bytes * Bytes),
-    code : Nat,
-    rank : Nat,
-    placed : (List Nat),
-    held : (List Nat)
-  ],
-  result: (List Nat),
-  body: (match placed
-    | List.nil => (reverseOnto held (cons code (nil Nat)))
-    | List.cons head rest => (let headRank : Nat := (combiningClass tables head); (if (headRank =? 0) then (reverseOnto held (cons code (cons head rest))) else (if (rank <? headRank) then (placeMark tables code rank rest (cons head held)) else (reverseOnto held (cons code (cons head rest))))))),
-  axioms: [Quot.sound, propext],
+  name: reverseMarks,
+  parameters: [marks : (List (Nat * Nat)), done : (List (Nat * Nat))],
+  result: (List (Nat * Nat)),
+  body: (match marks
+    | List.nil => done
+    | List.cons mark rest => (reverseMarks rest (cons mark done))),
   executable: true,
-  recursive_argument: placed
+  recursive_argument: marks
 }
 
 definition{
-  name: orderInto,
-  parameters: [tables : (Bytes * Bytes), xs : (List Nat), placed : (List Nat)],
+  name: reverseMarkRuns,
+  parameters: [runs : (List (List (Nat * Nat))), done : (List (List (Nat * Nat)))],
+  result: (List (List (Nat * Nat))),
+  body: (match runs
+    | List.nil => done
+    | List.cons run rest => (reverseMarkRuns rest (cons run done))),
+  executable: true,
+  recursive_argument: runs
+}
+
+definition{
+  name: countMarks,
+  parameters: [marks : (List (Nat * Nat)), total : Nat],
+  result: Nat,
+  body: (match marks | List.nil => total | List.cons mark rest => (countMarks rest (total + 1))),
+  executable: true,
+  recursive_argument: marks
+}
+
+definition{
+  name: singletonMarkRuns,
+  parameters: [marks : (List (Nat * Nat)), done : (List (List (Nat * Nat)))],
+  result: (List (List (Nat * Nat))),
+  body: (match marks
+    | List.nil => done
+    | List.cons mark rest => (singletonMarkRuns rest (cons (cons mark (nil (Nat * Nat))) done))),
+  executable: true,
+  recursive_argument: marks
+}
+
+definition{
+  name: mergeMarksInto,
+  parameters: [
+    fuel : Nat,
+    left : (List (Nat * Nat)),
+    right : (List (Nat * Nat)),
+    acc : (List (Nat * Nat))
+  ],
+  result: (List (Nat * Nat)),
+  body: (match fuel
+    | Nat.zero => (reverseMarks acc left)
+    | Nat.succ previous => (match left
+      | List.nil => (reverseMarks acc right)
+      | List.cons x xs => (match right
+        | List.nil => (reverseMarks acc left)
+        | List.cons y ys => (if ((first y) <? (first x)) then (mergeMarksInto previous left ys (cons y acc)) else (mergeMarksInto previous xs right (cons x acc)))))),
+  executable: true,
+  recursive_argument: fuel
+}
+
+definition{
+  name: mergeMarkPairs,
+  parameters: [
+    fuel : Nat,
+    runs : (List (List (Nat * Nat))),
+    held : (List (List (Nat * Nat))),
+    done : (List (List (Nat * Nat)))
+  ],
+  result: (List (List (Nat * Nat))),
+  body: (match runs
+    | List.nil => (match held
+      | List.nil => (reverseMarkRuns done (nil (List (Nat * Nat))))
+      | List.cons waiting more => (reverseMarkRuns (cons waiting done) (nil (List (Nat * Nat)))))
+    | List.cons run rest => (match held
+      | List.nil => (mergeMarkPairs fuel rest (cons run (nil (List (Nat * Nat)))) done)
+      | List.cons waiting more => (mergeMarkPairs fuel rest (nil (List (Nat * Nat))) (cons (mergeMarksInto fuel waiting run (nil (Nat * Nat))) done)))),
+  executable: true,
+  recursive_argument: runs
+}
+
+definition{
+  name: sortMarkRuns,
+  parameters: [rounds : Nat, fuel : Nat, runs : (List (List (Nat * Nat)))],
+  result: (List (Nat * Nat)),
+  body: (match rounds
+    | Nat.zero => (match runs | List.nil => (nil (Nat * Nat)) | List.cons one rest => one)
+    | Nat.succ previous => (match runs
+      | List.nil => (nil (Nat * Nat))
+      | List.cons one rest => (match rest
+        | List.nil => one
+        | List.cons two more => (sortMarkRuns previous fuel (mergeMarkPairs fuel runs (nil (List (Nat * Nat))) (nil (List (Nat * Nat)))))))),
+  executable: true,
+  recursive_argument: rounds
+}
+
+definition{
+  name: sortMarks,
+  parameters: [latestFirst : (List (Nat * Nat))],
+  result: (List (Nat * Nat)),
+  body: (let count : Nat := (countMarks latestFirst 0); (sortMarkRuns (count + 1) (count + 1) (singletonMarkRuns latestFirst (nil (List (Nat * Nat)))))),
+  executable: true
+}
+
+definition{
+  name: pushCodes,
+  parameters: [marks : (List (Nat * Nat)), done : (List Nat)],
+  result: (List Nat),
+  body: (match marks
+    | List.nil => done
+    | List.cons mark rest => (pushCodes rest (cons (second mark) done))),
+  executable: true,
+  recursive_argument: marks
+}
+
+definition{
+  name: orderScan,
+  parameters: [
+    tables : (Bytes * Bytes),
+    xs : (List Nat),
+    run : (List (Nat * Nat)),
+    done : (List Nat)
+  ],
   result: (List Nat),
   body: (match xs
-    | List.nil => placed
-    | List.cons code rest => (let rank : Nat := (combiningClass tables code); (if (rank =? 0) then (orderInto tables rest (cons code placed)) else (orderInto tables rest (placeMark tables code rank placed (nil Nat)))))),
+    | List.nil => (pushCodes (sortMarks run) done)
+    | List.cons code rest => (let rank : Nat := (combiningClass tables code); (if (rank =? 0) then (orderScan tables rest (nil (Nat * Nat)) (cons code (pushCodes (sortMarks run) done))) else (orderScan tables rest (cons (rank, code) run) done)))),
   axioms: [Quot.sound, propext],
   executable: true,
   recursive_argument: xs
@@ -290,7 +393,7 @@ definition{
   name: orderMarks,
   parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
   result: (List Nat),
-  body: (reverseOnto (orderInto tables xs (nil Nat)) (nil Nat)),
+  body: (reverseOnto (orderScan tables xs (nil (Nat * Nat)) (nil Nat)) (nil Nat)),
   axioms: [Quot.sound, propext],
   executable: true
 }
@@ -570,6 +673,70 @@ theorem{
   name: marksAreReordered,
   parameters: [],
   statement: ((toNfd (NfcTables::sample) (cons 97 (cons 769 (cons 790 (nil Nat))))) = (cons 97 (cons 790 (cons 769 (nil Nat))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: marksOfEqualClassKeepTheirOrder,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 769 (cons 768 (nil Nat))))) = (cons 97 (cons 769 (cons 768 (nil Nat))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: marksOfEqualClassKeepTheirOrderWhenReversed,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 768 (cons 769 (nil Nat))))) = (cons 97 (cons 768 (cons 769 (nil Nat))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: anOutOfOrderMarkPassesEqualClassMarks,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 769 (cons 768 (cons 790 (nil Nat)))))) = (cons 97 (cons 790 (cons 769 (cons 768 (nil Nat)))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aRunOfMarksIsSortedByClassKeepingEqualClassOrder,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 837 (cons 769 (cons 790 (cons 768 (cons 787 (nil Nat)))))))) = (cons 97 (cons 790 (cons 769 (cons 768 (cons 787 (cons 837 (nil Nat)))))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: eachRunOfMarksIsOrderedOnItsOwn,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 769 (cons 790 (cons 98 (cons 769 (cons 790 (nil Nat)))))))) = (cons 97 (cons 790 (cons 769 (cons 98 (cons 790 (cons 769 (nil Nat)))))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: leadingMarksAreOrdered,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 769 (cons 790 (nil Nat)))) = (cons 790 (cons 769 (nil Nat)))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: equalClassMarksAreNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 120 (cons 769 (cons 768 (nil Nat))))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: equalClassMarksAreNfcWhenReversed,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 120 (cons 768 (cons 769 (nil Nat))))) = true),
   proof: reflexivity{},
   axioms: [Quot.sound, propext]
 }
