@@ -17,7 +17,8 @@
 #
 # The Unicode normalization decision (issue #25) is the first capability
 # registered: NF-01..NF-13. Draft admission as loops, exported as a production
-# root (issue #9, F3), registers DL-01..DL-04.
+# root (issue #9, F3), registers DL-01..DL-04. Canonical ordering by a stable
+# merge sort (issue #9, item 2 of the second finding) registers NF-14 and NF-15.
 
 spec = "template/1"
 
@@ -98,6 +99,18 @@ id = "NF-13"
 level = "build"
 suite = "nfc"
 statement = "The exported roots nfcRun and admitRun declare no recursion effect, and run a path of one MiB of scalars on a two MiB thread stack with a typed result: no stage recurses to a depth bounded by the input."
+
+[[id]]
+id = "NF-14"
+level = "build"
+suite = "nfc"
+statement = "Canonical ordering sorts each run of non-starters by combining class with a stable merge sort, so the cost of the NFC decision in a run of n combining marks is O(n log n): through the exported roots nfcRun and admitRun on a two MiB thread stack, a run of 10^6 combining marks of cyclically descending class, a run of 10^6 marks in ascending class order and a run of 10^6 marks of one class are each decided within a stated time bound, with the NFD, the NFC, the NFC verdict and the path verdict that unicode-normalization 0.1.25 gives, and the NFD of the run of one class keeps the order of its marks."
+
+[[id]]
+id = "NF-15"
+level = "build"
+suite = "nfc"
+statement = "Canonical ordering exchanges only marks whose combining classes are strictly out of order, so marks of equal class keep their order: the kernel-checked instances of src/Nfc.lex.tex state it, and the exported decision gives the NFD and the NFC of unicode-normalization 0.1.25 on every one of 20000 pseudo-random strings of starters and marks drawn from few classes with several marks in each."
 
 [[id]]
 id = "DL-01"
