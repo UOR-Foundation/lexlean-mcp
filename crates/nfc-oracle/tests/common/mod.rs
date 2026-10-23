@@ -145,3 +145,33 @@ pub fn on_stack<T: Send + 'static>(bytes: usize, f: impl FnOnce() -> T + Send + 
         .join()
         .expect("the work finishes on that stack without panicking")
 }
+
+/// Run `f` on a thread with a stack of `bytes`, and give back its result, or fail the
+/// test when it has not finished after `limit`. The thread is left to the process.
+///
+/// # Panics
+/// When the thread cannot start, `f` panics, or `limit` passes.
+pub fn on_stack_within<T: Send + 'static>(
+    bytes: usize,
+    limit: std::time::Duration,
+    f: impl FnOnce() -> T + Send + 'static,
+) -> (T, std::time::Duration) {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let started = std::time::Instant::now();
+    std::thread::Builder::new()
+        .stack_size(bytes)
+        .spawn(move || {
+            let value = f();
+            let _ = sender.send(value);
+        })
+        .expect("the thread starts");
+    match receiver.recv_timeout(limit) {
+        Ok(value) => (value, started.elapsed()),
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            panic!("the work had not finished after {limit:?}")
+        }
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+            panic!("the work finished on that stack without a result: it panicked")
+        }
+    }
+}

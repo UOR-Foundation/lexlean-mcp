@@ -18,6 +18,15 @@ The three honesty levels (R2):
 `cargo xtask audit-limits` fails if any code path returns an error the
 model does not sanction.
 
+## draft
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `DL-01` | `build` | The exported root admitDraftRun declares no recursion effect, its package carries the recorded digests and the compiler semantics ID of lexlean.lock, and the stages of draft admission that run over the rows (rowsStage, the row count, the byte total and the duplicate scan) are executable definitions of src/Admission.lex.tex. |
+| `DL-02` | `build` | The exported root admitDraftRun runs on a two MiB thread stack with a typed result for a draft of one million rows: it refuses the draft as TooManyFiles under a small maxFiles, admits a draft whose row count equals maxFiles and whose bytes equal maxBytes, refuses a draft one byte past maxBytes as TooManyBytes, and refuses a draft with a duplicate path as DuplicatePath. |
+| `DL-03` | `build` | Draft admission through the exported root admitDraftRun on the full tables gives the verdicts of the kernel-checked instances of admitDraft, with the refusal named by the constructor order of Refusal, and decides in this order: the path refusals of the rows in row order, then TooManyFiles, then TooManyBytes, then DuplicatePath. |
+| `DL-04` | `build` | The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound. |
+
 ## nfc
 
 | ID | Level | Statement |
@@ -35,6 +44,8 @@ model does not sanction.
 | `NF-11` | `build` | Every kernel-checked instance stated in src/Nfc.lex.tex on the sample image holds, with the same value, when the exported LexLean decision runs it on the full tables. |
 | `NF-12` | `build` | Path admission through the exported LexLean root admitRun on the full tables refuses e followed by U+0301 as NotNfc and admits U+00E9, refuses invalid UTF-8 as NotUtf8 before NFC, refuses a non-NFC path as NotNfc before the root and suffix checks, and agrees with the order of the kernel-checked instances of src/Admission.lex.tex. |
 | `NF-13` | `build` | The exported roots nfcRun and admitRun declare no recursion effect, and run a path of one MiB of scalars on a two MiB thread stack with a typed result: no stage recurses to a depth bounded by the input. |
+| `NF-14` | `build` | Canonical ordering sorts each run of non-starters by combining class with a stable merge sort, so the cost of the NFC decision in a run of n combining marks is O(n log n): through the exported roots nfcRun and admitRun on a two MiB thread stack, a run of 10^6 combining marks of cyclically descending class, a run of 10^6 marks in ascending class order and a run of 10^6 marks of one class are each decided within a stated time bound, with the NFD, the NFC, the NFC verdict and the path verdict that unicode-normalization 0.1.25 gives, and the NFD of the run of one class keeps the order of its marks. |
+| `NF-15` | `build` | Canonical ordering exchanges only marks whose combining classes are strictly out of order, so marks of equal class keep their order: the kernel-checked instances of src/Nfc.lex.tex state it, and the exported decision gives the NFD and the NFC of unicode-normalization 0.1.25 on every one of 20000 pseudo-random strings of starters and marks drawn from few classes with several marks in each. |
 
 ## Cited authorities
 

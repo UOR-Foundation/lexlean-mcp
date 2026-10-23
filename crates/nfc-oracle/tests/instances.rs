@@ -161,6 +161,8 @@ fn the_instances_cover_the_cases_the_issue_names_nf_09() {
         "compositionExclusionIsNotNfc",
         "compositionExclusionStaysDecomposed",
         "marksAreReordered",
+        "marksOfEqualClassKeepTheirOrder",
+        "aRunOfMarksIsSortedByClassKeepingEqualClassOrder",
     ] {
         assert!(
             names.iter().any(|n| n == wanted),

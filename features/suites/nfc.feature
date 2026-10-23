@@ -79,3 +79,15 @@ Feature: Unicode normalization decision
     Given the provenance of the exported package and a thread with a two MiB stack
     When the roots judge paths of one MiB of scalars of several shapes
     Then no root declares recursion and each verdict is typed
+
+  @NF-14 @build
+  Scenario: Canonical ordering sorts each run of non-starters by combining class with a stable merge sort, so the cost of the NFC decision in a run of n combining marks is O(n log n): through the exported roots nfcRun and admitRun on a two MiB thread stack, a run of 10^6 combining marks of cyclically descending class, a run of 10^6 marks in ascending class order and a run of 10^6 marks of one class are each decided within a stated time bound, with the NFD, the NFC, the NFC verdict and the path verdict that unicode-normalization 0.1.25 gives, and the NFD of the run of one class keeps the order of its marks.
+    Given the exported roots, a thread with a two MiB stack and a starter followed by 10^6 marks of each shape
+    When the roots decide the NFD, the NFC, the NFC verdict and the path verdict, each against the time bound
+    Then each result is the one unicode-normalization 0.1.25 gives, within the bound, and the NFD of the run of one class equals the input
+
+  @NF-15 @build
+  Scenario: Canonical ordering exchanges only marks whose combining classes are strictly out of order, so marks of equal class keep their order: the kernel-checked instances of src/Nfc.lex.tex state it, and the exported decision gives the NFD and the NFC of unicode-normalization 0.1.25 on every one of 20000 pseudo-random strings of starters and marks drawn from few classes with several marks in each.
+    Given the instances of src/Nfc.lex.tex that keep marks of equal class in order and pseudo-random strings of starters and marks
+    When the exported decision runs the instances and decides each string
+    Then each instance holds and each NFD and NFC equals the one unicode-normalization 0.1.25 gives
