@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-product"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Product"
+component = "productValid"
+
+[[form]]
+id = "lexlean-mcp-product"
+channel = "text"
+surface = "LexLean MCP product"
+canonical_source = true
+features = ["sentence-case", "singular"]

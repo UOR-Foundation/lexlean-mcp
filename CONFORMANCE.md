@@ -18,14 +18,55 @@ The three honesty levels (R2):
 `cargo xtask audit-limits` fails if any code path returns an error the
 model does not sanction.
 
+## draft
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `DL-01` | `build` | The exported root admitDraftRun declares no recursion effect, its package carries the recorded digests and the compiler semantics ID of lexlean.lock, and the stages of draft admission that run over the rows (rowsStage, the row count, the byte total and the duplicate scan) are executable definitions of src/Admission.lex.tex. |
+| `DL-02` | `build` | The exported root admitDraftRun runs on a two MiB thread stack with a typed result for a draft of one million rows: it refuses the draft as TooManyFiles under a small maxFiles, admits a draft whose row count equals maxFiles and whose bytes equal maxBytes, refuses a draft one byte past maxBytes as TooManyBytes, and refuses a draft with a duplicate path as DuplicatePath. |
+| `DL-03` | `build` | Draft admission through the exported root admitDraftRun on the full tables gives the verdicts of the kernel-checked instances of admitDraft, with the refusal named by the constructor order of Refusal, and decides in this order: the path refusals of the rows in row order, then TooManyFiles, then TooManyBytes, then DuplicatePath. |
+| `DL-04` | `build` | The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound. |
+
+## nfc
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `NF-01` | `build` | The pinned Unicode Character Database files (UnicodeData.txt, CompositionExclusions.txt, DerivedNormalizationProps.txt, NormalizationTest.txt) are the Unicode 17.0.0 files whose SHA-256 digests the authorities record, and 17.0.0 is the Unicode version of unicode-normalization 0.1.25, the crate LexLean release/v0.4 at 9796067 pins. |
+| `NF-02` | `build` | The committed artifacts/nfc-tables-low.bin, artifacts/nfc-tables-high.bin, artifacts/nfc-sample.bin and src/NfcTables.lex.tex equal, byte for byte, a fresh generation from the pinned files, and the SHA-256 of each artifact equals the digest in its artifact declaration and in lexlean.toml. |
+| `NF-03` | `build` | The LexLean decision answers every line of the pinned NormalizationTest.txt as the file's own invariants state: the c2 and c4 columns are NFC, each of the c1 and c3 columns is NFC exactly when it equals c2, and the c5 column is NFC exactly when it equals c4. |
+| `NF-04` | `build` | For every line of the pinned NormalizationTest.txt, the LexLean canonical decomposition with canonical ordering maps c1, c2 and c3 to c3 and c4 and c5 to c5, and the LexLean NFC maps c1, c2 and c3 to c2 and c4 and c5 to c4. |
+| `NF-05` | `build` | Every code point assigned in the pinned UnicodeData.txt that is not a c1 of Part 1 of NormalizationTest.txt is NFC and is its own NFC and its own canonical decomposition, as the file's conformance clause 2 requires. |
+| `NF-06` | `build` | The LexLean UTF-8 reader returns the scalar value of every Unicode scalar value from its standard UTF-8 encoding. |
+| `NF-07` | `build` | The oracle executes the packages exported from the LexLean roots nfcRun and admitRun, whose recorded digests and compiler semantics ID match the committed files and lexlean.lock. |
+| `NF-08` | `build` | The LexLean decision agrees with unicode-normalization 0.1.25 on every line of the pinned NormalizationTest.txt and on every scalar value; the crate is a cross-check and never the authority. |
+| `NF-09` | `build` | Path admission refuses a path that is valid UTF-8 and not NFC with the typed refusal NotNfc after UTF-8 validation and before the root and suffix checks, and admits an NFC path; the instances are kernel-checked by lexlean verify. |
+| `NF-10` | `build` | The fast bound the generator derives from the pinned files is the least code point that has a nonzero combining class, is in Full_Composition_Exclusion or is the second code point of a canonical pair; the LexLean decision judges every string of two code points below it to be NFC, as unicode-normalization 0.1.25 does, and decomposesFrom is the least code point with a canonical decomposition. |
+| `NF-11` | `build` | Every kernel-checked instance stated in src/Nfc.lex.tex on the sample image holds, with the same value, when the exported LexLean decision runs it on the full tables. |
+| `NF-12` | `build` | Path admission through the exported LexLean root admitRun on the full tables refuses e followed by U+0301 as NotNfc and admits U+00E9, refuses invalid UTF-8 as NotUtf8 before NFC, refuses a non-NFC path as NotNfc before the root and suffix checks, and agrees with the order of the kernel-checked instances of src/Admission.lex.tex. |
+| `NF-13` | `build` | The exported roots nfcRun and admitRun declare no recursion effect, and run a path of one MiB of scalars on a two MiB thread stack with a typed result: no stage recurses to a depth bounded by the input. |
+| `NF-14` | `build` | Canonical ordering sorts each run of non-starters by combining class with a stable merge sort, so the cost of the NFC decision in a run of n combining marks is O(n log n): through the exported roots nfcRun and admitRun on a two MiB thread stack, a run of 10^6 combining marks of cyclically descending class, a run of 10^6 marks in ascending class order and a run of 10^6 marks of one class are each decided within a stated time bound, with the NFD, the NFC, the NFC verdict and the path verdict that unicode-normalization 0.1.25 gives, and the NFD of the run of one class keeps the order of its marks. |
+| `NF-15` | `build` | Canonical ordering exchanges only marks whose combining classes are strictly out of order, so marks of equal class keep their order: the kernel-checked instances of src/Nfc.lex.tex state it, and the exported decision gives the NFD and the NFC of unicode-normalization 0.1.25 on every one of 20000 pseudo-random strings of starters and marks drawn from few classes with several marks in each. |
+
 ## Cited authorities
 
 Never re-derived, vendored, or gated on.
 
 | Authority | Citation | Evidence here |
 | --- | --- | --- |
+| `A-UAX15` | Unicode Standard Annex #15, Unicode 17.0.0, https://www.unicode.org/reports/tr15/ | `NF-03`, `NF-04`, `NF-05` |
+| `A-UCD-UNICODEDATA` | Unicode Character Database 17.0.0, https://www.unicode.org/Public/17.0.0/ucd/UnicodeData.txt. The committed copy is the publisher's source repository file, github.com/unicode-org/unicodetools path unicodetools/data/ucd/17.0.0/UnicodeData.txt at commit 578f6c0516f5f268292ebda50b51848407a06478 (byte-identical to the file at that commit); the first line of the file names 17.0.0, and crates/nfc-tables/ucd/README.md records how the copy was shown to be the file unicode-normalization 0.1.25 was generated from. | `NF-01`, `NF-02`, `NF-05` |
+| `A-UCD-COMPOSITIONEXCLUSIONS` | Unicode Character Database 17.0.0, https://www.unicode.org/Public/17.0.0/ucd/CompositionExclusions.txt. The committed copy is the publisher's source repository file, github.com/unicode-org/unicodetools path unicodetools/data/ucd/17.0.0/CompositionExclusions.txt at commit 578f6c0516f5f268292ebda50b51848407a06478 (byte-identical to the file at that commit); the first line of the file names 17.0.0, and crates/nfc-tables/ucd/README.md records how the copy was shown to be the file unicode-normalization 0.1.25 was generated from. | `NF-01`, `NF-02` |
+| `A-UCD-DERIVEDNORMALIZATIONPROPS` | Unicode Character Database 17.0.0, https://www.unicode.org/Public/17.0.0/ucd/DerivedNormalizationProps.txt. The committed copy is the publisher's source repository file, github.com/unicode-org/unicodetools path unicodetools/data/ucd/17.0.0/DerivedNormalizationProps.txt at commit 578f6c0516f5f268292ebda50b51848407a06478 (byte-identical to the file at that commit); the first line of the file names 17.0.0, and crates/nfc-tables/ucd/README.md records how the copy was shown to be the file unicode-normalization 0.1.25 was generated from. | `NF-01`, `NF-02` |
+| `A-UCD-NORMALIZATIONTEST` | Unicode Character Database 17.0.0, https://www.unicode.org/Public/17.0.0/ucd/NormalizationTest.txt. The committed copy is the publisher's source repository file, github.com/unicode-org/unicodetools path unicodetools/data/ucd/17.0.0/NormalizationTest.txt at commit 578f6c0516f5f268292ebda50b51848407a06478 (byte-identical to the file at that commit); the first line of the file names 17.0.0, and crates/nfc-tables/ucd/README.md records how the copy was shown to be the file unicode-normalization 0.1.25 was generated from. | `NF-01`, `NF-03`, `NF-04`, `NF-05` |
+| `A-UNICODE-NORMALIZATION` | The Rust crate unicode-normalization 0.1.25 (crates.io), which LexLean release/v0.4 at 9796067 pins in its Cargo.lock; its src/tables.rs states UNICODE_VERSION = (17, 0, 0). | `NF-01`, `NF-08` |
 
 ## Claims that are not conformance IDs
 
 | ID | Level | Claim |
 | --- | --- | --- |
+| `AUTH-01` | `some-true` | UAX #15 defines NFC as canonical decomposition, canonical ordering, then canonical composition with the composition exclusions. |
+| `AUTH-02` | `some-true` | The pinned UnicodeData.txt gives the combining class and canonical decomposition of every assigned code point of Unicode 17.0.0. |
+| `AUTH-03` | `some-true` | The pinned CompositionExclusions.txt lists the script-specific and post-composition-version composition exclusions. |
+| `AUTH-06` | `some-true` | The pinned DerivedNormalizationProps.txt gives Full_Composition_Exclusion, the code points canonical composition never produces. |
+| `AUTH-04` | `some-true` | The pinned NormalizationTest.txt states the invariants a conformant normalization satisfies on each of its lines. |
+| `AUTH-05` | `some-true` | unicode-normalization 0.1.25 implements Unicode 17.0.0, and LexLean release/v0.4 at 9796067 pins it. |

@@ -1,0 +1,59 @@
+spec = "lexlean/project/1"
+name = "lexlean-mcp"
+language = "1.2"
+module_prefix = "LexLeanMcp"
+source_roots = ["src"]
+entrypoints = ["src/Admission.lex.tex", "src/Architecture.lex.tex", "src/Identity.lex.tex", "src/Nfc.lex.tex", "src/NfcTables.lex.tex", "src/Product.lex.tex", "src/Quality.lex.tex", "src/Security.lex.tex"]
+build_root = ".lexlean"
+lockfile = "lexlean.lock"
+lean_workspace = "."
+lean_toolchain = "leanprover/lean4:v4.32.1"
+
+[[lexicon_source]]
+package = "lexlean.std.nat"
+kind = "builtin"
+
+[[lexicon_source]]
+package = "lexleanmcp.titles"
+kind = "path"
+path = "language/lexleanmcp.titles"
+
+[[lexicon_source]]
+package = "prism.arch"
+kind = "path"
+path = "language/prism.arch"
+
+[[lexicon_source]]
+package = "prism.qual"
+kind = "path"
+path = "language/prism.qual"
+
+[[lexicon_source]]
+package = "prism.sec"
+kind = "path"
+path = "language/prism.sec"
+
+[[artifact_source]]
+sha256 = "197657122ac6aad087a0992296e641d21fdd43eb757e93ac2077c48cc3fab6c1"
+path = "artifacts/nfc-tables-low.bin"
+
+[[artifact_source]]
+sha256 = "417850fac4d56ca68dcd43ae211f0de94218eb1a75ff42a12e1b865c5bd6a041"
+path = "artifacts/nfc-sample.bin"
+
+[[artifact_source]]
+sha256 = "56e7b260aa0e5a62f5dad2876032e70a4ce483b34ce4c37ec3af9b05a1ad42a8"
+path = "artifacts/nfc-tables-high.bin"
+
+[limits]
+max_file_bytes = 4194304
+max_total_source_bytes = 67108864
+max_primitive_atoms = 2000000
+max_token_lattice_edges = 4000000
+max_parse_states = 4000000
+max_ir_nodes = 2000000
+max_scope_depth = 1024
+max_import_depth = 128
+max_diagnostics = 256
+max_child_output_bytes = 16777216
+child_timeout_ms = 300000

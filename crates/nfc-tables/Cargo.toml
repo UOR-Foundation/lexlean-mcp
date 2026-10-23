@@ -1,0 +1,20 @@
+[package]
+name = "nfc-tables"
+description = "Generates the Unicode 17.0.0 normalization tables of the LexLean NFC decision from the pinned Unicode Character Database files, and checks the pins. Dev and CI only; never a dependency of a shipped crate."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+sha2 = "0.10.9"
+
+[dev-dependencies]
+repo-model = { workspace = true }
+# The version LexLean release/v0.4 at 9796067 pins (its Cargo.lock). A cross-check
+# of the Unicode version and of the decision, never the decision.
+unicode-normalization = "=0.1.25"
+
+[lints]
+workspace = true
