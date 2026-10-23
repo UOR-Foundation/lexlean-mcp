@@ -27,6 +27,19 @@ model does not sanction.
 | `DL-03` | `build` | Draft admission through the exported root admitDraftRun on the full tables gives the verdicts of the kernel-checked instances of admitDraft, with the refusal named by the constructor order of Refusal, and decides in this order: the path refusals of the rows in row order, then TooManyFiles, then TooManyBytes, then DuplicatePath. |
 | `DL-04` | `build` | The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound. |
 
+## fixtures
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `FX-01` | `some-true` | LexLean release/v0.4 at 9796067 (commit 97960679736e960e84a98f5c43981e1f2c70d6d7) holds in tests/negative the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864 with 297 fixtures, of which 256 run the command check, 1 build, 32 verify, 4 lock and 4 production. |
+| `FX-02` | `some-true` | The expected result of each fixture, expected/command.json, is the canonical command result (lexlean/command-result/1) that the LexLean CLI of that commit gives for the project of the fixture, as the check-fixtures gate of LexLean decides; this repository records the results and runs no command. |
+| `FX-03` | `build` | The files vendored under crates/negative-fixtures/lexlean are the case.toml and the expected files of the pinned tests/negative: each has the SHA-256 the register records, the git trees recomputed from the vendored files and the recorded trees of the project directories are the recorded trees of the fixtures and the pinned tree of tests/negative, and the checksum of the authority covers every vendored file. |
+| `FX-04` | `build` | Every row of the register is what the vendored bytes give: the command of case.toml, the exit status and the diagnostic codes of the canonical command result, and the digests of both files, with the exit status of case.toml equal to that of the result. |
+| `FX-05` | `build` | Every fixture of the pinned tree is classified exactly once: no name is listed twice, the register and the vendored directories name the same fixtures, and a fixture is F4 when it runs check, F7 when it runs build, #11 when it runs verify, and excluded when issue #10 leaves it out. |
+| `FX-06` | `build` | The register has 297 fixtures: 252 for F4, 1 for F7, 32 for #11 and 12 excluded, so 285 reach a tool; every sum is recomputed from the rows, so a hand edit of a row or of a sum fails. |
+| `FX-07` | `build` | The excluded fixtures are the twelve that issue #10 names, each with the reason it gives, and no other: 2 for CLI argument parsing, 2 for symlinks, 4 for setup and 4 for being outside the product. |
+| `FX-08` | `build` | Each gate of the register rejects its planted defect: a fixture reclassified, a digest altered, a vendored byte altered or removed, an exclusion without a reason, an exclusion the issue does not make, a name listed twice and a fixture missing; FIXTURES.md records the command, the diagnostic and the restore of each. |
+
 ## nfc
 
 | ID | Level | Statement |
@@ -73,6 +86,7 @@ Never re-derived, vendored, or gated on.
 | `A-UCD-DERIVEDNORMALIZATIONPROPS` | Unicode Character Database 17.0.0, https://www.unicode.org/Public/17.0.0/ucd/DerivedNormalizationProps.txt. The committed copy is the publisher's source repository file, github.com/unicode-org/unicodetools path unicodetools/data/ucd/17.0.0/DerivedNormalizationProps.txt at commit 578f6c0516f5f268292ebda50b51848407a06478 (byte-identical to the file at that commit); the first line of the file names 17.0.0, and crates/nfc-tables/ucd/README.md records how the copy was shown to be the file unicode-normalization 0.1.25 was generated from. | `NF-01`, `NF-02` |
 | `A-UCD-NORMALIZATIONTEST` | Unicode Character Database 17.0.0, https://www.unicode.org/Public/17.0.0/ucd/NormalizationTest.txt. The committed copy is the publisher's source repository file, github.com/unicode-org/unicodetools path unicodetools/data/ucd/17.0.0/NormalizationTest.txt at commit 578f6c0516f5f268292ebda50b51848407a06478 (byte-identical to the file at that commit); the first line of the file names 17.0.0, and crates/nfc-tables/ucd/README.md records how the copy was shown to be the file unicode-normalization 0.1.25 was generated from. | `NF-01`, `NF-03`, `NF-04`, `NF-05` |
 | `A-UNICODE-NORMALIZATION` | The Rust crate unicode-normalization 0.1.25 (crates.io), which LexLean release/v0.4 at 9796067 pins in its Cargo.lock; its src/tables.rs states UNICODE_VERSION = (17, 0, 0). | `NF-01`, `NF-08` |
+| `A-LEXLEAN-NEGATIVE` | UOR-Foundation/LexLean, directory tests/negative at commit 97960679736e960e84a98f5c43981e1f2c70d6d7 (release/v0.4 at 9796067, the revision .github/lexlean.rev pins), git tree 200e4d920b5efae7d34915c617c75f8c0cb46864; SPEC.md section 28.2 defines the fixture layout (case.toml, expected/, project/). The committed copy under crates/negative-fixtures/lexlean holds, for each of the 297 fixture directories, case.toml and the four files of expected/, byte-identical to the files at that commit; project/ and the toolchain/ and overlay/ directories some fixtures carry are not copied, and crates/negative-fixtures/register.toml records the git tree of each, so the git tree of every fixture directory and of tests/negative is recomputed from this repository. crates/negative-fixtures/README.md records how the copy was made. | `FX-01`, `FX-02`, `FX-03`, `FX-04`, `FX-05`, `FX-06`, `FX-07` |
 
 ## Claims that are not conformance IDs
 
@@ -84,3 +98,5 @@ Never re-derived, vendored, or gated on.
 | `AUTH-06` | `some-true` | The pinned DerivedNormalizationProps.txt gives Full_Composition_Exclusion, the code points canonical composition never produces. |
 | `AUTH-04` | `some-true` | The pinned NormalizationTest.txt states the invariants a conformant normalization satisfies on each of its lines. |
 | `AUTH-05` | `some-true` | unicode-normalization 0.1.25 implements Unicode 17.0.0, and LexLean release/v0.4 at 9796067 pins it. |
+| `AUTH-07` | `some-true` | LexLean release/v0.4 at 9796067 holds 297 fixtures in tests/negative, the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864. |
+| `AUTH-08` | `some-true` | The expected/command.json of each of those fixtures is the canonical command result the LexLean CLI of that commit gives for the project of the fixture. |

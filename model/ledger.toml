@@ -11,7 +11,8 @@
 # and `CM-03` proves every `some-true` row cites an authority that exists.
 #
 # The claims below are facts the NFC decision reproduces from the standard, the
-# database files and the crate it cites; the level of each is some-true.
+# database files and the crate it cites, and facts the fixture register reproduces
+# from the negative fixtures of the pinned LexLean; the level of each is some-true.
 
 spec = "template/1"
 
@@ -22,4 +23,6 @@ claim = [
   { id = "AUTH-06", level = "some-true", statement = "The pinned DerivedNormalizationProps.txt gives Full_Composition_Exclusion, the code points canonical composition never produces.", authority = "A-UCD-DERIVEDNORMALIZATIONPROPS" },
   { id = "AUTH-04", level = "some-true", statement = "The pinned NormalizationTest.txt states the invariants a conformant normalization satisfies on each of its lines.", authority = "A-UCD-NORMALIZATIONTEST" },
   { id = "AUTH-05", level = "some-true", statement = "unicode-normalization 0.1.25 implements Unicode 17.0.0, and LexLean release/v0.4 at 9796067 pins it.", authority = "A-UNICODE-NORMALIZATION" },
+  { id = "AUTH-07", level = "some-true", statement = "LexLean release/v0.4 at 9796067 holds 297 fixtures in tests/negative, the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864.", authority = "A-LEXLEAN-NEGATIVE" },
+  { id = "AUTH-08", level = "some-true", statement = "The expected/command.json of each of those fixtures is the canonical command result the LexLean CLI of that commit gives for the project of the fixture.", authority = "A-LEXLEAN-NEGATIVE" },
 ]
