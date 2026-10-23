@@ -17,7 +17,7 @@ each value is what it is; the model is the single statement of what it is.
 | Proposed | the value bound in the model |
 | Evidence or constraint | the source the value follows from, or the reason no source decides it |
 | Decides | `owner` (afflom, as product owner), `sponsor` (Ilya, UOR Foundation), or both |
-| Status | `evidenced` when a constraint fixes the value or a range around it; `needs owner` when it is a policy choice and the proposal is the conservative default |
+| Status | `evidenced` when a constraint fixes the value or a range around it; `needs owner` when it is a policy choice and the proposal is the conservative default. The column records which rows rest on a decision and not on evidence; the approval below does not change it |
 | If it moves | what else has to change |
 
 ## Identity and signing
@@ -127,6 +127,15 @@ verification across jobs. Serving it is the owner's decision.
 | `profile.semantic-1.1` | `1.1` | Example `semantic-1.1`; the only language 1.1 example. | owner | needs owner | Language 1.1 is not served at all. |
 | `profile.uor-atlas` | `1.0` | Example `uor-atlas`; #8 requires an Atlas profile that serves all 293 entries. Cost as above. | owner and sponsor | needs owner | The Atlas profile, its lexicon and AC for 293 entries leave v0.1.0. |
 
+## Approval
+
+| Date | Who | What |
+| --- | --- | --- |
+| 2026-10-23 | Ilya (sponsor, UOR Foundation) | Approved every proposed value as it stands: "Approve all proposed owner values in lexlean-mcp#34 as they stand". This covers all rows marked `needs owner`. |
+
+Alex Flom (afflom) is the product owner and can override any row by changing it
+and its binding in one commit; OV-01 to OV-03 hold the two together.
+
 ## Gates
 
 | ID | What it holds |
@@ -146,6 +155,6 @@ The restored tree passes `cargo test -p repo-model --test owner_values` (3 passe
 
 | Defect | Failing command | Diagnostic |
 | --- | --- | --- |
-| `draftMaxFiles` set to 255 in the model only | `cargo test -p repo-model --test owner_values` | OV-02: `draft.max_files: the model binds 255 and OWNER-VALUES.md proposes 256` |
-| the Unbound constructor applied to `signingAlgorithm` | the same | OV-01: `src/OwnerValues.lex.tex applies the Unbound constructor of OwnerValue: an owner value is unset (#19)`; OV-02 fails too |
-| `draft.max_bytes` raised to 67108864 in the model and the table | the same | OV-03 fails alone: the draft and the Atlas modules pass `max_total_source_bytes` |
+| draftMaxFiles set to 255 in the model only | `cargo test -p repo-model --test owner_values` | OV-02: `draft.max_files: the model binds 255 and OWNER-VALUES.md proposes 256` |
+| The Unbound constructor applied to signingAlgorithm | the same | OV-01: `src/OwnerValues.lex.tex applies the Unbound constructor of OwnerValue: an owner value is unset (#19)`; OV-02 fails too |
+| draft.max_bytes raised to 67108864 in the model and the table | the same | OV-03 fails alone: the draft and the Atlas modules pass `max_total_source_bytes` |
