@@ -28,19 +28,6 @@ structure{
 }
 
 structure{
-  name: RiskAssessment,
-  type_parameters: [],
-  parameters: [],
-  fields: [
-    {name: index, type: Nat},
-    {name: assetIndex, type: Nat},
-    {name: threatIndex, type: Nat},
-    {name: likelihood, type: Product::OwnerValue},
-    {name: impact, type: Foundation.Sec::Impact}
-  ]
-}
-
-structure{
   name: Placement,
   type_parameters: [],
   parameters: [],
@@ -180,71 +167,71 @@ definition{
 definition{
   name: riskForgedAttestation,
   parameters: [],
-  result: RiskAssessment,
-  body: (record RiskAssessment {index := 0, assetIndex := 0, threatIndex := 0, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.critical)})
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 0, assetIndex := 0, threatIndex := 0, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.critical)})
 }
 
 definition{
   name: riskMisstatingEntry,
   parameters: [],
-  result: RiskAssessment,
-  body: (record RiskAssessment {index := 1, assetIndex := 4, threatIndex := 1, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.critical)})
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 1, assetIndex := 4, threatIndex := 1, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.critical)})
 }
 
 definition{
   name: riskWebOriginAccess,
   parameters: [],
-  result: RiskAssessment,
-  body: (record RiskAssessment {index := 2, assetIndex := 2, threatIndex := 2, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.critical)})
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 2, assetIndex := 2, threatIndex := 2, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.critical)})
 }
 
 definition{
   name: riskExhaustion,
   parameters: [],
-  result: RiskAssessment,
-  body: (record RiskAssessment {index := 3, assetIndex := 3, threatIndex := 3, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.major)})
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 3, assetIndex := 3, threatIndex := 3, likelihood := (ctor Foundation.Sec::Likelihood.high), impact := (ctor Foundation.Sec::Impact.major)})
 }
 
 definition{
   name: riskPathEscape,
   parameters: [],
-  result: RiskAssessment,
-  body: (record RiskAssessment {index := 4, assetIndex := 3, threatIndex := 4, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.critical)})
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 4, assetIndex := 3, threatIndex := 4, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.critical)})
 }
 
 definition{
   name: riskRequestTimeAcquisition,
   parameters: [],
-  result: RiskAssessment,
-  body: (record RiskAssessment {index := 5, assetIndex := 4, threatIndex := 5, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.major)})
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 5, assetIndex := 4, threatIndex := 5, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.major)})
 }
 
 definition{
   name: riskContentSteering,
   parameters: [],
-  result: RiskAssessment,
-  body: (record RiskAssessment {index := 6, assetIndex := 2, threatIndex := 6, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.major)})
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 6, assetIndex := 2, threatIndex := 6, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.major)})
 }
 
 definition{
   name: riskKeyCompromise,
   parameters: [],
-  result: RiskAssessment,
-  body: (record RiskAssessment {index := 7, assetIndex := 1, threatIndex := 7, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.critical)})
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 7, assetIndex := 1, threatIndex := 7, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.critical)})
 }
 
 definition{
   name: riskRequestStateForgery,
   parameters: [],
-  result: RiskAssessment,
-  body: (record RiskAssessment {index := 8, assetIndex := 5, threatIndex := 8, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.major)})
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 8, assetIndex := 5, threatIndex := 8, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.major)})
 }
 
 definition{
   name: riskLocalProcessImpersonation,
   parameters: [],
-  result: RiskAssessment,
-  body: (record RiskAssessment {index := 9, assetIndex := 2, threatIndex := 9, likelihood := (ctor Product::OwnerValue.Unbound), impact := (ctor Foundation.Sec::Impact.major)})
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 9, assetIndex := 2, threatIndex := 9, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.major)})
 }
 
 definition{
@@ -362,8 +349,8 @@ definition{
 definition{
   name: riskRecords,
   parameters: [],
-  result: (List RiskAssessment),
-  body: (cons (riskForgedAttestation) (cons (riskMisstatingEntry) (cons (riskWebOriginAccess) (cons (riskExhaustion) (cons (riskPathEscape) (cons (riskRequestTimeAcquisition) (cons (riskContentSteering) (cons (riskKeyCompromise) (cons (riskRequestStateForgery) (cons (riskLocalProcessImpersonation) (nil RiskAssessment)))))))))))
+  result: (List Foundation.Sec::Risk),
+  body: (cons (riskForgedAttestation) (cons (riskMisstatingEntry) (cons (riskWebOriginAccess) (cons (riskExhaustion) (cons (riskPathEscape) (cons (riskRequestTimeAcquisition) (cons (riskContentSteering) (cons (riskKeyCompromise) (cons (riskRequestStateForgery) (cons (riskLocalProcessImpersonation) (nil Foundation.Sec::Risk)))))))))))
 }
 
 definition{
@@ -471,7 +458,7 @@ definition{
 
 definition{
   name: riskIndexes,
-  parameters: [records : (List RiskAssessment)],
+  parameters: [records : (List Foundation.Sec::Risk)],
   result: (List Nat),
   body: (match records
     | List.nil => (nil Nat)
@@ -481,7 +468,7 @@ definition{
 
 definition{
   name: riskAssets,
-  parameters: [records : (List RiskAssessment)],
+  parameters: [records : (List Foundation.Sec::Risk)],
   result: (List Nat),
   body: (match records
     | List.nil => (nil Nat)
@@ -491,7 +478,7 @@ definition{
 
 definition{
   name: riskThreats,
-  parameters: [records : (List RiskAssessment)],
+  parameters: [records : (List Foundation.Sec::Risk)],
   result: (List Nat),
   body: (match records
     | List.nil => (nil Nat)
@@ -620,12 +607,22 @@ definition{
 }
 
 definition{
-  name: likelihoodsUnbound,
-  parameters: [records : (List RiskAssessment)],
-  result: Bool,
+  name: likelihoodRank,
+  parameters: [likelihood : Foundation.Sec::Likelihood],
+  result: Nat,
+  body: (match likelihood
+    | Foundation.Sec::Likelihood.low => 0
+    | Foundation.Sec::Likelihood.medium => 1
+    | Foundation.Sec::Likelihood.high => 2)
+}
+
+definition{
+  name: likelihoodRanks,
+  parameters: [records : (List Foundation.Sec::Risk)],
+  result: (List Nat),
   body: (match records
-    | List.nil => true
-    | List.cons head rest => ((not (Product::isBound (project head likelihood))) && (likelihoodsUnbound rest))),
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (likelihoodRank (project head likelihood)) (likelihoodRanks rest))),
   recursive_argument: records
 }
 
@@ -651,7 +648,7 @@ definition{
 
 definition{
   name: criticalRisks,
-  parameters: [records : (List RiskAssessment)],
+  parameters: [records : (List Foundation.Sec::Risk)],
   result: (List Nat),
   body: (match records
     | List.nil => (nil Nat)
@@ -661,7 +658,7 @@ definition{
 
 definition{
   name: majorRisks,
-  parameters: [records : (List RiskAssessment)],
+  parameters: [records : (List Foundation.Sec::Risk)],
   result: (List Nat),
   body: (match records
     | List.nil => (nil Nat)
@@ -730,7 +727,7 @@ definition{
   name: securityValid,
   parameters: [],
   result: Bool,
-  body: ((Architecture::sameNats (namedIndexes (assetNames)) (assetIndexes (assetRecords))) && ((Architecture::sameNats (namedIndexes (threatNames)) (threatIndexes (threatRecords))) && ((Architecture::sameNats (namedIndexes (controlNames)) (controlIndexes (controlRecords))) && ((Architecture::sameNats (namedIndexes (activityNames)) (activityIndexes (activityRecords))) && ((Architecture::allMembers (assetComponents (assetRecords)) (Architecture::componentIndexes (Architecture::componentRecords))) && ((Architecture::allMembers (placementComponents (placements)) (securityViewComponents)) && ((Architecture::allMembers (placementAssets (placements)) (assetIndexes (assetRecords))) && ((Architecture::allMembers (assetIndexes (assetRecords)) (placementAssets (placements))) && ((primaryPlaced (assetRecords) (placements)) && ((Architecture::allMembers (riskAssets (riskRecords)) (assetIndexes (assetRecords))) && ((Architecture::sameNats (riskThreats (riskRecords)) (threatIndexes (threatRecords))) && ((Architecture::allMembers (controlRisks (controlRecords)) (riskIndexes (riskRecords))) && ((Architecture::allMembers (activityControls (activityRecords)) (controlIndexes (controlRecords))) && ((Architecture::sameNats (measurementRisks (measurements)) (riskIndexes (riskRecords))) && ((Architecture::sameNats (uncontrolled (riskIndexes (riskRecords)) (controlRisks (controlRecords))) (residualRisks (residuals))) && ((Architecture::allMembers (residualRisks (residuals)) (riskIndexes (riskRecords))) && ((rationaleNamed (residuals)) && ((measurementsHonest (measurements) (residualRisks (residuals))) && (likelihoodsUnbound (riskRecords))))))))))))))))))))
+  body: ((Architecture::sameNats (namedIndexes (assetNames)) (assetIndexes (assetRecords))) && ((Architecture::sameNats (namedIndexes (threatNames)) (threatIndexes (threatRecords))) && ((Architecture::sameNats (namedIndexes (controlNames)) (controlIndexes (controlRecords))) && ((Architecture::sameNats (namedIndexes (activityNames)) (activityIndexes (activityRecords))) && ((Architecture::allMembers (assetComponents (assetRecords)) (Architecture::componentIndexes (Architecture::componentRecords))) && ((Architecture::allMembers (placementComponents (placements)) (securityViewComponents)) && ((Architecture::allMembers (placementAssets (placements)) (assetIndexes (assetRecords))) && ((Architecture::allMembers (assetIndexes (assetRecords)) (placementAssets (placements))) && ((primaryPlaced (assetRecords) (placements)) && ((Architecture::allMembers (riskAssets (riskRecords)) (assetIndexes (assetRecords))) && ((Architecture::sameNats (riskThreats (riskRecords)) (threatIndexes (threatRecords))) && ((Architecture::allMembers (controlRisks (controlRecords)) (riskIndexes (riskRecords))) && ((Architecture::allMembers (activityControls (activityRecords)) (controlIndexes (controlRecords))) && ((Architecture::sameNats (measurementRisks (measurements)) (riskIndexes (riskRecords))) && ((Architecture::sameNats (uncontrolled (riskIndexes (riskRecords)) (controlRisks (controlRecords))) (residualRisks (residuals))) && ((Architecture::allMembers (residualRisks (residuals)) (riskIndexes (riskRecords))) && ((rationaleNamed (residuals)) && (measurementsHonest (measurements) (residualRisks (residuals))))))))))))))))))))
 }
 
 theorem{
@@ -769,9 +766,9 @@ theorem{
 }
 
 theorem{
-  name: likelihoodsAreOwnerSetAndUnbound,
+  name: likelihoodsAreAsBound,
   parameters: [],
-  statement: ((likelihoodsUnbound (riskRecords)) = true),
+  statement: ((likelihoodRanks (riskRecords)) = (cons 0 (cons 1 (cons 1 (cons 2 (cons 1 (cons 0 (cons 1 (cons 0 (cons 0 (cons 1 (nil Nat)))))))))))),
   proof: decide{}
 }
 

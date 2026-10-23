@@ -52,7 +52,7 @@ definition{
   name: product,
   parameters: [],
   result: Product,
-  body: (record Product {id := "lexlean-mcp", name := "LexLean MCP", repository := "UOR-Foundation/lexlean-mcp", owner := "UOR Foundation", serverIdentity := "lexlean", protocolCore := (record ProtocolCore {id := "MCP", repository := "UOR-Foundation/MCP"}), sourcePolicy := (record SourcePolicy {scope := (cons "protocol" (cons "tool semantics" (nil String))), notation := ".lex.tex"}), version := (ctor OwnerValue.Unbound)})
+  body: (record Product {id := "lexlean-mcp", name := "LexLean MCP", repository := "UOR-Foundation/lexlean-mcp", owner := "UOR Foundation", serverIdentity := "lexlean", protocolCore := (record ProtocolCore {id := "MCP", repository := "UOR-Foundation/MCP"}), sourcePolicy := (record SourcePolicy {scope := (cons "protocol" (cons "tool semantics" (nil String))), notation := ".lex.tex"}), version := (ctor OwnerValue.Bound "0.1.0")})
 }
 
 definition{
@@ -92,7 +92,7 @@ definition{
   name: productValid,
   parameters: [],
   result: Bool,
-  body: ((prim equal (project (product) id) "lexlean-mcp" : Bool) && ((prim equal (project (product) name) "LexLean MCP" : Bool) && ((prim equal (project (product) repository) "UOR-Foundation/lexlean-mcp" : Bool) && ((prim equal (project (product) owner) "UOR Foundation" : Bool) && ((prim equal (project (product) serverIdentity) "lexlean" : Bool) && ((prim equal (project (project (product) protocolCore) id) "MCP" : Bool) && ((prim equal (project (project (product) protocolCore) repository) "UOR-Foundation/MCP" : Bool) && ((admitsSemantics (project (product) sourcePolicy) "protocol" ".lex.tex") && ((admitsSemantics (project (product) sourcePolicy) "tool semantics" ".lex.tex") && ((stringMember "linux/amd64" (platformsFor (ctor FeatureClass.Verification))) && ((stringMember "linux/amd64" (platformsFor (ctor FeatureClass.Feature))) && ((stringMember "linux/arm64" (platformsFor (ctor FeatureClass.Feature))) && (not (isBound (project (product) version)))))))))))))))
+  body: ((prim equal (project (product) id) "lexlean-mcp" : Bool) && ((prim equal (project (product) name) "LexLean MCP" : Bool) && ((prim equal (project (product) repository) "UOR-Foundation/lexlean-mcp" : Bool) && ((prim equal (project (product) owner) "UOR Foundation" : Bool) && ((prim equal (project (product) serverIdentity) "lexlean" : Bool) && ((prim equal (project (project (product) protocolCore) id) "MCP" : Bool) && ((prim equal (project (project (product) protocolCore) repository) "UOR-Foundation/MCP" : Bool) && ((admitsSemantics (project (product) sourcePolicy) "protocol" ".lex.tex") && ((admitsSemantics (project (product) sourcePolicy) "tool semantics" ".lex.tex") && ((stringMember "linux/amd64" (platformsFor (ctor FeatureClass.Verification))) && ((stringMember "linux/amd64" (platformsFor (ctor FeatureClass.Feature))) && ((stringMember "linux/arm64" (platformsFor (ctor FeatureClass.Feature))) && (isBound (project (product) version))))))))))))))
 }
 
 theorem{
@@ -103,9 +103,9 @@ theorem{
 }
 
 theorem{
-  name: versionIsOwnerSetAndUnbound,
+  name: versionIsOwnerSetAndBound,
   parameters: [],
-  statement: ((isBound (project (product) version)) = false),
+  statement: ((isBound (project (product) version)) = true),
   proof: decide{}
 }
 

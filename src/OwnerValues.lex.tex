@@ -1,0 +1,228 @@
+\begin{lexlean}{OwnerValues}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Product}
+\title{LexLean MCP owner-set values}
+\begin{semanticmodule}
+inductive{
+  name: Retention,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Days, fields: [Nat]}, {name: Forever, fields: []}]
+}
+
+structure{
+  name: Slo,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: index, type: Nat},
+    {name: sli, type: String},
+    {name: threshold, type: Nat},
+    {name: unit, type: String},
+    {name: windowSeconds, type: Nat}
+  ]
+}
+
+structure{
+  name: ProfileSpec,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: name, type: String}, {name: language, type: String}]
+}
+
+definition{
+  name: signingAlgorithm,
+  parameters: [],
+  result: Product::OwnerValue,
+  body: (ctor Product::OwnerValue.Bound "Ed25519")
+}
+
+definition{
+  name: signingKeyCustody,
+  parameters: [],
+  result: Product::OwnerValue,
+  body: (ctor Product::OwnerValue.Bound "file secret mounted read-only into the signer service only")
+}
+
+definition{name: signingKeyRotationDays, parameters: [], result: Nat, body: 365}
+
+definition{
+  name: requestStateKeyCustody,
+  parameters: [],
+  result: Product::OwnerValue,
+  body: (ctor Product::OwnerValue.Bound "file secret mounted read-only into the protocol core service only")
+}
+
+definition{name: requestStateKeyRotationDays, parameters: [], result: Nat, body: 90}
+
+definition{name: verifyWidth, parameters: [], result: Nat, body: 1}
+
+definition{name: verifyMemoryKib, parameters: [], result: Nat, body: 12582912}
+
+definition{name: verifyConcurrency, parameters: [], result: Nat, body: 1}
+
+definition{name: rateToolCalls, parameters: [], result: Nat, body: 100}
+
+definition{name: rateWindowMs, parameters: [], result: Nat, body: 60000}
+
+definition{name: draftMaxBytes, parameters: [], result: Nat, body: 8388608}
+
+definition{name: draftMaxFiles, parameters: [], result: Nat, body: 256}
+
+definition{
+  name: storeDraftRetention,
+  parameters: [],
+  result: Retention,
+  body: (ctor Retention.Days 30)
+}
+
+definition{
+  name: storeAttestationRetention,
+  parameters: [],
+  result: Retention,
+  body: (ctor Retention.Forever)
+}
+
+definition{name: cacheTtlMs, parameters: [], result: Nat, body: 60000}
+
+definition{name: listenPort, parameters: [], result: Nat, body: 5395}
+
+definition{
+  name: sloRecords,
+  parameters: [],
+  result: (List Slo),
+  body: (cons (record Slo {index := 0, sli := "tool outcome by ErrorClass: classes 2, 3 and 70", threshold := 0, unit := "count", windowSeconds := 300}) (cons (record Slo {index := 1, sli := "protocol errors by code, as a share of requests", threshold := 1, unit := "percent", windowSeconds := 300}) (cons (record Slo {index := 2, sli := "check latency, 95th percentile, profiles other than the Atlas", threshold := 5000, unit := "milliseconds", windowSeconds := 3600}) (cons (record Slo {index := 3, sli := "verify duration, 95th percentile, profiles other than the Atlas", threshold := 300000, unit := "milliseconds", windowSeconds := 86400}) (cons (record Slo {index := 4, sli := "verifier queue wait, 95th percentile", threshold := 600000, unit := "milliseconds", windowSeconds := 86400}) (cons (record Slo {index := 5, sli := "child group ends that failed", threshold := 0, unit := "count", windowSeconds := 300}) (cons (record Slo {index := 6, sli := "profiles that drifted", threshold := 0, unit := "count", windowSeconds := 3600}) (cons (record Slo {index := 7, sli := "signing failures", threshold := 0, unit := "count", windowSeconds := 300}) (nil Slo)))))))))
+}
+
+definition{
+  name: profileRecords,
+  parameters: [],
+  result: (List ProfileSpec),
+  body: (cons (record ProfileSpec {name := "collections", language := "1.2"}) (cons (record ProfileSpec {name := "fold-laws", language := "1.2"}) (cons (record ProfileSpec {name := "helpdesk", language := "1.2"}) (cons (record ProfileSpec {name := "higher-order", language := "1.2"}) (cons (record ProfileSpec {name := "language-1.2", language := "1.2"}) (cons (record ProfileSpec {name := "list-induction", language := "1.0"}) (cons (record ProfileSpec {name := "models", language := "1.2"}) (cons (record ProfileSpec {name := "nat-add-zero", language := "1.0"}) (cons (record ProfileSpec {name := "peano-arithmetic", language := "1.0"}) (cons (record ProfileSpec {name := "production", language := "1.2"}) (cons (record ProfileSpec {name := "production-coverage", language := "1.2"}) (cons (record ProfileSpec {name := "propositional-logic", language := "1.0"}) (cons (record ProfileSpec {name := "reasoning", language := "1.2"}) (cons (record ProfileSpec {name := "recursion", language := "1.2"}) (cons (record ProfileSpec {name := "recursive-data", language := "1.2"}) (cons (record ProfileSpec {name := "semantic-1.1", language := "1.1"}) (cons (record ProfileSpec {name := "uor-atlas", language := "1.0"}) (nil ProfileSpec))))))))))))))))))
+}
+
+definition{
+  name: boundText,
+  parameters: [value : Product::OwnerValue],
+  result: String,
+  body: (match value | Product::OwnerValue.Unbound => "" | Product::OwnerValue.Bound text => text)
+}
+
+definition{
+  name: nonEmptyBound,
+  parameters: [value : Product::OwnerValue],
+  result: Bool,
+  body: ((Product::isBound value) && (if (prim equal (boundText value) "" : Bool) then false else true))
+}
+
+definition{
+  name: retentionBound,
+  parameters: [retention : Retention],
+  result: Bool,
+  body: (match retention | Retention.Days days => (0 <? days) | Retention.Forever => true)
+}
+
+definition{
+  name: sloIndexes,
+  parameters: [records : (List Slo)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (sloIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: sloStated,
+  parameters: [records : (List Slo)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((if (prim equal (project head sli) "" : Bool) then false else true) && ((0 <? (project head windowSeconds)) && (sloStated rest)))),
+  recursive_argument: records
+}
+
+definition{
+  name: languageAdmitted,
+  parameters: [language : String],
+  result: Bool,
+  body: ((prim equal language "1.0" : Bool) || ((prim equal language "1.1" : Bool) || (prim equal language "1.2" : Bool)))
+}
+
+definition{
+  name: profilesAdmitted,
+  parameters: [records : (List ProfileSpec)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((languageAdmitted (project head language)) && (profilesAdmitted rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: profileCount,
+  parameters: [records : (List ProfileSpec)],
+  result: Nat,
+  body: (match records | List.nil => 0 | List.cons head rest => (1 + (profileCount rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: ownerValuesBound,
+  parameters: [],
+  result: Bool,
+  body: ((nonEmptyBound (project (Product::product) version)) && ((nonEmptyBound (signingAlgorithm)) && ((nonEmptyBound (signingKeyCustody)) && ((0 <? (signingKeyRotationDays)) && ((nonEmptyBound (requestStateKeyCustody)) && ((0 <? (requestStateKeyRotationDays)) && ((0 <? (verifyWidth)) && (((verifyWidth) <? 65) && ((0 <? (verifyMemoryKib)) && ((0 <? (verifyConcurrency)) && ((0 <? (rateToolCalls)) && ((0 <? (rateWindowMs)) && ((0 <? (draftMaxBytes)) && ((0 <? (draftMaxFiles)) && ((retentionBound (storeDraftRetention)) && ((retentionBound (storeAttestationRetention)) && ((0 <? (cacheTtlMs)) && ((1023 <? (listenPort)) && (((listenPort) <? 32768) && ((sloStated (sloRecords)) && (profilesAdmitted (profileRecords))))))))))))))))))))))
+}
+
+theorem{
+  name: ownerValuesAreBound,
+  parameters: [],
+  statement: ((ownerValuesBound) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: versionIsBound,
+  parameters: [],
+  statement: ((prim equal (boundText (project (Product::product) version)) "0.1.0" : Bool) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: verifyWidthIsInTheSpecifiedRange,
+  parameters: [],
+  statement: (((0 <? (verifyWidth)) && ((verifyWidth) <? 65)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: listenPortIsRegisteredAndNotEphemeral,
+  parameters: [],
+  statement: (((1023 <? (listenPort)) && ((listenPort) <? 32768)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: slosAreS1ToS8,
+  parameters: [],
+  statement: ((sloIndexes (sloRecords)) = (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (nil Nat)))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: seventeenProfiles,
+  parameters: [],
+  statement: ((profileCount (profileRecords)) = 17),
+  proof: decide{}
+}
+
+theorem{
+  name: attestationsAreKeptForever,
+  parameters: [],
+  statement: ((retentionBound (storeAttestationRetention)) = true),
+  proof: decide{}
+}
+\end{semanticmodule}
+\end{lexlean}

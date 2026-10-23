@@ -19,6 +19,7 @@
 # registered: NF-01..NF-13. Draft admission as loops, exported as a production
 # root (issue #9, F3), registers DL-01..DL-04. Canonical ordering by a stable
 # merge sort (issue #9, item 2 of the second finding) registers NF-14 and NF-15.
+# The owner-set values of issue #19 register OV-01..OV-03.
 
 spec = "template/1"
 
@@ -135,3 +136,21 @@ id = "DL-04"
 level = "build"
 suite = "draft"
 statement = "The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound."
+
+[[id]]
+id = "OV-01"
+level = "build"
+suite = "owner-values"
+statement = "No model declaration depends on an unset owner value: the product version, the signing key and request-state-key custody and rotation, every parameter, the retention, the cache time to live, the listen port, the service level objectives and the profile set are bound in src/Product.lex.tex and src/OwnerValues.lex.tex, the ten risk likelihoods are Foundation.Sec.Likelihood constructors in src/Security.lex.tex, and no source applies the Unbound constructor of OwnerValue."
+
+[[id]]
+id = "OV-02"
+level = "build"
+suite = "owner-values"
+statement = "OWNER-VALUES.md and the model state the same value for every owner-set value, in both directions: every row of the proposal table is bound in the model with the same value, every value the model binds has a row, and every row names its evidence, its decider, its status and what changes if it moves."
+
+[[id]]
+id = "OV-03"
+level = "build"
+suite = "owner-values"
+statement = "Each bound value respects the constraint it follows from: draft.max_bytes and draft.max_files hold the largest example and stay within the limits of lexlean.toml, verify.concurrency times verify.memory_kib fits a 16 GiB host, verify.width is within the range of LexLean SPEC 22.11, listen.port is a registered-range port below the ephemeral range, and the product version equals the workspace package version."
