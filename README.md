@@ -16,7 +16,10 @@ the LexLean tool layer, and links that protocol core unchanged.
 The product, its architecture description, its threat model, its quality model,
 and the pure part of profile and draft identity and of path admission are
 modeled. One capability is built: the Unicode 17.0.0 NFC decision (#25),
-registered as NF-01 to NF-15 and used by path admission.
+registered as NF-01 to NF-15 and used by path admission. The AC-07 fixture
+register of #10 is checked: FX-01 to FX-08 classify the 297 negative fixtures of
+LexLean `release/v0.4` at `9796067`, 285 of which reach a tool, with the expected
+command result of each. No tool runs them yet.
 
 - The product model is LexLean language 1.2 notation (`src/`), built with
   LexLean `release/v0.4` and locked in `lexlean.lock` (`lexlean/lock/2`).
@@ -24,7 +27,9 @@ registered as NF-01 to NF-15 and used by path admission.
   The version of the product is an owner-set value that is not yet bound (#19).
 - The claim registers in `model/` hold the NFC decision's rows (NF-01 to NF-15),
   its authorities (the Unicode standard annex, the four pinned Unicode Character
-  Database files and `unicode-normalization` 0.1.25) and their claims;
+  Database files and `unicode-normalization` 0.1.25) and their claims, and the
+  fixture register's rows (FX-01 to FX-08) with the negative fixtures of the
+  pinned LexLean as their authority (`crates/negative-fixtures`, `FIXTURES.md`);
   `CONFORMANCE.md` lists them.
 - The repository is not bound to a PrismPM SDK release (#4): `prismpm.lock` and
   `template.lock` are absent, so `just vv` and the devcontainer cannot run, and
@@ -70,6 +75,8 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   SDK and template update process.
 - [VERIFICATION.md](VERIFICATION.md) defines the acceptance boundary; `just vv`
   is the complete gate.
+- [FIXTURES.md](FIXTURES.md) states the counts and the classes of the AC-07
+  fixture register and the defects planted in its gates.
 - [CI.md](CI.md) describes the workflow that runs every gate that works without
   the SDK, and how to read its failures.
 

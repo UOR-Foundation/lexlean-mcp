@@ -19,6 +19,8 @@
 # registered: NF-01..NF-13. Draft admission as loops, exported as a production
 # root (issue #9, F3), registers DL-01..DL-04. Canonical ordering by a stable
 # merge sort (issue #9, item 2 of the second finding) registers NF-14 and NF-15.
+# The AC-07 fixture register (issue #10) registers FX-01 to FX-08: two rows that
+# reproduce the negative fixtures of the pinned LexLean and six that are checked here.
 
 spec = "template/1"
 
@@ -135,3 +137,51 @@ id = "DL-04"
 level = "build"
 suite = "draft"
 statement = "The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound."
+
+[[id]]
+id = "FX-01"
+level = "some-true"
+suite = "fixtures"
+statement = "LexLean release/v0.4 at 9796067 (commit 97960679736e960e84a98f5c43981e1f2c70d6d7) holds in tests/negative the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864 with 297 fixtures, of which 256 run the command check, 1 build, 32 verify, 4 lock and 4 production."
+
+[[id]]
+id = "FX-02"
+level = "some-true"
+suite = "fixtures"
+statement = "The expected result of each fixture, expected/command.json, is the canonical command result (lexlean/command-result/1) that the LexLean CLI of that commit gives for the project of the fixture, as the check-fixtures gate of LexLean decides; this repository records the results and runs no command."
+
+[[id]]
+id = "FX-03"
+level = "build"
+suite = "fixtures"
+statement = "The files vendored under crates/negative-fixtures/lexlean are the case.toml and the expected files of the pinned tests/negative: each has the SHA-256 the register records, the git trees recomputed from the vendored files and the recorded trees of the project directories are the recorded trees of the fixtures and the pinned tree of tests/negative, and the checksum of the authority covers every vendored file."
+
+[[id]]
+id = "FX-04"
+level = "build"
+suite = "fixtures"
+statement = "Every row of the register is what the vendored bytes give: the command of case.toml, the exit status and the diagnostic codes of the canonical command result, and the digests of both files, with the exit status of case.toml equal to that of the result."
+
+[[id]]
+id = "FX-05"
+level = "build"
+suite = "fixtures"
+statement = "Every fixture of the pinned tree is classified exactly once: no name is listed twice, the register and the vendored directories name the same fixtures, and a fixture is F4 when it runs check, F7 when it runs build, #11 when it runs verify, and excluded when issue #10 leaves it out."
+
+[[id]]
+id = "FX-06"
+level = "build"
+suite = "fixtures"
+statement = "The register has 297 fixtures: 252 for F4, 1 for F7, 32 for #11 and 12 excluded, so 285 reach a tool; every sum is recomputed from the rows, so a hand edit of a row or of a sum fails."
+
+[[id]]
+id = "FX-07"
+level = "build"
+suite = "fixtures"
+statement = "The excluded fixtures are the twelve that issue #10 names, each with the reason it gives, and no other: 2 for CLI argument parsing, 2 for symlinks, 4 for setup and 4 for being outside the product."
+
+[[id]]
+id = "FX-08"
+level = "build"
+suite = "fixtures"
+statement = "Each gate of the register rejects its planted defect: a fixture reclassified, a digest altered, a vendored byte altered or removed, an exclusion without a reason, an exclusion the issue does not make, a name listed twice and a fixture missing; FIXTURES.md records the command, the diagnostic and the restore of each."

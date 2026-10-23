@@ -1,0 +1,17 @@
+spec = "lexlean/test-case/1"
+command = "lock"
+args = ["--check"]
+expected_exit = 2
+expect_artifacts = false
+
+[[invocation]]
+step = 1
+command = "lock"
+args = ["--check"]
+expected_exit = 0
+
+[[invocation]]
+step = 2
+command = "lock"
+args = ["--check"]
+expected_exit = 2
