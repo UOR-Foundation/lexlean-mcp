@@ -7,7 +7,7 @@ pub struct Overflow;
 pub type R<T> = Result<T, Overflow>;
 
 static WORK: AtomicU64 = AtomicU64::new(0);
-pub fn tick(units: u64) { WORK.fetch_add(units, Memory::Relaxed); } // hand edit
+pub fn tick(units: u64) { WORK.fetch_add(units, Memory::Relaxed); }
 pub fn work() -> u64 { WORK.load(Memory::Relaxed) }
 
 
