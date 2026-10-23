@@ -1,0 +1,241 @@
+# Project gates that run without the PrismPM SDK. The template's bootstrap
+# workflow stays the authority and is unchanged; this one gives every pull request
+# the LexLean and cargo evidence that `just vv` will later include, ahead of the
+# SDK binding. Each step reports a failure as an annotation holding the last
+# lines of its output (.github/lexlean-ci/lib.sh, `gate`).
+name: lexlean
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lexlean-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # elan, installed from its release archive after its SHA-256 is checked.
+  ELAN_VERSION: v4.2.4
+  ELAN_SHA256: 42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63
+  # cargo-deny, the same way (the x86_64 musl archive).
+  CARGO_DENY_VERSION: 0.20.2
+  CARGO_DENY_SHA256: 9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+
+jobs:
+  prepare:
+    name: prepare / compiler and toolchains
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Check out the exact event revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read the pinned LexLean revision
+        id: pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "read the LexLean pin" output_pin
+      - name: Restore lexlean built at the pinned revision
+        id: lexlean-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.lexlean-bin
+          key: lexlean-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.rev }}
+      - name: Install the pinned Rust toolchain
+        if: steps.lexlean-cache.outputs.cache-hit != 'true'
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install Rust" install_rust
+      - name: Install lexlean at the pinned revision
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install lexlean" install_lexlean
+      - name: Save lexlean built at the pinned revision
+        if: steps.lexlean-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.lexlean-bin
+          key: lexlean-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.rev }}
+      - name: The compiler is the one lexlean.lock was made with
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "compiler semantics against lexlean.lock" compiler_semantics_agrees
+      - name: Restore the Lean toolchain
+        id: lean-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.elan/toolchains
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ env.ELAN_VERSION }}-${{ hashFiles('lean-toolchain') }}
+      - name: Install elan
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install elan" install_elan
+      - name: Install the Lean toolchain
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install Lean" install_lean
+      - name: Save the Lean toolchain
+        if: steps.lean-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.elan/toolchains
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ env.ELAN_VERSION }}-${{ hashFiles('lean-toolchain') }}
+      - name: List the gates that need lexlean
+        id: matrix
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "list the production requests" output_matrix
+
+  cargo:
+    name: cargo / fmt clippy audits deny test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out the exact event revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install the pinned Rust toolchain
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install Rust" install_rust
+      - name: Restore the registry
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: registry-${{ runner.os }}-
+      - name: 1a. cargo fmt
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "cargo fmt" cargo fmt --all -- --check
+      - name: 1b. cargo clippy
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "cargo clippy" cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: 1c. every optional feature compiles
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "cargo check --all-features" cargo check --workspace --all-features --all-targets --locked
+      - name: 2a. check-model (R1)
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "xtask check-model" cargo xtask check-model
+      - name: 2b. audit-limits (R5)
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "xtask audit-limits" cargo xtask audit-limits
+      - name: 2c. audit-deferral (R4)
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "xtask audit-deferral" cargo xtask audit-deferral
+      - name: 2d. audit-dependency-updates
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "xtask audit-dependency-updates" cargo xtask audit-dependency-updates
+      - name: 3a. Install cargo-deny
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install cargo-deny" install_cargo_deny
+      - name: 3b. cargo deny (R6)
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "cargo deny" cargo deny --all-features check
+      - name: 6. cargo test
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "cargo test" cargo test --workspace --locked --no-fail-fast
+
+  lexlean:
+    name: lexlean / ${{ matrix.label }}
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Check out the exact event revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read the pinned LexLean revision
+        id: pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "read the LexLean pin" output_pin
+      - name: Restore lexlean built at the pinned revision
+        id: lexlean-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.lexlean-bin
+          key: lexlean-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.rev }}
+      - name: Install the pinned Rust toolchain
+        if: steps.lexlean-cache.outputs.cache-hit != 'true'
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install Rust" install_rust
+      - name: Install lexlean at the pinned revision
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install lexlean" install_lexlean
+      - name: Restore the Lean toolchain
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.elan/toolchains
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ env.ELAN_VERSION }}-${{ hashFiles('lean-toolchain') }}
+      - name: Install elan
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install elan" install_elan
+      - name: Install the Lean toolchain
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install Lean" install_lean
+      - name: 4a. lexlean fmt --check
+        if: matrix.kind == 'verify'
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "lexlean fmt --check" lexlean --color never fmt --check
+      - name: 4b. lexlean lock --check
+        if: matrix.kind == 'verify'
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "lexlean lock --check" lexlean --color never lock --check
+      - name: 4c. lexlean check
+        if: matrix.kind == 'verify'
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "lexlean check" lexlean --color never check
+      - name: 4d. lexlean verify
+        if: matrix.kind == 'verify'
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "lexlean verify" lexlean --color never verify
+      - name: 5. the committed packages are the export of their sources
+        if: matrix.kind == 'export'
+        env:
+          REQUEST: ${{ matrix.request }}
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "export of $REQUEST" export_matches "$REQUEST"

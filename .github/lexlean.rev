@@ -1,0 +1,11 @@
+# The LexLean revision this repository is checked with, and the only place it is
+# written (AGENTS.md R1). .github/workflows/lexlean.yml builds `lexlean` at this
+# commit and fails unless that binary computes the language-1.2 compiler-semantics
+# ID that lexlean.lock records.
+#
+# Development imports upstream commits; a release pins only upstream releases.
+# Move this line together with `lexlean lock`, in one commit: the lock is made by
+# the compiler this line names.
+#
+# Currently: UOR-Foundation/LexLean release/v0.4 at 9796067.
+rev = 97960679736e960e84a98f5c43981e1f2c70d6d7
