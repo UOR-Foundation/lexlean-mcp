@@ -412,7 +412,7 @@ definition{
   name: measurements,
   parameters: [],
   result: (List Measurement),
-  body: (cons (record Measurement {risk := 0, check := "every envelope F10/F12 return validates under the key history", status := (ctor MeasureStatus.Pending "Executed by the verify tool (#11) and the attestation lookup (#12); the key history is published by #11.")}) (cons (record Measurement {risk := 1, check := "no profile served without a review record per package digest", status := (ctor MeasureStatus.Pending "Executed where profiles are provisioned and identified (#8).")}) (cons (record Measurement {risk := 2, check := "scenario `dns-rebinding-protection` passes", status := (ctor MeasureStatus.Pending "Executed against the deployed core (#17), through the MCP conformance oracle.")}) (cons (record Measurement {risk := 3, check := "a planted over-limit draft fails with `LLS8002`, no other task affected; calls over the rate refused", status := (ctor MeasureStatus.Pending "Executed where verification runs as tasks (#11); the parameter values are owner-set (#19).")}) (cons (record Measurement {risk := 4, check := "a planted `..` path refused before any `Engine` call", status := (ctor MeasureStatus.Pending "Executed where drafts are admitted (#9).")}) (cons (record Measurement {risk := 5, check := "observed egress zero", status := (ctor MeasureStatus.Pending "Executed against the deployment (#17), where egress is denied; the effect set is declared in #7.")}) (cons (record Measurement {risk := 6, check := "every result validates against its output schema", status := (ctor MeasureStatus.Pending "Executed where the tools return results (#10, #11, #12).")}) (cons (record Measurement {risk := 7, check := "an envelope under a revoked key fails validation", status := (ctor MeasureStatus.Pending "Executed where signing and the key store exist (#11, #13); the key custody and rotation period are owner-set (#19).")}) (cons (record Measurement {risk := 8, check := "scenario `input-required-result-tampered-state` passes", status := (ctor MeasureStatus.Pending "Executed against the deployed core (#17), through the MCP conformance oracle.")}) (cons (record Measurement {risk := 9, check := "recorded as a residual risk of `mcp-loopback`", status := (ctor MeasureStatus.Residual "none in this release: authorization is outside it, closed by MCP#15's resource-server oracle")}) (nil Measurement)))))))))))
+  body: (cons (record Measurement {risk := 0, check := "every envelope F10/F12 return validates under the key history", status := (ctor MeasureStatus.Pending "Executed by the verify tool (#11) and the attestation lookup (#12); the key history is published by #11.")}) (cons (record Measurement {risk := 1, check := "no profile served without a review record per package digest", status := (ctor MeasureStatus.Pending "Executed where profiles are provisioned and identified (#8).")}) (cons (record Measurement {risk := 2, check := "scenario `dns-rebinding-protection` passes", status := (ctor MeasureStatus.Pending "Executed against the deployed core (#17), through the MCP conformance oracle.")}) (cons (record Measurement {risk := 3, check := "a planted over-limit draft fails with `LLS8002`, no other task affected; calls over the rate refused", status := (ctor MeasureStatus.Pending "Executed where verification runs as tasks (#11); the parameter values are owner-set (#19).")}) (cons (record Measurement {risk := 4, check := "a planted `..` path refused before any `Engine` call", status := (ctor MeasureStatus.Executed "Executed by path admission as built: the exported root admitRun, which declares no engine effect, refuses each escape form with a typed refusal, and admittedPathHasNoDotDot proves that an admitted path has no `..` component; the symlink clause of K5 stays in pendingClauses until #9 builds it.")}) (cons (record Measurement {risk := 5, check := "observed egress zero", status := (ctor MeasureStatus.Pending "Executed against the deployment (#17), where egress is denied; the effect set is declared in #7.")}) (cons (record Measurement {risk := 6, check := "every result validates against its output schema", status := (ctor MeasureStatus.Pending "Executed where the tools return results (#10, #11, #12).")}) (cons (record Measurement {risk := 7, check := "an envelope under a revoked key fails validation", status := (ctor MeasureStatus.Pending "Executed where signing and the key store exist (#11, #13); the key custody and rotation period are owner-set (#19).")}) (cons (record Measurement {risk := 8, check := "scenario `input-required-result-tampered-state` passes", status := (ctor MeasureStatus.Pending "Executed against the deployed core (#17), through the MCP conformance oracle.")}) (cons (record Measurement {risk := 9, check := "recorded as a residual risk of `mcp-loopback`", status := (ctor MeasureStatus.Residual "none in this release: authorization is outside it, closed by MCP#15's resource-server oracle")}) (nil Measurement)))))))))))
 }
 
 definition{
@@ -703,6 +703,26 @@ definition{
 }
 
 definition{
+  name: executedRisks,
+  parameters: [records : (List Measurement)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (match (project head status)
+      | MeasureStatus.Executed reference => (cons (project head risk) (executedRisks rest))
+      | MeasureStatus.Pending reason => (executedRisks rest)
+      | MeasureStatus.Residual rationale => (executedRisks rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: pendingClauses,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 4, name := "K5 symlink refusal", text := "materialization refuses symlinks in a profile bundle; built where drafts are materialized (#9), so no register row executes it yet"}) (nil Named))
+}
+
+definition{
   name: rationaleNamed,
   parameters: [records : (List Residual)],
   result: Bool,
@@ -790,9 +810,23 @@ theorem{
 }
 
 theorem{
-  name: measurementsPendingForControlledRisks,
+  name: measurementsPendingExceptR5,
   parameters: [],
-  statement: ((pendingRisks (measurements)) = (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (cons 8 (nil Nat))))))))))),
+  statement: ((pendingRisks (measurements)) = (cons 0 (cons 1 (cons 2 (cons 3 (cons 5 (cons 6 (cons 7 (cons 8 (nil Nat)))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: onlyPathEscapeIsExecuted,
+  parameters: [],
+  statement: ((executedRisks (measurements)) = (cons 4 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: symlinkClauseOfR5IsPending,
+  parameters: [],
+  statement: ((namedIndexes (pendingClauses)) = (cons 4 (nil Nat))),
   proof: decide{}
 }
 
