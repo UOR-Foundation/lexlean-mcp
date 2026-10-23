@@ -22,6 +22,7 @@
 # The first executed measurement of the threat model (issue #14, R5) registers SM-01.
 # The AC-07 fixture register (issue #10) registers FX-01 to FX-08: two rows that
 # reproduce the negative fixtures of the pinned LexLean and six that are checked here.
+# The owner-set values of issue #19 register OV-01..OV-03.
 
 spec = "template/1"
 
@@ -192,3 +193,21 @@ id = "FX-08"
 level = "build"
 suite = "fixtures"
 statement = "Each gate of the register rejects its planted defect: a fixture reclassified, a digest altered, a vendored byte altered or removed, an exclusion without a reason, an exclusion the issue does not make, a name listed twice and a fixture missing; FIXTURES.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "OV-01"
+level = "build"
+suite = "owner-values"
+statement = "No model declaration depends on an unset owner value: the product version, the signing key and request-state-key custody and rotation, every parameter, the retention, the cache time to live, the listen port, the service level objectives and the profile set are bound in src/Product.lex.tex and src/OwnerValues.lex.tex, the ten risk likelihoods are Foundation.Sec.Likelihood constructors in src/Security.lex.tex, and no source applies the Unbound constructor of OwnerValue."
+
+[[id]]
+id = "OV-02"
+level = "build"
+suite = "owner-values"
+statement = "OWNER-VALUES.md and the model state the same value for every owner-set value, in both directions: every row of the proposal table is bound in the model with the same value, every value the model binds has a row, and every row names its evidence, its decider, its status and what changes if it moves."
+
+[[id]]
+id = "OV-03"
+level = "build"
+suite = "owner-values"
+statement = "Each bound value respects the constraint it follows from: draft.max_bytes and draft.max_files hold the largest example and stay within the limits of lexlean.toml, verify.concurrency times verify.memory_kib fits a 16 GiB host, verify.width is within the range of LexLean SPEC 22.11, listen.port is a registered-range port below the ephemeral range, and the product version equals the workspace package version."

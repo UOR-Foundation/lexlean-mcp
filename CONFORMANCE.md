@@ -60,6 +60,14 @@ model does not sanction.
 | `NF-14` | `build` | Canonical ordering sorts each run of non-starters by combining class with a stable merge sort, so the cost of the NFC decision in a run of n combining marks is O(n log n): through the exported roots nfcRun and admitRun on a two MiB thread stack, a run of 10^6 combining marks of cyclically descending class, a run of 10^6 marks in ascending class order and a run of 10^6 marks of one class are each decided within a stated time bound, with the NFD, the NFC, the NFC verdict and the path verdict that unicode-normalization 0.1.25 gives, and the NFD of the run of one class keeps the order of its marks. |
 | `NF-15` | `build` | Canonical ordering exchanges only marks whose combining classes are strictly out of order, so marks of equal class keep their order: the kernel-checked instances of src/Nfc.lex.tex state it, and the exported decision gives the NFD and the NFC of unicode-normalization 0.1.25 on every one of 20000 pseudo-random strings of starters and marks drawn from few classes with several marks in each. |
 
+## owner-values
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `OV-01` | `build` | No model declaration depends on an unset owner value: the product version, the signing key and request-state-key custody and rotation, every parameter, the retention, the cache time to live, the listen port, the service level objectives and the profile set are bound in src/Product.lex.tex and src/OwnerValues.lex.tex, the ten risk likelihoods are Foundation.Sec.Likelihood constructors in src/Security.lex.tex, and no source applies the Unbound constructor of OwnerValue. |
+| `OV-02` | `build` | OWNER-VALUES.md and the model state the same value for every owner-set value, in both directions: every row of the proposal table is bound in the model with the same value, every value the model binds has a row, and every row names its evidence, its decider, its status and what changes if it moves. |
+| `OV-03` | `build` | Each bound value respects the constraint it follows from: draft.max_bytes and draft.max_files hold the largest example and stay within the limits of lexlean.toml, verify.concurrency times verify.memory_kib fits a 16 GiB host, verify.width is within the range of LexLean SPEC 22.11, listen.port is a registered-range port below the ephemeral range, and the product version equals the workspace package version. |
+
 ## security
 
 | ID | Level | Statement |
