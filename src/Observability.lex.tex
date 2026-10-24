@@ -1,0 +1,1254 @@
+\begin{lexlean}{Observability}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Product}
+\importmodule{OwnerValues}
+\title{LexLean MCP observability}
+\begin{semanticmodule}
+inductive{
+  name: ErrorClass,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Language, fields: []},
+    {name: CliOrConfiguration, fields: []},
+    {name: Environment, fields: []},
+    {name: SecurityOrLimit, fields: []},
+    {name: Internal, fields: []}
+  ]
+}
+
+definition{
+  name: exitCode,
+  parameters: [class : ErrorClass],
+  result: Nat,
+  body: (match class
+    | ErrorClass.Language => 1
+    | ErrorClass.CliOrConfiguration => 2
+    | ErrorClass.Environment => 3
+    | ErrorClass.SecurityOrLimit => 4
+    | ErrorClass.Internal => 70)
+}
+
+definition{
+  name: alerting,
+  parameters: [class : ErrorClass],
+  result: Bool,
+  body: (match class
+    | ErrorClass.Language => false
+    | ErrorClass.CliOrConfiguration => true
+    | ErrorClass.Environment => true
+    | ErrorClass.SecurityOrLimit => false
+    | ErrorClass.Internal => true)
+}
+
+definition{
+  name: allClasses,
+  parameters: [],
+  result: (List ErrorClass),
+  body: (cons (ctor ErrorClass.Language) (cons (ctor ErrorClass.CliOrConfiguration) (cons (ctor ErrorClass.Environment) (cons (ctor ErrorClass.SecurityOrLimit) (cons (ctor ErrorClass.Internal) (nil ErrorClass))))))
+}
+
+definition{
+  name: exitCodes,
+  parameters: [classes : (List ErrorClass)],
+  result: (List Nat),
+  body: (match classes
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (exitCode head) (exitCodes rest))),
+  recursive_argument: classes
+}
+
+definition{
+  name: alertingCodes,
+  parameters: [classes : (List ErrorClass)],
+  result: (List Nat),
+  body: (match classes
+    | List.nil => (nil Nat)
+    | List.cons head rest => (if (alerting head) then (cons (exitCode head) (alertingCodes rest)) else (alertingCodes rest))),
+  recursive_argument: classes
+}
+
+theorem{
+  name: errorClassesMapToTheExitCodes,
+  parameters: [],
+  statement: ((exitCodes (allClasses)) = (cons 1 (cons 2 (cons 3 (cons 4 (cons 70 (nil Nat))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: alertsRaiseOnClasses2And3And70,
+  parameters: [],
+  statement: ((alertingCodes (allClasses)) = (cons 2 (cons 3 (cons 70 (nil Nat))))),
+  proof: decide{}
+}
+
+inductive{
+  name: ServerNotification,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Cancelled, fields: []},
+    {name: Progress, fields: []},
+    {name: ResourcesListChanged, fields: []},
+    {name: SubscriptionsAcknowledged, fields: []},
+    {name: ResourcesUpdated, fields: []},
+    {name: PromptsListChanged, fields: []},
+    {name: ToolsListChanged, fields: []},
+    {name: Message, fields: []}
+  ]
+}
+
+definition{
+  name: notificationMethod,
+  parameters: [notification : ServerNotification],
+  result: String,
+  body: (match notification
+    | ServerNotification.Cancelled => "notifications/cancelled"
+    | ServerNotification.Progress => "notifications/progress"
+    | ServerNotification.ResourcesListChanged => "notifications/resources/list_changed"
+    | ServerNotification.SubscriptionsAcknowledged => "notifications/subscriptions/acknowledged"
+    | ServerNotification.ResourcesUpdated => "notifications/resources/updated"
+    | ServerNotification.PromptsListChanged => "notifications/prompts/list_changed"
+    | ServerNotification.ToolsListChanged => "notifications/tools/list_changed"
+    | ServerNotification.Message => "notifications/message")
+}
+
+definition{
+  name: allNotifications,
+  parameters: [],
+  result: (List ServerNotification),
+  body: (cons (ctor ServerNotification.Cancelled) (cons (ctor ServerNotification.Progress) (cons (ctor ServerNotification.ResourcesListChanged) (cons (ctor ServerNotification.SubscriptionsAcknowledged) (cons (ctor ServerNotification.ResourcesUpdated) (cons (ctor ServerNotification.PromptsListChanged) (cons (ctor ServerNotification.ToolsListChanged) (cons (ctor ServerNotification.Message) (nil ServerNotification)))))))))
+}
+
+definition{
+  name: methodsOf,
+  parameters: [notifications : (List ServerNotification)],
+  result: (List String),
+  body: (match notifications
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (notificationMethod head) (methodsOf rest))),
+  recursive_argument: notifications
+}
+
+definition{
+  name: isLogMessage,
+  parameters: [notification : ServerNotification],
+  result: Bool,
+  body: (prim equal (notificationMethod notification) "notifications/message" : Bool)
+}
+
+inductive{
+  name: Emitted,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Progress, fields: []}]
+}
+
+definition{
+  name: emittedNotification,
+  parameters: [emitted : Emitted],
+  result: ServerNotification,
+  body: (match emitted | Emitted.Progress => (ctor ServerNotification.Progress))
+}
+
+definition{
+  name: allEmitted,
+  parameters: [],
+  result: (List Emitted),
+  body: (cons (ctor Emitted.Progress) (nil Emitted))
+}
+
+definition{
+  name: emittedMethods,
+  parameters: [emitted : (List Emitted)],
+  result: (List String),
+  body: (match emitted
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (notificationMethod (emittedNotification head)) (emittedMethods rest))),
+  recursive_argument: emitted
+}
+
+theorem{
+  name: schemaServerNotificationsAreEight,
+  parameters: [],
+  statement: ((methodsOf (allNotifications)) = (cons "notifications/cancelled" (cons "notifications/progress" (cons "notifications/resources/list_changed" (cons "notifications/subscriptions/acknowledged" (cons "notifications/resources/updated" (cons "notifications/prompts/list_changed" (cons "notifications/tools/list_changed" (cons "notifications/message" (nil String)))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: emittedMethodsAreProgressOnly,
+  parameters: [],
+  statement: ((emittedMethods (allEmitted)) = (cons "notifications/progress" (nil String))),
+  proof: decide{}
+}
+
+theorem{
+  name: noEmittedNotificationIsALogMessage,
+  parameters: [emitted : Emitted],
+  statement: ((isLogMessage (emittedNotification emitted)) = false),
+  proof: cases{
+    branches: [{proof: decide{}, binders: [], constructor: Progress}],
+    scrutinee: emitted
+  }
+}
+
+inductive{
+  name: Redacted,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Withheld, fields: []}]
+}
+
+definition{
+  name: redact,
+  parameters: [text : (List Nat)],
+  result: Redacted,
+  body: (ctor Redacted.Withheld)
+}
+
+theorem{
+  name: redactedHasOneValue,
+  parameters: [value : Redacted],
+  statement: (value = (ctor Redacted.Withheld)),
+  proof: cases{
+    branches: [{proof: reflexivity{}, binders: [], constructor: Withheld}],
+    scrutinee: value
+  }
+}
+
+theorem{
+  name: redactionIgnoresText,
+  parameters: [text : (List Nat), other : (List Nat)],
+  statement: ((redact text) = (redact other)),
+  proof: reflexivity{}
+}
+
+inductive{
+  name: Severity,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Debug, fields: []},
+    {name: Info, fields: []},
+    {name: Warn, fields: []},
+    {name: Error, fields: []}
+  ]
+}
+
+inductive{
+  name: EventKind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Request, fields: []},
+    {name: ToolCall, fields: []},
+    {name: Check, fields: []},
+    {name: Verify, fields: []},
+    {name: ChildGroup, fields: []},
+    {name: Drift, fields: []},
+    {name: Signing, fields: []}
+  ]
+}
+
+inductive{
+  name: VerifyOutcome,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Verified, fields: []},
+    {name: Failed, fields: []},
+    {name: Cancelled, fields: []}
+  ]
+}
+
+inductive{
+  name: GroupEnd,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Ended, fields: []},
+    {name: AlreadyGone, fields: []},
+    {name: Failed, fields: []}
+  ]
+}
+
+structure{
+  name: TraceParent,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: version, type: Nat},
+    {name: traceId, type: Nat},
+    {name: parentId, type: Nat},
+    {name: flags, type: Nat}
+  ]
+}
+
+inductive{
+  name: Sample,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: ToolOutcome, fields: [ErrorClass, Nat]},
+    {name: ProtocolErrors, fields: [Nat, Nat]},
+    {name: CheckLatency, fields: [Nat, Nat]},
+    {name: VerifyDuration, fields: [Nat, VerifyOutcome, Nat]},
+    {name: QueueWait, fields: [Nat]},
+    {name: ChildGroupEnds, fields: [GroupEnd, Nat]},
+    {name: ProfileDrift, fields: [Nat, Nat]},
+    {name: SigningFailures, fields: [Nat]}
+  ]
+}
+
+structure{
+  name: LogInput,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: severity, type: Severity},
+    {name: event, type: EventKind},
+    {name: trace, type: (Option TraceParent)},
+    {name: body, type: (List Nat)}
+  ]
+}
+
+structure{
+  name: SpanInput,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: event, type: EventKind},
+    {name: trace, type: (Option TraceParent)},
+    {name: durationMs, type: Nat},
+    {name: failure, type: (Option ErrorClass)},
+    {name: arguments, type: (List Nat)},
+    {name: query, type: (List Nat)},
+    {name: status, type: (List Nat)}
+  ]
+}
+
+structure{
+  name: LogRecord,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: severity, type: Severity},
+    {name: event, type: EventKind},
+    {name: trace, type: (Option TraceParent)},
+    {name: body, type: Redacted}
+  ]
+}
+
+structure{
+  name: SpanRecord,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: event, type: EventKind},
+    {name: trace, type: (Option TraceParent)},
+    {name: durationMs, type: Nat},
+    {name: failure, type: (Option ErrorClass)},
+    {name: arguments, type: Redacted},
+    {name: query, type: Redacted},
+    {name: status, type: Redacted}
+  ]
+}
+
+inductive{
+  name: Input,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Log, fields: [LogInput]},
+    {name: Span, fields: [SpanInput]},
+    {name: Metric, fields: [Sample]}
+  ]
+}
+
+inductive{
+  name: Telemetry,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Log, fields: [LogRecord]},
+    {name: Span, fields: [SpanRecord]},
+    {name: Metric, fields: [Sample]}
+  ]
+}
+
+definition{
+  name: toTelemetry,
+  parameters: [input : Input],
+  result: Telemetry,
+  body: (match input
+    | Input.Log log => (ctor Telemetry.Log (record LogRecord {severity := (project log severity), event := (project log event), trace := (project log trace), body := (redact (project log body))}))
+    | Input.Span span => (ctor Telemetry.Span (record SpanRecord {event := (project span event), trace := (project span trace), durationMs := (project span durationMs), failure := (project span failure), arguments := (redact (project span arguments)), query := (redact (project span query)), status := (redact (project span status))}))
+    | Input.Metric sample => (ctor Telemetry.Metric sample))
+}
+
+definition{
+  name: withText,
+  parameters: [input : Input, text : (List Nat)],
+  result: Input,
+  body: (match input
+    | Input.Log log => (ctor Input.Log (record LogInput {severity := (project log severity), event := (project log event), trace := (project log trace), body := text}))
+    | Input.Span span => (ctor Input.Span (record SpanInput {event := (project span event), trace := (project span trace), durationMs := (project span durationMs), failure := (project span failure), arguments := text, query := text, status := text}))
+    | Input.Metric sample => (ctor Input.Metric sample))
+}
+
+theorem{
+  name: noTelemetryRecordDependsOnText,
+  parameters: [input : Input, text : (List Nat)],
+  statement: ((toTelemetry (withText input text)) = (toTelemetry input)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [log], constructor: Log},
+      {proof: reflexivity{}, binders: [span], constructor: Span},
+      {proof: reflexivity{}, binders: [sample], constructor: Metric}
+    ],
+    scrutinee: input
+  }
+}
+
+inductive{
+  name: SliUnit,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Count, fields: []},
+    {name: Percent, fields: []},
+    {name: Milliseconds, fields: []}
+  ]
+}
+
+inductive{
+  name: Label,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Class, fields: []},
+    {name: ProtocolCode, fields: []},
+    {name: Outcome, fields: []},
+    {name: Profile, fields: []}
+  ]
+}
+
+structure{
+  name: SliDef,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: index, type: Nat},
+    {name: name, type: String},
+    {name: unit, type: SliUnit},
+    {name: labels, type: (List Label)}
+  ]
+}
+
+definition{
+  name: unitName,
+  parameters: [unit : SliUnit],
+  result: String,
+  body: (match unit
+    | SliUnit.Count => "count"
+    | SliUnit.Percent => "percent"
+    | SliUnit.Milliseconds => "milliseconds")
+}
+
+definition{
+  name: sliDefs,
+  parameters: [],
+  result: (List SliDef),
+  body: (cons (record SliDef {index := 0, name := "lexlean_mcp.tool.outcomes", unit := (ctor SliUnit.Count), labels := (cons (ctor Label.Class) (nil Label))}) (cons (record SliDef {index := 1, name := "lexlean_mcp.protocol.errors", unit := (ctor SliUnit.Percent), labels := (cons (ctor Label.ProtocolCode) (nil Label))}) (cons (record SliDef {index := 2, name := "lexlean_mcp.check.duration", unit := (ctor SliUnit.Milliseconds), labels := (cons (ctor Label.Profile) (nil Label))}) (cons (record SliDef {index := 3, name := "lexlean_mcp.verify.duration", unit := (ctor SliUnit.Milliseconds), labels := (cons (ctor Label.Profile) (cons (ctor Label.Outcome) (nil Label)))}) (cons (record SliDef {index := 4, name := "lexlean_mcp.verify.queue.wait", unit := (ctor SliUnit.Milliseconds), labels := (nil Label)}) (cons (record SliDef {index := 5, name := "lexlean_mcp.child_group.ends", unit := (ctor SliUnit.Count), labels := (cons (ctor Label.Outcome) (nil Label))}) (cons (record SliDef {index := 6, name := "lexlean_mcp.profile.drift", unit := (ctor SliUnit.Count), labels := (cons (ctor Label.Profile) (nil Label))}) (cons (record SliDef {index := 7, name := "lexlean_mcp.signing.failures", unit := (ctor SliUnit.Count), labels := (nil Label)}) (nil SliDef)))))))))
+}
+
+definition{
+  name: sliIndex,
+  parameters: [sample : Sample],
+  result: Nat,
+  body: (match sample
+    | Sample.ToolOutcome class count => 0
+    | Sample.ProtocolErrors code share => 1
+    | Sample.CheckLatency profile ms => 2
+    | Sample.VerifyDuration profile outcome ms => 3
+    | Sample.QueueWait ms => 4
+    | Sample.ChildGroupEnds end count => 5
+    | Sample.ProfileDrift profile count => 6
+    | Sample.SigningFailures count => 7)
+}
+
+definition{
+  name: sliIndexes,
+  parameters: [defs : (List SliDef)],
+  result: (List Nat),
+  body: (match defs
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (sliIndexes rest))),
+  recursive_argument: defs
+}
+
+definition{
+  name: sliNames,
+  parameters: [defs : (List SliDef)],
+  result: (List String),
+  body: (match defs
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head name) (sliNames rest))),
+  recursive_argument: defs
+}
+
+definition{
+  name: unitsAgree,
+  parameters: [defs : (List SliDef), slos : (List OwnerValues::Slo)],
+  result: Bool,
+  body: (match defs
+    | List.nil => (match slos | List.nil => true | List.cons slo more => false)
+    | List.cons head rest => (match slos
+      | List.nil => false
+      | List.cons slo more => (((project head index) =? (project slo index)) && ((prim equal (unitName (project head unit)) (project slo unit) : Bool) && (unitsAgree rest more))))),
+  recursive_argument: defs
+}
+
+definition{
+  name: noRepeat,
+  parameters: [names : (List String)],
+  result: Bool,
+  body: (match names
+    | List.nil => true
+    | List.cons head rest => ((if (Product::stringMember head rest) then false else true) && (noRepeat rest))),
+  recursive_argument: names
+}
+
+definition{
+  name: labelsLength,
+  parameters: [labels : (List Label)],
+  result: Nat,
+  body: (match labels | List.nil => 0 | List.cons head rest => (1 + (labelsLength rest))),
+  recursive_argument: labels
+}
+
+definition{
+  name: labelCount,
+  parameters: [index : Nat, defs : (List SliDef)],
+  result: Nat,
+  body: (match defs
+    | List.nil => 0
+    | List.cons head rest => (if ((project head index) =? index) then (labelsLength (project head labels)) else (labelCount index rest))),
+  recursive_argument: defs
+}
+
+theorem{
+  name: slisAreS1ToS8,
+  parameters: [],
+  statement: ((sliIndexes (sliDefs)) = (OwnerValues::sloIndexes (OwnerValues::sloRecords))),
+  proof: decide{}
+}
+
+theorem{
+  name: sliUnitsAreTheUnitsOfTheSlos,
+  parameters: [],
+  statement: ((unitsAgree (sliDefs) (OwnerValues::sloRecords)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: sliNamesAreDistinct,
+  parameters: [],
+  statement: ((noRepeat (sliNames (sliDefs))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: toolOutcomeIsLabelledByErrorClassOnly,
+  parameters: [],
+  statement: ((labelCount 0 (sliDefs)) = 1),
+  proof: decide{}
+}
+
+theorem{
+  name: everySampleHasADefinition,
+  parameters: [sample : Sample],
+  statement: (((sliIndex sample) <? 8) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [class, count], constructor: ToolOutcome},
+      {proof: reflexivity{}, binders: [code, share], constructor: ProtocolErrors},
+      {proof: reflexivity{}, binders: [profile, ms], constructor: CheckLatency},
+      {proof: reflexivity{}, binders: [profile, outcome, ms], constructor: VerifyDuration},
+      {proof: reflexivity{}, binders: [ms], constructor: QueueWait},
+      {proof: reflexivity{}, binders: [end, count], constructor: ChildGroupEnds},
+      {proof: reflexivity{}, binders: [profile, count], constructor: ProfileDrift},
+      {proof: reflexivity{}, binders: [count], constructor: SigningFailures}
+    ],
+    scrutinee: sample
+  }
+}
+
+definition{
+  name: sloThreshold,
+  parameters: [index : Nat, slos : (List OwnerValues::Slo)],
+  result: Nat,
+  body: (match slos
+    | List.nil => 0
+    | List.cons head rest => (if ((project head index) =? index) then (project head threshold) else (sloThreshold index rest))),
+  recursive_argument: slos
+}
+
+definition{
+  name: threshold,
+  parameters: [index : Nat],
+  result: Nat,
+  body: (sloThreshold index (OwnerValues::sloRecords))
+}
+
+inductive{
+  name: Alert,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: ClassTwo, fields: []},
+    {name: ClassThree, fields: []},
+    {name: ClassSeventy, fields: []},
+    {name: GroupEndFailed, fields: []},
+    {name: Drift, fields: []},
+    {name: SigningFailure, fields: []}
+  ]
+}
+
+definition{
+  name: classFires,
+  parameters: [target : ErrorClass, sample : Sample],
+  result: Bool,
+  body: (match sample
+    | Sample.ToolOutcome class count => (((exitCode target) =? (exitCode class)) && ((threshold 0) <? count))
+    | Sample.ProtocolErrors code share => false
+    | Sample.CheckLatency profile ms => false
+    | Sample.VerifyDuration profile outcome ms => false
+    | Sample.QueueWait ms => false
+    | Sample.ChildGroupEnds end count => false
+    | Sample.ProfileDrift profile count => false
+    | Sample.SigningFailures count => false)
+}
+
+definition{
+  name: firing,
+  parameters: [alert : Alert, sample : Sample],
+  result: Bool,
+  body: (match alert
+    | Alert.ClassTwo => (classFires (ctor ErrorClass.CliOrConfiguration) sample)
+    | Alert.ClassThree => (classFires (ctor ErrorClass.Environment) sample)
+    | Alert.ClassSeventy => (classFires (ctor ErrorClass.Internal) sample)
+    | Alert.GroupEndFailed => (match sample
+      | Sample.ToolOutcome class count => false
+      | Sample.ProtocolErrors code share => false
+      | Sample.CheckLatency profile ms => false
+      | Sample.VerifyDuration profile outcome ms => false
+      | Sample.QueueWait ms => false
+      | Sample.ChildGroupEnds end count => (match end
+        | GroupEnd.Ended => false
+        | GroupEnd.AlreadyGone => false
+        | GroupEnd.Failed => ((threshold 5) <? count))
+      | Sample.ProfileDrift profile count => false
+      | Sample.SigningFailures count => false)
+    | Alert.Drift => (match sample
+      | Sample.ToolOutcome class count => false
+      | Sample.ProtocolErrors code share => false
+      | Sample.CheckLatency profile ms => false
+      | Sample.VerifyDuration profile outcome ms => false
+      | Sample.QueueWait ms => false
+      | Sample.ChildGroupEnds end count => false
+      | Sample.ProfileDrift profile count => ((threshold 6) <? count)
+      | Sample.SigningFailures count => false)
+    | Alert.SigningFailure => (match sample
+      | Sample.ToolOutcome class count => false
+      | Sample.ProtocolErrors code share => false
+      | Sample.CheckLatency profile ms => false
+      | Sample.VerifyDuration profile outcome ms => false
+      | Sample.QueueWait ms => false
+      | Sample.ChildGroupEnds end count => false
+      | Sample.ProfileDrift profile count => false
+      | Sample.SigningFailures count => ((threshold 7) <? count)))
+}
+
+theorem{
+  name: thresholdsAreTheZeroToleranceOfTheSlos,
+  parameters: [],
+  statement: ((cons (threshold 0) (cons (threshold 5) (cons (threshold 6) (cons (threshold 7) (nil Nat))))) = (cons 0 (cons 0 (cons 0 (cons 0 (nil Nat)))))),
+  proof: decide{}
+}
+
+theorem{
+  name: classTwoFiresOnItsPlantedCondition,
+  parameters: [],
+  statement: ((firing (ctor Alert.ClassTwo) (ctor Sample.ToolOutcome (ctor ErrorClass.CliOrConfiguration) ((threshold 0) + 1))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: classTwoIsSilentWhenHealthy,
+  parameters: [],
+  statement: ((firing (ctor Alert.ClassTwo) (ctor Sample.ToolOutcome (ctor ErrorClass.CliOrConfiguration) (threshold 0))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: classThreeFiresOnItsPlantedCondition,
+  parameters: [],
+  statement: ((firing (ctor Alert.ClassThree) (ctor Sample.ToolOutcome (ctor ErrorClass.Environment) ((threshold 0) + 1))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: classThreeIsSilentWhenHealthy,
+  parameters: [],
+  statement: ((firing (ctor Alert.ClassThree) (ctor Sample.ToolOutcome (ctor ErrorClass.Environment) (threshold 0))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: classSeventyFiresOnItsPlantedCondition,
+  parameters: [],
+  statement: ((firing (ctor Alert.ClassSeventy) (ctor Sample.ToolOutcome (ctor ErrorClass.Internal) ((threshold 0) + 1))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: classSeventyIsSilentWhenHealthy,
+  parameters: [],
+  statement: ((firing (ctor Alert.ClassSeventy) (ctor Sample.ToolOutcome (ctor ErrorClass.Internal) (threshold 0))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: failedGroupEndFiresOnItsPlantedCondition,
+  parameters: [],
+  statement: ((firing (ctor Alert.GroupEndFailed) (ctor Sample.ChildGroupEnds (ctor GroupEnd.Failed) ((threshold 5) + 1))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: failedGroupEndIsSilentWhenHealthy,
+  parameters: [],
+  statement: ((firing (ctor Alert.GroupEndFailed) (ctor Sample.ChildGroupEnds (ctor GroupEnd.Failed) (threshold 5))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: endedAndGoneGroupsDoNotAlert,
+  parameters: [],
+  statement: (((firing (ctor Alert.GroupEndFailed) (ctor Sample.ChildGroupEnds (ctor GroupEnd.Ended) 1000)) || (firing (ctor Alert.GroupEndFailed) (ctor Sample.ChildGroupEnds (ctor GroupEnd.AlreadyGone) 1000))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: driftFiresOnItsPlantedCondition,
+  parameters: [],
+  statement: ((firing (ctor Alert.Drift) (ctor Sample.ProfileDrift 0 ((threshold 6) + 1))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: driftIsSilentWhenHealthy,
+  parameters: [],
+  statement: ((firing (ctor Alert.Drift) (ctor Sample.ProfileDrift 0 (threshold 6))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: signingFailureFiresOnItsPlantedCondition,
+  parameters: [],
+  statement: ((firing (ctor Alert.SigningFailure) (ctor Sample.SigningFailures ((threshold 7) + 1))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: signingFailureIsSilentWhenHealthy,
+  parameters: [],
+  statement: ((firing (ctor Alert.SigningFailure) (ctor Sample.SigningFailures (threshold 7))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: languageAndLimitClassesNeverAlert,
+  parameters: [alert : Alert, count : Nat],
+  statement: (((firing alert (ctor Sample.ToolOutcome (ctor ErrorClass.Language) count)) || (firing alert (ctor Sample.ToolOutcome (ctor ErrorClass.SecurityOrLimit) count))) = false),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: ClassTwo},
+      {proof: reflexivity{}, binders: [], constructor: ClassThree},
+      {proof: reflexivity{}, binders: [], constructor: ClassSeventy},
+      {proof: reflexivity{}, binders: [], constructor: GroupEndFailed},
+      {proof: reflexivity{}, binders: [], constructor: Drift},
+      {proof: reflexivity{}, binders: [], constructor: SigningFailure}
+    ],
+    scrutinee: alert
+  }
+}
+
+inductive{
+  name: Fault,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Length, fields: []},
+    {name: Separator, fields: []},
+    {name: Digit, fields: []},
+    {name: ForbiddenVersion, fields: []},
+    {name: ZeroTraceId, fields: []},
+    {name: ZeroParentId, fields: []},
+    {name: Duplicate, fields: []},
+    {name: NotText, fields: []}
+  ]
+}
+
+definition{
+  name: faultCode,
+  parameters: [fault : Fault],
+  result: Nat,
+  body: (match fault
+    | Fault.Length => 1
+    | Fault.Separator => 2
+    | Fault.Digit => 3
+    | Fault.ForbiddenVersion => 4
+    | Fault.ZeroTraceId => 5
+    | Fault.ZeroParentId => 6
+    | Fault.Duplicate => 7
+    | Fault.NotText => 8)
+}
+
+inductive{
+  name: Parent,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Absent, fields: []},
+    {name: Valid, fields: [TraceParent]},
+    {name: Invalid, fields: [Fault]}
+  ]
+}
+
+inductive{
+  name: Step,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Got, fields: [Nat, (List Nat)]}, {name: Stop, fields: [Fault]}]
+}
+
+definition{
+  name: hexValue,
+  parameters: [code : Nat],
+  result: (Option Nat),
+  body: (if ((47 <? code) && (code <? 58)) then (ctor Option.some [Nat] (prim subtract code 48 : Nat)) else (if ((96 <? code) && (code <? 103)) then (ctor Option.some [Nat] (prim subtract code 87 : Nat)) else (ctor Option.none [Nat])))
+}
+
+definition{
+  name: readHex,
+  parameters: [count : Nat, accumulated : Nat, bytes : (List Nat)],
+  result: Step,
+  body: (match count
+    | Nat.zero => (ctor Step.Got accumulated bytes)
+    | Nat.succ previous => (match bytes
+      | List.nil => (ctor Step.Stop (ctor Fault.Length))
+      | List.cons head rest => (match (hexValue head)
+        | Option.none => (ctor Step.Stop (ctor Fault.Digit))
+        | Option.some digit => (readHex previous ((prim multiply accumulated 16 : Nat) + digit) rest)))),
+  recursive_argument: count
+}
+
+definition{
+  name: readDash,
+  parameters: [bytes : (List Nat)],
+  result: Step,
+  body: (match bytes
+    | List.nil => (ctor Step.Stop (ctor Fault.Length))
+    | List.cons head rest => (if (head =? 45) then (ctor Step.Got 0 rest) else (ctor Step.Stop (ctor Fault.Separator))))
+}
+
+definition{
+  name: finish,
+  parameters: [version : Nat, traceId : Nat, parentId : Nat, flags : Nat, rest : (List Nat)],
+  result: Parent,
+  body: (if (version =? 255) then (ctor Parent.Invalid (ctor Fault.ForbiddenVersion)) else (if (traceId =? 0) then (ctor Parent.Invalid (ctor Fault.ZeroTraceId)) else (if (parentId =? 0) then (ctor Parent.Invalid (ctor Fault.ZeroParentId)) else (match rest
+    | List.nil => (ctor Parent.Valid (record TraceParent {version := version, traceId := traceId, parentId := parentId, flags := flags}))
+    | List.cons head more => (if (version =? 0) then (ctor Parent.Invalid (ctor Fault.Length)) else (if (head =? 45) then (ctor Parent.Valid (record TraceParent {version := version, traceId := traceId, parentId := parentId, flags := flags})) else (ctor Parent.Invalid (ctor Fault.Separator))))))))
+}
+
+definition{
+  name: parseTraceparent,
+  parameters: [bytes : (List Nat)],
+  result: Parent,
+  body: (match (readHex 2 0 bytes)
+    | Step.Stop fault => (ctor Parent.Invalid fault)
+    | Step.Got version after1 => (match (readDash after1)
+      | Step.Stop fault => (ctor Parent.Invalid fault)
+      | Step.Got unused1 after2 => (match (readHex 32 0 after2)
+        | Step.Stop fault => (ctor Parent.Invalid fault)
+        | Step.Got traceId after3 => (match (readDash after3)
+          | Step.Stop fault => (ctor Parent.Invalid fault)
+          | Step.Got unused2 after4 => (match (readHex 16 0 after4)
+            | Step.Stop fault => (ctor Parent.Invalid fault)
+            | Step.Got parentId after5 => (match (readDash after5)
+              | Step.Stop fault => (ctor Parent.Invalid fault)
+              | Step.Got unused3 after6 => (match (readHex 2 0 after6)
+                | Step.Stop fault => (ctor Parent.Invalid fault)
+                | Step.Got flags rest => (finish version traceId parentId flags rest))))))))
+}
+
+definition{
+  name: headerFields,
+  parameters: [parent : Parent],
+  result: (List Nat),
+  body: (match parent
+    | Parent.Absent => (cons 100 (nil Nat))
+    | Parent.Valid header => (cons (project header version) (cons (project header traceId) (cons (project header parentId) (cons (project header flags) (nil Nat)))))
+    | Parent.Invalid fault => (cons (100 + (faultCode fault)) (nil Nat)))
+}
+
+inductive{
+  name: MetaValue,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Text, fields: [(List Nat)]}, {name: Other, fields: []}]
+}
+
+structure{
+  name: MetaEntry,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: key, type: String}, {name: value, type: MetaValue}]
+}
+
+inductive{
+  name: Lookup,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Missing, fields: []},
+    {name: One, fields: [MetaValue]},
+    {name: Many, fields: []}
+  ]
+}
+
+definition{
+  name: lookup,
+  parameters: [key : String, entries : (List MetaEntry)],
+  result: Lookup,
+  body: (match entries
+    | List.nil => (ctor Lookup.Missing)
+    | List.cons head rest => (if (prim equal key (project head key) : Bool) then (match (lookup key rest)
+      | Lookup.Missing => (ctor Lookup.One (project head value))
+      | Lookup.One value => (ctor Lookup.Many)
+      | Lookup.Many => (ctor Lookup.Many)) else (lookup key rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: size,
+  parameters: [bytes : (List Nat)],
+  result: Nat,
+  body: (match bytes | List.nil => 0 | List.cons head rest => (1 + (size rest))),
+  recursive_argument: bytes
+}
+
+structure{
+  name: Extraction,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: parent, type: Parent},
+    {name: tracestate, type: (Option (List Nat))},
+    {name: baggage, type: (Option (List Nat))}
+  ]
+}
+
+definition{
+  name: parentOf,
+  parameters: [found : Lookup],
+  result: Parent,
+  body: (match found
+    | Lookup.Missing => (ctor Parent.Absent)
+    | Lookup.One value => (match value
+      | MetaValue.Text bytes => (parseTraceparent bytes)
+      | MetaValue.Other => (ctor Parent.Invalid (ctor Fault.NotText)))
+    | Lookup.Many => (ctor Parent.Invalid (ctor Fault.Duplicate)))
+}
+
+definition{
+  name: carried,
+  parameters: [limit : Nat, found : Lookup],
+  result: (Option (List Nat)),
+  body: (match found
+    | Lookup.Missing => (ctor Option.none [(List Nat)])
+    | Lookup.One value => (match value
+      | MetaValue.Text bytes => (if ((size bytes) <? (limit + 1)) then (ctor Option.some [(List Nat)] bytes) else (ctor Option.none [(List Nat)]))
+      | MetaValue.Other => (ctor Option.none [(List Nat)]))
+    | Lookup.Many => (ctor Option.none [(List Nat)]))
+}
+
+definition{
+  name: tracestateOf,
+  parameters: [parent : Parent, found : Lookup],
+  result: (Option (List Nat)),
+  body: (match parent
+    | Parent.Absent => (ctor Option.none [(List Nat)])
+    | Parent.Valid header => (carried 512 found)
+    | Parent.Invalid fault => (ctor Option.none [(List Nat)]))
+}
+
+definition{
+  name: extract,
+  parameters: [meta : (List MetaEntry)],
+  result: Extraction,
+  body: (record Extraction {parent := (parentOf (lookup "traceparent" meta)), tracestate := (tracestateOf (parentOf (lookup "traceparent" meta)) (lookup "tracestate" meta)), baggage := (carried 8192 (lookup "baggage" meta))})
+}
+
+definition{
+  name: restarts,
+  parameters: [parent : Parent],
+  result: Bool,
+  body: (match parent
+    | Parent.Absent => true
+    | Parent.Valid header => false
+    | Parent.Invalid fault => true)
+}
+
+definition{
+  name: isCarried,
+  parameters: [value : (Option (List Nat))],
+  result: Bool,
+  body: (match value | Option.none => false | Option.some bytes => true)
+}
+
+definition{
+  name: optionSize,
+  parameters: [value : (Option (List Nat))],
+  result: (List Nat),
+  body: (match value
+    | Option.none => (cons 0 (nil Nat))
+    | Option.some bytes => (cons 1 (cons (size bytes) (nil Nat))))
+}
+
+definition{
+  name: app,
+  parameters: [xs : (List Nat), ys : (List Nat)],
+  result: (List Nat),
+  body: (match xs | List.nil => ys | List.cons head rest => (cons head (app rest ys))),
+  recursive_argument: xs
+}
+
+definition{
+  name: summary,
+  parameters: [extraction : Extraction],
+  result: (List Nat),
+  body: (app (headerFields (project extraction parent)) (app (optionSize (project extraction tracestate)) (optionSize (project extraction baggage))))
+}
+
+definition{
+  name: replicate,
+  parameters: [count : Nat, code : Nat],
+  result: (List Nat),
+  body: (match count
+    | Nat.zero => (nil Nat)
+    | Nat.succ previous => (cons code (replicate previous code))),
+  recursive_argument: count
+}
+
+theorem{
+  name: tracestateNeedsAValidTraceparent,
+  parameters: [parent : Parent, found : Lookup],
+  statement: (((restarts parent) && (isCarried (tracestateOf parent found))) = false),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Absent},
+      {proof: reflexivity{}, binders: [header], constructor: Valid},
+      {proof: reflexivity{}, binders: [fault], constructor: Invalid}
+    ],
+    scrutinee: parent
+  }
+}
+
+definition{
+  name: observabilityHolds,
+  parameters: [],
+  result: Bool,
+  body: ((noRepeat (sliNames (sliDefs))) && ((unitsAgree (sliDefs) (OwnerValues::sloRecords)) && ((prim equal (notificationMethod (emittedNotification (ctor Emitted.Progress))) "notifications/progress" : Bool) && (restarts (parentOf (ctor Lookup.Missing))))))
+}
+
+theorem{
+  name: observabilityIsDefined,
+  parameters: [],
+  statement: ((observabilityHolds) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorW3cSampled,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 0 (cons 100985939111033328018442752961257817910 (cons 67667974448284343 (cons 1 (nil Nat)))))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorW3cNotSampled,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 48 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 0 (cons 100985939111033328018442752961257817910 (cons 67667974448284343 (cons 0 (nil Nat)))))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorZeroTraceId,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 48 (cons 45 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 105 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorZeroParentId,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 106 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorUpperCaseHex,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 48 (cons 45 (cons 52 (cons 66 (cons 70 (cons 57 (cons 50 (cons 70 (cons 51 (cons 53 (cons 55 (cons 55 (cons 66 (cons 51 (cons 52 (cons 68 (cons 65 (cons 54 (cons 65 (cons 51 (cons 67 (cons 69 (cons 57 (cons 50 (cons 57 (cons 68 (cons 48 (cons 69 (cons 48 (cons 69 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 103 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorForbiddenVersion,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 102 (cons 102 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 104 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorVersionZeroExtraField,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (cons 45 (cons 101 (cons 120 (cons 116 (cons 114 (cons 97 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 101 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorFutureVersionExtraField,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 49 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (cons 45 (cons 101 (cons 120 (cons 116 (cons 114 (cons 97 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 1 (cons 100985939111033328018442752961257817910 (cons 67667974448284343 (cons 1 (nil Nat)))))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorFutureVersionNoDash,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 49 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (cons 120 (nil Nat))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 102 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorTooShort,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (nil Nat))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 101 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorBadSeparator,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 48 (cons 95 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 102 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorNonHex,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 103 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))) = (cons 103 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorEmpty,
+  parameters: [],
+  statement: ((headerFields (parseTraceparent (nil Nat))) = (cons 101 (nil Nat))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractAbsent,
+  parameters: [],
+  statement: ((summary (extract (nil MetaEntry))) = (cons 100 (cons 0 (cons 0 (nil Nat))))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractPresent,
+  parameters: [],
+  statement: ((summary (extract (cons (record MetaEntry {key := "traceparent", value := (ctor MetaValue.Text (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))}) (cons (record MetaEntry {key := "tracestate", value := (ctor MetaValue.Text (cons 99 (cons 111 (cons 110 (cons 103 (cons 111 (cons 61 (cons 116 (cons 54 (cons 49 (cons 114 (cons 99 (cons 87 (cons 107 (cons 103 (cons 77 (cons 122 (cons 69 (nil Nat)))))))))))))))))))}) (cons (record MetaEntry {key := "baggage", value := (ctor MetaValue.Text (cons 117 (cons 115 (cons 101 (cons 114 (cons 73 (cons 100 (cons 61 (cons 97 (cons 108 (cons 105 (cons 99 (cons 101 (nil Nat))))))))))))))}) (nil MetaEntry)))))) = (cons 0 (cons 100985939111033328018442752961257817910 (cons 67667974448284343 (cons 1 (cons 1 (cons 17 (cons 1 (cons 12 (nil Nat)))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractInvalidDropsTracestate,
+  parameters: [],
+  statement: ((summary (extract (cons (record MetaEntry {key := "traceparent", value := (ctor MetaValue.Text (cons 48 (cons 48 (cons 45 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 48 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))}) (cons (record MetaEntry {key := "tracestate", value := (ctor MetaValue.Text (cons 99 (cons 111 (cons 110 (cons 103 (cons 111 (cons 61 (cons 116 (cons 54 (cons 49 (cons 114 (cons 99 (cons 87 (cons 107 (cons 103 (cons 77 (cons 122 (cons 69 (nil Nat)))))))))))))))))))}) (nil MetaEntry))))) = (cons 105 (cons 0 (cons 0 (nil Nat))))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractDuplicateTraceparent,
+  parameters: [],
+  statement: ((summary (extract (cons (record MetaEntry {key := "traceparent", value := (ctor MetaValue.Text (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))}) (cons (record MetaEntry {key := "traceparent", value := (ctor MetaValue.Text (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))}) (nil MetaEntry))))) = (cons 107 (cons 0 (cons 0 (nil Nat))))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractNonTextTraceparent,
+  parameters: [],
+  statement: ((summary (extract (cons (record MetaEntry {key := "traceparent", value := (ctor MetaValue.Other)}) (nil MetaEntry)))) = (cons 108 (cons 0 (cons 0 (nil Nat))))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractBaggageWithoutTraceparent,
+  parameters: [],
+  statement: ((summary (extract (cons (record MetaEntry {key := "baggage", value := (ctor MetaValue.Text (cons 117 (cons 115 (cons 101 (cons 114 (cons 73 (cons 100 (cons 61 (cons 97 (cons 108 (cons 105 (cons 99 (cons 101 (nil Nat))))))))))))))}) (nil MetaEntry)))) = (cons 100 (cons 0 (cons 1 (cons 12 (nil Nat)))))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractTracestateAtTheLimit,
+  parameters: [],
+  statement: ((summary (extract (cons (record MetaEntry {key := "traceparent", value := (ctor MetaValue.Text (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))}) (cons (record MetaEntry {key := "tracestate", value := (ctor MetaValue.Text (replicate 512 97))}) (nil MetaEntry))))) = (cons 0 (cons 100985939111033328018442752961257817910 (cons 67667974448284343 (cons 1 (cons 1 (cons 512 (cons 0 (nil Nat))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractTracestatePastTheLimit,
+  parameters: [],
+  statement: ((summary (extract (cons (record MetaEntry {key := "traceparent", value := (ctor MetaValue.Text (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))}) (cons (record MetaEntry {key := "tracestate", value := (ctor MetaValue.Text (replicate 513 97))}) (nil MetaEntry))))) = (cons 0 (cons 100985939111033328018442752961257817910 (cons 67667974448284343 (cons 1 (cons 0 (cons 0 (nil Nat)))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractBaggageAtTheLimit,
+  parameters: [],
+  statement: ((summary (extract (cons (record MetaEntry {key := "baggage", value := (ctor MetaValue.Text (replicate 8192 97))}) (nil MetaEntry)))) = (cons 100 (cons 0 (cons 1 (cons 8192 (nil Nat)))))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractBaggagePastTheLimit,
+  parameters: [],
+  statement: ((summary (extract (cons (record MetaEntry {key := "baggage", value := (ctor MetaValue.Text (replicate 8193 97))}) (nil MetaEntry)))) = (cons 100 (cons 0 (cons 0 (nil Nat))))),
+  proof: decide{}
+}
+
+theorem{
+  name: extractOtherKeysAreIgnored,
+  parameters: [],
+  statement: ((summary (extract (cons (record MetaEntry {key := "progressToken", value := (ctor MetaValue.Text (cons 97 (cons 98 (cons 99 (nil Nat)))))}) (cons (record MetaEntry {key := "traceparent", value := (ctor MetaValue.Text (cons 48 (cons 48 (cons 45 (cons 52 (cons 98 (cons 102 (cons 57 (cons 50 (cons 102 (cons 51 (cons 53 (cons 55 (cons 55 (cons 98 (cons 51 (cons 52 (cons 100 (cons 97 (cons 54 (cons 97 (cons 51 (cons 99 (cons 101 (cons 57 (cons 50 (cons 57 (cons 100 (cons 48 (cons 101 (cons 48 (cons 101 (cons 52 (cons 55 (cons 51 (cons 54 (cons 45 (cons 48 (cons 48 (cons 102 (cons 48 (cons 54 (cons 55 (cons 97 (cons 97 (cons 48 (cons 98 (cons 97 (cons 57 (cons 48 (cons 50 (cons 98 (cons 55 (cons 45 (cons 48 (cons 49 (nil Nat)))))))))))))))))))))))))))))))))))))))))))))))))))))))))}) (nil MetaEntry))))) = (cons 0 (cons 100985939111033328018442752961257817910 (cons 67667974448284343 (cons 1 (cons 0 (cons 0 (nil Nat)))))))),
+  proof: decide{}
+}
+\end{semanticmodule}
+\end{lexlean}
