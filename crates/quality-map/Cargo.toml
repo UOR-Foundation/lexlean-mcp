@@ -1,0 +1,19 @@
+[package]
+name = "quality-map"
+description = "The executable measures of Q2 (the API-to-tool map) and Q8 (every diagnostic code explained) of issue #15, pinned against LexLean at the repository's revision. Dev and CI only; never a dependency of a shipped crate."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+negative-fixtures = { path = "../negative-fixtures", version = "0.1.0" }
+serde = { version = "1", features = ["derive"] }
+toml = "1.1"
+
+[dev-dependencies]
+repo-model = { workspace = true }
+
+[lints]
+workspace = true
