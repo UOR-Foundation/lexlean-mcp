@@ -98,27 +98,17 @@ DESCRIPTION = (
 
 # LexLean lowers a byte literal to an array with one nested `let` per repeated byte value, and
 # Lean stops at its recursion depth when such a literal sits inside the nested records and lists
-# of the application. So every literal is a definition of its own, no longer than CHUNK bytes,
-# and a longer value is the append of its chunks.
-CHUNK = 256
-BYTES = "Foundation.Bytes"
+# of the application. So every distinct literal is a definition of its own with no parameter
+# (PrismPM reads a closed call of such a definition as an alias of its body, and nothing else
+# as a value, so a literal is never an append of pieces).
 LITERALS: dict = {}
 
 
 def hexed(value: bytes) -> str:
     """A reference to the definition that holds `value` (made once per distinct value)."""
-    if value in LITERALS:
-        return f"({LITERALS[value][0]})"
-    if len(value) <= CHUNK:
-        body = "0x" + value.hex()
-    else:
-        refs = [hexed(value[i:i + CHUNK]) for i in range(0, len(value), CHUNK)]
-        body = refs[-1]
-        for ref in reversed(refs[:-1]):
-            body = f"({BYTES}::appendBytes {ref} {body})"
-    name = f"bytes{len(LITERALS):03d}"
-    LITERALS[value] = (name, body)
-    return f"({name})"
+    if value not in LITERALS:
+        LITERALS[value] = (f"bytes{len(LITERALS):03d}", "0x" + value.hex())
+    return f"({LITERALS[value][0]})"
 
 
 def text(value: str) -> str:
