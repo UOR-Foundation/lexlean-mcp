@@ -13,6 +13,7 @@ members = [
     "gateway-host-api",
     "gateway-host",
     "bindings/gateway-binding",
+    "vectors/runner",
 ]
 
 [profile.release]

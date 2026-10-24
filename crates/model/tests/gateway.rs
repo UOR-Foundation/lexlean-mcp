@@ -715,6 +715,15 @@ fn the_gateway_builds_from_the_pins_without_a_published_crate_gw_09() {
         .into_iter()
         .filter(|f| f.file_name().is_some_and(|n| n == "Cargo.toml"))
         .filter(|f| !f.to_string_lossy().contains("/generated/"))
+        // The packages `prismpm build` generates and `gateway/lay-out.sh` lays out, and the
+        // registry, are not committed (gateway/.gitignore): the manifests here are the
+        // repository's own.
+        .filter(|f| {
+            let path = f.to_string_lossy();
+            !["/gateway/gateway-host/", "/gateway/gateway-host-api/", "/gateway/lexlean_mcp_gateway_core/", "/gateway/registry/"]
+                .iter()
+                .any(|laid| path.contains(laid))
+        })
         .collect();
     assert!(!manifests.is_empty(), "the gateway workspace has manifests");
     for manifest in manifests {

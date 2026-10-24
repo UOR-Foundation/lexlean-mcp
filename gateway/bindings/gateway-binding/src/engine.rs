@@ -82,8 +82,30 @@ fn answered(error: LexLeanError) -> Result<Answer, Unavailable> {
     })
 }
 
-/// Make `call` on the project in `directory`.
+/// The largest result of a call, in bytes: the declaration's `resultMaximum` of the four
+/// Engine effects leaves room for it and the three words around it.
+pub const RESULT_MAXIMUM: usize = 4_194_304;
+
+/// Make `call` on the project in `directory`. A result over `RESULT_MAXIMUM` is the answer
+/// of class 4 (limit) that says so, so it never exceeds what the effect declares.
 pub fn run(
+    directory: &Path,
+    selection: Result<Selection, String>,
+    call: Call,
+) -> Result<Answer, Unavailable> {
+    let answer = make(directory, selection, call)?;
+    if answer.result.len() <= RESULT_MAXIMUM {
+        return Ok(answer);
+    }
+    Ok(Answer {
+        class: 4,
+        result: document(&json!({"diagnostics": [{
+            "message": format!("the result is {} bytes, over the limit of {RESULT_MAXIMUM}", answer.result.len())
+        }]})),
+    })
+}
+
+fn make(
     directory: &Path,
     selection: Result<Selection, String>,
     call: Call,

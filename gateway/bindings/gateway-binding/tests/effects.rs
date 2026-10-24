@@ -450,9 +450,10 @@ fn engine_format_checks_without_writing() {
     let mut untidy = std::fs::read_to_string(&drafts).expect("a file");
     untidy.push_str("\n\n\n");
     std::fs::write(&drafts, &untidy).expect("a file");
+    // A module that is not canonical is a language error of a check: class 1 and the diagnostic.
     let (class, document) = format(&mut host, "tiny", true).expect("format");
-    assert_eq!(class, 0);
-    assert_eq!(document["canonical"]["Tiny"], false);
+    assert_eq!(class, 1, "{document}");
+    assert!(document["diagnostics"][0]["code"].as_str().is_some_and(|code| code.starts_with("LL")));
     assert_eq!(std::fs::read_to_string(&drafts).expect("a file"), untidy, "check_only writes nothing");
 }
 
