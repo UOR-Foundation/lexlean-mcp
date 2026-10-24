@@ -27,6 +27,8 @@
 # reproduce the pinned LexLean (its public API and its diagnostic registry) and six that are checked here.
 # The features F1 to F13 and journeys J1 to J6 of issue #18 register FJ-01..FJ-10: the
 # model-side slice, whose rules prismpm check cannot yet run on the bound SDK image.
+# The observability model of issue #16 registers OB-01..OB-10: three rows that reproduce
+# LexLean, MCP and W3C facts and seven that are checked here.
 
 spec = "template/1"
 
@@ -377,3 +379,63 @@ id = "FJ-10"
 level = "build"
 suite = "features"
 statement = "FEATURES.md states one row for each of F1 to F13 and J1 to J6, in order, and every row names where it comes from: an issue of this repository, or needs owner when no issue states it."
+
+[[id]]
+id = "OB-01"
+level = "some-true"
+suite = "observability"
+statement = "LexLean release/v0.4 at 9796067 maps the five variants of ErrorClass, Language, CliOrConfiguration, Environment, SecurityOrLimit and Internal, to the CLI exit codes 1, 2, 3, 4 and 70 (SPEC 24.5 and 23.6), so that the classes 2, 3 and 70 of issue #16 are CliOrConfiguration, Environment and Internal."
+
+[[id]]
+id = "OB-02"
+level = "some-true"
+suite = "observability"
+statement = "The ServerNotification union of the MCP schema 2026-07-28 has eight methods: notifications/cancelled, notifications/progress, notifications/resources/list_changed, notifications/subscriptions/acknowledged, notifications/resources/updated, notifications/prompts/list_changed, notifications/tools/list_changed and notifications/message, the last being the log message a client opts into through the io.modelcontextprotocol/logLevel key of a request's _meta."
+
+[[id]]
+id = "OB-03"
+level = "some-true"
+suite = "observability"
+statement = "W3C Trace Context Level 1 defines traceparent as a two-digit version, a 32-digit trace-id, a 16-digit parent-id and a two-digit trace-flags in lowercase hexadecimal joined by hyphens, forbids version ff and an all-zero trace-id or parent-id, tells a vendor that fails to parse traceparent to ignore it and not to attempt tracestate, and lets a vendor parse a higher version from its first 55 characters; W3C Baggage requires a platform to propagate a baggage-string of at most 64 list-members and 8192 bytes."
+
+[[id]]
+id = "OB-04"
+level = "build"
+suite = "observability"
+statement = "A telemetry record holds no module text and no lexicon search query, by its types: the free-text fields of the log record and the span record, the log body, the tool arguments, the search query and the status text, have the type Redacted, whose only value is Withheld, and the kernel checks that Redacted has one value, that redaction ignores its text, and that for every input the record built from it is the same record whatever text its free-text fields carry."
+
+[[id]]
+id = "OB-05"
+level = "build"
+suite = "observability"
+statement = "The service level indicators are data: one definition for each of S1 to S8 of src/OwnerValues.lex.tex, in the same order and with the same unit, with a distinct metric name and a label set drawn from the ErrorClass, the protocol error code, the outcome and the profile; they are the seven indicators of issue #16 and the signing failure count its alert on signing failures needs."
+
+[[id]]
+id = "OB-06"
+level = "build"
+suite = "observability"
+statement = "The alert predicates are total functions of a metric sample whose thresholds are read from the S-values of src/OwnerValues.lex.tex: the alerts on class 2, class 3 and class 70 tool outcomes, on a failed child group end, on a profile drift and on a signing failure each fire on a sample one above the threshold and stay silent on a healthy sample, and the classes 1 and 4 and the ended and already-gone group ends never alert."
+
+[[id]]
+id = "OB-07"
+level = "build"
+suite = "observability"
+statement = "The traceparent parser gives, for the examples of W3C Trace Context and for each rule of OB-03, the fields of the header or the typed fault that refuses it: length, separator, digit, forbidden version, zero trace-id and zero parent-id, and it accepts a higher version whose extra fields follow a hyphen and refuses a version 00 header that is longer than 55 characters."
+
+[[id]]
+id = "OB-08"
+level = "build"
+suite = "observability"
+statement = "Trace context extraction is a total function of the _meta entries of a request: it gives the parsed traceparent or its typed fault, drops tracestate when the traceparent is absent or refused, carries baggage independently of the traceparent, carries tracestate up to 512 and baggage up to 8192 bytes and drops what is longer, refuses a traceparent that occurs twice or is not text, and ignores every other key."
+
+[[id]]
+id = "OB-09"
+level = "build"
+suite = "observability"
+statement = "The server notifications this product can emit are a closed set, the type Emitted with the one constructor Progress, and the kernel checks that no emitted notification is notifications/message and that the emitted methods are notifications/progress alone."
+
+[[id]]
+id = "OB-10"
+level = "build"
+suite = "observability"
+statement = "Each theorem of src/Observability.lex.tex that carries a claim rejects its planted defect under lexlean verify: a free-text field kept without redaction, an alert threshold off by one, a malformed traceparent accepted, a tracestate kept after a refused traceparent, and notifications/message added to the emitted set; OBSERVABILITY.md records the command, the diagnostic and the restore of each."
