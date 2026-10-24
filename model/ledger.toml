@@ -25,4 +25,8 @@ claim = [
   { id = "AUTH-05", level = "some-true", statement = "unicode-normalization 0.1.25 implements Unicode 17.0.0, and LexLean release/v0.4 at 9796067 pins it.", authority = "A-UNICODE-NORMALIZATION" },
   { id = "AUTH-07", level = "some-true", statement = "LexLean release/v0.4 at 9796067 holds 297 fixtures in tests/negative, the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864.", authority = "A-LEXLEAN-NEGATIVE" },
   { id = "AUTH-08", level = "some-true", statement = "The expected/command.json of each of those fixtures is the canonical command result the LexLean CLI of that commit gives for the project of the fixture.", authority = "A-LEXLEAN-NEGATIVE" },
+  { id = "AUTH-09", level = "some-true", statement = "LexLean release/v0.4 at 9796067 defines ErrorClass with the variants Language, CliOrConfiguration, Environment, SecurityOrLimit and Internal, which map exactly to the CLI exit codes 1, 2, 3, 4 and 70.", authority = "A-LEXLEAN-SPEC" },
+  { id = "AUTH-10", level = "some-true", statement = "The MCP schema 2026-07-28 lists eight server notifications, including notifications/message.", authority = "A-MCP-SCHEMA-2026-07-28" },
+  { id = "AUTH-11", level = "some-true", statement = "W3C Trace Context Level 1 gives the grammar and the validity rules of traceparent and the rule that tracestate is not parsed after a traceparent that fails to parse.", authority = "A-W3C-TRACE-CONTEXT" },
+  { id = "AUTH-12", level = "some-true", statement = "W3C Baggage gives the minimum limits of 64 list-members and 8192 bytes.", authority = "A-W3C-BAGGAGE" },
 ]
