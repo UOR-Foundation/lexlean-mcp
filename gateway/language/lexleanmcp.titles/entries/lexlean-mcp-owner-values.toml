@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-owner-values"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "OwnerValues"
+component = "ownerValuesBound"
+
+[[form]]
+id = "lexlean-mcp-owner-values"
+channel = "text"
+surface = "LexLean MCP owner-set values"
+canonical_source = true
+features = ["sentence-case", "singular"]

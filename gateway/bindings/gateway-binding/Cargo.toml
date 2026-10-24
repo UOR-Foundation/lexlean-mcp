@@ -1,0 +1,19 @@
+[package]
+name = "gateway-binding"
+description = "The host of the LexLean MCP gateway: the store, the Engine, the verifier, the lexicon and the attestations, as the ten effects of src/Effects.lex.tex."
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+gateway-host-api = { path = "../../gateway-host-api" }
+lexlean = "0.3.0"
+serde_json = "1"
+camino = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints.rust]
+missing_docs = "deny"

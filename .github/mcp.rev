@@ -1,0 +1,14 @@
+# The UOR-Foundation/MCP commit whose LexLean sources the gateway is built over, and
+# the only place it is written (AGENTS.md R1). gateway/lay-out-mcp.sh lays out `src` and
+# `language/mcp.core` of exactly this commit under gateway/mcp and gateway/language, and
+# refuses any other. The gateway holds one production root over those modules and its
+# tool layer (issue #7); it links no MCP crate.
+#
+# Development imports upstream commits; a release pins only upstream releases. This pin
+# moves to the MCP release tag before lexlean-mcp v0.1.0.
+#
+# Currently: UOR-Foundation/MCP PR #40 (provider host effects as typed outcomes, MCP#39) at
+# ee919cb, which merges main with the input-required results (MCP#30). The gateway needs the
+# hook: `StepServe.serveStep` and `Refusal.ProviderRefusal.effectRequested`. The pin follows
+# that branch until it is merged, then moves to the merge commit and later to the release tag.
+rev = ee919cb2534124ed8e1f91439086b7b0f516a4e5

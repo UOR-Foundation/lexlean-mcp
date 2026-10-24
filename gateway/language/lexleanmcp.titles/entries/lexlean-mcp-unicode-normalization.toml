@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-unicode-normalization"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Nfc"
+component = "isNfc"
+
+[[form]]
+id = "lexlean-mcp-unicode-normalization"
+channel = "text"
+surface = "LexLean MCP Unicode normalization"
+canonical_source = true
+features = ["sentence-case", "singular"]
