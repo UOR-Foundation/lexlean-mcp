@@ -363,33 +363,6 @@ gateway_registry() {
   rm -f "$log"
 }
 
-# build_gateway: `prismpm build` of the gateway server application, then the three
-# generated packages laid beside the binding crate (gateway/lay-out.sh). The build id is
-# the step output `build`.
-build_gateway() {
-  local id
-  (cd gateway && prismpm build) | tee "${RUNNER_TEMP:?}/prismpm-build.log"
-  id=$(sed -n 's/^build published: \([0-9a-f]\{64\}\)$/\1/p' "$RUNNER_TEMP/prismpm-build.log" | tail -n 1)
-  if [[ -z $id ]]; then
-    echo "prismpm build did not print 'build published: <id>'" >&2
-    return 1
-  fi
-  echo "build=$id" >>"${GITHUB_OUTPUT:-/dev/null}"
-  bash gateway/lay-out.sh "gateway/.prism/build/$id"
-}
-
-# gateway_core_is_committed: the core package `prismpm build` generated is the committed
-# export of the sources: every file equal, none missing, none extra.
-gateway_core_is_committed() {
-  diff -r gateway/generated/lexlean_mcp_gateway_core gateway/lexlean_mcp_gateway_core
-}
-
-# gateway_vectors_are_generated: gateway/src/Application.lex.tex is what the generator
-# writes from gateway/vectors/exchanges.json and the committed core.
-gateway_vectors_are_generated() {
-  python3 gateway/vectors/generate.py --check
-}
-
 # ---- the gateway job -----------------------------------------------------------------
 # gateway/ is its own Cargo workspace, built against the registry that gateway/registry.sh
 # assembles from the pins (CI.md, "The gateway job"). Every function below runs from the

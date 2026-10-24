@@ -34,9 +34,9 @@ fn strings(body: &str) -> Vec<String> {
         .collect()
 }
 
-/// The body of the definition `name` of a module, without its braces.
+/// The body of the definition `name` of a module (read through `tight`), without its braces.
 fn definition_body(source: &str, name: &str) -> String {
-    let marker = format!("definition{{name: {name}, ");
+    let marker = format!("definition{{ name: {name}, ");
     let at = source
         .find(&marker)
         .unwrap_or_else(|| panic!("no definition {name}"));
@@ -44,10 +44,21 @@ fn definition_body(source: &str, name: &str) -> String {
     let (_, rest) = chunk
         .split_once(", body: ")
         .unwrap_or_else(|| panic!("definition {name} has no body"));
-    rest.split(", recursive_argument: ")
-        .next()
-        .expect("a body")
-        .to_string()
+    let end = [
+        ", recursive_argument: ",
+        ", axioms: ",
+        ", executable: ",
+        " } definition{",
+        " } structure{",
+        " } inductive{",
+        " } theorem{",
+        " } \\end{semanticmodule}",
+    ]
+    .iter()
+    .filter_map(|terminator| rest.find(terminator))
+    .min()
+    .unwrap_or(rest.len());
+    rest[..end].to_string()
 }
 
 /// `effectName` of the model: the wire names, in the order of the constructors.
@@ -97,7 +108,7 @@ fn fields(text: &str) -> Vec<(String, String)> {
 
 fn number_after(text: &str, key: &str) -> u64 {
     let (_, rest) = text.split_once(key).unwrap_or_else(|| panic!("no {key}"));
-    rest.trim_start_matches(" (")
+    rest.trim_start_matches([' ', '('])
         .chars()
         .take_while(char::is_ascii_digit)
         .collect::<String>()
@@ -168,6 +179,7 @@ fn table(document: &str, heading: &str) -> Vec<Vec<String>> {
 
 fn list(cell: &str) -> Vec<String> {
     cell.split(", ")
+        .map(|part| part.trim().trim_matches('`'))
         .filter(|part| !part.is_empty() && *part != "none")
         .map(str::to_string)
         .collect()
@@ -316,7 +328,7 @@ fn the_core_is_one_production_root_over_mcp_and_the_tool_layer_gw_03() {
     );
     let source = tight(&read("gateway/src/Gateway.lex.tex"));
     let root = source
-        .split("definition{name: gatewayRun, ")
+        .split("definition{ name: gatewayRun, ")
         .nth(1)
         .expect("Gateway declares gatewayRun");
     let root = root
@@ -336,8 +348,9 @@ fn the_core_is_one_production_root_over_mcp_and_the_tool_layer_gw_03() {
         "the root declares the allocation and overflow effects and no recursion"
     );
     assert!(
-        source.contains("\\importmodule{Serve}") && source.contains("\\importmodule{Extension}"),
-        "the root is built over MCP's Serve and Extension"
+        source.contains("\\importmodule{StepServe}")
+            && source.contains("\\importmodule{Extension}"),
+        "the root is built over MCP's StepServe (the MCP#39 hook) and Extension"
     );
     let application = application();
     assert!(
@@ -664,7 +677,13 @@ fn the_binding_implements_each_effect_and_tests_each_failure_gw_07() {
 /// GW-08: the gateway job builds, compares the core and verifies; the defects are recorded.
 #[test]
 fn the_gateway_job_builds_and_verifies_and_the_defects_are_recorded_gw_08() {
-    let workflow = read(".github/workflows/lexlean.yml");
+    // The steps are in the workflow; the build and the comparison of the core are functions
+    // of the library the workflow sources (`gateway_build`), so both files are read.
+    let workflow = format!(
+        "{}\n{}",
+        read(".github/workflows/lexlean.yml"),
+        read(".github/lexlean-ci/lib.sh")
+    );
     for step in [
         "prismpm build",
         "prismpm verify",
