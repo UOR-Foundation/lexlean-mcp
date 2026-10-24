@@ -111,6 +111,20 @@ model does not sanction.
 | `OV-02` | `build` | OWNER-VALUES.md and the model state the same value for every owner-set value, in both directions: every row of the proposal table is bound in the model with the same value, every value the model binds has a row, and every row names its evidence, its decider, its status and what changes if it moves. |
 | `OV-03` | `build` | Each bound value respects the constraint it follows from: draft.max_bytes and draft.max_files hold the largest example and stay within the limits of lexlean.toml, verify.concurrency times verify.memory_kib fits a 16 GiB host, verify.width is within the range of LexLean SPEC 22.11, listen.port is a registered-range port below the ephemeral range, and the product version equals the workspace package version. |
 
+## profiles
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `PF-01` | `build` | The profile identity is Identity.profileId over the profile files and the domain tag is the issue's: the 22 octets of the tag lexlean-mcp-profile-v1 are the profile domain that Identity frames first, and the identity of a project is the SHA-256 of the framed domain, the sorted (path, bytes) rows of the files outside the source roots, the review records and the toolchain. |
+| `PF-02` | `build` | A path is under a source root exactly when it is the root, one separator and more: roots match whole components, so src/Main.lex.tex and src/deep/Other.lex.tex are under the root src, while srcs/Main.lex.tex, the path src itself and lexlean.toml are not. |
+| `PF-03` | `build` | Changing the bytes of any profile file, one of lexlean.toml, lexlean.lock, a file of a local lexicon package or an artifact_source file, renaming a profile file, adding one and removing one each give another profile ID, as do a file under a directory that only looks like a source root and a file named like the root. |
+| `PF-04` | `build` | A file under a source root is not a profile file: the profile file set drops it, and for every other file list, review list and toolchain the profile ID with that file equals the profile ID without it. |
+| `PF-05` | `build` | The order of the rows does not change the profile ID: four reorderings of the four profile files, one of them with a source file added, give the ID of the original order, and a repeated path is refused with DuplicatePath. |
+| `PF-06` | `build` | A profile has one language: a package of the profile's language is admitted and a package of another language is refused with LLC0103, for each of the nine pairs of the languages 1.0, 1.1 and 1.2 that the owner values admit; the first refusal of a package list is the answer, and the code is the one the pinned LexLean returns for a lexicon whose language does not match the project's. |
+| `PF-07` | `some-true` | The Atlas lexicon lexlean.uor.atlas@1.0.0 of the pinned LexLean is language 1.0 and holds 293 entry files with distinct ids, each a document denotation into the module Atlas, and the project examples/uor-atlas holds 86 source modules, all core modules, 80 at the top and 6 under Prelude, that include the module Atlas; the model's package, version, language, counts, entry ids and module names equal that copy. |
+| `PF-08` | `build` | An Atlas profile serves all 293 entries: every entry denotes the module Atlas, the module Atlas is among the 86 modules of the profile, and the number of served entries is 293; without the module Atlas no entry is served, an entry into a module the profile lacks is not served, and the owner values give the uor-atlas profile the language 1.0, so a package of language 1.2 is refused with LLC0103. |
+| `PF-09` | `build` | Each law of the profile model rejects its planted defect: a root that matches a prefix instead of a whole component, a profile file set that keeps source files, a serve check that counts an entry into a missing module and a language rule that admits another language each fail lexlean verify; PROFILES.md records the command, the diagnostic and the restore of each. |
+
 ## quality
 
 | ID | Level | Statement |
@@ -164,6 +178,7 @@ Never re-derived, vendored, or gated on.
 | `A-MCP-SCHEMA-2026-07-28` | The JSON schema of the MCP revision 2026-07-28, schema/2026-07-28/schema.json of the specification commit 80041ab0a139a8f4fb3adbc99f7ae9113ea59671, as vendored in UOR-Foundation/MCP at crates/lifecycle-oracle/suite/mcp-spec-80041ab0a139a8f4fb3adbc99f7ae9113ea59671/schema/2026-07-28/schema.json (UOR-Foundation/MCP main at 5d24dbc47c0ad51ab3091204c708f661562de5d0). | `OB-02` |
 | `A-W3C-TRACE-CONTEXT` | W3C Recommendation 23 November 2021, https://www.w3.org/TR/2021/REC-trace-context-1-20211123/: sections 3.2.2 to 3.2.4 (traceparent), 3.3 (tracestate) and 4.3 (processing model). | `OB-03` |
 | `A-W3C-BAGGAGE` | W3C Candidate Recommendation Snapshot 30 May 2024, https://www.w3.org/TR/baggage/ (CR-baggage-20240530): section 3.3.2 (limits) and section 5 (privacy considerations). | `OB-03` |
+| `A-LEXLEAN-ATLAS` | UOR-Foundation/LexLean at commit 97960679736e960e84a98f5c43981e1f2c70d6d7 (release/v0.4 at 9796067, the revision .github/lexlean.rev pins): the lexicon package language/uor/atlas (lexicon.toml, git blob 06a6fd06742185f8292377fea7c9ec86b6e71a76, and the 293 files of entries, git tree of language/uor/atlas 0f3b5a884831c378723d1e890c890a0821f4c45f) and the project examples/uor-atlas, whose README states 86 modules, 80 Atlas modules and 6 under Prelude/ (src git tree 3c4ef471b81bbf3aacc2eb0f2eed311b82faeab8). The committed copies under crates/model/tests/atlas are lexicon.toml, byte-identical to the file at that commit, and entries.tsv and modules.txt, extracts read from the entry files and the module headers; crates/model/tests/atlas/README.md records how the copy was made. | `PF-07` |
 
 ## Claims that are not conformance IDs
 
@@ -184,3 +199,4 @@ Never re-derived, vendored, or gated on.
 | `AUTH-13` | `some-true` | The MCP schema 2026-07-28 lists eight server notifications, including notifications/message. |
 | `AUTH-14` | `some-true` | W3C Trace Context Level 1 gives the grammar and the validity rules of traceparent and the rule that tracestate is not parsed after a traceparent that fails to parse. |
 | `AUTH-15` | `some-true` | W3C Baggage gives the minimum limits of 64 list-members and 8192 bytes. |
+| `AUTH-16` | `some-true` | The lexicon lexlean.uor.atlas@1.0.0 of LexLean release/v0.4 at 9796067 is language 1.0 with 293 entries that are document denotations into the module Atlas, and examples/uor-atlas holds 86 core modules. |

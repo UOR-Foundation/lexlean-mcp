@@ -31,6 +31,8 @@
 # model-side slice, whose rules prismpm check cannot yet run on the bound SDK image.
 # The observability model of issue #16 registers OB-01..OB-10: three rows that reproduce
 # LexLean, MCP and W3C facts and seven that are checked here.
+# The model-side slice of the profiles and vocabulary of issue #8 (profile identity, language rule,
+# Atlas profile) registers PF-01..PF-09: one row that reproduces the pinned LexLean and eight that are checked here.
 
 spec = "template/1"
 
@@ -489,3 +491,57 @@ id = "OB-10"
 level = "build"
 suite = "observability"
 statement = "Each theorem of src/Observability.lex.tex that carries a claim rejects its planted defect under lexlean verify: a free-text field kept without redaction, an alert threshold off by one, a malformed traceparent accepted, a tracestate kept after a refused traceparent, and notifications/message added to the emitted set; OBSERVABILITY.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "PF-01"
+level = "build"
+suite = "profiles"
+statement = "The profile identity is Identity.profileId over the profile files and the domain tag is the issue's: the 22 octets of the tag lexlean-mcp-profile-v1 are the profile domain that Identity frames first, and the identity of a project is the SHA-256 of the framed domain, the sorted (path, bytes) rows of the files outside the source roots, the review records and the toolchain."
+
+[[id]]
+id = "PF-02"
+level = "build"
+suite = "profiles"
+statement = "A path is under a source root exactly when it is the root, one separator and more: roots match whole components, so src/Main.lex.tex and src/deep/Other.lex.tex are under the root src, while srcs/Main.lex.tex, the path src itself and lexlean.toml are not."
+
+[[id]]
+id = "PF-03"
+level = "build"
+suite = "profiles"
+statement = "Changing the bytes of any profile file, one of lexlean.toml, lexlean.lock, a file of a local lexicon package or an artifact_source file, renaming a profile file, adding one and removing one each give another profile ID, as do a file under a directory that only looks like a source root and a file named like the root."
+
+[[id]]
+id = "PF-04"
+level = "build"
+suite = "profiles"
+statement = "A file under a source root is not a profile file: the profile file set drops it, and for every other file list, review list and toolchain the profile ID with that file equals the profile ID without it."
+
+[[id]]
+id = "PF-05"
+level = "build"
+suite = "profiles"
+statement = "The order of the rows does not change the profile ID: four reorderings of the four profile files, one of them with a source file added, give the ID of the original order, and a repeated path is refused with DuplicatePath."
+
+[[id]]
+id = "PF-06"
+level = "build"
+suite = "profiles"
+statement = "A profile has one language: a package of the profile's language is admitted and a package of another language is refused with LLC0103, for each of the nine pairs of the languages 1.0, 1.1 and 1.2 that the owner values admit; the first refusal of a package list is the answer, and the code is the one the pinned LexLean returns for a lexicon whose language does not match the project's."
+
+[[id]]
+id = "PF-07"
+level = "some-true"
+suite = "profiles"
+statement = "The Atlas lexicon lexlean.uor.atlas@1.0.0 of the pinned LexLean is language 1.0 and holds 293 entry files with distinct ids, each a document denotation into the module Atlas, and the project examples/uor-atlas holds 86 source modules, all core modules, 80 at the top and 6 under Prelude, that include the module Atlas; the model's package, version, language, counts, entry ids and module names equal that copy."
+
+[[id]]
+id = "PF-08"
+level = "build"
+suite = "profiles"
+statement = "An Atlas profile serves all 293 entries: every entry denotes the module Atlas, the module Atlas is among the 86 modules of the profile, and the number of served entries is 293; without the module Atlas no entry is served, an entry into a module the profile lacks is not served, and the owner values give the uor-atlas profile the language 1.0, so a package of language 1.2 is refused with LLC0103."
+
+[[id]]
+id = "PF-09"
+level = "build"
+suite = "profiles"
+statement = "Each law of the profile model rejects its planted defect: a root that matches a prefix instead of a whole component, a profile file set that keeps source files, a serve check that counts an entry into a missing module and a language rule that admits another language each fail lexlean verify; PROFILES.md records the command, the diagnostic and the restore of each."
