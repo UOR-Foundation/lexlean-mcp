@@ -1,0 +1,60 @@
+# crates/quality-map/sources.toml --- the files of LexLean that Q2 and Q8 are measured against.
+#
+# Written by `cargo run -p quality-map --example import`; every field is
+# recomputed by the tests (QM-01, QM-04) from the vendored bytes.
+
+spec = "lexlean-mcp/quality-sources/1"
+commit = "97960679736e960e84a98f5c43981e1f2c70d6d7"
+
+[[source]]
+path = "ERRORS.md"
+vendored = "ERRORS.md"
+git_blob = "9a995e313f5fb8fcbddda5dc185c229ce13592b5"
+sha256 = "9509989fe5ff0cd3051cfd0bc1add3646daaa77e45d750ddbddd65fbab76ffd7"
+bytes = 17903
+role = "entries"
+
+[[source]]
+path = "crates/lexlean/src/api.rs"
+vendored = "api.rs.txt"
+git_blob = "2fac21e5cd0f18c59947e212ad2dc1626475d925"
+sha256 = "fb51e43fc71db5f2d77e45c13bbd70a6385887bece09d3e1331b0c3452e34168"
+bytes = 59888
+role = "surface"
+module = "api"
+
+[[source]]
+path = "crates/lexlean/src/api/production.rs"
+vendored = "api-production.rs.txt"
+git_blob = "cc8bcefb7d8767811c1a0c6bcb9b2ce1f96c17ad"
+sha256 = "c7a0f3c96813bb87a81c27e673c323b5f81a1338cc807181f17bbf226c2a4000"
+bytes = 87744
+role = "surface"
+module = "api::production"
+
+[[source]]
+path = "crates/lexlean/src/sdk.rs"
+vendored = "sdk.rs.txt"
+git_blob = "55f53e7960062c627b25a79945c5b372584af66f"
+sha256 = "4f04334ca4843783bdbfc2859f86d6bab5badeba6003c261af987b8f2cf76b81"
+bytes = 16213
+role = "surface"
+module = "sdk"
+
+[[source]]
+path = "crates/lexlean/src/verify/lifeline.rs"
+vendored = "verify-lifeline.rs.txt"
+git_blob = "841038b749ca8ec4257498ea1c22e4810078ccc5"
+sha256 = "b3869b5329ffb4ec9eb2206d7ca0a659972a4fdddd44ad37b6eb1a434fee30af"
+bytes = 26260
+role = "surface"
+module = "verify"
+only = ["end_live_children", "allow_children"]
+
+[[source]]
+path = "model/errors.toml"
+vendored = "errors.toml"
+git_blob = "be2aea77a40f28bebdb0d6d168d08f84676e83ce"
+sha256 = "c7a1973958fd48606be368d7edce688727cbf99018bf72a9988e7843fa49b52b"
+bytes = 20145
+role = "registry"
