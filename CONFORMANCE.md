@@ -74,6 +74,20 @@ model does not sanction.
 | --- | --- | --- |
 | `SM-01` | `build` | The measurement of R5 (path escape) is executed by NF-09, NF-12, DL-01, DL-02, DL-03 and DL-04, whose tests pass, and Security records it as Executed; the symlink clause stays Pending on #9. |
 
+## store
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `ST-01` | `build` | The store layout of lexlean-mcp/store/1 is a closed type of seven directories, profiles, drafts, builds, verifications, index, exports and keys, in that order: each has one distinct wire name, every directory is listed, every wire name parses back to its directory and an unknown name is refused. |
+| `ST-02` | `build` | The backup set is exactly verifications, keys and the drafts references: the predicate is membership of that set, every item that cannot be recomputed and does not expire is in it, nothing recomputable is in it, and the archive has exactly those three fields. |
+| `ST-03` | `build` | Retention is a total function of the bound owner values: an attestation record never expires at any age, a draft record expires after store.draft_retention (30 days) and not before, and both durations are the values bound in src/OwnerValues.lex.tex. |
+| `ST-04` | `build` | The drift check is a total function from the stored profile record, the lock check result, the recomputed profile ID and the recomputed toolchain hashes to one of NoDrift, LockDrift, IdDrift and ToolchainDrift, deciding in that order of precedence: lock, then ID, then toolchain; all eight inputs of the decision are tabulated, and a recomputation that Identity refuses is IdDrift. |
+| `ST-05` | `build` | The lifecycle is a state machine over the served revision, the served profile set, the previous release, the retired profiles and the records: rollout, rollback, upgrade and retirement keep every record, rollback restores the previous revision and served set, an upgrade serves the new profile and a retired profile is not served. |
+| `ST-06` | `build` | AC-14 (model): the profile preimage determines its toolchain field for every input, so a new LexLean revision gives another preimage, and after an upgrade the earlier records still resolve and still validate; this is a claim about preimages, not about SHA-256. |
+| `ST-07` | `build` | AC-15 and AC-17 (model): returning to the previous revision serves its profiles and its revision, a record written after the rollout still resolves after the rollback, and a release rollback resolves every record that resolved before it. |
+| `ST-08` | `build` | AC-16 (model): after restore from a backup every backed-up record resolves as before, the keys and the draft references are restored, and re-verifying a restored record yields the attestation ID it is stored under because the ID is a function of the profile and the inputs; the signed attestation format stays abstract until #11. |
+| `ST-09` | `build` | Each law of the store model rejects its planted defect: an attestation that expires, a drift check that reports ToolchainDrift before IdDrift, a rollback that drops a later record and a restore that omits keys each fail lexlean verify; STORE.md records the command, the diagnostic and the restore of each. |
+
 ## Cited authorities
 
 Never re-derived, vendored, or gated on.

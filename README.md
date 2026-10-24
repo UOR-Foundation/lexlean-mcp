@@ -19,7 +19,11 @@ modeled. One capability is built: the Unicode 17.0.0 NFC decision (#25),
 registered as NF-01 to NF-15 and used by path admission. The AC-07 fixture
 register of #10 is checked: FX-01 to FX-08 classify the 297 negative fixtures of
 LexLean `release/v0.4` at `9796067`, 285 of which reach a tool, with the expected
-command result of each. No tool runs them yet.
+command result of each. No tool runs them yet. The model of the store and its
+lifecycle (#13) is checked as well: ST-01 to ST-09 state the layout, the backup
+set, retention, the drift check, the rollout and rollback machine, and AC-14 to
+AC-17 as theorems over a record-resolution model. The store itself waits for
+verification and signing (#11); [STORE.md](STORE.md) says what is and is not met.
 
 - The product model is LexLean language 1.2 notation (`src/`), built with
   LexLean `release/v0.4` and locked in `lexlean.lock` (`lexlean/lock/2`).
@@ -70,6 +74,7 @@ oracles of their own (UOR-Foundation/MCP#15).
 | `Admission` | path admission as a total function from a path and the source roots to `Admitted` or a typed `Refusal`: UTF-8, NFC (`NotNfc`, decided by `Nfc` on the Unicode 17.0.0 tables of `NfcTables`), relative, no empty, `.` or `..` component, under a source root, `.lex.tex` suffix; `max_files` counts rows and `max_bytes` counts content lengths only, not path bytes (as LexLean's `max_total_source_bytes` counts source bytes), both as parameters whose values are owner-set (#19); `admittedPathHasNoDotDot` proves that an admitted path has no `..` component. `admitPath` is `admitPathWith` the full tables; the kernel-checked NFC instances run `admitPathWith` on the sample image (see `NfcTables`). The root `admitRun` (tables, roots and path in; the verdict as `[0]` or `[1, index of the Refusal constructor]` out) is a production root exported to Rust and run on the full tables by `crates/nfc-oracle`; its stages (`splitInto`, `componentsStage`, `hasSuffix`, `rootsStage`) are tail-recursive, and they use `Nfc` list functions rather than `Identity`'s, which are not executable. Draft admission (`admitDraft`, #9) decides in this order: the path refusals of the rows in row order (`rowsStageWith`), `TooManyFiles`, `TooManyBytes`, then `DuplicatePath` (a path that occurs twice among the rows, compared as octets; `Refusal.DuplicatePath` is last, so the indices of the other refusals are unchanged). The duplicate scan runs only on a draft the limits admit. It sorts the paths by octets (unsigned, lexicographic, as `Identity` orders rows) with a bottom-up merge sort whose merges are tail calls (`singletonRuns`, `mergeInto`, `mergePairs`, `sortRuns`, with fuel for termination) and compares neighbours (`adjacentRepeat`), so it makes O(n log n) comparisons. The stages that run over the rows (`rowsStageWith`, `countRowsInto`, `totalBytesInto`, `pathsInto` and the sort) are tail-recursive. The root `admitDraftRun` (tables, `max_files`, `max_bytes`, roots and rows in; the verdict as `[0]` or `[1, index]` out) is a production root exported to Rust (`crates/nfc-oracle`, package `lexlean_mcp_draft_admission`) that declares no `recursion` effect |
 | `Sha256` | the LexLean standard library module `Sha256` (FIPS 180-4), a byte-identical copy of `stdlib/src/Sha256.lex.tex` from LexLean `release/v0.4` at `9796067` (register row SL-02). The module name must equal its path, so it is `src/Sha256.lex.tex` and not under `src/Foundation/` |
 | `OwnerValues` | the values of #19 that no source determines, each bound to the proposal of [OWNER-VALUES.md](OWNER-VALUES.md): signing and `request-state-key` custody and rotation, `verify.width`, `verify.memory_kib`, `verify.concurrency`, `rate.tool_calls`, `rate.window_ms`, `draft.max_bytes`, `draft.max_files`, the two retentions, `cache.ttl_ms`, `listen.port`, the service level objectives S1 to S8 and the 17 profiles; the kernel-checked theorems bind the ranges, and `cargo test -p repo-model` (OV-01 to OV-03) holds the sources, the table, `lexlean.toml` and `Cargo.toml` to one statement |
+| `Store` | the store, persistence and lifecycle model of #13 (register `ST-`): the seven directories of `lexlean-mcp/store/1` with their wire names, the backup set (`verifications`, `keys`, the drafts references), retention as total functions of the bound owner values, the drift check as a total function with the decision order lock, ID, toolchain, the rollout, rollback, upgrade and retirement machine, and AC-14 to AC-17 as theorems over a record-resolution model that rest on `Identity`'s round trip of the profile preimage (`profileRT`) and claim nothing about SHA-256. Attestation signing stays abstract until #11. [STORE.md](STORE.md) holds the claims, what is not met and the planted defects |
 | `Foundation.Arch`, `Foundation.Sec`, `Foundation.Qual` | the architecture, security and quality vocabularies (copies of the PrismPM stdlib modules, as in prism-code) |
 
 ## Repository
@@ -83,6 +88,8 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   is the complete gate.
 - [FIXTURES.md](FIXTURES.md) states the counts and the classes of the AC-07
   fixture register and the defects planted in its gates.
+- [STORE.md](STORE.md) states what the store model claims and does not claim
+  and the defects planted in its laws.
 - [CI.md](CI.md) describes the workflow that runs every gate that works without
   the SDK, and how to read its failures.
 
