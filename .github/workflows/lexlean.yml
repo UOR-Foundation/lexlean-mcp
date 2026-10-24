@@ -338,7 +338,7 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "gateway cargo fmt" gateway_cargo fmt -p gateway-binding -p gateway-vectors -- --check
-          gate "gateway cargo clippy" gateway_cargo clippy -p gateway-binding -p gateway-vectors --all-targets --locked --offline -- -D warnings
+          gate "gateway cargo clippy" gateway_cargo clippy -p gateway-binding -p gateway-vectors --all-targets --no-deps --locked --offline -- -D warnings
       - name: 7h. the binding tests
         run: |
           . .github/lexlean-ci/lib.sh

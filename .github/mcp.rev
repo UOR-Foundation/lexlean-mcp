@@ -8,7 +8,7 @@
 # moves to the MCP release tag before lexlean-mcp v0.1.0.
 #
 # Currently: UOR-Foundation/MCP PR #40 (provider host effects as typed outcomes, MCP#39) at
-# 601c967, which merges main with the input-required results (MCP#30) and exports the step root. The gateway needs the
+# 59bfc29, which is merged with MCP main edd9d55 (so it includes the input-required results, MCP#30) and exports the step root. The gateway needs the
 # hook: `StepServe.serveStep` and `Refusal.ProviderRefusal.effectRequested`. The pin follows
 # that branch until it is merged, then moves to the merge commit and later to the release tag.
-rev = 601c967e6274c17c8924635377aee639e3fcde73
+rev = 59bfc29db125141223a7326281fddeaddf74e861

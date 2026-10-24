@@ -23,7 +23,7 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 fn unhex(text: &str) -> Result<Vec<u8>, String> {
-    if text.len() % 2 != 0 {
+    if !text.len().is_multiple_of(2) {
         return Err("an odd number of hex digits".to_string());
     }
     (0..text.len())
