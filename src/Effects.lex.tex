@@ -1,0 +1,1094 @@
+\begin{lexlean}{Effects}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\title{LexLean MCP host effects}
+\begin{semanticmodule}
+inductive{
+  name: Effect,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: StoreGet, fields: []},
+    {name: StorePut, fields: []},
+    {name: EngineCheck, fields: []},
+    {name: EngineSnapshot, fields: []},
+    {name: EngineFormat, fields: []},
+    {name: EngineBuild, fields: []},
+    {name: VerifyStart, fields: []},
+    {name: VerifyControl, fields: []},
+    {name: LexiconRead, fields: []},
+    {name: AttestationLookup, fields: []}
+  ]
+}
+
+inductive{
+  name: Refusal,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: UnknownId, fields: []},
+    {name: UnknownName, fields: []},
+    {name: MalformedFrame, fields: []}
+  ]
+}
+
+inductive{
+  name: Wire,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Frame, fields: [(List Nat)]}, {name: Named, fields: [String]}]
+}
+
+definition{
+  name: effectTag,
+  parameters: [effect : Effect],
+  result: Nat,
+  body: (match effect
+    | Effect.StoreGet => 0
+    | Effect.StorePut => 1
+    | Effect.EngineCheck => 2
+    | Effect.EngineSnapshot => 3
+    | Effect.EngineFormat => 4
+    | Effect.EngineBuild => 5
+    | Effect.VerifyStart => 6
+    | Effect.VerifyControl => 7
+    | Effect.LexiconRead => 8
+    | Effect.AttestationLookup => 9)
+}
+
+definition{
+  name: effectName,
+  parameters: [effect : Effect],
+  result: String,
+  body: (match effect
+    | Effect.StoreGet => "store.get"
+    | Effect.StorePut => "store.put"
+    | Effect.EngineCheck => "engine.check"
+    | Effect.EngineSnapshot => "engine.snapshot"
+    | Effect.EngineFormat => "engine.format"
+    | Effect.EngineBuild => "engine.build"
+    | Effect.VerifyStart => "verify.start"
+    | Effect.VerifyControl => "verify.control"
+    | Effect.LexiconRead => "lexicon.read"
+    | Effect.AttestationLookup => "attestation.lookup")
+}
+
+definition{
+  name: allEffects,
+  parameters: [],
+  result: (List Effect),
+  body: (cons (ctor Effect.StoreGet) (cons (ctor Effect.StorePut) (cons (ctor Effect.EngineCheck) (cons (ctor Effect.EngineSnapshot) (cons (ctor Effect.EngineFormat) (cons (ctor Effect.EngineBuild) (cons (ctor Effect.VerifyStart) (cons (ctor Effect.VerifyControl) (cons (ctor Effect.LexiconRead) (cons (ctor Effect.AttestationLookup) (nil Effect)))))))))))
+}
+
+definition{
+  name: effectAt,
+  parameters: [t0 : Nat],
+  result: (Option Effect),
+  body: (match t0
+    | Nat.zero => (ctor Option.some [Effect] (ctor Effect.StoreGet))
+    | Nat.succ t1 => (match t1
+      | Nat.zero => (ctor Option.some [Effect] (ctor Effect.StorePut))
+      | Nat.succ t2 => (match t2
+        | Nat.zero => (ctor Option.some [Effect] (ctor Effect.EngineCheck))
+        | Nat.succ t3 => (match t3
+          | Nat.zero => (ctor Option.some [Effect] (ctor Effect.EngineSnapshot))
+          | Nat.succ t4 => (match t4
+            | Nat.zero => (ctor Option.some [Effect] (ctor Effect.EngineFormat))
+            | Nat.succ t5 => (match t5
+              | Nat.zero => (ctor Option.some [Effect] (ctor Effect.EngineBuild))
+              | Nat.succ t6 => (match t6
+                | Nat.zero => (ctor Option.some [Effect] (ctor Effect.VerifyStart))
+                | Nat.succ t7 => (match t7
+                  | Nat.zero => (ctor Option.some [Effect] (ctor Effect.VerifyControl))
+                  | Nat.succ t8 => (match t8
+                    | Nat.zero => (ctor Option.some [Effect] (ctor Effect.LexiconRead))
+                    | Nat.succ t9 => (match t9
+                      | Nat.zero => (ctor Option.some [Effect] (ctor Effect.AttestationLookup))
+                      | Nat.succ t10 => (ctor Option.none [Effect])))))))))))
+}
+
+definition{
+  name: frameOf,
+  parameters: [effect : Effect],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons (effectTag effect) (nil Nat)))))
+}
+
+definition{
+  name: encode,
+  parameters: [effect : Effect],
+  result: Wire,
+  body: (ctor Wire.Frame (frameOf effect))
+}
+
+definition{
+  name: encodeName,
+  parameters: [effect : Effect],
+  result: Wire,
+  body: (ctor Wire.Named (effectName effect))
+}
+
+definition{
+  name: wordRefusal,
+  parameters: [a : Nat, b : Nat, c : Nat, d : Nat],
+  result: Refusal,
+  body: (if ((255 <? a) || ((255 <? b) || ((255 <? c) || (255 <? d)))) then (ctor Refusal.MalformedFrame) else (ctor Refusal.UnknownId))
+}
+
+definition{
+  name: decodeId,
+  parameters: [d : Nat],
+  result: (Result Effect Refusal),
+  body: (match (effectAt d)
+    | Option.some effect => (ctor Result.ok [Effect, Refusal] effect)
+    | Option.none => (ctor Result.error [Effect, Refusal] (wordRefusal 0 0 0 d)))
+}
+
+definition{
+  name: decodeWord,
+  parameters: [a : Nat, b : Nat, c : Nat, d : Nat],
+  result: (Result Effect Refusal),
+  body: (match a
+    | Nat.zero => (match b
+      | Nat.zero => (match c
+        | Nat.zero => (decodeId d)
+        | Nat.succ c1 => (ctor Result.error [Effect, Refusal] (wordRefusal a b c d)))
+      | Nat.succ b1 => (ctor Result.error [Effect, Refusal] (wordRefusal a b c d)))
+    | Nat.succ a1 => (ctor Result.error [Effect, Refusal] (wordRefusal a b c d)))
+}
+
+definition{
+  name: decodeFrame,
+  parameters: [octets : (List Nat)],
+  result: (Result Effect Refusal),
+  body: (match octets
+    | List.nil => (ctor Result.error [Effect, Refusal] (ctor Refusal.MalformedFrame))
+    | List.cons a r1 => (match r1
+      | List.nil => (ctor Result.error [Effect, Refusal] (ctor Refusal.MalformedFrame))
+      | List.cons b r2 => (match r2
+        | List.nil => (ctor Result.error [Effect, Refusal] (ctor Refusal.MalformedFrame))
+        | List.cons c r3 => (match r3
+          | List.nil => (ctor Result.error [Effect, Refusal] (ctor Refusal.MalformedFrame))
+          | List.cons d r4 => (match r4
+            | List.nil => (decodeWord a b c d)
+            | List.cons e r5 => (ctor Result.error [Effect, Refusal] (ctor Refusal.MalformedFrame)))))))
+}
+
+definition{
+  name: stepName,
+  parameters: [hit : Bool, effect : Effect, later : (Result Effect Refusal)],
+  result: (Result Effect Refusal),
+  body: (match hit | Bool.true => (ctor Result.ok [Effect, Refusal] effect) | Bool.false => later)
+}
+
+definition{
+  name: decodeNameIn,
+  parameters: [text : String, effects : (List Effect)],
+  result: (Result Effect Refusal),
+  body: (match effects
+    | List.nil => (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownName))
+    | List.cons effect rest => (stepName (prim equal (effectName effect) text : Bool) effect (decodeNameIn text rest))),
+  recursive_argument: effects
+}
+
+definition{
+  name: decode,
+  parameters: [wire : Wire],
+  result: (Result Effect Refusal),
+  body: (match wire
+    | Wire.Frame octets => (decodeFrame octets)
+    | Wire.Named text => (decodeNameIn text (allEffects)))
+}
+
+definition{
+  name: octetsEq,
+  parameters: [xs : (List Nat), ys : (List Nat)],
+  result: Bool,
+  body: (match xs
+    | List.nil => (match ys | List.nil => true | List.cons y t => false)
+    | List.cons x r => (match ys
+      | List.nil => false
+      | List.cons y t => ((prim equal x y : Bool) && (octetsEq r t)))),
+  recursive_argument: xs
+}
+
+definition{
+  name: choose,
+  parameters: [hit : Bool, a : Bool, b : Bool],
+  result: Bool,
+  body: (match hit | Bool.true => a | Bool.false => b)
+}
+
+definition{
+  name: frameOk,
+  parameters: [octets : (List Nat), result : (Result Effect Refusal)],
+  result: Bool,
+  body: (match result
+    | Result.ok effect => (octetsEq octets (frameOf effect))
+    | Result.error refusal => true)
+}
+
+definition{
+  name: nameOk,
+  parameters: [text : String, result : (Result Effect Refusal)],
+  result: Bool,
+  body: (match result
+    | Result.ok effect => (prim equal (effectName effect) text : Bool)
+    | Result.error refusal => true)
+}
+
+definition{
+  name: accepts,
+  parameters: [wire : Wire, effect : Effect],
+  result: Bool,
+  body: (match wire
+    | Wire.Frame octets => (octetsEq octets (frameOf effect))
+    | Wire.Named text => (prim equal (effectName effect) text : Bool))
+}
+
+definition{
+  name: soundDecode,
+  parameters: [wire : Wire, result : (Result Effect Refusal)],
+  result: Bool,
+  body: (match result | Result.ok effect => (accepts wire effect) | Result.error refusal => true)
+}
+
+definition{
+  name: countEffects,
+  parameters: [effects : (List Effect)],
+  result: Nat,
+  body: (match effects | List.nil => 0 | List.cons effect rest => (1 + (countEffects rest))),
+  recursive_argument: effects
+}
+
+definition{
+  name: effectsHold,
+  parameters: [],
+  result: Bool,
+  body: (prim equal (countEffects (allEffects)) 10 : Bool)
+}
+
+theorem{
+  name: decodeEncode,
+  parameters: [effect : Effect],
+  statement: ((decode (encode effect)) = (ctor Result.ok [Effect, Refusal] effect)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: StoreGet},
+      {proof: reflexivity{}, binders: [], constructor: StorePut},
+      {proof: reflexivity{}, binders: [], constructor: EngineCheck},
+      {proof: reflexivity{}, binders: [], constructor: EngineSnapshot},
+      {proof: reflexivity{}, binders: [], constructor: EngineFormat},
+      {proof: reflexivity{}, binders: [], constructor: EngineBuild},
+      {proof: reflexivity{}, binders: [], constructor: VerifyStart},
+      {proof: reflexivity{}, binders: [], constructor: VerifyControl},
+      {proof: reflexivity{}, binders: [], constructor: LexiconRead},
+      {proof: reflexivity{}, binders: [], constructor: AttestationLookup}
+    ],
+    scrutinee: effect
+  }
+}
+
+theorem{
+  name: decodeEncodeName,
+  parameters: [effect : Effect],
+  statement: ((decode (encodeName effect)) = (ctor Result.ok [Effect, Refusal] effect)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: StoreGet},
+      {proof: reflexivity{}, binders: [], constructor: StorePut},
+      {proof: reflexivity{}, binders: [], constructor: EngineCheck},
+      {proof: reflexivity{}, binders: [], constructor: EngineSnapshot},
+      {proof: reflexivity{}, binders: [], constructor: EngineFormat},
+      {proof: reflexivity{}, binders: [], constructor: EngineBuild},
+      {proof: reflexivity{}, binders: [], constructor: VerifyStart},
+      {proof: reflexivity{}, binders: [], constructor: VerifyControl},
+      {proof: reflexivity{}, binders: [], constructor: LexiconRead},
+      {proof: reflexivity{}, binders: [], constructor: AttestationLookup}
+    ],
+    scrutinee: effect
+  }
+}
+
+theorem{
+  name: tenEffects,
+  parameters: [],
+  statement: ((countEffects (allEffects)) = 10),
+  proof: decide{}
+}
+
+theorem{
+  name: decodeWordSound,
+  parameters: [a : Nat, b : Nat, c : Nat, d : Nat],
+  statement: ((frameOk (cons a (cons b (cons c (cons d (nil Nat))))) (decodeWord a b c d)) = true),
+  proof: cases{
+    branches: [
+      {
+        proof: cases{
+          branches: [
+            {
+              proof: cases{
+                branches: [
+                  {
+                    proof: cases{
+                      branches: [
+                        {proof: reflexivity{}, binders: [], constructor: zero},
+                        {
+                          proof: cases{
+                            branches: [
+                              {proof: reflexivity{}, binders: [], constructor: zero},
+                              {
+                                proof: cases{
+                                  branches: [
+                                    {proof: reflexivity{}, binders: [], constructor: zero},
+                                    {
+                                      proof: cases{
+                                        branches: [
+                                          {proof: reflexivity{}, binders: [], constructor: zero},
+                                          {
+                                            proof: cases{
+                                              branches: [
+                                                {
+                                                  proof: reflexivity{},
+                                                  binders: [],
+                                                  constructor: zero
+                                                },
+                                                {
+                                                  proof: cases{
+                                                    branches: [
+                                                      {
+                                                        proof: reflexivity{},
+                                                        binders: [],
+                                                        constructor: zero
+                                                      },
+                                                      {
+                                                        proof: cases{
+                                                          branches: [
+                                                            {
+                                                              proof: reflexivity{},
+                                                              binders: [],
+                                                              constructor: zero
+                                                            },
+                                                            {
+                                                              proof: cases{
+                                                                branches: [
+                                                                  {
+                                                                    proof: reflexivity{},
+                                                                    binders: [],
+                                                                    constructor: zero
+                                                                  },
+                                                                  {
+                                                                    proof: cases{
+                                                                      branches: [
+                                                                        {
+                                                                          proof: reflexivity{},
+                                                                          binders: [],
+                                                                          constructor: zero
+                                                                        },
+                                                                        {
+                                                                          proof: cases{
+                                                                            branches: [
+                                                                              {
+                                                                                proof: reflexivity{},
+                                                                                binders: [],
+                                                                                constructor: zero
+                                                                              },
+                                                                              {
+                                                                                proof: reflexivity{},
+                                                                                binders: [d1],
+                                                                                constructor: succ
+                                                                              }
+                                                                            ],
+                                                                            scrutinee: d2
+                                                                          },
+                                                                          binders: [d2],
+                                                                          constructor: succ
+                                                                        }
+                                                                      ],
+                                                                      scrutinee: d3
+                                                                    },
+                                                                    binders: [d3],
+                                                                    constructor: succ
+                                                                  }
+                                                                ],
+                                                                scrutinee: d4
+                                                              },
+                                                              binders: [d4],
+                                                              constructor: succ
+                                                            }
+                                                          ],
+                                                          scrutinee: d5
+                                                        },
+                                                        binders: [d5],
+                                                        constructor: succ
+                                                      }
+                                                    ],
+                                                    scrutinee: d6
+                                                  },
+                                                  binders: [d6],
+                                                  constructor: succ
+                                                }
+                                              ],
+                                              scrutinee: d7
+                                            },
+                                            binders: [d7],
+                                            constructor: succ
+                                          }
+                                        ],
+                                        scrutinee: d8
+                                      },
+                                      binders: [d8],
+                                      constructor: succ
+                                    }
+                                  ],
+                                  scrutinee: d9
+                                },
+                                binders: [d9],
+                                constructor: succ
+                              }
+                            ],
+                            scrutinee: d10
+                          },
+                          binders: [d10],
+                          constructor: succ
+                        }
+                      ],
+                      scrutinee: d
+                    },
+                    binders: [],
+                    constructor: zero
+                  },
+                  {proof: reflexivity{}, binders: [c1], constructor: succ}
+                ],
+                scrutinee: c
+              },
+              binders: [],
+              constructor: zero
+            },
+            {proof: reflexivity{}, binders: [b1], constructor: succ}
+          ],
+          scrutinee: b
+        },
+        binders: [],
+        constructor: zero
+      },
+      {proof: reflexivity{}, binders: [a1], constructor: succ}
+    ],
+    scrutinee: a
+  }
+}
+
+theorem{
+  name: decodeFrameSound,
+  parameters: [octets : (List Nat)],
+  statement: ((frameOk octets (decodeFrame octets)) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: nil},
+      {
+        proof: cases{
+          branches: [
+            {proof: reflexivity{}, binders: [], constructor: nil},
+            {
+              proof: cases{
+                branches: [
+                  {proof: reflexivity{}, binders: [], constructor: nil},
+                  {
+                    proof: cases{
+                      branches: [
+                        {proof: reflexivity{}, binders: [], constructor: nil},
+                        {
+                          proof: cases{
+                            branches: [
+                              {
+                                proof: apply{arguments: [a, b, c, d], theorem: decodeWordSound},
+                                binders: [],
+                                constructor: nil
+                              },
+                              {proof: reflexivity{}, binders: [e, r5], constructor: cons}
+                            ],
+                            scrutinee: r4
+                          },
+                          binders: [d, r4],
+                          constructor: cons
+                        }
+                      ],
+                      scrutinee: r3
+                    },
+                    binders: [c, r3],
+                    constructor: cons
+                  }
+                ],
+                scrutinee: r2
+              },
+              binders: [b, r2],
+              constructor: cons
+            }
+          ],
+          scrutinee: r1
+        },
+        binders: [a, r1],
+        constructor: cons
+      }
+    ],
+    scrutinee: octets
+  }
+}
+
+theorem{
+  name: nameStepSound,
+  parameters: [hit : Bool, effect : Effect, text : String, later : (Result Effect Refusal)],
+  statement: ((nameOk text (stepName hit effect later)) = (choose hit (prim equal (effectName effect) text : Bool) (nameOk text later))),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: "false"},
+      {proof: reflexivity{}, binders: [], constructor: "true"}
+    ],
+    scrutinee: hit
+  }
+}
+
+theorem{
+  name: chooseSame,
+  parameters: [h : Bool],
+  statement: ((choose h h true) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: "false"},
+      {proof: reflexivity{}, binders: [], constructor: "true"}
+    ],
+    scrutinee: h
+  }
+}
+
+theorem{
+  name: decodeNameInSound,
+  parameters: [text : String, effects : (List Effect)],
+  statement: ((nameOk text (decodeNameIn text effects)) = true),
+  proof: induction{
+    branches: [
+      {proof: simplify{definitions: [decodeNameIn, nameOk]}, binders: [], constructor: nil},
+      {
+        proof: simplify{definitions: [chooseSame, decodeNameIn, ih, nameStepSound]},
+        binders: [effect, rest, ih],
+        constructor: cons
+      }
+    ],
+    scrutinee: effects
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: decodeNameSound,
+  parameters: [text : String],
+  statement: ((nameOk text (decodeNameIn text (allEffects))) = true),
+  proof: apply{arguments: [text, (allEffects)], theorem: decodeNameInSound}
+}
+
+theorem{
+  name: decodeSound,
+  parameters: [wire : Wire],
+  statement: ((soundDecode wire (decode wire)) = true),
+  proof: cases{
+    branches: [
+      {
+        proof: apply{arguments: [octets], theorem: decodeFrameSound},
+        binders: [octets],
+        constructor: Frame
+      },
+      {
+        proof: apply{arguments: [text], theorem: decodeNameSound},
+        binders: [text],
+        constructor: Named
+      }
+    ],
+    scrutinee: wire
+  }
+}
+
+definition{
+  name: effectNumber,
+  parameters: [effect : Effect],
+  result: Nat,
+  body: ((effectTag effect) + 1)
+}
+
+definition{
+  name: tagsOf,
+  parameters: [effects : (List Effect)],
+  result: (List Nat),
+  body: (match effects
+    | List.nil => (nil Nat)
+    | List.cons effect rest => (cons (effectTag effect) (tagsOf rest))),
+  recursive_argument: effects
+}
+
+definition{
+  name: namesOf,
+  parameters: [effects : (List Effect)],
+  result: (List String),
+  body: (match effects
+    | List.nil => (nil String)
+    | List.cons effect rest => (cons (effectName effect) (namesOf rest))),
+  recursive_argument: effects
+}
+
+definition{
+  name: memberNat,
+  parameters: [x : Nat, xs : (List Nat)],
+  result: Bool,
+  body: (match xs
+    | List.nil => false
+    | List.cons y rest => ((prim equal x y : Bool) || (memberNat x rest))),
+  recursive_argument: xs
+}
+
+definition{
+  name: memberText,
+  parameters: [x : String, xs : (List String)],
+  result: Bool,
+  body: (match xs
+    | List.nil => false
+    | List.cons y rest => ((prim equal x y : Bool) || (memberText x rest))),
+  recursive_argument: xs
+}
+
+definition{
+  name: distinctNats,
+  parameters: [xs : (List Nat)],
+  result: Bool,
+  body: (match xs
+    | List.nil => true
+    | List.cons x rest => ((if (memberNat x rest) then false else true) && (distinctNats rest))),
+  recursive_argument: xs
+}
+
+definition{
+  name: distinctTexts,
+  parameters: [xs : (List String)],
+  result: Bool,
+  body: (match xs
+    | List.nil => true
+    | List.cons x rest => ((if (memberText x rest) then false else true) && (distinctTexts rest))),
+  recursive_argument: xs
+}
+
+theorem{
+  name: tagsAreZeroToNine,
+  parameters: [],
+  statement: ((tagsOf (allEffects)) = (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (cons 8 (cons 9 (nil Nat)))))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: numbersAreOneToTen,
+  parameters: [],
+  statement: ((effectNumber (ctor Effect.StoreGet)) = 1),
+  proof: decide{}
+}
+
+theorem{
+  name: tagsAreDistinct,
+  parameters: [],
+  statement: ((distinctNats (tagsOf (allEffects))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: namesAreDistinct,
+  parameters: [],
+  statement: ((distinctTexts (namesOf (allEffects))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: namesAreTheIssueNames,
+  parameters: [],
+  statement: ((namesOf (allEffects)) = (cons "store.get" (cons "store.put" (cons "engine.check" (cons "engine.snapshot" (cons "engine.format" (cons "engine.build" (cons "verify.start" (cons "verify.control" (cons "lexicon.read" (cons "attestation.lookup" (nil String)))))))))))),
+  proof: decide{}
+}
+
+inductive{
+  name: EngineCall,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Check, fields: []},
+    {name: Snapshot, fields: []},
+    {name: Format, fields: []},
+    {name: Build, fields: []}
+  ]
+}
+
+definition{
+  name: engineEffect,
+  parameters: [call : EngineCall],
+  result: Effect,
+  body: (match call
+    | EngineCall.Check => (ctor Effect.EngineCheck)
+    | EngineCall.Snapshot => (ctor Effect.EngineSnapshot)
+    | EngineCall.Format => (ctor Effect.EngineFormat)
+    | EngineCall.Build => (ctor Effect.EngineBuild))
+}
+
+definition{
+  name: effectEngine,
+  parameters: [effect : Effect],
+  result: (Option EngineCall),
+  body: (match effect
+    | Effect.StoreGet => (ctor Option.none [EngineCall])
+    | Effect.StorePut => (ctor Option.none [EngineCall])
+    | Effect.EngineCheck => (ctor Option.some [EngineCall] (ctor EngineCall.Check))
+    | Effect.EngineSnapshot => (ctor Option.some [EngineCall] (ctor EngineCall.Snapshot))
+    | Effect.EngineFormat => (ctor Option.some [EngineCall] (ctor EngineCall.Format))
+    | Effect.EngineBuild => (ctor Option.some [EngineCall] (ctor EngineCall.Build))
+    | Effect.VerifyStart => (ctor Option.none [EngineCall])
+    | Effect.VerifyControl => (ctor Option.none [EngineCall])
+    | Effect.LexiconRead => (ctor Option.none [EngineCall])
+    | Effect.AttestationLookup => (ctor Option.none [EngineCall]))
+}
+
+definition{
+  name: engineCallCount,
+  parameters: [effects : (List Effect)],
+  result: Nat,
+  body: (match effects
+    | List.nil => 0
+    | List.cons effect rest => ((match (effectEngine effect)
+      | Option.some call => 1
+      | Option.none => 0) + (engineCallCount rest))),
+  recursive_argument: effects
+}
+
+definition{
+  name: callTag,
+  parameters: [call : EngineCall],
+  result: Nat,
+  body: (match call
+    | EngineCall.Check => 0
+    | EngineCall.Snapshot => 1
+    | EngineCall.Format => 2
+    | EngineCall.Build => 3)
+}
+
+theorem{
+  name: engineCallRoundTrip,
+  parameters: [call : EngineCall],
+  statement: ((match (effectEngine (engineEffect call))
+    | Option.some back => (prim equal (callTag back) (callTag call) : Bool)
+    | Option.none => false) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Check},
+      {proof: reflexivity{}, binders: [], constructor: Snapshot},
+      {proof: reflexivity{}, binders: [], constructor: Format},
+      {proof: reflexivity{}, binders: [], constructor: Build}
+    ],
+    scrutinee: call
+  }
+}
+
+theorem{
+  name: everyEngineEffectIsACall,
+  parameters: [effect : Effect],
+  statement: ((match (effectEngine effect)
+    | Option.some call => (prim equal (effectTag (engineEffect call)) (effectTag effect) : Bool)
+    | Option.none => true) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: StoreGet},
+      {proof: reflexivity{}, binders: [], constructor: StorePut},
+      {proof: reflexivity{}, binders: [], constructor: EngineCheck},
+      {proof: reflexivity{}, binders: [], constructor: EngineSnapshot},
+      {proof: reflexivity{}, binders: [], constructor: EngineFormat},
+      {proof: reflexivity{}, binders: [], constructor: EngineBuild},
+      {proof: reflexivity{}, binders: [], constructor: VerifyStart},
+      {proof: reflexivity{}, binders: [], constructor: VerifyControl},
+      {proof: reflexivity{}, binders: [], constructor: LexiconRead},
+      {proof: reflexivity{}, binders: [], constructor: AttestationLookup}
+    ],
+    scrutinee: effect
+  }
+}
+
+theorem{
+  name: fourEngineEffects,
+  parameters: [],
+  statement: ((engineCallCount (allEffects)) = 4),
+  proof: decide{}
+}
+
+theorem{
+  name: engineEffectsAreE3ToE6,
+  parameters: [],
+  statement: (((effectNumber (engineEffect (ctor EngineCall.Check))) = 3) /\ (((effectNumber (engineEffect (ctor EngineCall.Snapshot))) = 4) /\ (((effectNumber (engineEffect (ctor EngineCall.Format))) = 5) /\ ((effectNumber (engineEffect (ctor EngineCall.Build))) = 6)))),
+  proof: decide{}
+}
+
+definition{
+  name: octetAt,
+  parameters: [bytes : Bytes, position : Nat],
+  result: Nat,
+  body: (match (prim index bytes position : (Option UInt8))
+    | Option.some byte => (prim to_nat byte : Nat)
+    | Option.none => 0)
+}
+
+definition{
+  name: octetsFrom,
+  parameters: [bytes : Bytes, count : Nat, position : Nat],
+  result: (List Nat),
+  body: (match count
+    | Nat.zero => (nil Nat)
+    | Nat.succ previous => (cons (octetAt bytes position) (octetsFrom bytes previous (position + 1)))),
+  recursive_argument: count
+}
+
+definition{
+  name: octetsOfText,
+  parameters: [text : String],
+  result: (List Nat),
+  body: (let bytes : Bytes := (prim utf8_encode text : Bytes); (octetsFrom bytes (prim length bytes : Nat) 0))
+}
+
+definition{
+  name: isLowerOrDot,
+  parameters: [n : Nat],
+  result: Bool,
+  body: (((96 <? n) && (n <? 123)) || (prim equal n 46 : Bool))
+}
+
+definition{name: isDot, parameters: [n : Nat], result: Bool, body: (prim equal n 46 : Bool)}
+
+definition{
+  name: shapeFrom,
+  parameters: [previous : Nat, xs : (List Nat)],
+  result: Bool,
+  body: (match xs
+    | List.nil => (if (isDot previous) then false else true)
+    | List.cons x rest => ((isLowerOrDot x) && ((if ((isDot x) && (isDot previous)) then false else true) && (shapeFrom x rest)))),
+  recursive_argument: xs
+}
+
+definition{
+  name: startsWith,
+  parameters: [needle : (List Nat), hay : (List Nat)],
+  result: Bool,
+  body: (match needle
+    | List.nil => true
+    | List.cons n ns => (match hay
+      | List.nil => false
+      | List.cons h hs => ((prim equal n h : Bool) && (startsWith ns hs)))),
+  recursive_argument: needle
+}
+
+definition{
+  name: hasInfix,
+  parameters: [needle : (List Nat), hay : (List Nat)],
+  result: Bool,
+  body: (match hay
+    | List.nil => (startsWith needle (nil Nat))
+    | List.cons h hs => ((startsWith needle (cons h hs)) || (hasInfix needle hs))),
+  recursive_argument: hay
+}
+
+definition{
+  name: reservedWords,
+  parameters: [],
+  result: (List String),
+  body: (cons "lexlean_" (cons "tools/" (cons "resources/" (cons "prompts/" (cons "completion/" (cons "tasks/" (cons "server/" (cons "logging/" (cons "sampling/" (cons "elicitation/" (cons "roots/" (cons "notifications/" (cons "initialize" (cons "ping" (nil String)))))))))))))))
+}
+
+definition{
+  name: avoidsReserved,
+  parameters: [hay : (List Nat), words : (List String)],
+  result: Bool,
+  body: (match words
+    | List.nil => true
+    | List.cons word rest => ((if (hasInfix (octetsOfText word) hay) then false else true) && (avoidsReserved hay rest))),
+  recursive_argument: words
+}
+
+definition{
+  name: nameClean,
+  parameters: [text : String],
+  result: Bool,
+  body: ((shapeFrom 46 (octetsOfText text)) && (avoidsReserved (octetsOfText text) (reservedWords)))
+}
+
+definition{
+  name: namesClean,
+  parameters: [names : (List String)],
+  result: Bool,
+  body: (match names
+    | List.nil => true
+    | List.cons name rest => ((nameClean name) && (namesClean rest))),
+  recursive_argument: names
+}
+
+theorem{
+  name: effectNamesCarryNoToolOrMethodName,
+  parameters: [],
+  statement: ((namesClean (namesOf (allEffects))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: reservedWordsCoverTheTools,
+  parameters: [],
+  statement: (((hasInfix (octetsOfText "lexlean_") (octetsOfText "lexlean_check")) && ((hasInfix (octetsOfText "tools/") (octetsOfText "tools/call")) && (hasInfix (octetsOfText "lexlean_") (octetsOfText "lexlean_verify")))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: aToolNameIsNotAnEffectName,
+  parameters: [],
+  statement: (((nameClean "lexlean_check") || ((nameClean "tools/call") || (nameClean "verify.tools/list"))) = false),
+  proof: decide{}
+}
+
+structure{
+  name: Vector,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: label, type: String},
+    {name: wire, type: Wire},
+    {name: expected, type: (Result Effect Refusal)}
+  ]
+}
+
+definition{
+  name: refusalCode,
+  parameters: [refusal : Refusal],
+  result: Nat,
+  body: (match refusal
+    | Refusal.UnknownId => 0
+    | Refusal.UnknownName => 1
+    | Refusal.MalformedFrame => 2)
+}
+
+definition{
+  name: sameResult,
+  parameters: [left : (Result Effect Refusal), right : (Result Effect Refusal)],
+  result: Bool,
+  body: (match left
+    | Result.ok a => (match right
+      | Result.ok b => (prim equal (effectTag a) (effectTag b) : Bool)
+      | Result.error s => false)
+    | Result.error r => (match right
+      | Result.ok b => false
+      | Result.error s => (prim equal (refusalCode r) (refusalCode s) : Bool)))
+}
+
+definition{
+  name: vectorHolds,
+  parameters: [vector : Vector],
+  result: Bool,
+  body: (sameResult (decode (project vector wire)) (project vector expected))
+}
+
+definition{
+  name: acceptanceVectors,
+  parameters: [],
+  result: (List Vector),
+  body: (cons (record Vector {label := "E1 store.get by frame", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 0 (nil Nat)))))), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.StoreGet))}) (cons (record Vector {label := "E2 store.put by frame", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 1 (nil Nat)))))), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.StorePut))}) (cons (record Vector {label := "E3 engine.check by frame", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 2 (nil Nat)))))), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.EngineCheck))}) (cons (record Vector {label := "E4 engine.snapshot by frame", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 3 (nil Nat)))))), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.EngineSnapshot))}) (cons (record Vector {label := "E5 engine.format by frame", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 4 (nil Nat)))))), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.EngineFormat))}) (cons (record Vector {label := "E6 engine.build by frame", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 5 (nil Nat)))))), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.EngineBuild))}) (cons (record Vector {label := "E7 verify.start by frame", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 6 (nil Nat)))))), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.VerifyStart))}) (cons (record Vector {label := "E8 verify.control by frame", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 7 (nil Nat)))))), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.VerifyControl))}) (cons (record Vector {label := "E9 lexicon.read by frame", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 8 (nil Nat)))))), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.LexiconRead))}) (cons (record Vector {label := "E10 attestation.lookup by frame", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 9 (nil Nat)))))), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.AttestationLookup))}) (cons (record Vector {label := "E1 store.get by name", wire := (ctor Wire.Named "store.get"), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.StoreGet))}) (cons (record Vector {label := "E2 store.put by name", wire := (ctor Wire.Named "store.put"), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.StorePut))}) (cons (record Vector {label := "E3 engine.check by name", wire := (ctor Wire.Named "engine.check"), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.EngineCheck))}) (cons (record Vector {label := "E4 engine.snapshot by name", wire := (ctor Wire.Named "engine.snapshot"), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.EngineSnapshot))}) (cons (record Vector {label := "E5 engine.format by name", wire := (ctor Wire.Named "engine.format"), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.EngineFormat))}) (cons (record Vector {label := "E6 engine.build by name", wire := (ctor Wire.Named "engine.build"), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.EngineBuild))}) (cons (record Vector {label := "E7 verify.start by name", wire := (ctor Wire.Named "verify.start"), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.VerifyStart))}) (cons (record Vector {label := "E8 verify.control by name", wire := (ctor Wire.Named "verify.control"), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.VerifyControl))}) (cons (record Vector {label := "E9 lexicon.read by name", wire := (ctor Wire.Named "lexicon.read"), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.LexiconRead))}) (cons (record Vector {label := "E10 attestation.lookup by name", wire := (ctor Wire.Named "attestation.lookup"), expected := (ctor Result.ok [Effect, Refusal] (ctor Effect.AttestationLookup))}) (cons (record Vector {label := "the first unassigned id", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 10 (nil Nat)))))), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownId))}) (cons (record Vector {label := "the largest octet id", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 255 (nil Nat)))))), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownId))}) (cons (record Vector {label := "a high octet set", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 1 (cons 0 (nil Nat)))))), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownId))}) (cons (record Vector {label := "the highest octet set", wire := (ctor Wire.Frame (cons 255 (cons 0 (cons 0 (cons 0 (nil Nat)))))), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownId))}) (cons (record Vector {label := "a name no effect has", wire := (ctor Wire.Named "store.delete"), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownName))}) (cons (record Vector {label := "the empty name", wire := (ctor Wire.Named ""), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownName))}) (cons (record Vector {label := "an MCP method name", wire := (ctor Wire.Named "tools/call"), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownName))}) (cons (record Vector {label := "a tool name", wire := (ctor Wire.Named "lexlean_check"), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownName))}) (cons (record Vector {label := "a name in capitals", wire := (ctor Wire.Named "Store.Get"), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownName))}) (cons (record Vector {label := "a name with a trailing space", wire := (ctor Wire.Named "store.get "), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownName))}) (cons (record Vector {label := "the empty frame", wire := (ctor Wire.Frame (nil Nat)), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.MalformedFrame))}) (cons (record Vector {label := "three octets", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (nil Nat))))), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.MalformedFrame))}) (cons (record Vector {label := "five octets", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 0 (cons 0 (nil Nat))))))), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.MalformedFrame))}) (cons (record Vector {label := "a value that is not an octet", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 256 (nil Nat)))))), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.MalformedFrame))}) (cons (record Vector {label := "a value that is not an octet in the first place", wire := (ctor Wire.Frame (cons 300 (cons 0 (cons 0 (cons 1 (nil Nat)))))), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.MalformedFrame))}) (nil Vector))))))))))))))))))))))))))))))))))))
+}
+
+definition{
+  name: vectorsPass,
+  parameters: [vectors : (List Vector)],
+  result: Bool,
+  body: (match vectors
+    | List.nil => true
+    | List.cons vector rest => ((vectorHolds vector) && (vectorsPass rest))),
+  recursive_argument: vectors
+}
+
+definition{
+  name: vectorCount,
+  parameters: [vectors : (List Vector)],
+  result: Nat,
+  body: (match vectors | List.nil => 0 | List.cons vector rest => (1 + (vectorCount rest))),
+  recursive_argument: vectors
+}
+
+definition{
+  name: expectsEffect,
+  parameters: [vector : Vector, effect : Effect],
+  result: Bool,
+  body: (match (project vector expected)
+    | Result.ok found => (prim equal (effectTag found) (effectTag effect) : Bool)
+    | Result.error refusal => false)
+}
+
+definition{
+  name: framed,
+  parameters: [vector : Vector],
+  result: Bool,
+  body: (match (project vector wire) | Wire.Frame octets => true | Wire.Named text => false)
+}
+
+definition{
+  name: someVectorFor,
+  parameters: [vectors : (List Vector), effect : Effect, byFrame : Bool],
+  result: Bool,
+  body: (match vectors
+    | List.nil => false
+    | List.cons vector rest => (((expectsEffect vector effect) && (prim equal (framed vector) byFrame : Bool)) || (someVectorFor rest effect byFrame))),
+  recursive_argument: vectors
+}
+
+definition{
+  name: everyEffectHasVectors,
+  parameters: [effects : (List Effect), vectors : (List Vector)],
+  result: Bool,
+  body: (match effects
+    | List.nil => true
+    | List.cons effect rest => ((someVectorFor vectors effect true) && ((someVectorFor vectors effect false) && (everyEffectHasVectors rest vectors)))),
+  recursive_argument: effects
+}
+
+definition{
+  name: refusalSeen,
+  parameters: [vectors : (List Vector), code : Nat],
+  result: Bool,
+  body: (match vectors
+    | List.nil => false
+    | List.cons vector rest => ((match (project vector expected)
+      | Result.ok found => false
+      | Result.error refusal => (prim equal (refusalCode refusal) code : Bool)) || (refusalSeen rest code))),
+  recursive_argument: vectors
+}
+
+theorem{
+  name: acceptanceVectorsPass,
+  parameters: [],
+  statement: ((vectorsPass (acceptanceVectors)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyEffectHasAVectorByFrameAndByName,
+  parameters: [],
+  statement: ((everyEffectHasVectors (allEffects) (acceptanceVectors)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyRefusalHasAVector,
+  parameters: [],
+  statement: (((refusalSeen (acceptanceVectors) 0) && ((refusalSeen (acceptanceVectors) 1) && (refusalSeen (acceptanceVectors) 2))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: vectorTotal,
+  parameters: [],
+  statement: ((vectorCount (acceptanceVectors)) = 35),
+  proof: decide{}
+}
+\end{semanticmodule}
+\end{lexlean}

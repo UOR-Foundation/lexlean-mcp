@@ -23,6 +23,8 @@
 # The AC-07 fixture register (issue #10) registers FX-01 to FX-08: two rows that
 # reproduce the negative fixtures of the pinned LexLean and six that are checked here.
 # The owner-set values of issue #19 register OV-01..OV-03.
+# The closed host effect set of issue #7 (E1 to E10, its codec and its negative
+# theorem) registers EF-01..EF-08.
 
 spec = "template/1"
 
@@ -211,3 +213,51 @@ id = "OV-03"
 level = "build"
 suite = "owner-values"
 statement = "Each bound value respects the constraint it follows from: draft.max_bytes and draft.max_files hold the largest example and stay within the limits of lexlean.toml, verify.concurrency times verify.memory_kib fits a 16 GiB host, verify.width is within the range of LexLean SPEC 22.11, listen.port is a registered-range port below the ephemeral range, and the product version equals the workspace package version."
+
+[[id]]
+id = "EF-01"
+level = "build"
+suite = "effects"
+statement = "The effect set is the ten effects of issue #7, E1 to E10, and no other: the Effect inductive of src/Effects.lex.tex has exactly those ten constructors in that order, allEffects lists them, their wire names are the dotted names of the issue, and their wire tags are their positions 0 to 9, which EFFECTS.md lists."
+
+[[id]]
+id = "EF-02"
+level = "build"
+suite = "effects"
+statement = "decode is a total function from a wire to Result Effect Refusal with the typed refusals UnknownId, UnknownName and MalformedFrame, and decode inverts encode: for every effect, the frame and the name it encodes to decode back to it, proved by cases on the effect."
+
+[[id]]
+id = "EF-03"
+level = "build"
+suite = "effects"
+statement = "No wire outside the encodings of E1 to E10 decodes: decodeSound states over every Wire, not a list of examples, that a wire which decodes to an effect is that effect's frame or name, proved for every input by cases and induction, and the acceptance vectors refuse with each of the three refusals."
+
+[[id]]
+id = "EF-04"
+level = "build"
+suite = "effects"
+statement = "The wire tags of E1 to E10 are the pairwise distinct numbers 0 to 9 and their wire names are pairwise distinct, decided by the kernel."
+
+[[id]]
+id = "EF-05"
+level = "build"
+suite = "effects"
+statement = "The Engine-call effects E3 to E6 correspond one to one to the four Engine operations check, snapshot, format and build: engineEffect and effectEngine are inverse on them, exactly four effects are Engine calls, and their numbers are 3 to 6."
+
+[[id]]
+id = "EF-06"
+level = "build"
+suite = "effects"
+statement = "No effect name contains a tool name or an MCP method name (Q6): every name is lower case letters and dots with no empty segment and avoids the reserved words lexlean_, tools/, resources/, prompts/ and the other method prefixes, decided by the kernel over the name list."
+
+[[id]]
+id = "EF-07"
+level = "build"
+suite = "effects"
+statement = "Every effect is exercised by an acceptance vector by frame and by name, the vectors decode as they state, and EFFECTS.md lists the vectors of the model, in order, and no other."
+
+[[id]]
+id = "EF-08"
+level = "build"
+suite = "effects"
+statement = "Each gate of the effect set rejects its planted defect: an eleventh effect, a duplicated id, a decode that accepts an unknown wire, an effect name containing a tool name and a mismapped Engine call; EFFECTS.md records the command, the diagnostic and the restore of each."
