@@ -63,10 +63,6 @@ fn declaration(source: &str, kind: &str, name: &str) -> String {
     chunk[..closing_brace(chunk)].to_string()
 }
 
-fn has(source: &str, kind: &str, name: &str) -> bool {
-    source.contains(&format!("{kind}{{name: {name},"))
-}
-
 fn theorem_names(source: &str) -> BTreeSet<String> {
     let mut found = BTreeSet::new();
     let mut rest = source;
@@ -205,7 +201,7 @@ fn oracle(header: &str) -> Vec<u128> {
     const DIGIT: u128 = 103;
     let text = header.as_bytes();
     let mut at = 0usize;
-    let mut value = |width: usize, at: &mut usize| -> Result<u128, u128> {
+    let value = |width: usize, at: &mut usize| -> Result<u128, u128> {
         let end = (*at + width).min(text.len());
         let taken = &header[*at..end];
         if hex(taken).is_none() {
@@ -340,9 +336,9 @@ fn the_w3c_rules_are_the_ones_the_model_applies_ob_03() {
     let parse = declaration(&source, "definition", "parseTraceparent");
     for (needle, rule) in [
         ("readHex 2 0 bytes", "a two-digit version"),
-        ("readHex 32 0 second", "a 32-digit trace-id"),
-        ("readHex 16 0 fourth", "a 16-digit parent-id"),
-        ("readHex 2 0 sixth", "a two-digit trace-flags"),
+        ("readHex 32 0 after2", "a 32-digit trace-id"),
+        ("readHex 16 0 after4", "a 16-digit parent-id"),
+        ("readHex 2 0 after6", "a two-digit trace-flags"),
     ] {
         assert!(parse.contains(needle), "traceparent lacks {rule}");
     }
@@ -425,13 +421,11 @@ fn a_telemetry_record_cannot_hold_free_text_ob_04() {
             "{input} carries text that {record} does not redact, or the reverse"
         );
     }
-    for (name, fields) in [("TraceParent", 4usize)] {
-        let kinds: Vec<String> = structure_fields(&source, name)
-            .into_iter()
-            .map(|(_, kind)| kind)
-            .collect();
-        assert_eq!(kinds, vec!["Nat"; fields], "{name} holds more than numbers");
-    }
+    let kinds: Vec<String> = structure_fields(&source, "TraceParent")
+        .into_iter()
+        .map(|(_, kind)| kind)
+        .collect();
+    assert_eq!(kinds, vec!["Nat"; 4], "TraceParent holds more than numbers");
     let sample = declaration(&source, "inductive", "Sample");
     for text in ["String", "List", "Bytes"] {
         assert!(!sample.contains(text), "a metric sample can carry {text}");
@@ -458,7 +452,9 @@ fn the_indicators_follow_the_objectives_ob_05() {
     while let Some(at) = rest.find("(record SliDef {index := ") {
         let after = &rest[at + "(record SliDef {index := ".len()..];
         let (index, after) = after.split_once(", name := \"").expect("a name");
-        let (name, after) = after.split_once("\", unit := (ctor Unit.").expect("a unit");
+        let (name, after) = after
+            .split_once("\", unit := (ctor SliUnit.")
+            .expect("a unit");
         let (unit, after) = after.split_once("), labels := ").expect("labels");
         rows.push((
             index.parse::<usize>().expect("an index"),
@@ -742,13 +738,15 @@ fn every_claim_has_a_recorded_planted_defect_ob_10() {
         .iter()
         .map(|row| row[0].trim_matches('`').to_string())
         .collect();
-    for id in ["OB-04", "OB-06", "OB-07", "OB-08", "OB-09"] {
+    for id in [
+        "OB-01", "OB-02", "OB-04", "OB-05", "OB-06", "OB-07", "OB-08", "OB-09",
+    ] {
         assert!(
             covered.contains(id),
             "OBSERVABILITY.md has no planted defect for {id}"
         );
     }
-    assert!(rows.len() >= 5, "five planted defects are recorded");
+    assert!(rows.len() >= 8, "eight planted defects are recorded");
     for row in &rows {
         for theorem in row[2].split(',').map(|name| name.trim().trim_matches('`')) {
             assert!(
@@ -769,6 +767,10 @@ fn every_claim_has_a_recorded_planted_defect_ob_10() {
         "Emitted.Message",
         "(threshold 0) + 1) <? count",
         "(version =? 256)",
+        "ErrorClass.Internal => 71",
+        "\"notifications/log\"",
+        "SliUnit.Percent), labels := (cons (ctor Label.Class)",
+        "Parent.Invalid fault => (carried 512 found)",
     ] {
         assert!(
             !source.contains(planted),
