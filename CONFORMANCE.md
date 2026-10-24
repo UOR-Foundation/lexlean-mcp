@@ -68,6 +68,20 @@ model does not sanction.
 | `FX-07` | `build` | The excluded fixtures are the twelve that issue #10 names, each with the reason it gives, and no other: 2 for CLI argument parsing, 2 for symlinks, 4 for setup and 4 for being outside the product. |
 | `FX-08` | `build` | Each gate of the register rejects its planted defect: a fixture reclassified, a digest altered, a vendored byte altered or removed, an exclusion without a reason, an exclusion the issue does not make, a name listed twice and a fixture missing; FIXTURES.md records the command, the diagnostic and the restore of each. |
 
+## gateway
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `GW-01` | `build` | The gateway declares the ten effects of src/Effects.lex.tex and no other: the host protocol of gateway/src/Application.lex.tex lists, in order, the names E1 to E10 that Effects.lex.tex declares, so that the tag of an effect is its position 0 to 9, and a test holds the two lists equal. |
+| `GW-02` | `build` | Each effect of the gateway has a typed request, a typed result and a closed list of failures in PrismPM's field kinds, as GATEWAY.md tabulates them: an engine error travels in the result's class and result fields, a host fault is one of the declared failures, and no field or failure is declared that the table does not name. |
+| `GW-03` | `build` | The core of the gateway is one LexLean production root, LexLeanMcpGateway.Gateway.gatewayRun, over the sources of UOR-Foundation/MCP at the commit of .github/mcp.rev and the tool layer: gateway/lexlean.toml has those two source roots, the root declares only the allocation and overflow effects, and the committed export request names the root and its package. |
+| `GW-04` | `build` | Every effect is exercised by an acceptance vector of the gateway: the transcripts of the declaration request each of E1 to E10, each from a vector whose tool call is one of gateway/vectors/exchanges.json, and the vectors that request no effect are the invalid, unknown and listing calls. |
+| `GW-05` | `build` | No effect outside E1 to E10 can be encoded: the generated Request sum has ten variants and its decoder refuses every other tag with EffectUndeclared, which a negative test of the binding crate asserts for the first tag past the set and for the largest tag. |
+| `GW-06` | `build` | Tool names and MCP method names occur nowhere in host adapter source (Q6): the names of the tools of gateway/src and the methods of the MCP sources at the pin do not occur in gateway/bindings, and, in the gateway job, not in the generated host-api and host crates either. |
+| `GW-07` | `build` | The binding implements each of the ten host effects with a real effect and holds no dispatch: the store on the filesystem with refused keys, the four Engine calls, the verifier process of a task, the lexicon and the attestation reads, each with a test of its success and of each failure it declares. |
+| `GW-08` | `build` | prismpm build and prismpm verify accept the gateway: the build produces the core and the two host packages, the core package equals the committed export, and verify replays every vector through the binding and exercises all ten effects; GATEWAY.md records each planted defect, the failing command and the diagnostic. |
+| `GW-09` | `build` | The gateway builds without a published crate: gateway/registry.sh assembles a directory source for the gateway workspace from the pinned commits with cargo package, records the SHA-256 of each package it makes and compares it with a fresh package, no manifest has a path or Git dependency, deny.toml admits crates.io only, and CI.md states the release step that removes the replacement. |
+
 ## nfc
 
 | ID | Level | Statement |
