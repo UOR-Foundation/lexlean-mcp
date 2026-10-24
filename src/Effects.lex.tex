@@ -944,7 +944,8 @@ definition{
   result: Bool,
   body: (match (prim utf8_decode (effectNameBytes effect) : (Option String))
     | Option.some text => (prim equal text (effectName effect) : Bool)
-    | Option.none => false)
+    | Option.none => false),
+  axioms: [Classical.choice, Quot.sound, propext]
 }
 
 definition{
@@ -954,6 +955,7 @@ definition{
   body: (match effects
     | List.nil => true
     | List.cons effect rest => ((spellsName effect) && (allSpell rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
   recursive_argument: effects
 }
 
@@ -966,6 +968,7 @@ definition{
     | List.cons word rest => ((match (prim utf8_decode (project word bytes) : (Option String))
       | Option.some text => (prim equal text (project word text) : Bool)
       | Option.none => false) && (reservedSpelled rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
   recursive_argument: words
 }
 
@@ -1003,14 +1006,16 @@ theorem{
   name: nameBytesSpellTheNames,
   parameters: [],
   statement: ((allSpell (allEffects)) = true),
-  proof: decide{}
+  proof: decide{},
+  axioms: [Classical.choice, Quot.sound, propext]
 }
 
 theorem{
   name: reservedBytesSpellTheWords,
   parameters: [],
   statement: ((reservedSpelled (reservedWords)) = true),
-  proof: decide{}
+  proof: decide{},
+  axioms: [Classical.choice, Quot.sound, propext]
 }
 
 theorem{
