@@ -25,6 +25,11 @@ record types with redaction as a type, the eight service level indicators, the
 alert predicates, trace context extraction and the closed set of notifications the
 server emits. Nothing is emitted and no alert fires yet; both wait for the verify
 task (#11) and the host (#17).
+The model of the store and its
+lifecycle (#13) is checked as well: ST-01 to ST-09 state the layout, the backup
+set, retention, the drift check, the rollout and rollback machine, and AC-14 to
+AC-17 as theorems over a record-resolution model. The store itself waits for
+verification and signing (#11); [STORE.md](STORE.md) says what is and is not met.
 
 - The product model is LexLean language 1.2 notation (`src/`), built with
   LexLean `release/v0.4` and locked in `lexlean.lock` (`lexlean/lock/2`).
@@ -86,6 +91,7 @@ oracles of their own (UOR-Foundation/MCP#15).
 | `Observability` | the observability model of #16: the telemetry records with every free-text field typed `Redacted`, a type with one value, so that no record holds module text or a lexicon search query (kernel-checked over all constructors); the eight service level indicators S1 to S8 as data; the alert predicates on classes 2, 3 and 70, a failed child group end, a profile drift and a signing failure, with the thresholds read from `OwnerValues`; `traceparent`, `tracestate` and `baggage` extraction from a request's `_meta` with typed refusals; and the closed set of emitted notifications, which excludes `notifications/message`. Emission and firing wait for #11 and #17; the planted defects are in [OBSERVABILITY.md](OBSERVABILITY.md) |
 | `OwnerValues` | the values of #19 that no source determines, each bound to the proposal of [OWNER-VALUES.md](OWNER-VALUES.md): signing and `request-state-key` custody and rotation, `verify.width`, `verify.memory_kib`, `verify.concurrency`, `rate.tool_calls`, `rate.window_ms`, `draft.max_bytes`, `draft.max_files`, the two retentions, `cache.ttl_ms`, `listen.port`, the service level objectives S1 to S8 and the 17 profiles; the kernel-checked theorems bind the ranges, and `cargo test -p repo-model` (OV-01 to OV-03) holds the sources, the table, `lexlean.toml` and `Cargo.toml` to one statement |
 | `Features` | the features F1 to F13 and journeys J1 to J6 (#18) as `Foundation.Arch::Feature` and `Foundation.Arch::Journey` definitions with the interface calls and acceptance rows they name, and the kernel theorems that restate PrismPM's rules PP2014 to PP2018 over them (`featuresModelHolds`) |
+| `Store` | the store, persistence and lifecycle model of #13 (register `ST-`): the seven directories of `lexlean-mcp/store/1` with their wire names, the backup set (`verifications`, `keys`, the drafts references), retention as total functions of the bound owner values, the drift check as a total function with the decision order lock, ID, toolchain, the rollout, rollback, upgrade and retirement machine, and AC-14 to AC-17 as theorems over a record-resolution model that rest on `Identity`'s round trip of the profile preimage (`profileRT`) and claim nothing about SHA-256. Attestation signing stays abstract until #11. [STORE.md](STORE.md) holds the claims, what is not met and the planted defects |
 | `Foundation.Arch` | the architecture vocabulary, a byte-identical copy of `stdlib/src/Foundation/Arch.lex.tex` of PrismPM main at `d11ace6f` (FJ-09) |
 | `Foundation.Sec`, `Foundation.Qual` | the security and quality vocabularies (copies of the PrismPM stdlib modules, as in prism-code) |
 
@@ -106,6 +112,8 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   what they do not, and the defects planted in their gates.
 - [OBSERVABILITY.md](OBSERVABILITY.md) records the defects planted in the
   observability theorems, the command that rejects each and the restore.
+- [STORE.md](STORE.md) states what the store model claims and does not claim
+  and the defects planted in its laws.
 - [CI.md](CI.md) describes the workflow that runs every gate that works without
   the SDK, and how to read its failures.
 

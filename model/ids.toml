@@ -219,6 +219,60 @@ suite = "owner-values"
 statement = "Each bound value respects the constraint it follows from: draft.max_bytes and draft.max_files hold the largest example and stay within the limits of lexlean.toml, verify.concurrency times verify.memory_kib fits a 16 GiB host, verify.width is within the range of LexLean SPEC 22.11, listen.port is a registered-range port below the ephemeral range, and the product version equals the workspace package version."
 
 [[id]]
+id = "ST-01"
+level = "build"
+suite = "store"
+statement = "The store layout of lexlean-mcp/store/1 is a closed type of seven directories, profiles, drafts, builds, verifications, index, exports and keys, in that order: each has one distinct wire name, every directory is listed, every wire name parses back to its directory and an unknown name is refused."
+
+[[id]]
+id = "ST-02"
+level = "build"
+suite = "store"
+statement = "The backup set is exactly verifications, keys and the drafts references: the predicate is membership of that set, every item that cannot be recomputed and does not expire is in it, nothing recomputable is in it, and the archive has exactly those three fields."
+
+[[id]]
+id = "ST-03"
+level = "build"
+suite = "store"
+statement = "Retention is a total function of the bound owner values: an attestation record never expires at any age, a draft record expires after store.draft_retention (30 days) and not before, and both durations are the values bound in src/OwnerValues.lex.tex."
+
+[[id]]
+id = "ST-04"
+level = "build"
+suite = "store"
+statement = "The drift check is a total function from the stored profile record, the lock check result, the recomputed profile ID and the recomputed toolchain hashes to one of NoDrift, LockDrift, IdDrift and ToolchainDrift, deciding in that order of precedence: lock, then ID, then toolchain; all eight inputs of the decision are tabulated, and a recomputation that Identity refuses is IdDrift."
+
+[[id]]
+id = "ST-05"
+level = "build"
+suite = "store"
+statement = "The lifecycle is a state machine over the served revision, the served profile set, the previous release, the retired profiles and the records: rollout, rollback, upgrade and retirement keep every record, rollback restores the previous revision and served set, an upgrade serves the new profile and a retired profile is not served."
+
+[[id]]
+id = "ST-06"
+level = "build"
+suite = "store"
+statement = "AC-14 (model): the profile preimage determines its toolchain field for every input, so a new LexLean revision gives another preimage, and after an upgrade the earlier records still resolve and still validate; this is a claim about preimages, not about SHA-256."
+
+[[id]]
+id = "ST-07"
+level = "build"
+suite = "store"
+statement = "AC-15 and AC-17 (model): returning to the previous revision serves its profiles and its revision, a record written after the rollout still resolves after the rollback, and a release rollback resolves every record that resolved before it."
+
+[[id]]
+id = "ST-08"
+level = "build"
+suite = "store"
+statement = "AC-16 (model): after restore from a backup every backed-up record resolves as before, the keys and the draft references are restored, and re-verifying a restored record yields the attestation ID it is stored under because the ID is a function of the profile and the inputs; the signed attestation format stays abstract until #11."
+
+[[id]]
+id = "ST-09"
+level = "build"
+suite = "store"
+statement = "Each law of the store model rejects its planted defect: an attestation that expires, a drift check that reports ToolchainDrift before IdDrift, a rollback that drops a later record and a restore that omits keys each fail lexlean verify; STORE.md records the command, the diagnostic and the restore of each."
+
+[[id]]
 id = "QM-01"
 level = "some-true"
 suite = "quality"
