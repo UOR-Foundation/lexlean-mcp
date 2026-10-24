@@ -10,5 +10,8 @@ publish = false
 [dependencies]
 repo-model = { workspace = true }
 
+[dev-dependencies]
+quality-map = { path = "../quality-map", version = "0.1.0" }
+
 [lints]
 workspace = true

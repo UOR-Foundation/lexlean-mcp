@@ -1,0 +1,265 @@
+# crates/quality-map/map.toml --- the API-to-tool map of Q2 (issue #15).
+#
+# One row per public function of the stable surface of LexLean release/v0.4 at
+# 9796067, as the vendored sources in lexlean/ declare it (see sources.toml). A
+# function reaches exactly one tool or states why no tool does; the tests (QM-02,
+# QM-03) recompute the function list from the vendored sources and fail when a
+# row is missing, extra, re-signed, unmapped or mapped to a tool no issue defines.
+#
+# `Engine::check` is a method, `sdk::assemble` a function of a module. A `reason`
+# cites `issue`: the issue of lexlean-mcp it is taken from, or 0 when no issue
+# speaks and the reason rests on the pinned SPEC and source.
+#
+# The in-scope functions are the ones the model of Q2 names in src/Quality.lex.tex;
+# a function reaches a tool exactly when it is in scope there.
+
+spec = "lexlean-mcp/api-map/1"
+commit = "97960679736e960e84a98f5c43981e1f2c70d6d7"
+
+# The tools issues 8 to 12 define, and the issue that defines each.
+
+[[tool]]
+name = "lexlean_profiles"
+issue = 8
+
+[[tool]]
+name = "lexlean_lexicon_search"
+issue = 8
+
+[[tool]]
+name = "lexlean_draft_write"
+issue = 9
+
+[[tool]]
+name = "lexlean_draft_assemble"
+issue = 9
+
+[[tool]]
+name = "lexlean_draft_read"
+issue = 9
+
+[[tool]]
+name = "lexlean_check"
+issue = 10
+
+[[tool]]
+name = "lexlean_snapshot"
+issue = 10
+
+[[tool]]
+name = "lexlean_format"
+issue = 10
+
+[[tool]]
+name = "lexlean_build"
+issue = 10
+
+[[tool]]
+name = "lexlean_explain"
+issue = 10
+
+[[tool]]
+name = "lexlean_verify"
+issue = 11
+
+[[tool]]
+name = "lexlean_present"
+issue = 12
+
+[[tool]]
+name = "lexlean_attestation"
+issue = 12
+
+[[tool]]
+name = "lexlean_export"
+issue = 12
+
+
+[[function]]
+path = "api::render_build"
+signature = "pub fn render_build(project: &Project, checked: &CheckedProject) -> Result<RenderedBuild, LexLeanError>"
+reason = "a step of the build pipeline behind Engine::build, outside the five Engine calls Q2 puts in scope; no issue defines a tool for it and SPEC 24 does not declare it"
+issue = 0
+
+[[function]]
+path = "api::publish_build"
+signature = "pub fn publish_build(project: &Project, build: &RenderedBuild) -> Result<Utf8PathBuf, LexLeanError>"
+reason = "a step of the build pipeline behind Engine::build, outside the five Engine calls Q2 puts in scope; no issue defines a tool for it and SPEC 24 does not declare it"
+issue = 0
+
+[[function]]
+path = "Engine::load"
+signature = "pub fn load(project_file: &Utf8Path) -> Result<Self, LexLeanError>"
+reason = "opens the profile's project for each tool call and carries no request of its own; #8 provisions the project and #10 calls the Engine from every tool"
+issue = 10
+
+[[function]]
+path = "Engine::lock"
+signature = "pub fn lock(&self, request: LockRequest) -> Result<LockResult, LexLeanError>"
+reason = "setup: locking is part of provisioning a profile (J5, with --allow-network only for Git-sourced packages), and issue 10 leaves the 4 lock fixtures out because no tool reaches what they test"
+issue = 8
+
+[[function]]
+path = "Engine::check"
+signature = "pub fn check(&self, request: CheckRequest) -> Result<ProjectResultSet<CheckedUnit>, LexLeanError>"
+tool = "lexlean_check"
+
+[[function]]
+path = "Engine::snapshot"
+signature = "pub fn snapshot(&self, request: CheckRequest) -> Result<crate::artifact::snapshot::SemanticSnapshot, LexLeanError>"
+tool = "lexlean_snapshot"
+
+[[function]]
+path = "Engine::build"
+signature = "pub fn build(&self, request: BuildRequest) -> Result<ProjectResultSet<BuiltUnit>, LexLeanError>"
+tool = "lexlean_build"
+
+[[function]]
+path = "Engine::verify"
+signature = "pub fn verify(&self, request: VerifyRequest) -> Result<VerifiedProject, LexLeanError>"
+tool = "lexlean_verify"
+
+[[function]]
+path = "Engine::format"
+signature = "pub fn format(&self, request: FormatRequest) -> Result<FormatResultSet, LexLeanError>"
+tool = "lexlean_format"
+
+[[function]]
+path = "api::parse_lock_bytes"
+signature = "pub fn parse_lock_bytes(path: &str, bytes: &[u8]) -> Result<Lock, Vec<Diagnostic>>"
+reason = "reads a lock file for the lock command, which is setup (issue 8, issue 10), and SPEC 24 does not declare it"
+issue = 8
+
+[[function]]
+path = "api::command_result_json"
+signature = "pub fn command_result_json(command: &str, exit_code: i32, modules: &BTreeSet<String>, artifacts: &[String], diagnostics: &[Diagnostic], ids: &CommandIds, explanation: Option<&str>) -> Json"
+reason = "shapes the canonical command result that issues 10 and 11 return as the structured content of their tools; it is not a request"
+issue = 10
+
+[[function]]
+path = "api::verify_part"
+signature = "pub fn verify_part(engine: &Engine, request: VerifyRequest, part: VerifyPart) -> Result<VerifyPartOutcome, LexLeanError>"
+reason = "splits one verification for the verifier of a task; issue 11 runs one verifier process per task and exposes only lexlean_verify"
+issue = 11
+
+[[function]]
+path = "ProductionRequest::from_json"
+signature = "pub fn from_json(bytes: &[u8]) -> Result<Self, LexLeanError>"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "ProductionRequest::to_json"
+signature = "pub fn to_json(&self) -> Vec<u8>"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "ProductionRequest::validate"
+signature = "pub fn validate(&self) -> Result<(), LexLeanError>"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "api::production::targets"
+signature = "pub fn targets() -> Result<Vec<TargetDescriptor>, LexLeanError>"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "api::production::targets_document"
+signature = "pub fn targets_document() -> Result<Vec<u8>, LexLeanError>"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "ProductionResult::recomputed_id"
+signature = "pub fn recomputed_id(&self) -> Sha256Digest"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "ProductionResult::to_json"
+signature = "pub fn to_json(&self) -> Vec<u8>"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "ProductionResult::recursive_outputs"
+signature = "pub fn recursive_outputs(&self) -> usize"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "api::production::build"
+signature = "pub fn build(engine: &Engine, request: &ProductionRequest) -> Result<ProductionOutput, LexLeanError>"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "api::production::verify_artifact"
+signature = "pub fn verify_artifact(bundle: &Utf8Path) -> Result<ReplayReport, LexLeanError>"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "ReplayReport::to_json"
+signature = "pub fn to_json(&self) -> Vec<u8>"
+reason = "outside the product: issue 10 leaves the 4 production fixtures of AC-07 out because no tool reaches production export"
+issue = 10
+
+[[function]]
+path = "sdk::module_kind"
+signature = "pub fn module_kind(text: &str) -> Option<ModuleKind>"
+reason = "classifies a source as semantic, tooling or core; issue 9 lists the four sdk functions its tools use and this is not one"
+issue = 9
+
+[[function]]
+path = "sdk::is_notation"
+signature = "pub fn is_notation(text: &str) -> bool"
+reason = "tells the notation from the data form; issue 9 lists the four sdk functions its tools use and this is not one"
+issue = 9
+
+[[function]]
+path = "sdk::read_module"
+signature = "pub fn read_module(text: &str) -> Result<Value, AuthoringError>"
+tool = "lexlean_draft_read"
+
+[[function]]
+path = "sdk::write_module"
+signature = "pub fn write_module(text: &str, data: &Value) -> Result<String, AuthoringError>"
+tool = "lexlean_draft_assemble"
+
+[[function]]
+path = "sdk::to_data_form"
+signature = "pub fn to_data_form(text: &str) -> Result<String, AuthoringError>"
+reason = "writes the data form, which a language-1.2 source refuses (SPEC 17.21.1, AU-13), so no tool of this product writes it"
+issue = 9
+
+[[function]]
+path = "sdk::to_notation"
+signature = "pub fn to_notation(text: &str) -> Result<String, AuthoringError>"
+reason = "the conversion fmt applies, reached through Engine::format by lexlean_format and not on its own; issue 9 lists the four sdk functions its tools use and this is not one"
+issue = 9
+
+[[function]]
+path = "sdk::declaration_spans"
+signature = "pub fn declaration_spans(text: &str) -> Result<Option<Vec<(usize, usize)>>, AuthoringError>"
+tool = "lexlean_draft_read"
+
+[[function]]
+path = "sdk::assemble"
+signature = "pub fn assemble(header: &SourceHeader<'_>, kind: ModuleKind, data: &Value) -> Result<String, AuthoringError>"
+tool = "lexlean_draft_assemble"
+
+[[function]]
+path = "verify::end_live_children"
+signature = "pub fn end_live_children() -> Vec<ChildGroupEnd>"
+reason = "ends the child groups of the verifier when a task is cancelled (AC-12); a step of the tasks protocol of issue 11, not a tool"
+issue = 11
+
+[[function]]
+path = "verify::allow_children"
+signature = "pub fn allow_children()"
+reason = "lets the verifier start children again after end_live_children; a step of the tasks protocol of issue 11, not a tool"
+issue = 11
