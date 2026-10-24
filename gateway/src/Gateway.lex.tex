@@ -1,0 +1,93 @@
+\begin{lexlean}{Gateway}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Admission}
+\importmodule{Capabilities}
+\importmodule{Common}
+\importmodule{Extension}
+\importmodule{GatewayTools}
+\importmodule{Json}
+\importmodule{Methods}
+\importmodule{Refusal}
+\importmodule{StepServe}
+\importmodule{Tools}
+\title{LexLean MCP gateway}
+\begin{semanticmodule}
+definition{
+  name: gatewayServerInfo,
+  parameters: [],
+  result: Common::Implementation,
+  body: (record Common::Implementation {name := "lexlean", title := (ctor Option.none [String]), version := "0.1.0", description := (ctor Option.none [String]), websiteUrl := (ctor Option.none [String]), icons := (ctor Option.none [(List Common::Icon)])}),
+  executable: true
+}
+
+definition{
+  name: gatewayCapabilities,
+  parameters: [],
+  result: Capabilities::ServerCapabilities,
+  body: (record Capabilities::ServerCapabilities {experimental := (ctor Option.none [Json::JsonObject]), logging := (ctor Option.none [Json::JsonObject]), completions := (ctor Option.none [Json::JsonObject]), prompts := (ctor Option.none [Capabilities::ListChangedCapability]), resources := (ctor Option.none [Capabilities::ResourcesCapability]), tools := (ctor Option.some [Capabilities::ListChangedCapability] (record Capabilities::ListChangedCapability {listChanged := (ctor Option.none [Bool])})), extensions := (ctor Option.none [Json::JsonObject])}),
+  executable: true
+}
+
+definition{
+  name: gatewayCache,
+  parameters: [],
+  result: Common::CacheHint,
+  body: (record Common::CacheHint {ttlMs := 0, cacheScope := (ctor Common::CacheScope.private)}),
+  executable: true
+}
+
+definition{name: callLimit, parameters: [], result: Nat, body: 100, executable: true}
+
+definition{
+  name: gatewayInfo,
+  parameters: [],
+  result: Extension::ProviderInfo,
+  body: (record Extension::ProviderInfo {serverInfo := (gatewayServerInfo), instructions := (ctor Option.none [String]), capabilities := (gatewayCapabilities), discoverCache := (gatewayCache), paramRules := (Admission::rulesOf (GatewayTools::gatewayTools)), toolCallLimit := (callLimit), requestStateKey := 0x}),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: toolsOnly,
+  parameters: [],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.internal "the gateway offers tools only")),
+  executable: true
+}
+
+definition{
+  name: answerWith,
+  parameters: [asked : StepServe::Asked],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (Tools::admissionRefusal (GatewayTools::gatewayTools))
+    | Option.some refusal => (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] refusal)
+    | Option.none => (match (project asked request)
+      | Methods::ClientRequest.toolsList params => (Tools::answerList (gatewayCache) (GatewayTools::gatewayTools) params)
+      | Methods::ClientRequest.toolsCall params => (Tools::answerCall (GatewayTools::gatewayTools) (fun [asked] (call : Methods::CallToolParams) => (GatewayTools::behave (project asked completed) call)) params)
+      | Methods::ClientRequest.serverDiscover params => (toolsOnly)
+      | Methods::ClientRequest.resourcesList params => (toolsOnly)
+      | Methods::ClientRequest.resourcesRead params => (toolsOnly)
+      | Methods::ClientRequest.resourcesTemplatesList params => (toolsOnly)
+      | Methods::ClientRequest.promptsList params => (toolsOnly)
+      | Methods::ClientRequest.promptsGet params => (toolsOnly)
+      | Methods::ClientRequest.completionComplete params => (toolsOnly)
+      | Methods::ClientRequest.tasksGet params => (toolsOnly)
+      | Methods::ClientRequest.tasksUpdate params => (toolsOnly)
+      | Methods::ClientRequest.tasksCancel params => (toolsOnly))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: gatewayRun,
+  parameters: [input : Bytes],
+  result: (List Nat),
+  body: (StepServe::serveStep (gatewayInfo) (ref answerWith) input),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow], targets: [rust-std]}
+}
+\end{semanticmodule}
+\end{lexlean}

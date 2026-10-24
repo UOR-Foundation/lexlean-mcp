@@ -1,0 +1,580 @@
+\begin{lexlean}{GatewayTools}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Common}
+\importmodule{Content}
+\importmodule{Effects}
+\importmodule{Frame}
+\importmodule{HostEffect}
+\importmodule{Http}
+\importmodule{HostWire}
+\importmodule{Json}
+\importmodule{JsonText}
+\importmodule{Methods}
+\importmodule{Numeric}
+\importmodule{Refusal}
+\importmodule{ResultJson}
+\title{LexLean MCP effect tools}
+\begin{semanticmodule}
+definition{
+  name: textBlock,
+  parameters: [content : String],
+  result: Content::ContentBlock,
+  body: (ctor Content::ContentBlock.text (record Content::TextContent {text := content, annotations := (ctor Option.none [Common::Annotations]), meta := (ctor Option.none [Json::JsonObject])})),
+  executable: true
+}
+
+definition{
+  name: reply,
+  parameters: [text : String, structured : Json::Json, failed : Bool],
+  result: Methods::Progressed,
+  body: (record Methods::Progressed {result := (record Methods::CallToolResult {content := (cons (textBlock text) (nil Content::ContentBlock)), structuredContent := (ctor Option.some [Json::Json] structured), isError := (if failed then (ctor Option.some [Bool] true) else (ctor Option.none [Bool]))}), steps := (nil Methods::ProgressStep)}),
+  executable: true
+}
+
+definition{
+  name: plain,
+  parameters: [text : String],
+  result: Methods::Progressed,
+  body: (record Methods::Progressed {result := (record Methods::CallToolResult {content := (cons (textBlock text) (nil Content::ContentBlock)), structuredContent := (ctor Option.none [Json::Json]), isError := (ctor Option.none [Bool])}), steps := (nil Methods::ProgressStep)}),
+  executable: true
+}
+
+definition{
+  name: member,
+  parameters: [key : String, value : Json::Json],
+  result: (List (String * Json::Json)),
+  body: (cons (key, value) (nil (String * Json::Json))),
+  executable: true
+}
+
+definition{
+  name: flagJson,
+  parameters: [flag : Bool],
+  result: Json::Json,
+  body: (ctor Json::Json.bool flag),
+  executable: true
+}
+
+definition{
+  name: textJson,
+  parameters: [text : String],
+  result: Json::Json,
+  body: (ctor Json::Json.text text),
+  executable: true
+}
+
+definition{
+  name: argValue,
+  parameters: [params : Methods::CallToolParams, key : String],
+  result: (Option Json::Json),
+  body: (match (project params arguments)
+    | Option.none => (ctor Option.none [Json::Json])
+    | Option.some object => (match (Json::lookup key object)
+      | Json::Lookup.absent => (ctor Option.none [Json::Json])
+      | Json::Lookup.present value => (ctor Option.some [Json::Json] value))),
+  executable: true
+}
+
+definition{
+  name: argText,
+  parameters: [params : Methods::CallToolParams, key : String],
+  result: (Option String),
+  body: (match (argValue params key)
+    | Option.none => (ctor Option.none [String])
+    | Option.some value => (Json::asText value)),
+  executable: true
+}
+
+definition{
+  name: argFlag,
+  parameters: [params : Methods::CallToolParams, key : String],
+  result: Bool,
+  body: (match (argValue params key)
+    | Option.none => false
+    | Option.some value => (match (Json::asBool value)
+      | Option.none => false
+      | Option.some flag => flag)),
+  executable: true
+}
+
+definition{
+  name: textsOnto,
+  parameters: [items : (List Json::Json), built : (List String)],
+  result: (Option (List String)),
+  body: (match items
+    | List.nil => (ctor Option.some [(List String)] built)
+    | List.cons head rest => (match (Json::asText head)
+      | Option.none => (ctor Option.none [(List String)])
+      | Option.some text => (textsOnto rest (cons text built)))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: reverseTexts,
+  parameters: [items : (List String), built : (List String)],
+  result: (List String),
+  body: (match items
+    | List.nil => built
+    | List.cons head rest => (reverseTexts rest (cons head built))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: hasNewline,
+  parameters: [bytes : (List Nat)],
+  result: Bool,
+  body: (match bytes
+    | List.nil => false
+    | List.cons head rest => (if (head =? 10) then true else (hasNewline rest))),
+  executable: true,
+  recursive_argument: bytes
+}
+
+definition{
+  name: anyNewline,
+  parameters: [texts : (List String)],
+  result: Bool,
+  body: (match texts
+    | List.nil => false
+    | List.cons head rest => (if (hasNewline (Http::asciiOf head)) then true else (anyNewline rest))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: texts
+}
+
+definition{
+  name: argFiles,
+  parameters: [params : Methods::CallToolParams],
+  result: (Option (List String)),
+  body: (match (argValue params "files")
+    | Option.none => (ctor Option.some [(List String)] (nil String))
+    | Option.some value => (match (Json::asArray value)
+      | Option.none => (ctor Option.none [(List String)])
+      | Option.some items => (match (textsOnto items (nil String))
+        | Option.none => (ctor Option.none [(List String)])
+        | Option.some reversed => (ctor Option.some [(List String)] (reverseTexts reversed (nil String)))))),
+  executable: true
+}
+
+definition{
+  name: selectionList,
+  parameters: [files : (List String)],
+  result: (List Nat),
+  body: (match files
+    | List.nil => (prim append (Frame::u32List 0) (HostWire::textList "") : (List Nat))
+    | List.cons head rest => (prim append (Frame::u32List 2) (HostWire::textList (prim join files "\n" : String)) : (List Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{name: draftMaxBytes, parameters: [], result: Nat, body: 8388608, executable: true}
+
+structure{
+  name: Plan,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: effect, type: Effects::Effect}, {name: payload, type: (List Nat)}]
+}
+
+definition{
+  name: tagOf,
+  parameters: [effect : Effects::Effect],
+  result: Nat,
+  body: (match effect
+    | Effects::Effect.StoreGet => 0
+    | Effects::Effect.StorePut => 1
+    | Effects::Effect.EngineCheck => 2
+    | Effects::Effect.EngineSnapshot => 3
+    | Effects::Effect.EngineFormat => 4
+    | Effects::Effect.EngineBuild => 5
+    | Effects::Effect.VerifyStart => 6
+    | Effects::Effect.VerifyControl => 7
+    | Effects::Effect.LexiconRead => 8
+    | Effects::Effect.AttestationLookup => 9),
+  executable: true
+}
+
+definition{
+  name: nameOf,
+  parameters: [effect : Effects::Effect],
+  result: String,
+  body: (match effect
+    | Effects::Effect.StoreGet => "store.get"
+    | Effects::Effect.StorePut => "store.put"
+    | Effects::Effect.EngineCheck => "engine.check"
+    | Effects::Effect.EngineSnapshot => "engine.snapshot"
+    | Effects::Effect.EngineFormat => "engine.format"
+    | Effects::Effect.EngineBuild => "engine.build"
+    | Effects::Effect.VerifyStart => "verify.start"
+    | Effects::Effect.VerifyControl => "verify.control"
+    | Effects::Effect.LexiconRead => "lexicon.read"
+    | Effects::Effect.AttestationLookup => "attestation.lookup"),
+  executable: true
+}
+
+definition{
+  name: area,
+  parameters: [name : String],
+  result: Nat,
+  body: (if (prim equal name "drafts" : Bool) then 1 else 0),
+  executable: true
+}
+
+definition{
+  name: storePayload,
+  parameters: [key : String],
+  result: (List Nat),
+  body: (prim append (Frame::u32List (area "drafts")) (HostWire::textList key) : (List Nat)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: enginePlan,
+  parameters: [effect : Effects::Effect, params : Methods::CallToolParams, extra : (List Nat)],
+  result: (Option Plan),
+  body: (match (argText params "project")
+    | Option.none => (ctor Option.none [Plan])
+    | Option.some home => (match (argFiles params)
+      | Option.none => (ctor Option.none [Plan])
+      | Option.some files => (if (anyNewline files) then (ctor Option.none [Plan]) else (ctor Option.some [Plan] (record Plan {effect := effect, payload := (prim append (HostWire::textList home) (prim append (selectionList files) extra : (List Nat)) : (List Nat))}))))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: isTool,
+  parameters: [params : Methods::CallToolParams, name : String],
+  result: Bool,
+  body: (prim equal (project params name) name : Bool),
+  executable: true
+}
+
+definition{
+  name: plan,
+  parameters: [params : Methods::CallToolParams],
+  result: (Option Plan),
+  body: (if (isTool params "lexlean_draft_write") then (match (argText params "path")
+    | Option.none => (ctor Option.none [Plan])
+    | Option.some path => (match (argText params "content")
+      | Option.none => (ctor Option.none [Plan])
+      | Option.some content => (if ((draftMaxBytes) <? (prim length (Http::asciiOf content) : Nat)) then (ctor Option.none [Plan]) else (ctor Option.some [Plan] (record Plan {effect := (ctor Effects::Effect.StorePut), payload := (prim append (storePayload path) (HostWire::chunkList (Http::asciiOf content)) : (List Nat))}))))) else (if (isTool params "lexlean_draft_read") then (match (argText params "path")
+    | Option.none => (ctor Option.none [Plan])
+    | Option.some path => (ctor Option.some [Plan] (record Plan {effect := (ctor Effects::Effect.StoreGet), payload := (storePayload path)}))) else (if (isTool params "lexlean_check") then (enginePlan (ctor Effects::Effect.EngineCheck) params (nil Nat)) else (if (isTool params "lexlean_snapshot") then (enginePlan (ctor Effects::Effect.EngineSnapshot) params (nil Nat)) else (if (isTool params "lexlean_format") then (enginePlan (ctor Effects::Effect.EngineFormat) params (HostWire::flagList (argFlag params "check_only"))) else (if (isTool params "lexlean_build") then (enginePlan (ctor Effects::Effect.EngineBuild) params (nil Nat)) else (if (isTool params "lexlean_verify") then (enginePlan (ctor Effects::Effect.VerifyStart) params (nil Nat)) else (if (isTool params "lexlean_verify_control") then (match (argText params "task")
+    | Option.none => (ctor Option.none [Plan])
+    | Option.some task => (match (argText params "action")
+      | Option.none => (ctor Option.none [Plan])
+      | Option.some action => (ctor Option.some [Plan] (record Plan {effect := (ctor Effects::Effect.VerifyControl), payload := (prim append (HostWire::textList task) (Frame::u32List (if (prim equal action "cancel" : Bool) then 1 else 0)) : (List Nat))})))) else (if (isTool params "lexlean_lexicon_read") then (match (argText params "profile")
+    | Option.none => (ctor Option.none [Plan])
+    | Option.some profile => (match (argText params "entry")
+      | Option.none => (ctor Option.none [Plan])
+      | Option.some entry => (ctor Option.some [Plan] (record Plan {effect := (ctor Effects::Effect.LexiconRead), payload := (prim append (HostWire::textList profile) (HostWire::textList entry) : (List Nat))})))) else (if (isTool params "lexlean_attestation") then (match (argText params "by")
+    | Option.none => (ctor Option.none [Plan])
+    | Option.some by => (match (argText params "value")
+      | Option.none => (ctor Option.none [Plan])
+      | Option.some value => (ctor Option.some [Plan] (record Plan {effect := (ctor Effects::Effect.AttestationLookup), payload := (prim append (Frame::u32List (if (prim equal by "digest" : Bool) then 1 else 0)) (HostWire::textList value) : (List Nat))})))) else (ctor Option.none [Plan]))))))))))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: nth,
+  parameters: [names : (List String), index : Nat],
+  result: String,
+  body: (match names
+    | List.nil => "unknown"
+    | List.cons head rest => (match index | Nat.zero => head | Nat.succ below => (nth rest below))),
+  executable: true,
+  recursive_argument: names
+}
+
+definition{
+  name: failureNames,
+  parameters: [effect : Effects::Effect],
+  result: (List String),
+  body: (match effect
+    | Effects::Effect.StoreGet => (cons "area-unknown" (cons "key-refused" (cons "unreadable" (nil String))))
+    | Effects::Effect.StorePut => (cons "area-unknown" (cons "key-refused" (cons "unwritable" (nil String))))
+    | Effects::Effect.EngineCheck => (cons "project-refused" (cons "engine-unavailable" (nil String)))
+    | Effects::Effect.EngineSnapshot => (cons "project-refused" (cons "engine-unavailable" (nil String)))
+    | Effects::Effect.EngineFormat => (cons "project-refused" (cons "engine-unavailable" (nil String)))
+    | Effects::Effect.EngineBuild => (cons "project-refused" (cons "engine-unavailable" (nil String)))
+    | Effects::Effect.VerifyStart => (cons "project-refused" (cons "verifier-unavailable" (nil String)))
+    | Effects::Effect.VerifyControl => (cons "unknown-task" (nil String))
+    | Effects::Effect.LexiconRead => (cons "profile-unknown" (cons "key-refused" (nil String)))
+    | Effects::Effect.AttestationLookup => (cons "value-refused" (nil String))),
+  executable: true
+}
+
+definition{
+  name: hostFailure,
+  parameters: [effect : Effects::Effect, index : Nat],
+  result: Methods::Progressed,
+  body: (let name : String := (nth (failureNames effect) index); (reply (prim join (cons (nameOf effect) (cons "failed:" (cons name (nil String)))) " " : String) (ctor Json::Json.object (member "failure" (textJson name))) true)),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: wordAt,
+  parameters: [outcome : Bytes, position : Nat],
+  result: Nat,
+  body: (match (Frame::u32At outcome position) | Option.none => 0 | Option.some word => word),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: malformed,
+  parameters: [],
+  result: Methods::Progressed,
+  body: (plain "the host answered with a malformed outcome"),
+  executable: true
+}
+
+definition{
+  name: contentText,
+  parameters: [content : Bytes],
+  result: String,
+  body: (match (prim utf8_decode content : (Option String))
+    | Option.none => "the content is not UTF-8"
+    | Option.some text => text),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: foundReply,
+  parameters: [outcome : Bytes],
+  result: Methods::Progressed,
+  body: (match (Frame::chunkAt outcome 5)
+    | Option.none => (malformed)
+    | Option.some chunk => (if ((JsonText::byteAt outcome 4) =? 1) then (reply (contentText (project chunk bytes)) (ctor Json::Json.object (member "found" (flagJson true))) false) else (reply "not found" (ctor Json::Json.object (member "found" (flagJson false))) false))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: putReply,
+  parameters: [outcome : Bytes],
+  result: Methods::Progressed,
+  body: (let length : Nat := ((prim multiply (wordAt outcome 4) 4294967296 : Nat) + (wordAt outcome 8)); (reply (prim join (cons "written" (cons (prim format_decimal (Numeric::natToInt length (0 : Int)) : String) (cons "bytes" (nil String)))) " " : String) (ctor Json::Json.object (member "length" (ResultJson::natJson length))) false)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: engineReply,
+  parameters: [outcome : Bytes],
+  result: Methods::Progressed,
+  body: (match (Frame::chunkAt outcome 8)
+    | Option.none => (malformed)
+    | Option.some chunk => (let class : Nat := (wordAt outcome 4); (reply (contentText (project chunk bytes)) (ctor Json::Json.object (member "class" (ResultJson::natJson class))) (if (class =? 0) then false else true)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: stateName,
+  parameters: [state : Nat],
+  result: String,
+  body: (nth (cons "queued" (cons "running" (cons "verified" (cons "failed" (cons "cancelled" (nil String)))))) state),
+  executable: true
+}
+
+definition{
+  name: startReply,
+  parameters: [outcome : Bytes],
+  result: Methods::Progressed,
+  body: (match (Frame::chunkAt outcome 4)
+    | Option.none => (malformed)
+    | Option.some chunk => (match (prim utf8_decode (project chunk bytes) : (Option String))
+      | Option.none => (malformed)
+      | Option.some task => (reply task (ctor Json::Json.object (cons ("task", (textJson task)) (member "state" (textJson (stateName (wordAt outcome (project chunk next))))))) false))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: controlReply,
+  parameters: [outcome : Bytes],
+  result: Methods::Progressed,
+  body: (match (Frame::chunkAt outcome 12)
+    | Option.none => (malformed)
+    | Option.some chunk => (reply (contentText (project chunk bytes)) (ctor Json::Json.object (cons ("state", (textJson (stateName (wordAt outcome 4)))) (cons ("class", (ResultJson::natJson (wordAt outcome 8))) (cons ("groupsEnded", (ResultJson::natJson (wordAt outcome (project chunk next)))) (member "groupsFailed" (ResultJson::natJson (wordAt outcome ((project chunk next) + 4)))))))) (if ((wordAt outcome 8) =? 0) then false else true))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: render,
+  parameters: [effect : Effects::Effect, outcome : Bytes],
+  result: Methods::Progressed,
+  body: (if ((wordAt outcome 0) =? 1) then (hostFailure effect (wordAt outcome 4)) else (match effect
+    | Effects::Effect.StoreGet => (foundReply outcome)
+    | Effects::Effect.StorePut => (putReply outcome)
+    | Effects::Effect.EngineCheck => (engineReply outcome)
+    | Effects::Effect.EngineSnapshot => (engineReply outcome)
+    | Effects::Effect.EngineFormat => (engineReply outcome)
+    | Effects::Effect.EngineBuild => (engineReply outcome)
+    | Effects::Effect.VerifyStart => (startReply outcome)
+    | Effects::Effect.VerifyControl => (controlReply outcome)
+    | Effects::Effect.LexiconRead => (foundReply outcome)
+    | Effects::Effect.AttestationLookup => (foundReply outcome))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: asking,
+  parameters: [tag : Nat, payload : (List Nat)],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.effectRequested (record HostEffect::EffectRequest {tag := tag, payload := (JsonText::listToBytes (JsonText::emptyBytes) payload)}))),
+  executable: true
+}
+
+definition{
+  name: refused,
+  parameters: [reason : String],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.internal reason)),
+  executable: true
+}
+
+definition{
+  name: behave,
+  parameters: [completed : (List HostEffect::Completed), params : Methods::CallToolParams],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (plan params)
+    | Option.none => (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments "a file name holds a line feed, or a draft is over draft.max_bytes"))
+    | Option.some chosen => (match completed
+      | List.nil => (asking (tagOf (project chosen effect)) (project chosen payload))
+      | List.cons entry rest => (match rest
+        | List.nil => (if ((project entry tag) =? (tagOf (project chosen effect))) then (ctor Result.ok [Methods::Progressed, Refusal::ProviderRefusal] (render (project chosen effect) (project entry outcome))) else (refused "the host performed another effect"))
+        | List.cons more again => (refused "the host performed more than one effect")))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: kindProp,
+  parameters: [kind : String],
+  result: Json::Json,
+  body: (ctor Json::Json.object (member "type" (textJson kind))),
+  executable: true
+}
+
+definition{
+  name: nonEmptyProp,
+  parameters: [],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("type", (textJson "string")) (member "minLength" (ResultJson::natJson 1)))),
+  executable: true
+}
+
+definition{
+  name: stringsProp,
+  parameters: [],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("type", (textJson "array")) (member "items" (kindProp "string")))),
+  executable: true
+}
+
+definition{
+  name: choiceProp,
+  parameters: [one : String, other : String],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("type", (textJson "string")) (member "enum" (ctor Json::Json.array (cons (textJson one) (cons (textJson other) (nil Json::Json))))))),
+  executable: true
+}
+
+definition{
+  name: requiredList,
+  parameters: [names : (List String), built : (List Json::Json)],
+  result: Json::Json,
+  body: (match names
+    | List.nil => (ctor Json::Json.array built)
+    | List.cons head rest => (requiredList rest (prim append built (cons (textJson head) (nil Json::Json)) : (List Json::Json)))),
+  executable: true,
+  recursive_argument: names
+}
+
+definition{
+  name: objectOf,
+  parameters: [properties : (List (String * Json::Json)), required : (List String)],
+  result: Json::JsonObject,
+  body: (record Json::JsonObject {members := (cons ("type", (textJson "object")) (cons ("properties", (ctor Json::Json.object properties)) (cons ("required", (requiredList required (nil Json::Json))) (member "additionalProperties" (flagJson false)))))}),
+  executable: true
+}
+
+definition{
+  name: effectTool,
+  parameters: [name : String, description : String, schema : Json::JsonObject],
+  result: Content::Tool,
+  body: (record Content::Tool {name := name, title := (ctor Option.none [String]), icons := (ctor Option.none [(List Common::Icon)]), description := (ctor Option.some [String] description), inputSchema := schema, outputSchema := (ctor Option.none [Json::JsonObject]), annotations := (ctor Option.none [Content::ToolAnnotations]), meta := (ctor Option.none [Json::JsonObject])}),
+  executable: true
+}
+
+definition{
+  name: projectProperties,
+  parameters: [],
+  result: (List (String * Json::Json)),
+  body: (cons ("project", (nonEmptyProp)) (member "files" (stringsProp))),
+  executable: true
+}
+
+definition{
+  name: gatewayTools,
+  parameters: [],
+  result: (List Content::Tool),
+  body: (cons (effectTool "lexlean_draft_write" "Write a file of a draft in the store." (objectOf (cons ("path", (nonEmptyProp)) (member "content" (kindProp "string"))) (cons "path" (cons "content" (nil String))))) (cons (effectTool "lexlean_draft_read" "Read a file of a draft from the store." (objectOf (member "path" (nonEmptyProp)) (cons "path" (nil String)))) (cons (effectTool "lexlean_check" "Check a project with the LexLean engine." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_snapshot" "Take the semantic snapshot of a project with the LexLean engine." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_format" "Format a project with the LexLean engine, or check its formatting." (objectOf (prim append (projectProperties) (member "check_only" (kindProp "boolean")) : (List (String * Json::Json))) (cons "project" (nil String)))) (cons (effectTool "lexlean_build" "Build a project with the LexLean engine." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify" "Start the verification of a project and return its task." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify_control" "Read the state of a verification task, or cancel it." (objectOf (cons ("task", (nonEmptyProp)) (member "action" (choiceProp "status" "cancel"))) (cons "task" (cons "action" (nil String))))) (cons (effectTool "lexlean_lexicon_read" "Read an entry of the lexicon of a profile." (objectOf (cons ("profile", (nonEmptyProp)) (member "entry" (nonEmptyProp))) (cons "profile" (cons "entry" (nil String))))) (cons (effectTool "lexlean_attestation" "Look an attestation up by its ID or by the digest of its file." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (nil Content::Tool))))))))))),
+  executable: true
+}
+
+theorem{
+  name: tagsAreTheModelsTags,
+  parameters: [effect : Effects::Effect],
+  statement: ((tagOf effect) = (Effects::effectTag effect)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: StoreGet},
+      {proof: reflexivity{}, binders: [], constructor: StorePut},
+      {proof: reflexivity{}, binders: [], constructor: EngineCheck},
+      {proof: reflexivity{}, binders: [], constructor: EngineSnapshot},
+      {proof: reflexivity{}, binders: [], constructor: EngineFormat},
+      {proof: reflexivity{}, binders: [], constructor: EngineBuild},
+      {proof: reflexivity{}, binders: [], constructor: VerifyStart},
+      {proof: reflexivity{}, binders: [], constructor: VerifyControl},
+      {proof: reflexivity{}, binders: [], constructor: LexiconRead},
+      {proof: reflexivity{}, binders: [], constructor: AttestationLookup}
+    ],
+    scrutinee: effect
+  }
+}
+
+theorem{
+  name: namesAreTheModelsNames,
+  parameters: [effect : Effects::Effect],
+  statement: ((nameOf effect) = (Effects::effectName effect)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: StoreGet},
+      {proof: reflexivity{}, binders: [], constructor: StorePut},
+      {proof: reflexivity{}, binders: [], constructor: EngineCheck},
+      {proof: reflexivity{}, binders: [], constructor: EngineSnapshot},
+      {proof: reflexivity{}, binders: [], constructor: EngineFormat},
+      {proof: reflexivity{}, binders: [], constructor: EngineBuild},
+      {proof: reflexivity{}, binders: [], constructor: VerifyStart},
+      {proof: reflexivity{}, binders: [], constructor: VerifyControl},
+      {proof: reflexivity{}, binders: [], constructor: LexiconRead},
+      {proof: reflexivity{}, binders: [], constructor: AttestationLookup}
+    ],
+    scrutinee: effect
+  }
+}
+\end{semanticmodule}
+\end{lexlean}

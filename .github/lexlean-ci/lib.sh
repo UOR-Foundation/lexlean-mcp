@@ -386,3 +386,88 @@ gateway_core_is_committed() {
 gateway_vectors_are_generated() {
   python3 gateway/vectors/generate.py --check
 }
+
+# ---- the gateway job -----------------------------------------------------------------
+# gateway/ is its own Cargo workspace, built against the registry that gateway/registry.sh
+# assembles from the pins (CI.md, "The gateway job"). Every function below runs from the
+# root of the repository and leaves it there.
+
+# The CARGO_HOME of the gateway workspace: a directory source in place of crates-io.
+gateway_cargo_home() {
+  printf '%s\n' "$PWD/gateway/registry/cargo-home"
+}
+
+# gateway_lexlean ARGS...: `lexlean` in the gateway project.
+gateway_lexlean() {
+  (cd gateway && lexlean --color never "$@")
+}
+
+# gateway_fmt_check: every module of gateway/src that is the repository's own is canonical.
+# `lexlean fmt --check` checks the whole closure, and the copies of PrismPM's standard
+# library under gateway/src/Foundation are PrismPM's bytes (sdk_copies_agree holds them to
+# the pin), which its formatter writes a little differently from the pinned LexLean's. So
+# the project is formatted in a scratch copy and each module that is not a copy is compared.
+gateway_fmt_check() {
+  local scratch status=0 file
+  scratch=$(mktemp -d)
+  cp -r gateway/. "$scratch/"
+  rm -rf "$scratch/registry" "$scratch/.lexlean" "$scratch/.prism"
+  (cd "$scratch" && lexlean --color never fmt)
+  while IFS= read -r file; do
+    if cmp -s "gateway/$file" "$scratch/$file"; then
+      echo "gateway/$file is canonical"
+    else
+      echo "gateway/$file is not canonical; run lexlean fmt in gateway/ and restore src/Foundation" >&2
+      status=1
+    fi
+  done < <(cd gateway && find src -name '*.lex.tex' -not -path 'src/Foundation/*' | sort)
+  rm -rf "$scratch"
+  return "$status"
+}
+
+# gateway_cargo ARGS...: `cargo` in the gateway workspace, offline, against the registry.
+gateway_cargo() {
+  (cd gateway && CARGO_HOME=$(cd .. && gateway_cargo_home) cargo "$@")
+}
+
+# gateway_build: `prismpm build` in the gateway project, then lay the generated packages out
+# and require the core to be the committed export, byte for byte, in both directions.
+gateway_build() {
+  local output id
+  output=$(cd gateway && prismpm build) || { printf '%s\n' "$output"; return 1; }
+  printf '%s\n' "$output"
+  id=$(printf '%s\n' "$output" | sed -n 's/^build published: \([0-9a-f]\{64\}\)$/\1/p')
+  if [[ -z $id ]]; then
+    echo "prismpm build did not print 'build published: <id>'" >&2
+    return 1
+  fi
+  gateway/lay-out.sh "gateway/.prism/build/$id"
+  if diff -r gateway/lexlean_mcp_gateway_core gateway/generated/lexlean_mcp_gateway_core; then
+    echo "gateway/generated/lexlean_mcp_gateway_core is the export of the sources"
+  else
+    echo "gateway/generated/lexlean_mcp_gateway_core differs from the export of the sources" >&2
+    return 1
+  fi
+}
+
+# gateway_ignored_tests PACKAGE EXPECTED: run the ignored tests of PACKAGE and require that
+# exactly EXPECTED of them ran and passed (an ignored test that is filtered out proves nothing).
+gateway_ignored_tests() {
+  local package=$1 expected=$2 log
+  log=$(mktemp)
+  gateway_cargo test -p "$package" --locked --offline -- --ignored 2>&1 | tee "$log"
+  local passed
+  passed=$(sed -n 's/^test result: ok\. \([0-9]*\) passed.*/\1/p' "$log" | paste -sd+ | bc)
+  rm -f "$log"
+  if [[ ${passed:-0} != "$expected" ]]; then
+    echo "$package: $passed ignored tests passed, expected $expected" >&2
+    return 1
+  fi
+}
+
+# gateway_verify: `prismpm verify` in the gateway project, on a store that starts empty.
+gateway_verify() {
+  local store
+  store=$(mktemp -d)
+  (cd gateway && LEXLEAN_MCP_STORE=$store CARGO_HOME=$(cd .. && gateway_cargo_home) prismpm verify)
+}
