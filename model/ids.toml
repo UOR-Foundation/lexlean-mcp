@@ -325,6 +325,8 @@ id = "FJ-10"
 level = "build"
 suite = "features"
 statement = "FEATURES.md states one row for each of F1 to F13 and J1 to J6, in order, and every row names where it comes from: an issue of this repository, or needs owner when no issue states it."
+
+[[id]]
 id = "OB-01"
 level = "some-true"
 suite = "observability"
