@@ -27,6 +27,21 @@ model does not sanction.
 | `DL-03` | `build` | Draft admission through the exported root admitDraftRun on the full tables gives the verdicts of the kernel-checked instances of admitDraft, with the refusal named by the constructor order of Refusal, and decides in this order: the path refusals of the rows in row order, then TooManyFiles, then TooManyBytes, then DuplicatePath. |
 | `DL-04` | `build` | The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound. |
 
+## features
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `FJ-01` | `build` | Thirteen features, F1 to F13, are declared as Foundation.Arch::Feature definitions in src/Features.lex.tex, numbered 1 to 13 in order, and the kernel theorem thirteenFeaturesInOrder holds. |
+| `FJ-02` | `build` | Six journeys, J1 to J6, are declared as Foundation.Arch::Journey definitions in src/Features.lex.tex, numbered 1 to 6 in order, and the kernel theorem sixJourneysInOrder holds. |
+| `FJ-03` | `build` | Every feature names at least one interface call, the rule of PP2014, and the kernel theorem everyFeatureHasACall holds. |
+| `FJ-04` | `build` | Every feature names at least one acceptance row, the rule of PP2015, and the kernel theorem everyFeatureHasAnAcceptanceRow holds. |
+| `FJ-05` | `build` | Every step of every journey names a declared feature, the rule of PP2016, and the kernel theorem everyJourneyStepNamesAFeature holds. |
+| `FJ-06` | `build` | Every journey actor is a stakeholder declared in src/Architecture.lex.tex, the rule of PP2017, and the kernel theorems everyJourneyActorIsAStakeholder and stakeholderRowsAreTheArchitectureStakeholders hold. |
+| `FJ-07` | `build` | Every call and every acceptance row of a feature names a definition of src/Features.lex.tex, the rule of PP2018, every such definition is used by a feature, and the kernel theorems everyCallNamesADefinition, everyAcceptanceRowNamesADefinition and featuresModelHolds hold. |
+| `FJ-08` | `some-true` | PrismPM main at d11ace6f, the merge of PrismPM#330, declares Foundation.Arch::Feature with a statement, calls and acceptance, and Foundation.Arch::Journey with an actor and steps, and its prism.arch lexicon names them with the entries arch-feature, arch-journey and holo-normalized-features; prismpm check refuses a feature with no call (PP2014), a feature with no acceptance row (PP2015), a journey step naming no declared feature (PP2016), a journey actor that is no declared stakeholder (PP2017), and a malformed declaration or a call or acceptance row that names no definition (PP2018). |
+| `FJ-09` | `build` | The prism.arch lexicon and Foundation.Arch of this repository are, byte for byte, the 143 files of PrismPM d11ace6f: the SHA-256 over their path-sorted manifest equals the checksum of the authority A-PRISMPM-ARCH. |
+| `FJ-10` | `build` | FEATURES.md states one row for each of F1 to F13 and J1 to J6, in order, and every row names where it comes from: an issue of this repository, or needs owner when no issue states it. |
+
 ## fixtures
 
 | ID | Level | Statement |
@@ -87,6 +102,7 @@ Never re-derived, vendored, or gated on.
 | `A-UCD-NORMALIZATIONTEST` | Unicode Character Database 17.0.0, https://www.unicode.org/Public/17.0.0/ucd/NormalizationTest.txt. The committed copy is the publisher's source repository file, github.com/unicode-org/unicodetools path unicodetools/data/ucd/17.0.0/NormalizationTest.txt at commit 578f6c0516f5f268292ebda50b51848407a06478 (byte-identical to the file at that commit); the first line of the file names 17.0.0, and crates/nfc-tables/ucd/README.md records how the copy was shown to be the file unicode-normalization 0.1.25 was generated from. | `NF-01`, `NF-03`, `NF-04`, `NF-05` |
 | `A-UNICODE-NORMALIZATION` | The Rust crate unicode-normalization 0.1.25 (crates.io), which LexLean release/v0.4 at 9796067 pins in its Cargo.lock; its src/tables.rs states UNICODE_VERSION = (17, 0, 0). | `NF-01`, `NF-08` |
 | `A-LEXLEAN-NEGATIVE` | UOR-Foundation/LexLean, directory tests/negative at commit 97960679736e960e84a98f5c43981e1f2c70d6d7 (release/v0.4 at 9796067, the revision .github/lexlean.rev pins), git tree 200e4d920b5efae7d34915c617c75f8c0cb46864; SPEC.md section 28.2 defines the fixture layout (case.toml, expected/, project/). The committed copy under crates/negative-fixtures/lexlean holds, for each of the 297 fixture directories, case.toml and the four files of expected/, byte-identical to the files at that commit; project/ and the toolchain/ and overlay/ directories some fixtures carry are not copied, and crates/negative-fixtures/register.toml records the git tree of each, so the git tree of every fixture directory and of tests/negative is recomputed from this repository. crates/negative-fixtures/README.md records how the copy was made. | `FX-01`, `FX-02`, `FX-03`, `FX-04`, `FX-05`, `FX-06`, `FX-07` |
+| `A-PRISMPM-ARCH` | UOR-Foundation/PrismPM, commit d11ace6f (the merge of pull request #330, which closes issue #218), directories language/prism.arch (lexicon.toml and 141 entries) and stdlib/src/Foundation/Arch.lex.tex. The committed copy is language/prism.arch and src/Foundation/Arch.lex.tex of this repository, byte-identical to those 143 files; the worked example tests/fixtures/features/fj-01-lexlean-mcp of that commit declares F1 to F13 and J1 to J6 for this product. | `FJ-03`, `FJ-04`, `FJ-05`, `FJ-06`, `FJ-07`, `FJ-09` |
 
 ## Claims that are not conformance IDs
 
@@ -100,3 +116,4 @@ Never re-derived, vendored, or gated on.
 | `AUTH-05` | `some-true` | unicode-normalization 0.1.25 implements Unicode 17.0.0, and LexLean release/v0.4 at 9796067 pins it. |
 | `AUTH-07` | `some-true` | LexLean release/v0.4 at 9796067 holds 297 fixtures in tests/negative, the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864. |
 | `AUTH-08` | `some-true` | The expected/command.json of each of those fixtures is the canonical command result the LexLean CLI of that commit gives for the project of the fixture. |
+| `AUTH-09` | `some-true` | PrismPM d11ace6f declares a feature and a journey as Foundation.Arch::Feature and Foundation.Arch::Journey and refuses, with PP2014 to PP2018, a feature without a call or an acceptance row, a journey step that names no declared feature, a journey actor that is no declared stakeholder, and a malformed declaration or a call or acceptance row that names no definition. |

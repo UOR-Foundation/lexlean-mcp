@@ -1,0 +1,629 @@
+\begin{lexlean}{Features}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Foundation.Arch}
+\importmodule{Architecture}
+\importmodule{Product}
+\title{LexLean MCP features and journeys}
+\begin{semanticmodule}
+structure{
+  name: NamedRow,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: text, type: String}]
+}
+
+structure{
+  name: StakeholderRow,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: stakeholder, type: Foundation.Arch::Stakeholder}]
+}
+
+structure{
+  name: FeatureRow,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: number, type: Nat},
+    {name: id, type: String},
+    {name: feature, type: Foundation.Arch::Feature}
+  ]
+}
+
+structure{
+  name: JourneyRow,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: number, type: Nat},
+    {name: id, type: String},
+    {name: journey, type: Foundation.Arch::Journey}
+  ]
+}
+
+definition{name: callProfiles, parameters: [], result: String, body: "lexlean_profiles"}
+
+definition{name: callLexiconSearch, parameters: [], result: String, body: "lexlean_lexicon_search"}
+
+definition{
+  name: callLexiconRead,
+  parameters: [],
+  result: String,
+  body: "lexlean://profiles/{profile}/lexicon/{package}@{version}"
+}
+
+definition{name: callDraftWrite, parameters: [], result: String, body: "lexlean_draft_write"}
+
+definition{name: callDraftAssemble, parameters: [], result: String, body: "lexlean_draft_assemble"}
+
+definition{name: callDraftRead, parameters: [], result: String, body: "lexlean_draft_read"}
+
+definition{name: callCheck, parameters: [], result: String, body: "lexlean_check"}
+
+definition{name: callSnapshot, parameters: [], result: String, body: "lexlean_snapshot"}
+
+definition{name: callFormat, parameters: [], result: String, body: "lexlean_format"}
+
+definition{name: callBuild, parameters: [], result: String, body: "lexlean_build"}
+
+definition{name: callExplain, parameters: [], result: String, body: "lexlean_explain"}
+
+definition{name: callVerify, parameters: [], result: String, body: "lexlean_verify"}
+
+definition{name: callPresent, parameters: [], result: String, body: "lexlean_present"}
+
+definition{name: callAttestation, parameters: [], result: String, body: "lexlean_attestation"}
+
+definition{name: callExport, parameters: [], result: String, body: "lexlean_export"}
+
+definition{name: callStoreGet, parameters: [], result: String, body: "store.get"}
+
+definition{name: callStorePut, parameters: [], result: String, body: "store.put"}
+
+definition{
+  name: acProfileIdentity,
+  parameters: [],
+  result: String,
+  body: "Changing any profile file changes the profile ID (issue 8)."
+}
+
+definition{
+  name: acProfileLanguage,
+  parameters: [],
+  result: String,
+  body: "A package of another language is refused with LLC0103 (issue 8)."
+}
+
+definition{
+  name: acAtlasEntries,
+  parameters: [],
+  result: String,
+  body: "An Atlas profile serves all 293 entries (issue 8)."
+}
+
+definition{
+  name: ac09DraftPaths,
+  parameters: [],
+  result: String,
+  body: "AC-09: a path with .., a path that is not .lex.tex, a path that is not NFC and a profile bundle with a symlink are each refused before any Engine call (issue 9)."
+}
+
+definition{
+  name: acToolEqualsCli,
+  parameters: [],
+  result: String,
+  body: "Each tool result equals the CLI result for the same project bytes (issue 10)."
+}
+
+definition{
+  name: ac04ExamplesBuild,
+  parameters: [],
+  result: String,
+  body: "AC-04: each example builds byte-equal to its expected tree (issue 10)."
+}
+
+definition{
+  name: ac07CheckBuildFixtures,
+  parameters: [],
+  result: String,
+  body: "AC-07: the negative fixtures that run check or build give the CLI command result (issue 10)."
+}
+
+definition{
+  name: ac08AtomOutsideProfile,
+  parameters: [],
+  result: String,
+  body: "AC-08: an atom outside the profile gives LLL1004 with its span (issue 10)."
+}
+
+definition{
+  name: q04NoChildProcess,
+  parameters: [],
+  result: String,
+  body: "Q4: check, snapshot, format and build start no child process (issue 10)."
+}
+
+definition{
+  name: ac05ExamplesVerify,
+  parameters: [],
+  result: String,
+  body: "AC-05: each example verifies with its committed axioms and a valid envelope (issue 11)."
+}
+
+definition{
+  name: ac07VerifyFixtures,
+  parameters: [],
+  result: String,
+  body: "AC-07: the negative fixtures that run verify give the CLI command result (issue 11)."
+}
+
+definition{
+  name: ac11KilledVerifier,
+  parameters: [],
+  result: String,
+  body: "AC-11: a verifier killed mid-task leaves no record and affects no other task (issue 11)."
+}
+
+definition{
+  name: ac12CancelledTask,
+  parameters: [],
+  result: String,
+  body: "AC-12: tasks/cancel reports child groups Ended and leaves no record (issue 11)."
+}
+
+definition{
+  name: ac13VerifyConcurrency,
+  parameters: [],
+  result: String,
+  body: "AC-13: verify.concurrency plus one tasks at once: the extra task waits and none fails for contention (issue 11)."
+}
+
+definition{
+  name: q03NoRecordUnlessVerified,
+  parameters: [],
+  result: String,
+  body: "Q3: no record exists for a verification that did not end verified (issue 11)."
+}
+
+definition{
+  name: ac06PresentEmbedded,
+  parameters: [],
+  result: String,
+  body: "AC-06: J1 for nat-add-zero ends in an embedded resource equal to the expected canonical LaTeX (issue 12)."
+}
+
+definition{
+  name: acAttestationLookup,
+  parameters: [],
+  result: String,
+  body: "An attestation resolves by its ID or by a file SHA-256 through the store index (issue 12)."
+}
+
+definition{
+  name: acBundleDigest,
+  parameters: [],
+  result: String,
+  body: "A renderings digest from an exported bundle matches the attested build manifest (issue 12)."
+}
+
+definition{
+  name: q08DiagnosticsResolve,
+  parameters: [],
+  result: String,
+  body: "Q8: every diagnostic code in a result resolves through F11 (quality model)."
+}
+
+definition{
+  name: ac14NewRevision,
+  parameters: [],
+  result: String,
+  body: "AC-14: a new LexLean revision gives new profile IDs, and earlier records resolve and validate (issue 13)."
+}
+
+definition{
+  name: ac15PreviousRevision,
+  parameters: [],
+  result: String,
+  body: "AC-15: returning to the previous revision serves its profiles, and later records still resolve (issue 13)."
+}
+
+definition{
+  name: ac16Restore,
+  parameters: [],
+  result: String,
+  body: "AC-16: after restore every backed-up record resolves, and re-verifying gives the same attestation ID (issue 13)."
+}
+
+definition{
+  name: ac17Rollback,
+  parameters: [],
+  result: String,
+  body: "AC-17: after a release rollback every record still resolves (issue 13)."
+}
+
+definition{
+  name: featureF01Profiles,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F1: list, provision and identify the profiles that carry all semantic configuration.", calls := (cons "Features::callProfiles" (nil String)), acceptance := (cons "Features::acProfileIdentity" (cons "Features::acProfileLanguage" (nil String)))})
+}
+
+definition{
+  name: featureF02Vocabulary,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F2: search and read the lexicon that a profile offers before writing.", calls := (cons "Features::callLexiconSearch" (cons "Features::callLexiconRead" (nil String))), acceptance := (cons "Features::acAtlasEntries" (nil String))})
+}
+
+definition{
+  name: featureF03Drafts,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F3: write, assemble and read immutable drafts of LexLean modules.", calls := (cons "Features::callDraftWrite" (cons "Features::callDraftAssemble" (cons "Features::callDraftRead" (nil String)))), acceptance := (cons "Features::ac09DraftPaths" (nil String))})
+}
+
+definition{
+  name: featureF04Check,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F4: check a draft against its profile.", calls := (cons "Features::callCheck" (nil String)), acceptance := (cons "Features::acToolEqualsCli" (cons "Features::ac07CheckBuildFixtures" (cons "Features::ac08AtomOutsideProfile" (cons "Features::q04NoChildProcess" (nil String)))))})
+}
+
+definition{
+  name: featureF05Snapshot,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F5: snapshot a draft as the canonical semantic snapshot.", calls := (cons "Features::callSnapshot" (nil String)), acceptance := (cons "Features::acToolEqualsCli" (cons "Features::q04NoChildProcess" (nil String)))})
+}
+
+definition{
+  name: featureF06Format,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F6: format a draft to its canonical source.", calls := (cons "Features::callFormat" (nil String)), acceptance := (cons "Features::acToolEqualsCli" (cons "Features::q04NoChildProcess" (nil String)))})
+}
+
+definition{
+  name: featureF07Build,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F7: build a draft into its canonical renderings.", calls := (cons "Features::callBuild" (nil String)), acceptance := (cons "Features::acToolEqualsCli" (cons "Features::ac04ExamplesBuild" (cons "Features::ac07CheckBuildFixtures" (cons "Features::q04NoChildProcess" (nil String)))))})
+}
+
+definition{
+  name: featureF08Verify,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F8: verify a draft as a task and sign the attestation.", calls := (cons "Features::callVerify" (nil String)), acceptance := (cons "Features::ac05ExamplesVerify" (cons "Features::ac07VerifyFixtures" (cons "Features::ac11KilledVerifier" (cons "Features::ac12CancelledTask" (cons "Features::ac13VerifyConcurrency" (cons "Features::q03NoRecordUnlessVerified" (nil String)))))))})
+}
+
+definition{
+  name: featureF09Present,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F9: present the attested canonical rendering with its attestation.", calls := (cons "Features::callPresent" (nil String)), acceptance := (cons "Features::ac06PresentEmbedded" (nil String))})
+}
+
+definition{
+  name: featureF10Attestation,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F10: resolve an attestation by its ID or by a file digest.", calls := (cons "Features::callAttestation" (nil String)), acceptance := (cons "Features::acAttestationLookup" (nil String))})
+}
+
+definition{
+  name: featureF11Explain,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F11: explain a diagnostic code of a check or a build.", calls := (cons "Features::callExplain" (nil String)), acceptance := (cons "Features::acToolEqualsCli" (cons "Features::q08DiagnosticsResolve" (nil String)))})
+}
+
+definition{
+  name: featureF12Export,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F12: export a bundle that a reader checks offline.", calls := (cons "Features::callExport" (nil String)), acceptance := (cons "Features::acBundleDigest" (nil String))})
+}
+
+definition{
+  name: featureF13Lifecycle,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F13: keep, back up and restore the records that cannot be recomputed.", calls := (cons "Features::callStoreGet" (cons "Features::callStorePut" (nil String))), acceptance := (cons "Features::ac14NewRevision" (cons "Features::ac15PreviousRevision" (cons "Features::ac16Restore" (cons "Features::ac17Rollback" (nil String)))))})
+}
+
+definition{
+  name: journeyJ1AuthorAndAttest,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderAuthorAgent", steps := (cons "Features::featureF01Profiles" (cons "Features::featureF02Vocabulary" (cons "Features::featureF03Drafts" (cons "Features::featureF04Check" (cons "Features::featureF08Verify" (cons "Features::featureF09Present" (nil String)))))))})
+}
+
+definition{
+  name: journeyJ2Repair,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderAuthorAgent", steps := (cons "Features::featureF04Check" (cons "Features::featureF11Explain" (cons "Features::featureF03Drafts" (cons "Features::featureF04Check" (cons "Features::featureF08Verify" (nil String))))))})
+}
+
+definition{
+  name: journeyJ3VocabularyGap,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderAuthorAgent", steps := (cons "Features::featureF04Check" (cons "Features::featureF02Vocabulary" (cons "Features::featureF03Drafts" (nil String))))})
+}
+
+definition{
+  name: journeyJ4ReaderCheck,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderReader", steps := (cons "Features::featureF10Attestation" (cons "Features::featureF12Export" (nil String)))})
+}
+
+definition{
+  name: journeyJ5ProvisionProfile,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderOperator", steps := (cons "Features::featureF01Profiles" (nil String))})
+}
+
+definition{
+  name: journeyJ6Upgrade,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderOperator", steps := (cons "Features::featureF13Lifecycle" (cons "Features::featureF01Profiles" (nil String)))})
+}
+
+definition{
+  name: stakeholderRows,
+  parameters: [],
+  result: (List StakeholderRow),
+  body: (cons (record StakeholderRow {id := "Architecture::stakeholderRequester", stakeholder := (Architecture::stakeholderRequester)}) (cons (record StakeholderRow {id := "Architecture::stakeholderAuthorAgent", stakeholder := (Architecture::stakeholderAuthorAgent)}) (cons (record StakeholderRow {id := "Architecture::stakeholderReader", stakeholder := (Architecture::stakeholderReader)}) (cons (record StakeholderRow {id := "Architecture::stakeholderOperator", stakeholder := (Architecture::stakeholderOperator)}) (cons (record StakeholderRow {id := "Architecture::stakeholderLexiconMaintainer", stakeholder := (Architecture::stakeholderLexiconMaintainer)}) (cons (record StakeholderRow {id := "Architecture::stakeholderLexLeanMaintainers", stakeholder := (Architecture::stakeholderLexLeanMaintainers)}) (cons (record StakeholderRow {id := "Architecture::stakeholderPrismPMMaintainers", stakeholder := (Architecture::stakeholderPrismPMMaintainers)}) (cons (record StakeholderRow {id := "Architecture::stakeholderMcpMaintainers", stakeholder := (Architecture::stakeholderMcpMaintainers)}) (nil StakeholderRow)))))))))
+}
+
+definition{
+  name: callRows,
+  parameters: [],
+  result: (List NamedRow),
+  body: (cons (record NamedRow {id := "Features::callProfiles", text := (callProfiles)}) (cons (record NamedRow {id := "Features::callLexiconSearch", text := (callLexiconSearch)}) (cons (record NamedRow {id := "Features::callLexiconRead", text := (callLexiconRead)}) (cons (record NamedRow {id := "Features::callDraftWrite", text := (callDraftWrite)}) (cons (record NamedRow {id := "Features::callDraftAssemble", text := (callDraftAssemble)}) (cons (record NamedRow {id := "Features::callDraftRead", text := (callDraftRead)}) (cons (record NamedRow {id := "Features::callCheck", text := (callCheck)}) (cons (record NamedRow {id := "Features::callSnapshot", text := (callSnapshot)}) (cons (record NamedRow {id := "Features::callFormat", text := (callFormat)}) (cons (record NamedRow {id := "Features::callBuild", text := (callBuild)}) (cons (record NamedRow {id := "Features::callExplain", text := (callExplain)}) (cons (record NamedRow {id := "Features::callVerify", text := (callVerify)}) (cons (record NamedRow {id := "Features::callPresent", text := (callPresent)}) (cons (record NamedRow {id := "Features::callAttestation", text := (callAttestation)}) (cons (record NamedRow {id := "Features::callExport", text := (callExport)}) (cons (record NamedRow {id := "Features::callStoreGet", text := (callStoreGet)}) (cons (record NamedRow {id := "Features::callStorePut", text := (callStorePut)}) (nil NamedRow))))))))))))))))))
+}
+
+definition{
+  name: acceptanceRows,
+  parameters: [],
+  result: (List NamedRow),
+  body: (cons (record NamedRow {id := "Features::acProfileIdentity", text := (acProfileIdentity)}) (cons (record NamedRow {id := "Features::acProfileLanguage", text := (acProfileLanguage)}) (cons (record NamedRow {id := "Features::acAtlasEntries", text := (acAtlasEntries)}) (cons (record NamedRow {id := "Features::ac09DraftPaths", text := (ac09DraftPaths)}) (cons (record NamedRow {id := "Features::acToolEqualsCli", text := (acToolEqualsCli)}) (cons (record NamedRow {id := "Features::ac04ExamplesBuild", text := (ac04ExamplesBuild)}) (cons (record NamedRow {id := "Features::ac07CheckBuildFixtures", text := (ac07CheckBuildFixtures)}) (cons (record NamedRow {id := "Features::ac08AtomOutsideProfile", text := (ac08AtomOutsideProfile)}) (cons (record NamedRow {id := "Features::q04NoChildProcess", text := (q04NoChildProcess)}) (cons (record NamedRow {id := "Features::ac05ExamplesVerify", text := (ac05ExamplesVerify)}) (cons (record NamedRow {id := "Features::ac07VerifyFixtures", text := (ac07VerifyFixtures)}) (cons (record NamedRow {id := "Features::ac11KilledVerifier", text := (ac11KilledVerifier)}) (cons (record NamedRow {id := "Features::ac12CancelledTask", text := (ac12CancelledTask)}) (cons (record NamedRow {id := "Features::ac13VerifyConcurrency", text := (ac13VerifyConcurrency)}) (cons (record NamedRow {id := "Features::q03NoRecordUnlessVerified", text := (q03NoRecordUnlessVerified)}) (cons (record NamedRow {id := "Features::ac06PresentEmbedded", text := (ac06PresentEmbedded)}) (cons (record NamedRow {id := "Features::acAttestationLookup", text := (acAttestationLookup)}) (cons (record NamedRow {id := "Features::acBundleDigest", text := (acBundleDigest)}) (cons (record NamedRow {id := "Features::q08DiagnosticsResolve", text := (q08DiagnosticsResolve)}) (cons (record NamedRow {id := "Features::ac14NewRevision", text := (ac14NewRevision)}) (cons (record NamedRow {id := "Features::ac15PreviousRevision", text := (ac15PreviousRevision)}) (cons (record NamedRow {id := "Features::ac16Restore", text := (ac16Restore)}) (cons (record NamedRow {id := "Features::ac17Rollback", text := (ac17Rollback)}) (nil NamedRow))))))))))))))))))))))))
+}
+
+definition{
+  name: featureRows,
+  parameters: [],
+  result: (List FeatureRow),
+  body: (cons (record FeatureRow {number := 1, id := "Features::featureF01Profiles", feature := (featureF01Profiles)}) (cons (record FeatureRow {number := 2, id := "Features::featureF02Vocabulary", feature := (featureF02Vocabulary)}) (cons (record FeatureRow {number := 3, id := "Features::featureF03Drafts", feature := (featureF03Drafts)}) (cons (record FeatureRow {number := 4, id := "Features::featureF04Check", feature := (featureF04Check)}) (cons (record FeatureRow {number := 5, id := "Features::featureF05Snapshot", feature := (featureF05Snapshot)}) (cons (record FeatureRow {number := 6, id := "Features::featureF06Format", feature := (featureF06Format)}) (cons (record FeatureRow {number := 7, id := "Features::featureF07Build", feature := (featureF07Build)}) (cons (record FeatureRow {number := 8, id := "Features::featureF08Verify", feature := (featureF08Verify)}) (cons (record FeatureRow {number := 9, id := "Features::featureF09Present", feature := (featureF09Present)}) (cons (record FeatureRow {number := 10, id := "Features::featureF10Attestation", feature := (featureF10Attestation)}) (cons (record FeatureRow {number := 11, id := "Features::featureF11Explain", feature := (featureF11Explain)}) (cons (record FeatureRow {number := 12, id := "Features::featureF12Export", feature := (featureF12Export)}) (cons (record FeatureRow {number := 13, id := "Features::featureF13Lifecycle", feature := (featureF13Lifecycle)}) (nil FeatureRow))))))))))))))
+}
+
+definition{
+  name: journeyRows,
+  parameters: [],
+  result: (List JourneyRow),
+  body: (cons (record JourneyRow {number := 1, id := "Features::journeyJ1AuthorAndAttest", journey := (journeyJ1AuthorAndAttest)}) (cons (record JourneyRow {number := 2, id := "Features::journeyJ2Repair", journey := (journeyJ2Repair)}) (cons (record JourneyRow {number := 3, id := "Features::journeyJ3VocabularyGap", journey := (journeyJ3VocabularyGap)}) (cons (record JourneyRow {number := 4, id := "Features::journeyJ4ReaderCheck", journey := (journeyJ4ReaderCheck)}) (cons (record JourneyRow {number := 5, id := "Features::journeyJ5ProvisionProfile", journey := (journeyJ5ProvisionProfile)}) (cons (record JourneyRow {number := 6, id := "Features::journeyJ6Upgrade", journey := (journeyJ6Upgrade)}) (nil JourneyRow)))))))
+}
+
+definition{
+  name: stakeholderIds,
+  parameters: [rows : (List StakeholderRow)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head id) (stakeholderIds rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: stakeholderIndexes,
+  parameters: [rows : (List StakeholderRow)],
+  result: (List Nat),
+  body: (match rows
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project (project head stakeholder) index) (stakeholderIndexes rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: namedIds,
+  parameters: [rows : (List NamedRow)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head id) (namedIds rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: featureIds,
+  parameters: [rows : (List FeatureRow)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head id) (featureIds rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: featureNumbers,
+  parameters: [rows : (List FeatureRow)],
+  result: (List Nat),
+  body: (match rows
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head number) (featureNumbers rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: journeyNumbers,
+  parameters: [rows : (List JourneyRow)],
+  result: (List Nat),
+  body: (match rows
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head number) (journeyNumbers rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: nonEmptyStrings,
+  parameters: [values : (List String)],
+  result: Bool,
+  body: (match values | List.nil => false | List.cons head rest => true)
+}
+
+definition{
+  name: allStringMembers,
+  parameters: [wanted : (List String), values : (List String)],
+  result: Bool,
+  body: (match wanted
+    | List.nil => true
+    | List.cons head rest => ((Product::stringMember head values) && (allStringMembers rest values))),
+  recursive_argument: wanted
+}
+
+definition{
+  name: everyFeatureHasCall,
+  parameters: [rows : (List FeatureRow)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((nonEmptyStrings (project (project head feature) calls)) && (everyFeatureHasCall rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: everyFeatureHasAcceptance,
+  parameters: [rows : (List FeatureRow)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((nonEmptyStrings (project (project head feature) acceptance)) && (everyFeatureHasAcceptance rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: callsNameDefinitions,
+  parameters: [rows : (List FeatureRow), known : (List String)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((allStringMembers (project (project head feature) calls) known) && (callsNameDefinitions rest known))),
+  recursive_argument: rows
+}
+
+definition{
+  name: acceptanceNamesDefinitions,
+  parameters: [rows : (List FeatureRow), known : (List String)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((allStringMembers (project (project head feature) acceptance) known) && (acceptanceNamesDefinitions rest known))),
+  recursive_argument: rows
+}
+
+definition{
+  name: stepsNameFeatures,
+  parameters: [rows : (List JourneyRow), known : (List String)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((allStringMembers (project (project head journey) steps) known) && (stepsNameFeatures rest known))),
+  recursive_argument: rows
+}
+
+definition{
+  name: actorsAreStakeholders,
+  parameters: [rows : (List JourneyRow), known : (List String)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((Product::stringMember (project (project head journey) actor) known) && (actorsAreStakeholders rest known))),
+  recursive_argument: rows
+}
+
+definition{
+  name: featuresValid,
+  parameters: [],
+  result: Bool,
+  body: ((Architecture::sameNats (featureNumbers (featureRows)) (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (cons 8 (cons 9 (cons 10 (cons 11 (cons 12 (cons 13 (nil Nat))))))))))))))) && ((Architecture::sameNats (journeyNumbers (journeyRows)) (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (nil Nat)))))))) && ((everyFeatureHasCall (featureRows)) && ((everyFeatureHasAcceptance (featureRows)) && ((stepsNameFeatures (journeyRows) (featureIds (featureRows))) && ((actorsAreStakeholders (journeyRows) (stakeholderIds (stakeholderRows))) && ((callsNameDefinitions (featureRows) (namedIds (callRows))) && ((acceptanceNamesDefinitions (featureRows) (namedIds (acceptanceRows))) && (Architecture::sameNats (stakeholderIndexes (stakeholderRows)) (Architecture::stakeholderIndexes (Architecture::stakeholderRecords)))))))))))
+}
+
+theorem{
+  name: thirteenFeaturesInOrder,
+  parameters: [],
+  statement: ((Architecture::sameNats (featureNumbers (featureRows)) (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (cons 8 (cons 9 (cons 10 (cons 11 (cons 12 (cons 13 (nil Nat))))))))))))))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: sixJourneysInOrder,
+  parameters: [],
+  statement: ((Architecture::sameNats (journeyNumbers (journeyRows)) (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (nil Nat)))))))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyFeatureHasACall,
+  parameters: [],
+  statement: ((everyFeatureHasCall (featureRows)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyFeatureHasAnAcceptanceRow,
+  parameters: [],
+  statement: ((everyFeatureHasAcceptance (featureRows)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyJourneyStepNamesAFeature,
+  parameters: [],
+  statement: ((stepsNameFeatures (journeyRows) (featureIds (featureRows))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyJourneyActorIsAStakeholder,
+  parameters: [],
+  statement: ((actorsAreStakeholders (journeyRows) (stakeholderIds (stakeholderRows))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyCallNamesADefinition,
+  parameters: [],
+  statement: ((callsNameDefinitions (featureRows) (namedIds (callRows))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyAcceptanceRowNamesADefinition,
+  parameters: [],
+  statement: ((acceptanceNamesDefinitions (featureRows) (namedIds (acceptanceRows))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: stakeholderRowsAreTheArchitectureStakeholders,
+  parameters: [],
+  statement: ((Architecture::sameNats (stakeholderIndexes (stakeholderRows)) (Architecture::stakeholderIndexes (Architecture::stakeholderRecords))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: featuresModelHolds,
+  parameters: [],
+  statement: ((featuresValid) = true),
+  proof: decide{}
+}
+\end{semanticmodule}
+\end{lexlean}

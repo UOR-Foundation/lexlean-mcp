@@ -25,4 +25,5 @@ claim = [
   { id = "AUTH-05", level = "some-true", statement = "unicode-normalization 0.1.25 implements Unicode 17.0.0, and LexLean release/v0.4 at 9796067 pins it.", authority = "A-UNICODE-NORMALIZATION" },
   { id = "AUTH-07", level = "some-true", statement = "LexLean release/v0.4 at 9796067 holds 297 fixtures in tests/negative, the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864.", authority = "A-LEXLEAN-NEGATIVE" },
   { id = "AUTH-08", level = "some-true", statement = "The expected/command.json of each of those fixtures is the canonical command result the LexLean CLI of that commit gives for the project of the fixture.", authority = "A-LEXLEAN-NEGATIVE" },
+  { id = "AUTH-09", level = "some-true", statement = "PrismPM d11ace6f declares a feature and a journey as Foundation.Arch::Feature and Foundation.Arch::Journey and refuses, with PP2014 to PP2018, a feature without a call or an acceptance row, a journey step that names no declared feature, a journey actor that is no declared stakeholder, and a malformed declaration or a call or acceptance row that names no definition.", authority = "A-PRISMPM-ARCH" },
 ]
