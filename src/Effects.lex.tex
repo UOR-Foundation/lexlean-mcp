@@ -847,13 +847,6 @@ definition{
 }
 
 definition{
-  name: octetsOfText,
-  parameters: [text : String],
-  result: (List Nat),
-  body: (let bytes : Bytes := (prim utf8_encode text : Bytes); (octetsFrom bytes (prim length bytes : Nat) 0))
-}
-
-definition{
   name: isLowerOrDot,
   parameters: [n : Nat],
   result: Bool,
@@ -894,58 +887,141 @@ definition{
   recursive_argument: hay
 }
 
-definition{
-  name: reservedWords,
+structure{
+  name: Reserved,
+  type_parameters: [],
   parameters: [],
-  result: (List String),
-  body: (cons "lexlean_" (cons "tools/" (cons "resources/" (cons "prompts/" (cons "completion/" (cons "tasks/" (cons "server/" (cons "logging/" (cons "sampling/" (cons "elicitation/" (cons "roots/" (cons "notifications/" (cons "initialize" (cons "ping" (nil String)))))))))))))))
+  fields: [{name: text, type: String}, {name: bytes, type: Bytes}]
 }
 
 definition{
-  name: avoidsReserved,
-  parameters: [hay : (List Nat), words : (List String)],
+  name: reservedWords,
+  parameters: [],
+  result: (List Reserved),
+  body: (cons (record Reserved {text := "lexlean_", bytes := 0x6c65786c65616e5f}) (cons (record Reserved {text := "tools/", bytes := 0x746f6f6c732f}) (cons (record Reserved {text := "resources/", bytes := 0x7265736f75726365732f}) (cons (record Reserved {text := "prompts/", bytes := 0x70726f6d7074732f}) (cons (record Reserved {text := "completion/", bytes := 0x636f6d706c6574696f6e2f}) (cons (record Reserved {text := "tasks/", bytes := 0x7461736b732f}) (cons (record Reserved {text := "server/", bytes := 0x7365727665722f}) (cons (record Reserved {text := "logging/", bytes := 0x6c6f6767696e672f}) (cons (record Reserved {text := "sampling/", bytes := 0x73616d706c696e672f}) (cons (record Reserved {text := "elicitation/", bytes := 0x656c696369746174696f6e2f}) (cons (record Reserved {text := "roots/", bytes := 0x726f6f74732f}) (cons (record Reserved {text := "notifications/", bytes := 0x6e6f74696669636174696f6e732f}) (cons (record Reserved {text := "initialize", bytes := 0x696e697469616c697a65}) (cons (record Reserved {text := "ping", bytes := 0x70696e67}) (nil Reserved)))))))))))))))
+}
+
+definition{
+  name: effectNameBytes,
+  parameters: [effect : Effect],
+  result: Bytes,
+  body: (match effect
+    | Effect.StoreGet => 0x73746f72652e676574
+    | Effect.StorePut => 0x73746f72652e707574
+    | Effect.EngineCheck => 0x656e67696e652e636865636b
+    | Effect.EngineSnapshot => 0x656e67696e652e736e617073686f74
+    | Effect.EngineFormat => 0x656e67696e652e666f726d6174
+    | Effect.EngineBuild => 0x656e67696e652e6275696c64
+    | Effect.VerifyStart => 0x7665726966792e7374617274
+    | Effect.VerifyControl => 0x7665726966792e636f6e74726f6c
+    | Effect.LexiconRead => 0x6c657869636f6e2e72656164
+    | Effect.AttestationLookup => 0x6174746573746174696f6e2e6c6f6f6b7570)
+}
+
+definition{
+  name: bytesOctets,
+  parameters: [bytes : Bytes],
+  result: (List Nat),
+  body: (octetsFrom bytes (prim length bytes : Nat) 0)
+}
+
+definition{
+  name: nameOctets,
+  parameters: [effect : Effect],
+  result: (List Nat),
+  body: (bytesOctets (effectNameBytes effect))
+}
+
+definition{
+  name: spellsName,
+  parameters: [effect : Effect],
+  result: Bool,
+  body: (match (prim utf8_decode (effectNameBytes effect) : (Option String))
+    | Option.some text => (prim equal text (effectName effect) : Bool)
+    | Option.none => false)
+}
+
+definition{
+  name: allSpell,
+  parameters: [effects : (List Effect)],
+  result: Bool,
+  body: (match effects
+    | List.nil => true
+    | List.cons effect rest => ((spellsName effect) && (allSpell rest))),
+  recursive_argument: effects
+}
+
+definition{
+  name: reservedSpelled,
+  parameters: [words : (List Reserved)],
   result: Bool,
   body: (match words
     | List.nil => true
-    | List.cons word rest => ((if (hasInfix (octetsOfText word) hay) then false else true) && (avoidsReserved hay rest))),
+    | List.cons word rest => ((match (prim utf8_decode (project word bytes) : (Option String))
+      | Option.some text => (prim equal text (project word text) : Bool)
+      | Option.none => false) && (reservedSpelled rest))),
   recursive_argument: words
 }
 
 definition{
-  name: nameClean,
-  parameters: [text : String],
+  name: avoidsReserved,
+  parameters: [hay : (List Nat), words : (List Reserved)],
   result: Bool,
-  body: ((shapeFrom 46 (octetsOfText text)) && (avoidsReserved (octetsOfText text) (reservedWords)))
+  body: (match words
+    | List.nil => true
+    | List.cons word rest => ((if (hasInfix (bytesOctets (project word bytes)) hay) then false else true) && (avoidsReserved hay rest))),
+  recursive_argument: words
 }
 
 definition{
-  name: namesClean,
-  parameters: [names : (List String)],
+  name: octetsClean,
+  parameters: [octets : (List Nat)],
   result: Bool,
-  body: (match names
+  body: ((shapeFrom 46 octets) && (avoidsReserved octets (reservedWords)))
+}
+
+definition{
+  name: effectsClean,
+  parameters: [effects : (List Effect)],
+  result: Bool,
+  body: (match effects
     | List.nil => true
-    | List.cons name rest => ((nameClean name) && (namesClean rest))),
-  recursive_argument: names
+    | List.cons effect rest => ((octetsClean (nameOctets effect)) && (effectsClean rest))),
+  recursive_argument: effects
+}
+
+theorem{
+  name: nameBytesSpellTheNames,
+  parameters: [],
+  statement: ((allSpell (allEffects)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: reservedBytesSpellTheWords,
+  parameters: [],
+  statement: ((reservedSpelled (reservedWords)) = true),
+  proof: decide{}
 }
 
 theorem{
   name: effectNamesCarryNoToolOrMethodName,
   parameters: [],
-  statement: ((namesClean (namesOf (allEffects))) = true),
+  statement: ((effectsClean (allEffects)) = true),
   proof: decide{}
 }
 
 theorem{
   name: reservedWordsCoverTheTools,
   parameters: [],
-  statement: (((hasInfix (octetsOfText "lexlean_") (octetsOfText "lexlean_check")) && ((hasInfix (octetsOfText "tools/") (octetsOfText "tools/call")) && (hasInfix (octetsOfText "lexlean_") (octetsOfText "lexlean_verify")))) = true),
+  statement: (((hasInfix (bytesOctets 0x6c65786c65616e5f) (bytesOctets 0x6c65786c65616e5f636865636b)) && ((hasInfix (bytesOctets 0x746f6f6c732f) (bytesOctets 0x746f6f6c732f63616c6c)) && (hasInfix (bytesOctets 0x6c65786c65616e5f) (bytesOctets 0x6c65786c65616e5f766572696679)))) = true),
   proof: decide{}
 }
 
 theorem{
   name: aToolNameIsNotAnEffectName,
   parameters: [],
-  statement: (((nameClean "lexlean_check") || ((nameClean "tools/call") || (nameClean "verify.tools/list"))) = false),
+  statement: (((octetsClean (bytesOctets 0x6c65786c65616e5f636865636b)) || ((octetsClean (bytesOctets 0x746f6f6c732f63616c6c)) || (octetsClean (bytesOctets 0x7665726966792e746f6f6c732f6c697374)))) = false),
   proof: decide{}
 }
 
@@ -1088,57 +1164,6 @@ theorem{
   name: vectorTotal,
   parameters: [],
   statement: ((vectorCount (acceptanceVectors)) = 35),
-  proof: decide{}
-}
-
-theorem{
-  name: probeBytesOctets,
-  parameters: [],
-  statement: ((octetsFrom 0x6162 2 0) = (cons 97 (cons 98 (nil Nat)))),
-  proof: decide{}
-}
-
-theorem{
-  name: probeDecodeDecide,
-  parameters: [],
-  statement: ((prim utf8_decode 0x6162 : (Option String)) = (ctor Option.some [String] "ab")),
-  proof: decide{}
-}
-
-theorem{
-  name: probeDecodeRefl,
-  parameters: [],
-  statement: ((prim utf8_decode 0x6162 : (Option String)) = (ctor Option.some [String] "ab")),
-  proof: reflexivity{}
-}
-
-theorem{
-  name: probeEncodeDecide,
-  parameters: [],
-  statement: ((prim utf8_encode "ab" : Bytes) = 0x6162),
-  proof: decide{}
-}
-
-theorem{
-  name: probeEncodeRefl,
-  parameters: [],
-  statement: ((prim utf8_encode "ab" : Bytes) = 0x6162),
-  proof: reflexivity{}
-}
-
-theorem{
-  name: probeEqualBytes,
-  parameters: [],
-  statement: ((prim equal (prim utf8_encode "ab" : Bytes) 0x6162 : Bool) = true),
-  proof: decide{}
-}
-
-theorem{
-  name: probeEqualDecoded,
-  parameters: [],
-  statement: ((match (prim utf8_decode 0x6162 : (Option String))
-    | Option.some text => (prim equal text "ab" : Bool)
-    | Option.none => false) = true),
   proof: decide{}
 }
 \end{semanticmodule}
