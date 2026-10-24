@@ -276,7 +276,7 @@ definition{
   name: standardIso25010,
   parameters: [],
   result: Foundation.Arch::StandardReference,
-  body: (record Foundation.Arch::StandardReference {standardIndex := 25010, editionIndex := 2023})
+  body: (record Foundation.Arch::StandardReference {standardIndex := 25010, editionIndex := 2023, standardId := "ISO/IEC 25010", edition := "2023"})
 }
 
 definition{
@@ -339,7 +339,7 @@ definition{
   name: cardinalities,
   parameters: [],
   result: (List Cardinality),
-  body: (cons (record Cardinality {measure := 0, count := 273, unit := "negative fixtures of AC-07"}) (cons (record Cardinality {measure := 4, count := 50, unit := "scenarios"}) (nil Cardinality)))
+  body: (cons (record Cardinality {measure := 0, count := 273, unit := "negative fixtures of AC-07"}) (cons (record Cardinality {measure := 1, count := 9, unit := "in-scope API functions of the pinned LexLean"}) (cons (record Cardinality {measure := 4, count := 50, unit := "scenarios"}) (cons (record Cardinality {measure := 7, count := 86, unit := "diagnostic codes of the pinned LexLean registry"}) (nil Cardinality)))))
 }
 
 definition{
@@ -353,7 +353,14 @@ definition{
   name: evidence,
   parameters: [],
   result: (List MeasureEvidence),
-  body: (cons (record MeasureEvidence {measure := 0, status := (ctor EvidenceStatus.Pending "Run where the tools are built: #10 for check and build, #11 for verify.")}) (cons (record MeasureEvidence {measure := 1, status := (ctor EvidenceStatus.Pending "Run once every in-scope function has a tool: #9 for the `sdk` functions, #10 and #11 for the `Engine` calls.")}) (cons (record MeasureEvidence {measure := 2, status := (ctor EvidenceStatus.Pending "Run where verification runs as tasks (#11); the store-full case needs the store (#13).")}) (cons (record MeasureEvidence {measure := 3, status := (ctor EvidenceStatus.Pending "Run where the tools are built (#10).")}) (cons (record MeasureEvidence {measure := 4, status := (ctor EvidenceStatus.Pending "Run against the deployed core (#17), through the MCP oracles.")}) (cons (record MeasureEvidence {measure := 5, status := (ctor EvidenceStatus.Pending "Run once the host adapter is generated (#7).")}) (cons (record MeasureEvidence {measure := 6, status := (ctor EvidenceStatus.Pending "Run where build is a tool (#10), on both platforms.")}) (cons (record MeasureEvidence {measure := 7, status := (ctor EvidenceStatus.Pending "Run where `lexlean_explain` (F11) is built (#10).")}) (nil MeasureEvidence)))))))))
+  body: (cons (record MeasureEvidence {measure := 0, status := (ctor EvidenceStatus.Pending "Run where the tools are built: #10 for check and build, #11 for verify.")}) (cons (record MeasureEvidence {measure := 1, status := (ctor EvidenceStatus.Executed "Executed by the API-to-tool map as built: QM-01, QM-02 and QM-03 recompute the 33 public functions of the pinned LexLean surface from its vendored sources and require each to reach one tool the issues define or to state why no tool does; that each mapped tool exists and is reached is in pendingClauses (#9 for the sdk functions, #10 and #11 for the Engine calls).")}) (cons (record MeasureEvidence {measure := 2, status := (ctor EvidenceStatus.Pending "Run where verification runs as tasks (#11); the store-full case needs the store (#13).")}) (cons (record MeasureEvidence {measure := 3, status := (ctor EvidenceStatus.Pending "Run where the tools are built (#10).")}) (cons (record MeasureEvidence {measure := 4, status := (ctor EvidenceStatus.Pending "Run against the deployed core (#17), through the MCP oracles.")}) (cons (record MeasureEvidence {measure := 5, status := (ctor EvidenceStatus.Pending "Run once the host adapter is generated (#7).")}) (cons (record MeasureEvidence {measure := 6, status := (ctor EvidenceStatus.Pending "Run where build is a tool (#10), on both platforms.")}) (cons (record MeasureEvidence {measure := 7, status := (ctor EvidenceStatus.Executed "Executed by the explained codes as built: QM-04, QM-05 and QM-06 require each of the 86 codes of the pinned LexLean registry to have one complete entry that lexlean explain prints, and every code the negative fixtures return to resolve to one; that a code in a result of the running tool resolves through lexlean_explain is in pendingClauses (#10).")}) (nil MeasureEvidence)))))))))
+}
+
+definition{
+  name: pendingClauses,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 1, name := "Q2 tools exist", text := "each in-scope function is reached by a tool that exists and runs; built where the tools are built (#9 for the sdk functions, #10 and #11 for the Engine calls), so no register row executes it yet"}) (cons (record Named {index := 7, name := "Q8 running explain", text := "a code in the result of a running tool resolves through the running lexlean_explain tool (F11); built where lexlean_explain is built (#10), so no register row executes it yet"}) (nil Named)))
 }
 
 definition{
@@ -556,6 +563,18 @@ definition{
 }
 
 definition{
+  name: executedMeasures,
+  parameters: [records : (List MeasureEvidence)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (match (project head status)
+      | EvidenceStatus.Executed reference => (cons (project head measure) (executedMeasures rest))
+      | EvidenceStatus.Pending reason => (executedMeasures rest))),
+  recursive_argument: records
+}
+
+definition{
   name: viewComponents,
   parameters: [wanted : Nat, specs : (List Architecture::ViewSpec)],
   result: (List Nat),
@@ -590,7 +609,7 @@ definition{
   name: qualityValid,
   parameters: [],
   result: Bool,
-  body: ((qualityChainHolds) && ((Architecture::sameNats (namedIndexes (characteristicNames)) (characteristicIndexes (characteristicRecords))) && ((Architecture::sameNats (namedIndexes (subcharacteristicNames)) (subcharacteristicIndexes (subcharacteristicRecords))) && ((Architecture::sameNats (namedIndexes (requirementNames)) (requirementIndexes (requirementRecords))) && ((Architecture::sameNats (descriptionIndexes (descriptions)) (measureIndexes (measureRecords))) && ((descriptionsStated (descriptions)) && ((Architecture::allMembers (cardinalityMeasures (cardinalities)) (measureIndexes (measureRecords))) && ((Architecture::allMembers (requirementIndexes (requirementRecords)) (realizationRequirements (realizations))) && ((Architecture::allMembers (realizationRequirements (realizations)) (requirementIndexes (requirementRecords))) && ((Architecture::allMembers (realizationComponents (realizations)) (Architecture::componentIndexes (Architecture::componentRecords))) && ((Architecture::allMembers (realizationComponents (realizations)) (qualityViewComponents)) && ((Architecture::sameNats (evidenceMeasures (evidence)) (measureIndexes (measureRecords))) && ((evidenceHonest (evidence)) && (editionIs2023))))))))))))))
+  body: ((qualityChainHolds) && ((Architecture::sameNats (namedIndexes (characteristicNames)) (characteristicIndexes (characteristicRecords))) && ((Architecture::sameNats (namedIndexes (subcharacteristicNames)) (subcharacteristicIndexes (subcharacteristicRecords))) && ((Architecture::sameNats (namedIndexes (requirementNames)) (requirementIndexes (requirementRecords))) && ((Architecture::sameNats (descriptionIndexes (descriptions)) (measureIndexes (measureRecords))) && ((descriptionsStated (descriptions)) && ((Architecture::allMembers (cardinalityMeasures (cardinalities)) (measureIndexes (measureRecords))) && ((Architecture::allMembers (requirementIndexes (requirementRecords)) (realizationRequirements (realizations))) && ((Architecture::allMembers (realizationRequirements (realizations)) (requirementIndexes (requirementRecords))) && ((Architecture::allMembers (realizationComponents (realizations)) (Architecture::componentIndexes (Architecture::componentRecords))) && ((Architecture::allMembers (realizationComponents (realizations)) (qualityViewComponents)) && ((Architecture::sameNats (evidenceMeasures (evidence)) (measureIndexes (measureRecords))) && ((evidenceHonest (evidence)) && ((Architecture::sameNats (namedIndexes (pendingClauses)) (executedMeasures (evidence))) && (editionIs2023)))))))))))))))
 }
 
 theorem{
@@ -643,9 +662,37 @@ theorem{
 }
 
 theorem{
-  name: measuresPending,
+  name: measuresPendingExceptQ2AndQ8,
   parameters: [],
-  statement: ((pendingMeasures (evidence)) = (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (cons 7 (nil Nat)))))))))),
+  statement: ((pendingMeasures (evidence)) = (cons 0 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (nil Nat)))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: onlyApiMapAndExplainAreExecuted,
+  parameters: [],
+  statement: ((executedMeasures (evidence)) = (cons 1 (cons 7 (nil Nat)))),
+  proof: decide{}
+}
+
+theorem{
+  name: executedMeasuresKeepAPendingClause,
+  parameters: [],
+  statement: ((namedIndexes (pendingClauses)) = (cons 1 (cons 7 (nil Nat)))),
+  proof: decide{}
+}
+
+theorem{
+  name: inScopeFunctionsAreCounted,
+  parameters: [],
+  statement: ((countOf 1 (cardinalities)) = 9),
+  proof: decide{}
+}
+
+theorem{
+  name: diagnosticCodesAreCounted,
+  parameters: [],
+  statement: ((countOf 7 (cardinalities)) = 86),
   proof: decide{}
 }
 

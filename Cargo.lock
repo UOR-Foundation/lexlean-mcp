@@ -143,6 +143,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quality-map"
+version = "0.1.0"
+dependencies = [
+ "negative-fixtures",
+ "repo-model",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -155,6 +165,7 @@ dependencies = [
 name = "repo-conformance"
 version = "0.1.0"
 dependencies = [
+ "quality-map",
  "repo-model",
 ]
 
@@ -163,6 +174,7 @@ name = "repo-model"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "sha2",
  "toml",
 ]
 

@@ -71,189 +71,189 @@ definition{
   name: standardIso42010,
   parameters: [],
   result: Foundation.Arch::StandardReference,
-  body: (record Foundation.Arch::StandardReference {standardIndex := 42010, editionIndex := 2022})
+  body: (record Foundation.Arch::StandardReference {standardIndex := 42010, editionIndex := 2022, standardId := "ISO/IEC/IEEE 42010", edition := "2022"})
 }
 
 definition{
   name: stakeholderRequester,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
-  body: (record Foundation.Arch::Stakeholder {index := 0})
+  body: (record Foundation.Arch::Stakeholder {index := 0, name := "Requester", text := "Asks for a document to be written and verified, and receives the result."})
 }
 
 definition{
   name: stakeholderAuthorAgent,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
-  body: (record Foundation.Arch::Stakeholder {index := 1})
+  body: (record Foundation.Arch::Stakeholder {index := 1, name := "Author agent", text := "The LLM agent that drafts LexLean modules through the tools and repairs them from the refusals it receives."})
 }
 
 definition{
   name: stakeholderReader,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
-  body: (record Foundation.Arch::Stakeholder {index := 2})
+  body: (record Foundation.Arch::Stakeholder {index := 2, name := "Reader", text := "Reads the canonical rendering of a verified module and checks it against its attestation."})
 }
 
 definition{
   name: stakeholderOperator,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
-  body: (record Foundation.Arch::Stakeholder {index := 3})
+  body: (record Foundation.Arch::Stakeholder {index := 3, name := "Operator", text := "Runs the server on a host and bounds what it may do there."})
 }
 
 definition{
   name: stakeholderLexiconMaintainer,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
-  body: (record Foundation.Arch::Stakeholder {index := 4})
+  body: (record Foundation.Arch::Stakeholder {index := 4, name := "Lexicon maintainer", text := "Maintains the lexicon whose entries give a rendering its meaning."})
 }
 
 definition{
   name: stakeholderLexLeanMaintainers,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
-  body: (record Foundation.Arch::Stakeholder {index := 5})
+  body: (record Foundation.Arch::Stakeholder {index := 5, name := "LexLean maintainers", text := "Maintain LexLean, the compiler and verifier the server links."})
 }
 
 definition{
   name: stakeholderPrismPMMaintainers,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
-  body: (record Foundation.Arch::Stakeholder {index := 6})
+  body: (record Foundation.Arch::Stakeholder {index := 6, name := "PrismPM maintainers", text := "Maintain PrismPM, the modeling SDK and metamodel this model is checked with."})
 }
 
 definition{
   name: stakeholderMcpMaintainers,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
-  body: (record Foundation.Arch::Stakeholder {index := 7})
+  body: (record Foundation.Arch::Stakeholder {index := 7, name := "MCP maintainers", text := "Maintain the MCP protocol core that this product links unchanged."})
 }
 
 definition{
   name: concernC1MeaningFidelity,
   parameters: [],
   result: Foundation.Arch::Concern,
-  body: (record Foundation.Arch::Concern {index := 0})
+  body: (record Foundation.Arch::Concern {index := 0, name := "C1 Meaning fidelity", text := "A rendering states what the verified module denotes, and nothing else."})
 }
 
 definition{
   name: concernC2IntentFidelity,
   parameters: [],
   result: Foundation.Arch::Concern,
-  body: (record Foundation.Arch::Concern {index := 1})
+  body: (record Foundation.Arch::Concern {index := 1, name := "C2 Intent fidelity", text := "What is established is what the requester asked to have established."})
 }
 
 definition{
   name: concernC3RepairSignal,
   parameters: [],
   result: Foundation.Arch::Concern,
-  body: (record Foundation.Arch::Concern {index := 2})
+  body: (record Foundation.Arch::Concern {index := 2, name := "C3 Repair signal", text := "A refusal tells the author agent what to change."})
 }
 
 definition{
   name: concernC4Provenance,
   parameters: [],
   result: Foundation.Arch::Concern,
-  body: (record Foundation.Arch::Concern {index := 3})
+  body: (record Foundation.Arch::Concern {index := 3, name := "C4 Provenance", text := "A document reaches its reader bound to its signed attestation."})
 }
 
 definition{
   name: concernC5Isolation,
   parameters: [],
   result: Foundation.Arch::Concern,
-  body: (record Foundation.Arch::Concern {index := 4})
+  body: (record Foundation.Arch::Concern {index := 4, name := "C5 Isolation", text := "The server acts only within the host, workspace and effects it is given."})
 }
 
 definition{
   name: concernC6BoundedResources,
   parameters: [],
   result: Foundation.Arch::Concern,
-  body: (record Foundation.Arch::Concern {index := 5})
+  body: (record Foundation.Arch::Concern {index := 5, name := "C6 Bounded resources", text := "A request consumes no more than its limits and budgets allow."})
 }
 
 definition{
   name: concernC7Compatibility,
   parameters: [],
   result: Foundation.Arch::Concern,
-  body: (record Foundation.Arch::Concern {index := 6})
+  body: (record Foundation.Arch::Concern {index := 6, name := "C7 Compatibility", text := "The server stays compatible with the versions of LexLean, PrismPM and MCP it links."})
 }
 
 definition{
   name: concernC8StandardConformance,
   parameters: [],
   result: Foundation.Arch::Concern,
-  body: (record Foundation.Arch::Concern {index := 7})
+  body: (record Foundation.Arch::Concern {index := 7, name := "C8 Standard conformance", text := "The server conforms to the protocol specification and the standards the model cites."})
 }
 
 definition{
   name: componentClient,
   parameters: [],
   result: Foundation.Arch::Component,
-  body: (record Foundation.Arch::Component {index := 0, kind := (ctor Foundation.Arch::ComponentKind.externalSystem)})
+  body: (record Foundation.Arch::Component {index := 0, kind := (ctor Foundation.Arch::ComponentKind.externalSystem), name := "client", text := "The MCP client that carries the requests of a requester or an author agent to the gateway."})
 }
 
 definition{
   name: componentGateway,
   parameters: [],
   result: Foundation.Arch::Component,
-  body: (record Foundation.Arch::Component {index := 1, kind := (ctor Foundation.Arch::ComponentKind.service)})
+  body: (record Foundation.Arch::Component {index := 1, kind := (ctor Foundation.Arch::ComponentKind.service), name := "gateway", text := "Accepts MCP messages on loopback and hands them to the protocol core and the tool layer."})
 }
 
 definition{
   name: componentProtocolCore,
   parameters: [],
   result: Foundation.Arch::Component,
-  body: (record Foundation.Arch::Component {index := 2, kind := (ctor Foundation.Arch::ComponentKind.service)})
+  body: (record Foundation.Arch::Component {index := 2, kind := (ctor Foundation.Arch::ComponentKind.service), name := "protocol core", text := "The MCP protocol core that this product links unchanged."})
 }
 
 definition{
   name: componentToolLayer,
   parameters: [],
   result: Foundation.Arch::Component,
-  body: (record Foundation.Arch::Component {index := 3, kind := (ctor Foundation.Arch::ComponentKind.service)})
+  body: (record Foundation.Arch::Component {index := 3, kind := (ctor Foundation.Arch::ComponentKind.service), name := "tool layer", text := "The tools registered on the core's extension point; they act only through host effects."})
 }
 
 definition{
   name: componentEngineHost,
   parameters: [],
   result: Foundation.Arch::Component,
-  body: (record Foundation.Arch::Component {index := 4, kind := (ctor Foundation.Arch::ComponentKind.service)})
+  body: (record Foundation.Arch::Component {index := 4, kind := (ctor Foundation.Arch::ComponentKind.service), name := "engine-host", text := "Calls the LexLean engine for check, snapshot, format and build, and reads and writes the store for the tool layer."})
 }
 
 definition{
   name: componentVerifier,
   parameters: [],
   result: Foundation.Arch::Component,
-  body: (record Foundation.Arch::Component {index := 5, kind := (ctor Foundation.Arch::ComponentKind.service)})
+  body: (record Foundation.Arch::Component {index := 5, kind := (ctor Foundation.Arch::ComponentKind.service), name := "verifier", text := "Runs Lean, Lake and leanchecker for one verification task."})
 }
 
 definition{
   name: componentSigner,
   parameters: [],
   result: Foundation.Arch::Component,
-  body: (record Foundation.Arch::Component {index := 6, kind := (ctor Foundation.Arch::ComponentKind.service)})
+  body: (record Foundation.Arch::Component {index := 6, kind := (ctor Foundation.Arch::ComponentKind.service), name := "signer", text := "Signs the attestation of a verified task as a DSSE envelope over an in-toto statement."})
 }
 
 definition{
   name: componentTelemetryCollector,
   parameters: [],
   result: Foundation.Arch::Component,
-  body: (record Foundation.Arch::Component {index := 7, kind := (ctor Foundation.Arch::ComponentKind.service)})
+  body: (record Foundation.Arch::Component {index := 7, kind := (ctor Foundation.Arch::ComponentKind.service), name := "telemetry-collector", text := "Collects the telemetry that the other components emit."})
 }
 
 definition{
   name: componentStore,
   parameters: [],
   result: Foundation.Arch::Component,
-  body: (record Foundation.Arch::Component {index := 8, kind := (ctor Foundation.Arch::ComponentKind.database)})
+  body: (record Foundation.Arch::Component {index := 8, kind := (ctor Foundation.Arch::ComponentKind.database), name := "store", text := "Holds profiles, drafts, builds, verifications, index, exports and keys (lexlean-mcp/store/1)."})
 }
 
 definition{
   name: componentToolchain,
   parameters: [],
   result: Foundation.Arch::Component,
-  body: (record Foundation.Arch::Component {index := 9, kind := (ctor Foundation.Arch::ComponentKind.externalSystem)})
+  body: (record Foundation.Arch::Component {index := 9, kind := (ctor Foundation.Arch::ComponentKind.externalSystem), name := "toolchain", text := "The Lean, Lake and leanchecker toolchain that a profile pins."})
 }
 
 definition{
@@ -699,6 +699,98 @@ definition{
 }
 
 definition{
+  name: sameStrings,
+  parameters: [left : (List String), right : (List String)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons other more => false)
+    | List.cons head rest => (match right
+      | List.nil => false
+      | List.cons other more => ((prim equal head other : Bool) && (sameStrings rest more)))),
+  recursive_argument: left
+}
+
+definition{
+  name: narrativeNames,
+  parameters: [records : (List Narrative)],
+  result: (List String),
+  body: (match records
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head name) (narrativeNames rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: narrativeTexts,
+  parameters: [records : (List Narrative)],
+  result: (List String),
+  body: (match records
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head text) (narrativeTexts rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: bindingNames,
+  parameters: [records : (List Binding)],
+  result: (List String),
+  body: (match records
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head name) (bindingNames rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: stakeholderNames,
+  parameters: [records : (List Foundation.Arch::Stakeholder)],
+  result: (List String),
+  body: (match records
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head name) (stakeholderNames rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: stakeholderTexts,
+  parameters: [records : (List Foundation.Arch::Stakeholder)],
+  result: (List String),
+  body: (match records
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head text) (stakeholderTexts rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: concernNames,
+  parameters: [records : (List Foundation.Arch::Concern)],
+  result: (List String),
+  body: (match records
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head name) (concernNames rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: concernTexts,
+  parameters: [records : (List Foundation.Arch::Concern)],
+  result: (List String),
+  body: (match records
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head text) (concernTexts rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: componentNames,
+  parameters: [records : (List Foundation.Arch::Component)],
+  result: (List String),
+  body: (match records
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head name) (componentNames rest))),
+  recursive_argument: records
+}
+
+definition{
   name: viewpointIndexes,
   parameters: [records : (List Foundation.Arch::Viewpoint)],
   result: (List Nat),
@@ -1065,7 +1157,7 @@ definition{
   name: architectureValid,
   parameters: [],
   result: Bool,
-  body: ((sameNats (narrativeIndexes (stakeholders)) (stakeholderIndexes (stakeholderRecords))) && ((sameNats (narrativeIndexes (concerns)) (concernIndexes (concernRecords))) && ((sameNats (narrativeIndexes (viewpoints)) (groupIndexes (groups))) && ((sameNats (narrativeIndexes (views)) (viewIndexes (viewRecords))) && ((sameNats (narrativeIndexes (flows)) (edgeIndexes (edgeRecords))) && ((sameNats (bindingIndexes (components)) (componentIndexes (componentRecords))) && ((systemKindsKnown (components)) && ((anchorsResolve (components) (Product::product)) && ((edgesAttach (edgeRecords)) && ((interestsKnown (interests)) && ((viewpointsKnown (viewpointRecords)) && ((allMembers (concernIndexes (concernRecords)) (viewpointConcerns (viewpointRecords))) && ((interestsFramed (interests) (viewpointRecords)) && ((framingsHeld (viewpointRecords) (interests)) && ((groupsFrame (groups) (viewpointRecords)) && ((allMembers (viewpointIndexes (viewpointRecords)) (groupFramingLists (groups))) && ((viewsConform (viewRecords) (groups)) && ((sameNats (specViews (viewSpecs)) (viewIndexes (viewRecords))) && (specsKnown (viewSpecs))))))))))))))))))))
+  body: ((sameNats (narrativeIndexes (stakeholders)) (stakeholderIndexes (stakeholderRecords))) && ((sameNats (narrativeIndexes (concerns)) (concernIndexes (concernRecords))) && ((sameNats (narrativeIndexes (viewpoints)) (groupIndexes (groups))) && ((sameNats (narrativeIndexes (views)) (viewIndexes (viewRecords))) && ((sameNats (narrativeIndexes (flows)) (edgeIndexes (edgeRecords))) && ((sameNats (bindingIndexes (components)) (componentIndexes (componentRecords))) && ((systemKindsKnown (components)) && ((anchorsResolve (components) (Product::product)) && ((edgesAttach (edgeRecords)) && ((interestsKnown (interests)) && ((viewpointsKnown (viewpointRecords)) && ((allMembers (concernIndexes (concernRecords)) (viewpointConcerns (viewpointRecords))) && ((interestsFramed (interests) (viewpointRecords)) && ((framingsHeld (viewpointRecords) (interests)) && ((groupsFrame (groups) (viewpointRecords)) && ((allMembers (viewpointIndexes (viewpointRecords)) (groupFramingLists (groups))) && ((viewsConform (viewRecords) (groups)) && ((sameNats (specViews (viewSpecs)) (viewIndexes (viewRecords))) && ((specsKnown (viewSpecs)) && ((sameStrings (narrativeNames (stakeholders)) (stakeholderNames (stakeholderRecords))) && ((sameStrings (narrativeTexts (stakeholders)) (stakeholderTexts (stakeholderRecords))) && ((sameStrings (narrativeNames (concerns)) (concernNames (concernRecords))) && ((sameStrings (narrativeTexts (concerns)) (concernTexts (concernRecords))) && (sameStrings (bindingNames (components)) (componentNames (componentRecords))))))))))))))))))))))))))
 }
 
 theorem{

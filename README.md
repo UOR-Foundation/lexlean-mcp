@@ -41,6 +41,15 @@ task (#11) and the host (#17).
   admission rows NF-09, NF-12 and DL-01 to DL-04, registered as SM-01. The symlink
   clause of its control waits for materialization (#9), and the other eight
   controlled risks stay pending on the issues that build them.
+- Two measures of the quality model are executed (#15): Q2, that each of the 33
+  public functions of LexLean's stable API reaches one tool or states why none
+  does, and Q8, that each of its 86 diagnostic codes is explained (QM-01 to
+  QM-08, `crates/quality-map`, `QUALITY.md`). The tools themselves do not exist
+  yet, so Q1 and Q3 to Q7 stay pending and so does the runtime half of Q2 and Q8.
+- The 13 features and 6 journeys of #18 are declared (`Features`), checked by kernel
+  theorems and by FJ-01 to FJ-10. `prismpm check` has not validated them: the SDK
+  image bound in `prismpm.lock` predates PrismPM#330. [FEATURES.md](FEATURES.md)
+  states where each feature and journey comes from and which rows await the owner.
 - The repository is not bound to a PrismPM SDK release (#4): `prismpm.lock` and
   `template.lock` are absent, so `just vv` and the devcontainer cannot run, and
   `prismpm check` has not validated the model.
@@ -57,7 +66,7 @@ oracles of their own (UOR-Foundation/MCP#15).
 | Path | Owner |
 | --- | --- |
 | `src/` | authoritative LexLean model modules |
-| `language/prism.arch/` | the architecture vocabulary lexicon, a copy of prism-code's |
+| `language/prism.arch/` | the architecture vocabulary lexicon, a copy of PrismPM main at `d11ace6f` (authority `A-PRISMPM-ARCH`, FJ-09) |
 | `language/prism.sec/`, `language/prism.qual/` | the security and quality vocabulary lexicons, copies of prism-code's |
 | `language/lexleanmcp.titles/` | the lexicon phrases that title this repository's modules |
 | `lexlean.toml`, `lexlean.lock` | LexLean project and its locked package closure |
@@ -68,7 +77,7 @@ oracles of their own (UOR-Foundation/MCP#15).
 | `Product` | identity, owner, server identity, protocol core, source policy, platforms, and the owner-set version (bound, #19) |
 | `Architecture` | the ISO/IEC/IEEE 42010 architecture description in the `prism.arch` vocabulary: 8 stakeholders, concerns C1 to C8, the component, security and quality viewpoints, 10 components and 11 edges, checked by `architectureDescriptionHolds` |
 | `Security` | the threat model in the `prism.sec` vocabulary: assets A1 to A6 tied to architecture components, risks R1 to R10 with impact and an owner-set likelihood (bound, #19), controls K1 to K9, four security activities, and a measurement per risk; `securityValid` and `riskChainHolds` prove that every risk has a measurement and that R10 is the only risk without a control, recorded as residual. One measurement is `Executed`: R5 (path escape), observed by the path admission rows (`SM-01` names them, and `onlyPathEscapeIsExecuted` pins it as the only one). The symlink clause of control K5 is recorded in `pendingClauses` until materialization (#9) builds it, and the other eight controlled risks stay `Pending` (`measurementsPendingExceptR5`). the risks are `Foundation.Sec::Risk` records, which the SDK projector reads. [SECURITY.md](SECURITY.md) holds the evidence and the planted defects |
-| `Quality` | the quality model in the `prism.qual` vocabulary, ISO/IEC 25010:2023: requirements Q1 to Q8, each a characteristic, subcharacteristic, requirement, measure chain with an all-or-none threshold, realized by components of the quality view; `qualityValid` and `qualityChainHolds` prove the chains complete |
+| `Quality` | the quality model in the `prism.qual` vocabulary, ISO/IEC 25010:2023: requirements Q1 to Q8, each a characteristic, subcharacteristic, requirement, measure chain with an all-or-none threshold, realized by components of the quality view; `qualityValid` and `qualityChainHolds` prove the chains complete. Two measures are `Executed`: Q2 (the API-to-tool map, `QM-01` to `QM-03`) and Q8 (every diagnostic code explained, `QM-04` to `QM-06`), and `onlyApiMapAndExplainAreExecuted` pins them as the only ones; the clause of each that waits for the tools is recorded in `pendingClauses`, and Q1 and Q3 to Q7 stay `Pending` (`measuresPendingExceptQ2AndQ8`). [QUALITY.md](QUALITY.md) holds the evidence and the planted defects |
 | `Identity` | the pure part of profile identity (#8) and draft identity (#9): length-prefixed framing of fields and counted lists over octet strings, with a proved left inverse (`fieldsRT`, `listRT`, `profileRT`, `draftRT`), so two different profiles or drafts have different preimages whenever every field is shorter than 2^64 - 1 bytes; domain separation of the two preimages; canonical order for everything that is a set: file and source rows sort by path octets and review records sort by their octets (unsigned, lexicographic), so an ID depends only on what a profile or draft contains and never on the order its parts were produced in, and a duplicate path or a duplicate review record is a typed refusal (`DuplicatePath`, `DuplicateReview`); the frame labels `domain`, `files`, `file`, `reviews`, `review`, `toolchain`, `profile`, `sources` and `source` are part of every ID, and the draft preimage frames the profile ID as its 32 raw digest octets; the `Bytes` to octet bridge; `profileId` and `draftId` as SHA-256 of the preimage, checked against vectors from an independent implementation. It does not claim SHA-256 collision resistance |
 | `NfcTables` | generated by `cargo run -p nfc-tables --example generate_tables` from the pinned Unicode Character Database 17.0.0 files in `crates/nfc-tables/ucd/` (SHA-256 pinned in `model/authorities.toml`): the combining classes, the composition exclusions (`Full_Composition_Exclusion`) and the canonical decompositions packed as five sorted tables behind a 30-octet header (the full tables, as two artifacts because a list-backed `Bytes` literal of about 26 000 octets exceeds the elaborator's recursion depth), a small sample image of the same layout for the kernel-checked instances, and the constants `fastBound`, `decomposesFrom`, `decompositionDepth` and `lowLength`. Never edit it: `cargo test -p nfc-tables` compares it with a fresh generation byte for byte |
 | `Nfc` | the NFC decision: UTF-8 reader, canonical decomposition (Hangul by arithmetic), canonical ordering by combining class, canonical composition with the composition exclusions, and equality with the input (exact; not Quick_Check). It reads the tables by binary search. Every recursion over the input is a tail call, which the export renders as a loop, so the production root `nfcRun` declares no `recursion` effect and needs no stack that grows with the input. `nfcRun` is exported to Rust (`crates/nfc-oracle`), where every line of `NormalizationTest.txt` is run against it. 30 instance theorems are kernel-checked on the sample image |
@@ -76,7 +85,9 @@ oracles of their own (UOR-Foundation/MCP#15).
 | `Sha256` | the LexLean standard library module `Sha256` (FIPS 180-4), a byte-identical copy of `stdlib/src/Sha256.lex.tex` from LexLean `release/v0.4` at `9796067` (register row SL-02). The module name must equal its path, so it is `src/Sha256.lex.tex` and not under `src/Foundation/` |
 | `Observability` | the observability model of #16: the telemetry records with every free-text field typed `Redacted`, a type with one value, so that no record holds module text or a lexicon search query (kernel-checked over all constructors); the eight service level indicators S1 to S8 as data; the alert predicates on classes 2, 3 and 70, a failed child group end, a profile drift and a signing failure, with the thresholds read from `OwnerValues`; `traceparent`, `tracestate` and `baggage` extraction from a request's `_meta` with typed refusals; and the closed set of emitted notifications, which excludes `notifications/message`. Emission and firing wait for #11 and #17; the planted defects are in [OBSERVABILITY.md](OBSERVABILITY.md) |
 | `OwnerValues` | the values of #19 that no source determines, each bound to the proposal of [OWNER-VALUES.md](OWNER-VALUES.md): signing and `request-state-key` custody and rotation, `verify.width`, `verify.memory_kib`, `verify.concurrency`, `rate.tool_calls`, `rate.window_ms`, `draft.max_bytes`, `draft.max_files`, the two retentions, `cache.ttl_ms`, `listen.port`, the service level objectives S1 to S8 and the 17 profiles; the kernel-checked theorems bind the ranges, and `cargo test -p repo-model` (OV-01 to OV-03) holds the sources, the table, `lexlean.toml` and `Cargo.toml` to one statement |
-| `Foundation.Arch`, `Foundation.Sec`, `Foundation.Qual` | the architecture, security and quality vocabularies (copies of the PrismPM stdlib modules, as in prism-code) |
+| `Features` | the features F1 to F13 and journeys J1 to J6 (#18) as `Foundation.Arch::Feature` and `Foundation.Arch::Journey` definitions with the interface calls and acceptance rows they name, and the kernel theorems that restate PrismPM's rules PP2014 to PP2018 over them (`featuresModelHolds`) |
+| `Foundation.Arch` | the architecture vocabulary, a byte-identical copy of `stdlib/src/Foundation/Arch.lex.tex` of PrismPM main at `d11ace6f` (FJ-09) |
+| `Foundation.Sec`, `Foundation.Qual` | the security and quality vocabularies (copies of the PrismPM stdlib modules, as in prism-code) |
 
 ## Repository
 
@@ -87,8 +98,12 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   SDK and template update process.
 - [VERIFICATION.md](VERIFICATION.md) defines the acceptance boundary; `just vv`
   is the complete gate.
+- [FEATURES.md](FEATURES.md) states the origin of each feature and journey, the rows that
+  need the owner, and the defects planted in the theorems that check them.
 - [FIXTURES.md](FIXTURES.md) states the counts and the classes of the AC-07
   fixture register and the defects planted in its gates.
+- [QUALITY.md](QUALITY.md) states what the executed measures of Q2 and Q8 show,
+  what they do not, and the defects planted in their gates.
 - [OBSERVABILITY.md](OBSERVABILITY.md) records the defects planted in the
   observability theorems, the command that rejects each and the restore.
 - [CI.md](CI.md) describes the workflow that runs every gate that works without
