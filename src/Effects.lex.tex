@@ -835,7 +835,8 @@ definition{
   result: Nat,
   body: (match (prim index bytes position : (Option UInt8))
     | Option.some byte => (prim to_nat byte : Nat)
-    | Option.none => 0)
+    | Option.none => 0),
+  axioms: [Quot.sound, propext]
 }
 
 definition{
@@ -845,6 +846,7 @@ definition{
   body: (match count
     | Nat.zero => (nil Nat)
     | Nat.succ previous => (cons (octetAt bytes position) (octetsFrom bytes previous (position + 1)))),
+  axioms: [Quot.sound, propext],
   recursive_argument: count
 }
 
@@ -924,14 +926,16 @@ definition{
   name: bytesOctets,
   parameters: [bytes : Bytes],
   result: (List Nat),
-  body: (octetsFrom bytes (prim length bytes : Nat) 0)
+  body: (octetsFrom bytes (prim length bytes : Nat) 0),
+  axioms: [Quot.sound, propext]
 }
 
 definition{
   name: nameOctets,
   parameters: [effect : Effect],
   result: (List Nat),
-  body: (bytesOctets (effectNameBytes effect))
+  body: (bytesOctets (effectNameBytes effect)),
+  axioms: [Quot.sound, propext]
 }
 
 definition{
@@ -972,6 +976,7 @@ definition{
   body: (match words
     | List.nil => true
     | List.cons word rest => ((if (hasInfix (bytesOctets (project word bytes)) hay) then false else true) && (avoidsReserved hay rest))),
+  axioms: [Quot.sound, propext],
   recursive_argument: words
 }
 
@@ -979,7 +984,8 @@ definition{
   name: octetsClean,
   parameters: [octets : (List Nat)],
   result: Bool,
-  body: ((shapeFrom 46 octets) && (avoidsReserved octets (reservedWords)))
+  body: ((shapeFrom 46 octets) && (avoidsReserved octets (reservedWords))),
+  axioms: [Quot.sound, propext]
 }
 
 definition{
@@ -989,6 +995,7 @@ definition{
   body: (match effects
     | List.nil => true
     | List.cons effect rest => ((octetsClean (nameOctets effect)) && (effectsClean rest))),
+  axioms: [Quot.sound, propext],
   recursive_argument: effects
 }
 
@@ -1010,21 +1017,24 @@ theorem{
   name: effectNamesCarryNoToolOrMethodName,
   parameters: [],
   statement: ((effectsClean (allEffects)) = true),
-  proof: decide{}
+  proof: decide{},
+  axioms: [Quot.sound, propext]
 }
 
 theorem{
   name: reservedWordsCoverTheTools,
   parameters: [],
   statement: (((hasInfix (bytesOctets 0x6c65786c65616e5f) (bytesOctets 0x6c65786c65616e5f636865636b)) && ((hasInfix (bytesOctets 0x746f6f6c732f) (bytesOctets 0x746f6f6c732f63616c6c)) && (hasInfix (bytesOctets 0x6c65786c65616e5f) (bytesOctets 0x6c65786c65616e5f766572696679)))) = true),
-  proof: decide{}
+  proof: decide{},
+  axioms: [Quot.sound, propext]
 }
 
 theorem{
   name: aToolNameIsNotAnEffectName,
   parameters: [],
   statement: (((octetsClean (bytesOctets 0x6c65786c65616e5f636865636b)) || ((octetsClean (bytesOctets 0x746f6f6c732f63616c6c)) || (octetsClean (bytesOctets 0x7665726966792e746f6f6c732f6c697374)))) = false),
-  proof: decide{}
+  proof: decide{},
+  axioms: [Quot.sound, propext]
 }
 
 structure{
