@@ -360,7 +360,12 @@ fn the_lifecycle_never_touches_a_record_st_05() {
         ["Rollout", "Rollback", "Upgrade", "Retire", "Write"],
         "rollout, rollback, upgrade and retirement, and the write of a verification"
     );
-    for (event, value) in arms(&source, "step", "Event") {
+    for (arm, value) in arms(&source, "step", "Event") {
+        // An arm reads `Rollout rev`: the constructor, then its binders.
+        let event = arm
+            .split_whitespace()
+            .next()
+            .expect("an arm names a constructor");
         if event == "Write" {
             assert!(
                 value.contains("records := (put (project m records) v)"),

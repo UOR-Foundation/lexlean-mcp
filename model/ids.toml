@@ -268,6 +268,7 @@ level = "build"
 suite = "store"
 statement = "Each law of the store model rejects its planted defect: an attestation that expires, a drift check that reports ToolchainDrift before IdDrift, a rollback that drops a later record and a restore that omits keys each fail lexlean verify; STORE.md records the command, the diagnostic and the restore of each."
 
+[[id]]
 id = "QM-01"
 level = "some-true"
 suite = "quality"
