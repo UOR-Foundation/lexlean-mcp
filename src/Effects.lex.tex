@@ -584,7 +584,8 @@ theorem{
   name: decodeNameSound,
   parameters: [text : String],
   statement: ((nameOk text (decodeNameIn text (allEffects))) = true),
-  proof: apply{arguments: [text, (allEffects)], theorem: decodeNameInSound}
+  proof: apply{arguments: [text, (allEffects)], theorem: decodeNameInSound},
+  axioms: [propext]
 }
 
 theorem{
