@@ -236,3 +236,153 @@ export_matches() {
   done <<<"$exported"
   return "$status"
 }
+
+# prismpm_rev: the revision .github/prismpm.rev names, or an error.
+prismpm_rev() {
+  local file=.github/prismpm.rev matches rev
+  matches=$(grep -c '^rev = ' "$file") || true
+  if [[ $matches != 1 ]]; then
+    echo "$file must hold exactly one 'rev = ' line, found $matches" >&2
+    return 1
+  fi
+  rev=$(sed -n 's/^rev = \([0-9a-f]\{40\}\)$/\1/p' "$file")
+  if [[ -z $rev ]]; then
+    echo "$file: rev must be a 40-digit lowercase commit hash" >&2
+    return 1
+  fi
+  printf '%s\n' "$rev"
+}
+
+# The root the workflow caches the SDK binary in.
+PRISMPM_ROOT=${PRISMPM_ROOT:-$HOME/.prismpm-bin}
+
+# output_prismpm_pin: the pinned PrismPM revision as the step output `rev` and the
+# LexLean revision it is built with as `lexlean`, the key of the cache that holds the
+# binary built from them.
+output_prismpm_pin() {
+  local rev lexlean
+  rev=$(prismpm_rev)
+  lexlean=$(lexlean_rev)
+  echo "rev=$rev" >>"${GITHUB_OUTPUT:?}"
+  echo "lexlean=$lexlean" >>"${GITHUB_OUTPUT:?}"
+}
+
+# fetch_rev URL REV DEST: the tree of exactly commit REV of URL in DEST.
+fetch_rev() {
+  local url=$1 rev=$2 dest=$3
+  git init -q "$dest"
+  git -C "$dest" remote add origin "$url"
+  git -C "$dest" fetch -q --depth 1 origin "$rev"
+  git -C "$dest" checkout -q FETCH_HEAD
+  test "$(git -C "$dest" rev-parse HEAD)" = "$rev"
+}
+
+# prismpm_installed_at REV LEXLEAN: the record `install_prismpm` wrote says
+# $PRISMPM_ROOT was built from exactly these two revisions, so a cache restored for
+# another key cannot pass.
+prismpm_installed_at() {
+  test -x "$PRISMPM_ROOT/bin/prismpm" &&
+    test "$(cat "$PRISMPM_ROOT/pins" 2>/dev/null)" == "$(printf 'prismpm %s\nlexlean %s' "$1" "$2")"
+}
+
+# install_prismpm: `prismpm` at the pinned PrismPM revision, built with the LexLean
+# revision of .github/lexlean.rev in place of the LexLean it vendors, unless
+# $PRISMPM_ROOT already holds exactly that pair. One pin drives both tools (R1): the
+# compiler that certifies the core is the compiler lexlean.lock was made with.
+#
+# Nothing in PrismPM changes. The build is a copy of the PrismPM tree at the revision
+# whose vendor/lexlean is the package `cargo package` makes of the LexLean tree at
+# the revision, so Cargo.lock is the one PrismPM committed (--locked). The profile is
+# debug: PrismPM's release profile (thin LTO, one codegen unit) is killed for memory
+# on the 7 GB runners and on the machines this was developed on, and `prismpm build`
+# spends its time in the LexLean checker, which the profile of the binary does not
+# change.
+install_prismpm() {
+  local rev lexlean scratch
+  rev=$(prismpm_rev)
+  lexlean=$(lexlean_rev)
+  if ! prismpm_installed_at "$rev" "$lexlean"; then
+    rm -rf "$PRISMPM_ROOT"
+    scratch=$(mktemp -d)
+    fetch_rev https://github.com/UOR-Foundation/LexLean "$lexlean" "$scratch/lexlean"
+    fetch_rev https://github.com/UOR-Foundation/PrismPM "$rev" "$scratch/prismpm"
+    (cd "$scratch/lexlean" && cargo package -p lexlean --no-verify --allow-dirty)
+    tar -xzf "$scratch"/lexlean/target/package/lexlean-*.crate -C "$scratch"
+    rm -rf "$scratch/prismpm/vendor/lexlean"
+    mv "$scratch"/lexlean-*/ "$scratch/prismpm/vendor/lexlean"
+    (cd "$scratch/prismpm" && cargo install --path crates/prismpm --locked --debug --root "$PRISMPM_ROOT")
+    printf 'prismpm %s\nlexlean %s' "$rev" "$lexlean" >"$PRISMPM_ROOT/pins"
+    rm -rf "$scratch"
+  fi
+  prismpm_installed_at "$rev" "$lexlean"
+  echo "$PRISMPM_ROOT/bin" >>"${GITHUB_PATH:-/dev/null}"
+  "$PRISMPM_ROOT/bin/prismpm" --version
+}
+
+# sdk_copies_agree: the files the gateway copies from the PrismPM standard library and
+# lexicon, `Foundation.Bytes`, `Foundation.Server.V1.Model` and the `prism.arch` lexicon
+# package, are byte for byte the ones at the pinned revision.
+sdk_copies_agree() {
+  local rev scratch status=0 file
+  rev=$(prismpm_rev)
+  scratch=$(mktemp -d)
+  git -C "$scratch" init -q
+  git -C "$scratch" remote add origin https://github.com/UOR-Foundation/PrismPM
+  git -C "$scratch" sparse-checkout set stdlib/src/Foundation language/prism.arch
+  git -C "$scratch" fetch -q --depth 1 --filter=blob:none origin "$rev"
+  git -C "$scratch" checkout -q FETCH_HEAD
+  for file in gateway/src/Foundation/Bytes.lex.tex gateway/src/Foundation/Server/V1/Model.lex.tex; do
+    if cmp -s "$file" "$scratch/stdlib/src/${file#gateway/src/}"; then
+      echo "$file equals the standard library's"
+    else
+      echo "$file differs from stdlib/src/${file#gateway/src/} at $rev" >&2
+      status=1
+    fi
+  done
+  if diff -rq gateway/language/prism.arch "$scratch/language/prism.arch"; then
+    echo "gateway/language/prism.arch equals the SDK's"
+  else
+    echo "gateway/language/prism.arch differs from the SDK's at $rev" >&2
+    status=1
+  fi
+  rm -rf "$scratch"
+  return "$status"
+}
+
+# gateway_registry: assemble the local registry of the gateway workspace from the pins
+# (gateway/registry.sh) and publish the CARGO_HOME that replaces crates-io with it as the
+# step output `cargo_home`.
+gateway_registry() {
+  local log
+  log=$(mktemp "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/registry.XXXXXX")
+  bash gateway/registry.sh | tee "$log"
+  echo "cargo_home=$PWD/gateway/registry/cargo-home" >>"${GITHUB_OUTPUT:-/dev/null}"
+  rm -f "$log"
+}
+
+# build_gateway: `prismpm build` of the gateway server application, then the three
+# generated packages laid beside the binding crate (gateway/lay-out.sh). The build id is
+# the step output `build`.
+build_gateway() {
+  local id
+  (cd gateway && prismpm build) | tee "${RUNNER_TEMP:?}/prismpm-build.log"
+  id=$(sed -n 's/^build published: \([0-9a-f]\{64\}\)$/\1/p' "$RUNNER_TEMP/prismpm-build.log" | tail -n 1)
+  if [[ -z $id ]]; then
+    echo "prismpm build did not print 'build published: <id>'" >&2
+    return 1
+  fi
+  echo "build=$id" >>"${GITHUB_OUTPUT:-/dev/null}"
+  bash gateway/lay-out.sh "gateway/.prism/build/$id"
+}
+
+# gateway_core_is_committed: the core package `prismpm build` generated is the committed
+# export of the sources: every file equal, none missing, none extra.
+gateway_core_is_committed() {
+  diff -r gateway/generated/lexlean_mcp_gateway_core gateway/lexlean_mcp_gateway_core
+}
+
+# gateway_vectors_are_generated: gateway/src/Application.lex.tex is what the generator
+# writes from gateway/vectors/exchanges.json and the committed core.
+gateway_vectors_are_generated() {
+  python3 gateway/vectors/generate.py --check
+}

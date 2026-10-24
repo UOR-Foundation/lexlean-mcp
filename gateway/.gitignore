@@ -1,12 +1,15 @@
 # Laid out from the pins (lay-out-mcp.sh, lay-out.sh); never committed.
 /mcp/
 /language/mcp.core/
-/lexlean-mcp-gateway-core/
-/lexlean-mcp-gateway-host-api/
-/lexlean-mcp-gateway-host/
+/gateway-host-api/
+/gateway-host/
 /lexlean_mcp_gateway_core/
 /target/
 /.lexlean/
 /.prism/
 /.lake/
 /registry/
+# The store the binding writes when a verification runs the acceptance vectors through it.
+/lexlean-mcp-store/
+# The scratch of the vector generator.
+/vectors/out/

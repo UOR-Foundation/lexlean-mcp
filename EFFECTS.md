@@ -94,6 +94,27 @@ effect that is not in the type.
 `engineEffectsAreE3ToE6`). Exactly four effects are Engine calls, and verify and
 the store have effects of their own (E1, E2, E7 to E10).
 
+## The frame effect (`rate.calls`)
+
+The rate limit of the core (`rate.tool_calls`, risk R4) needs a count that a pure function
+cannot keep: how many counted requests the client has made in the current window. The
+generated gateway declares it as an eleventh host effect, `rate.calls` (request `counted`,
+result `calls`), at the tag 10, and the serving frame section `tool_calls` takes its field
+from the result of that effect (PrismPM serving model, `frame`). The adapter, not the core,
+asks for it, once for every request that reaches the core, and the answer travels in the
+request frame.
+
+It is not one of the ten effects of this model, and the core cannot encode it:
+
+- `Effect` has ten constructors and `decode` refuses the tag 10 (`UnknownId`), by the vector
+  "the first unassigned id" of the table below, which `acceptanceVectorsPass` decides;
+- the generated tables mark exactly the tags 0 to 9 as the core's, so the driver refuses a
+  core that asks for the tag 10 (the binding crate tests `the_frame_effect_is_not_the_cores`);
+- the ten effects of `allEffects`, `tenEffects` and the theorems on them are unchanged: the
+  closed set the core can encode is still E1 to E10.
+
+`GW-10` registers the claim and its test (`cargo test -p repo-model --test gateway`).
+
 ## Tool and method names (Q6)
 
 No effect name contains a tool name or an MCP method name, so the generated

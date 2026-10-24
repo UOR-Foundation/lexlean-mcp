@@ -186,7 +186,7 @@ fn pairs(cell: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// GW-01: the gateway declares the ten effects of the model, in its order.
+/// GW-01: the gateway declares the ten effects of the model, in its order, and then the frame effect.
 #[test]
 fn the_gateway_declares_the_ten_effects_in_order_gw_01() {
     let declared: Vec<String> = declared_effects(&application())
@@ -196,21 +196,31 @@ fn the_gateway_declares_the_ten_effects_in_order_gw_01() {
     let model = model_effect_names();
     assert_eq!(model.len(), 10, "src/Effects.lex.tex declares ten effects");
     assert_eq!(
-        declared, model,
-        "the host protocol lists the effects of src/Effects.lex.tex, so the tag of an effect is its position"
+        declared.len(),
+        11,
+        "the host protocol declares the ten effects and the frame effect"
     );
+    assert_eq!(
+        declared[..10],
+        model[..],
+        "the host protocol lists the effects of src/Effects.lex.tex first, so the tag of an effect is its position"
+    );
+    assert_eq!(declared[10], FRAME_EFFECT, "the eleventh effect is the frame effect");
     let distinct: BTreeSet<&String> = declared.iter().collect();
-    assert_eq!(distinct.len(), 10, "no effect is declared twice");
+    assert_eq!(distinct.len(), 11, "no effect is declared twice");
     let document = read("GATEWAY.md");
     let tabled: Vec<String> = table(&document, "The effects")
         .into_iter()
         .map(|cells| cells[0].clone())
         .collect();
     assert_eq!(
-        tabled, model,
-        "GATEWAY.md tabulates the same ten effects in the same order"
+        tabled, declared,
+        "GATEWAY.md tabulates the same effects in the same order"
     );
 }
+
+/// The frame effect: the adapter, not the core, asks for it.
+const FRAME_EFFECT: &str = "rate.calls";
 
 /// GW-02: request, result and failures are those of the table.
 #[test]
@@ -421,6 +431,7 @@ fn no_effect_outside_e1_to_e10_can_be_encoded_gw_05() {
         "the_first_tag_past_the_set_is_undeclared",
         "the_largest_tag_is_undeclared",
         "the_decoder_has_one_variant_per_effect",
+        "the_frame_effect_is_not_the_cores",
     ] {
         assert!(
             names.contains(required),
@@ -514,6 +525,17 @@ fn method_names() -> BTreeSet<String> {
     names
 }
 
+/// Whether `name` occurs in `text` as a name and not inside a longer word: the characters
+/// around it are not letters, digits or underscores (the method `ping` is not in "mapping").
+fn contains_name(text: &str, name: &str) -> bool {
+    let word = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    text.match_indices(name).any(|(at, _)| {
+        let before = text[..at].chars().next_back();
+        let after = text[at + name.len()..].chars().next();
+        !before.is_some_and(word) && !after.is_some_and(word)
+    })
+}
+
 /// The names of `names` that occur in a file of `directories`, as `(file, name)`.
 fn occurrences(directories: &[&str], names: &BTreeSet<String>) -> Vec<(String, String)> {
     let mut found = Vec::new();
@@ -525,7 +547,7 @@ fn occurrences(directories: &[&str], names: &BTreeSet<String>) -> Vec<(String, S
                 continue;
             };
             for name in names {
-                if text.contains(name.as_str()) {
+                if contains_name(&text, name) {
                     found.push((file.display().to_string(), name.clone()));
                 }
             }
@@ -569,7 +591,7 @@ fn no_tool_or_method_name_occurs_in_adapter_source_gw_06() {
             .iter()
             .filter(|f| {
                 std::fs::read_to_string(f)
-                    .is_ok_and(|t| planted.iter().any(|n| t.contains(n.as_str())))
+                    .is_ok_and(|t| planted.iter().any(|n| contains_name(&t, n)))
             })
             .count()
     };
@@ -727,5 +749,70 @@ fn the_gateway_builds_from_the_pins_without_a_published_crate_gw_09() {
     assert!(
         ci.contains("release step") && ci.contains("registry.sh"),
         "CI.md states the release step that removes the replacement"
+    );
+}
+
+/// GW-10: the rate counter is a frame effect, outside the ten effects of the core.
+#[test]
+fn the_rate_counter_is_a_frame_effect_outside_the_cores_ten_gw_10() {
+    let source = application();
+    let declared = declared_effects(&source);
+    let frame = declared
+        .iter()
+        .find(|effect| effect.name == FRAME_EFFECT)
+        .expect("the host protocol declares the frame effect");
+    assert_eq!(
+        frame.request,
+        vec![("counted".to_string(), "Flag".to_string())],
+        "the adapter tells the effect whether the request is counted"
+    );
+    assert_eq!(
+        frame.result,
+        vec![("calls".to_string(), "U32".to_string())],
+        "the effect answers with the count"
+    );
+    assert!(frame.failures.is_empty(), "the counter cannot fail");
+    assert_eq!(
+        declared.iter().position(|effect| effect.name == FRAME_EFFECT),
+        Some(10),
+        "its tag is 10, the first past the ten of the core"
+    );
+    let tight_source = tight(&source);
+    assert!(
+        tight_source.contains(
+            "FrameSection {name := \"tool_calls\", kind := (ctor Foundation.Server.V1.Model::FrameKind.U32), effect := \"rate.calls\", field := \"calls\", values := (nil String)}"
+        ),
+        "the request frame's tool_calls section takes the field calls of the effect, not a constant"
+    );
+    assert!(
+        !tight_source.contains("effect := \"\", field := \"\""),
+        "no frame section is a model value"
+    );
+    // The core cannot encode its tag: the decoder of the model refuses it.
+    let model = tight(&read("src/Effects.lex.tex"));
+    assert!(
+        model.contains(
+            "label := \"the first unassigned id\", wire := (ctor Wire.Frame (cons 0 (cons 0 (cons 0 (cons 10 (nil Nat)))))), expected := (ctor Result.error [Effect, Refusal] (ctor Refusal.UnknownId))"
+        ),
+        "src/Effects.lex.tex has the vector that refuses the tag 10"
+    );
+    let document = read("EFFECTS.md");
+    assert!(
+        document.contains("`rate.calls`") && document.contains("frame effect"),
+        "EFFECTS.md records the frame effect and that it is outside the ten"
+    );
+}
+
+/// GW-11: the MCP files laid out are those of the pin, and the lexicon tree is the lock's.
+#[test]
+fn the_laid_out_mcp_modules_are_those_of_the_pin_gw_11() {
+    let script = read("gateway/mcp-identities.sh");
+    for needle in ["diff -r", "tree_sha256", "mcp.core", ".github/mcp.rev"] {
+        assert!(script.contains(needle), "gateway/mcp-identities.sh checks {needle}");
+    }
+    let workflow = read(".github/workflows/lexlean.yml");
+    assert!(
+        workflow.contains("gateway/mcp-identities.sh"),
+        "the gateway job runs the identity check"
     );
 }

@@ -10,6 +10,10 @@ license = "MIT OR Apache-2.0"
 gateway-host-api = { path = "../../gateway-host-api" }
 lexlean = "0.3.0"
 serde_json = "1"
+camino = "1"
+
+[dev-dependencies]
+tempfile = "3"
 
 [lints.rust]
 missing_docs = "deny"
