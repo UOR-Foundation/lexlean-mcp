@@ -27,6 +27,8 @@
 # theorem) registers EF-01..EF-08.
 # The executable measures of Q2 and Q8 of issue #15 register QM-01 to QM-08: two rows that
 # reproduce the pinned LexLean (its public API and its diagnostic registry) and six that are checked here.
+# The features F1 to F13 and journeys J1 to J6 of issue #18 register FJ-01..FJ-10: the
+# model-side slice, whose rules prismpm check cannot yet run on the bound SDK image.
 
 spec = "template/1"
 
@@ -311,3 +313,63 @@ id = "QM-08"
 level = "build"
 suite = "quality"
 statement = "Each gate of Q2 and Q8 rejects its planted defect: a function removed from the map, a tool name misspelled, a function with no tool and no reason, a function both mapped and not exposed, a function added or re-signed upstream, a vendored byte altered or removed, a pin moved without a new import, a code returned that the registry lacks, a code with no statement, an entry removed from ERRORS.md or altered, an exit status that disagrees with its class, rows out of order, Q2 or Q8 flipped back to Pending, a measure flipped to Executed without rows, a cited row missing and a count that disagrees; QUALITY.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "FJ-01"
+level = "build"
+suite = "features"
+statement = "Thirteen features, F1 to F13, are declared as Foundation.Arch::Feature definitions in src/Features.lex.tex, numbered 1 to 13 in order, and the kernel theorem thirteenFeaturesInOrder holds."
+
+[[id]]
+id = "FJ-02"
+level = "build"
+suite = "features"
+statement = "Six journeys, J1 to J6, are declared as Foundation.Arch::Journey definitions in src/Features.lex.tex, numbered 1 to 6 in order, and the kernel theorem sixJourneysInOrder holds."
+
+[[id]]
+id = "FJ-03"
+level = "build"
+suite = "features"
+statement = "Every feature names at least one interface call, the rule of PP2014, and the kernel theorem everyFeatureHasACall holds."
+
+[[id]]
+id = "FJ-04"
+level = "build"
+suite = "features"
+statement = "Every feature names at least one acceptance row, the rule of PP2015, and the kernel theorem everyFeatureHasAnAcceptanceRow holds."
+
+[[id]]
+id = "FJ-05"
+level = "build"
+suite = "features"
+statement = "Every step of every journey names a declared feature, the rule of PP2016, and the kernel theorem everyJourneyStepNamesAFeature holds."
+
+[[id]]
+id = "FJ-06"
+level = "build"
+suite = "features"
+statement = "Every journey actor is a stakeholder declared in src/Architecture.lex.tex, the rule of PP2017, and the kernel theorems everyJourneyActorIsAStakeholder and stakeholderRowsAreTheArchitectureStakeholders hold."
+
+[[id]]
+id = "FJ-07"
+level = "build"
+suite = "features"
+statement = "Every call and every acceptance row of a feature names a definition of src/Features.lex.tex, the rule of PP2018, every such definition is used by a feature, and the kernel theorems everyCallNamesADefinition, everyAcceptanceRowNamesADefinition and featuresModelHolds hold."
+
+[[id]]
+id = "FJ-08"
+level = "some-true"
+suite = "features"
+statement = "PrismPM main at d11ace6f, the merge of PrismPM#330, declares Foundation.Arch::Feature with a statement, calls and acceptance, and Foundation.Arch::Journey with an actor and steps, and its prism.arch lexicon names them with the entries arch-feature, arch-journey and holo-normalized-features; prismpm check refuses a feature with no call (PP2014), a feature with no acceptance row (PP2015), a journey step naming no declared feature (PP2016), a journey actor that is no declared stakeholder (PP2017), and a malformed declaration or a call or acceptance row that names no definition (PP2018)."
+
+[[id]]
+id = "FJ-09"
+level = "build"
+suite = "features"
+statement = "The prism.arch lexicon and Foundation.Arch of this repository are, byte for byte, the 143 files of PrismPM d11ace6f: the SHA-256 over their path-sorted manifest equals the checksum of the authority A-PRISMPM-ARCH."
+
+[[id]]
+id = "FJ-10"
+level = "build"
+suite = "features"
+statement = "FEATURES.md states one row for each of F1 to F13 and J1 to J6, in order, and every row names where it comes from: an issue of this repository, or needs owner when no issue states it."
