@@ -6,10 +6,11 @@
 #      for byte, the file of UOR-Foundation/MCP at .github/mcp.rev, and no file is missing
 #      or extra;
 #   2. the lexicon package mcp.core has, in gateway/lexlean.lock, the tree hash that MCP's
-#      lexlean.lock records for it at the pin.
-# MCP's own lock is made by another LexLean commit than this repository's, and the module
-# prefix differs (UorMcp, LexLeanMcpGateway), so the semantic ID of a module is not
-# comparable across the two; the source and the lexicon tree are.
+#      lexlean.lock records for it at the pin;
+#   3. the gateway is compiled by the LexLean commit MCP names at the pin: gateway/mcp/lexlean.rev
+#      is MCP's .github/lexlean.rev, and both locks record the same compiler_semantics.
+# The module prefix differs (UorMcp, LexLeanMcpGateway), so the semantic ID of a module is
+# not comparable between the two projects; the source, the lexicon tree and the compiler are.
 #
 # usage: mcp-identities.sh [MCP_CHECKOUT]   (a checkout at the pin; fetched when absent)
 set -euo pipefail
@@ -54,3 +55,18 @@ if [[ -z $theirs || $theirs != "$ours" ]]; then
   exit 1
 fi
 echo "mcp-identities: mcp.core has the tree hash $ours in both locks"
+
+# The compiler: the gateway is compiled by the LexLean commit MCP is checked with at the pin,
+# so the two locks record the same compiler-semantics ID and the layout holds MCP's revision.
+cmp "$checkout/.github/lexlean.rev" "$here/mcp/lexlean.rev" || {
+  echo "mcp-identities: gateway/mcp/lexlean.rev is not MCP's .github/lexlean.rev at $rev" >&2
+  exit 1
+}
+semantics() { sed -n 's/^compiler_semantics = "\(.*\)"$/\1/p' "$1"; }
+theirs=$(semantics "$checkout/lexlean.lock")
+ours=$(semantics "$here/lexlean.lock")
+if [[ -z $theirs || $theirs != "$ours" ]]; then
+  echo "mcp-identities: compiler_semantics is '$ours' in gateway/lexlean.lock and '$theirs' in MCP's lexlean.lock at $rev" >&2
+  exit 1
+fi
+echo "mcp-identities: both locks record compiler_semantics $ours (LexLean $(sed -n 's/^rev = //p' "$here/mcp/lexlean.rev"))"

@@ -816,12 +816,28 @@ fn the_rate_counter_is_a_frame_effect_outside_the_cores_ten_gw_10() {
 #[test]
 fn the_laid_out_mcp_modules_are_those_of_the_pin_gw_11() {
     let script = read("gateway/mcp-identities.sh");
-    for needle in ["diff -r", "tree_sha256", "mcp.core", ".github/mcp.rev"] {
+    for needle in [
+        "diff -r",
+        "tree_sha256",
+        "mcp.core",
+        ".github/mcp.rev",
+        "compiler_semantics",
+        "mcp/lexlean.rev",
+    ] {
         assert!(script.contains(needle), "gateway/mcp-identities.sh checks {needle}");
     }
     let workflow = read(".github/workflows/lexlean.yml");
     assert!(
         workflow.contains("gateway/mcp-identities.sh"),
         "the gateway job runs the identity check"
+    );
+    assert!(
+        workflow.contains("LEXLEAN_REV_FILE") && workflow.contains("gateway/mcp/lexlean.rev"),
+        "the gateway job builds lexlean and the SDK with the LexLean commit MCP names"
+    );
+    let registry = read("gateway/registry.sh");
+    assert!(
+        registry.contains("mcp/lexlean.rev") && !registry.contains(".github/lexlean.rev|"),
+        "the registry packages the lexlean MCP names, not the root project's"
     );
 }

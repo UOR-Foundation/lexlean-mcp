@@ -137,7 +137,12 @@ impl Host for Native {
         &mut self,
         request: engine_check::Request,
     ) -> Result<engine_check::Completed, HostError<engine_check::Failure>> {
-        match self.engine_call(&request.project, request.selection, &request.files, Call::Check) {
+        match self.engine_call(
+            &request.project,
+            request.selection,
+            &request.files,
+            Call::Check,
+        ) {
             Ok(answer) => Ok(engine_check::Completed {
                 class: answer.class,
                 result: answer.result,
@@ -168,9 +173,9 @@ impl Host for Native {
             Err(EngineRefusal::Project) => {
                 Err(HostError::Failed(engine_snapshot::Failure::ProjectRefused))
             }
-            Err(EngineRefusal::Engine) => {
-                Err(HostError::Failed(engine_snapshot::Failure::EngineUnavailable))
-            }
+            Err(EngineRefusal::Engine) => Err(HostError::Failed(
+                engine_snapshot::Failure::EngineUnavailable,
+            )),
         }
     }
 
@@ -201,7 +206,12 @@ impl Host for Native {
         &mut self,
         request: engine_build::Request,
     ) -> Result<engine_build::Completed, HostError<engine_build::Failure>> {
-        match self.engine_call(&request.project, request.selection, &request.files, Call::Build) {
+        match self.engine_call(
+            &request.project,
+            request.selection,
+            &request.files,
+            Call::Build,
+        ) {
             Ok(answer) => Ok(engine_build::Completed {
                 class: answer.class,
                 result: answer.result,

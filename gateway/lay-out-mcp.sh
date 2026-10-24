@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lay out the sources of UOR-Foundation/MCP at the commit of .github/mcp.rev beside the
-# gateway's own: gateway/mcp/src (the LexLean modules) and gateway/language/mcp.core (the
-# lexicon they use). Neither is committed (gateway/.gitignore): the gateway reads the
+# gateway's own: gateway/mcp/src (the LexLean modules), gateway/language/mcp.core (the
+# lexicon they use) and gateway/mcp/lexlean.rev (the LexLean commit MCP names). Neither is committed (gateway/.gitignore): the gateway reads the
 # commit the pin names, so the protocol core has one source, the MCP repository (R1).
 #
 # usage: lay-out-mcp.sh [MCP_CHECKOUT]
@@ -39,4 +39,6 @@ rm -rf "$here/mcp" "$here/language/mcp.core"
 mkdir -p "$here/mcp"
 cp -r "$checkout/src" "$here/mcp/src"
 cp -r "$checkout/language/mcp.core" "$here/language/mcp.core"
+# The LexLean commit MCP is checked with at the pin: the gateway is compiled by it (AC-03 a).
+cp "$checkout/.github/lexlean.rev" "$here/mcp/lexlean.rev"
 echo "lay-out-mcp: the sources of MCP $rev are in $here/mcp and $here/language/mcp.core"

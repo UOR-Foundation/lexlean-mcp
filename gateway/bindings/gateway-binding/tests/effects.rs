@@ -22,7 +22,10 @@ fn host() -> (Native, tempfile::TempDir) {
 
 fn copy(from: &Path, to: &Path) {
     std::fs::create_dir_all(to).expect("a directory");
-    for entry in std::fs::read_dir(from).expect("a fixture directory").flatten() {
+    for entry in std::fs::read_dir(from)
+        .expect("a fixture directory")
+        .flatten()
+    {
         let name = entry.file_name();
         if name == ".lexlean" {
             continue;
@@ -62,13 +65,23 @@ fn failure<F>(error: HostError<F>) -> F {
     }
 }
 
-fn check(host: &mut Native, project: &str, selection: u32, files: &str) -> Result<(u32, String), engine_check::Failure> {
+fn check(
+    host: &mut Native,
+    project: &str,
+    selection: u32,
+    files: &str,
+) -> Result<(u32, String), engine_check::Failure> {
     host.engine_check(engine_check::Request {
         project: project.to_string(),
         selection,
         files: files.to_string(),
     })
-    .map(|done| (done.class, String::from_utf8_lossy(&done.result).into_owned()))
+    .map(|done| {
+        (
+            done.class,
+            String::from_utf8_lossy(&done.result).into_owned(),
+        )
+    })
     .map_err(failure)
 }
 
@@ -123,7 +136,8 @@ fn store_get_refuses_a_key_that_is_not_a_key() {
     let (mut host, _directory) = host();
     let long = "a".repeat(256);
     for key in [
-        "", "..", "../x", "a/../b", "/abs", "a//b", ".hidden", "a/.b", "a b", "a\\b", "ü", "a/", &long,
+        "", "..", "../x", "a/../b", "/abs", "a//b", ".hidden", "a/.b", "a b", "a\\b", "ü", "a/",
+        &long,
     ] {
         let error = host
             .store_get(store_get::Request {
@@ -261,7 +275,11 @@ fn store_put_refuses_an_area_that_is_not_one_of_the_seven() {
 fn store_put_refuses_a_key_that_is_not_a_key() {
     let (mut host, _directory) = host();
     for key in ["", "..", "../x", "a/../b", "/abs", "a//b", ".hidden", "a b"] {
-        assert_eq!(put(&mut host, key, b"x"), Err(store_put::Failure::KeyRefused), "{key:?}");
+        assert_eq!(
+            put(&mut host, key, b"x"),
+            Err(store_put::Failure::KeyRefused),
+            "{key:?}"
+        );
     }
     assert!(!host.config().store.join("x").exists());
 }
@@ -270,8 +288,14 @@ fn store_put_refuses_a_key_that_is_not_a_key() {
 fn store_put_fails_when_the_key_names_a_directory_or_a_file_is_in_the_way() {
     let (mut host, _directory) = host();
     put(&mut host, "d/file", b"x").expect("put");
-    assert_eq!(put(&mut host, "d", b"x"), Err(store_put::Failure::Unwritable));
-    assert_eq!(put(&mut host, "d/file/under", b"x"), Err(store_put::Failure::Unwritable));
+    assert_eq!(
+        put(&mut host, "d", b"x"),
+        Err(store_put::Failure::Unwritable)
+    );
+    assert_eq!(
+        put(&mut host, "d/file/under", b"x"),
+        Err(store_put::Failure::Unwritable)
+    );
 }
 
 #[cfg(unix)]
@@ -283,10 +307,19 @@ fn store_put_fails_when_the_path_crosses_a_link() {
     let drafts = host.config().store.join("drafts");
     std::fs::create_dir_all(&drafts).expect("a directory");
     std::os::unix::fs::symlink(&outside, drafts.join("link")).expect("a link");
-    assert_eq!(put(&mut host, "link/file", b"x"), Err(store_put::Failure::Unwritable));
-    assert!(!outside.join("file").exists(), "nothing was written through the link");
+    assert_eq!(
+        put(&mut host, "link/file", b"x"),
+        Err(store_put::Failure::Unwritable)
+    );
+    assert!(
+        !outside.join("file").exists(),
+        "nothing was written through the link"
+    );
     std::os::unix::fs::symlink(outside.join("target"), drafts.join("dangling")).expect("a link");
-    assert_eq!(put(&mut host, "dangling", b"x"), Err(store_put::Failure::Unwritable));
+    assert_eq!(
+        put(&mut host, "dangling", b"x"),
+        Err(store_put::Failure::Unwritable)
+    );
     assert!(!outside.join("target").exists());
 }
 
@@ -297,7 +330,10 @@ fn store_put_fails_when_the_content_is_over_the_draft_limit() {
     config.draft_max_bytes = 4;
     let mut host = Native::new(config);
     assert_eq!(put(&mut host, "ok", b"1234"), Ok(4));
-    assert_eq!(put(&mut host, "big", b"12345"), Err(store_put::Failure::Unwritable));
+    assert_eq!(
+        put(&mut host, "big", b"12345"),
+        Err(store_put::Failure::Unwritable)
+    );
     assert!(!host.config().store.join("drafts/big").exists());
 }
 
@@ -317,23 +353,41 @@ fn engine_check_checks_a_draft_project() {
 fn engine_check_selects_every_module_or_the_files_named() {
     let (mut host, _directory) = with_tiny();
     assert_eq!(check(&mut host, "tiny", 1, "").expect("check").0, 0);
-    assert_eq!(check(&mut host, "tiny", 2, "src/Tiny.lex.tex").expect("check").0, 0);
+    assert_eq!(
+        check(&mut host, "tiny", 2, "src/Tiny.lex.tex")
+            .expect("check")
+            .0,
+        0
+    );
 }
 
 #[test]
 fn engine_check_answers_class_one_for_a_bad_draft() {
     let (mut host, _directory) = with_tiny();
-    put(&mut host, "tiny/src/Tiny.lex.tex", b"\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n").expect("put");
+    put(
+        &mut host,
+        "tiny/src/Tiny.lex.tex",
+        b"\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n",
+    )
+    .expect("put");
     let (class, result) = check(&mut host, "tiny", 0, "").expect("check");
     assert_eq!(class, 1, "{result}");
     let document: serde_json::Value = serde_json::from_str(&result).expect("JSON");
-    assert!(document["diagnostics"][0]["code"].as_str().is_some_and(|code| code.starts_with("LL")));
+    assert!(document["diagnostics"][0]["code"]
+        .as_str()
+        .is_some_and(|code| code.starts_with("LL")));
 }
 
 #[test]
 fn engine_check_answers_class_two_for_a_selection_that_is_not_one() {
     let (mut host, _directory) = with_tiny();
-    for (selection, files) in [(7, ""), (2, ""), (2, "../x"), (2, "src/Tiny.lex.tex\n"), (2, "src/Nope.lex.tex")] {
+    for (selection, files) in [
+        (7, ""),
+        (2, ""),
+        (2, "../x"),
+        (2, "src/Tiny.lex.tex\n"),
+        (2, "src/Nope.lex.tex"),
+    ] {
         let (class, result) = check(&mut host, "tiny", selection, files).expect("check");
         assert_eq!(class, 2, "{selection} {files:?}: {result}");
     }
@@ -355,8 +409,13 @@ fn engine_check_refuses_a_project_that_is_not_a_draft_project() {
 #[test]
 fn engine_check_is_unavailable_when_the_engine_cannot_run() {
     let (mut host, _directory) = with_tiny();
-    let mut config = String::from_utf8(std::fs::read(Path::new(TINY).join("lexlean.toml")).expect("a file")).expect("text");
-    config = config.replace("lean_workspace = \".\"", "lean_workspace = \"no-such-workspace\"");
+    let mut config =
+        String::from_utf8(std::fs::read(Path::new(TINY).join("lexlean.toml")).expect("a file"))
+            .expect("text");
+    config = config.replace(
+        "lean_workspace = \".\"",
+        "lean_workspace = \"no-such-workspace\"",
+    );
     put(&mut host, "tiny/lexlean.toml", config.as_bytes()).expect("put");
     let outcome = check(&mut host, "tiny", 0, "");
     assert!(
@@ -414,7 +473,10 @@ fn engine_snapshot_is_unavailable_when_the_engine_cannot_run() {
     let (mut host, _directory) = with_tiny();
     let config = std::fs::read_to_string(Path::new(TINY).join("lexlean.toml"))
         .expect("a file")
-        .replace("lean_workspace = \".\"", "lean_workspace = \"no-such-workspace\"");
+        .replace(
+            "lean_workspace = \".\"",
+            "lean_workspace = \"no-such-workspace\"",
+        );
     put(&mut host, "tiny/lexlean.toml", config.as_bytes()).expect("put");
     let error = host
         .engine_snapshot(engine_snapshot::Request {
@@ -429,14 +491,23 @@ fn engine_snapshot_is_unavailable_when_the_engine_cannot_run() {
 
 // ---- engine.format --------------------------------------------------------------------
 
-fn format(host: &mut Native, project: &str, check_only: bool) -> Result<(u32, serde_json::Value), engine_format::Failure> {
+fn format(
+    host: &mut Native,
+    project: &str,
+    check_only: bool,
+) -> Result<(u32, serde_json::Value), engine_format::Failure> {
     host.engine_format(engine_format::Request {
         project: project.into(),
         selection: 0,
         files: String::new(),
         check_only,
     })
-    .map(|done| (done.class, serde_json::from_slice(&done.result).expect("JSON")))
+    .map(|done| {
+        (
+            done.class,
+            serde_json::from_slice(&done.result).expect("JSON"),
+        )
+    })
     .map_err(failure)
 }
 
@@ -453,8 +524,14 @@ fn engine_format_checks_without_writing() {
     // A module that is not canonical is a language error of a check: class 1 and the diagnostic.
     let (class, document) = format(&mut host, "tiny", true).expect("format");
     assert_eq!(class, 1, "{document}");
-    assert!(document["diagnostics"][0]["code"].as_str().is_some_and(|code| code.starts_with("LL")));
-    assert_eq!(std::fs::read_to_string(&drafts).expect("a file"), untidy, "check_only writes nothing");
+    assert!(document["diagnostics"][0]["code"]
+        .as_str()
+        .is_some_and(|code| code.starts_with("LL")));
+    assert_eq!(
+        std::fs::read_to_string(&drafts).expect("a file"),
+        untidy,
+        "check_only writes nothing"
+    );
 }
 
 #[test]
@@ -482,7 +559,10 @@ fn engine_format_is_unavailable_when_the_engine_cannot_run() {
     let (mut host, _directory) = with_tiny();
     let config = std::fs::read_to_string(Path::new(TINY).join("lexlean.toml"))
         .expect("a file")
-        .replace("lean_workspace = \".\"", "lean_workspace = \"no-such-workspace\"");
+        .replace(
+            "lean_workspace = \".\"",
+            "lean_workspace = \"no-such-workspace\"",
+        );
     put(&mut host, "tiny/lexlean.toml", config.as_bytes()).expect("put");
     assert_eq!(
         format(&mut host, "tiny", true).map(|_| ()),
@@ -492,13 +572,21 @@ fn engine_format_is_unavailable_when_the_engine_cannot_run() {
 
 // ---- engine.build ---------------------------------------------------------------------
 
-fn build(host: &mut Native, project: &str) -> Result<(u32, serde_json::Value), engine_build::Failure> {
+fn build(
+    host: &mut Native,
+    project: &str,
+) -> Result<(u32, serde_json::Value), engine_build::Failure> {
     host.engine_build(engine_build::Request {
         project: project.into(),
         selection: 0,
         files: String::new(),
     })
-    .map(|done| (done.class, serde_json::from_slice(&done.result).expect("JSON")))
+    .map(|done| {
+        (
+            done.class,
+            serde_json::from_slice(&done.result).expect("JSON"),
+        )
+    })
     .map_err(failure)
 }
 
@@ -509,16 +597,28 @@ fn engine_build_publishes_a_build_of_the_project() {
     assert_eq!(class, 0, "{document}");
     let id = document["build_id"].as_str().expect("a build id");
     assert_eq!(id.len(), 64);
-    let published = host.config().store.join("drafts/tiny/.lexlean/build").join(id);
+    let published = host
+        .config()
+        .store
+        .join("drafts/tiny/.lexlean/build")
+        .join(id);
     assert!(published.is_dir(), "{published:?}");
     let again = build(&mut host, "tiny").expect("build").1;
-    assert_eq!(again["build_id"], document["build_id"], "the build is content-addressed");
+    assert_eq!(
+        again["build_id"], document["build_id"],
+        "the build is content-addressed"
+    );
 }
 
 #[test]
 fn engine_build_answers_class_one_for_a_bad_draft() {
     let (mut host, _directory) = with_tiny();
-    put(&mut host, "tiny/src/Tiny.lex.tex", b"\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n").expect("put");
+    put(
+        &mut host,
+        "tiny/src/Tiny.lex.tex",
+        b"\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n",
+    )
+    .expect("put");
     assert_eq!(build(&mut host, "tiny").expect("build").0, 1);
 }
 
@@ -536,7 +636,10 @@ fn engine_build_is_unavailable_when_the_engine_cannot_run() {
     let (mut host, _directory) = with_tiny();
     let config = std::fs::read_to_string(Path::new(TINY).join("lexlean.toml"))
         .expect("a file")
-        .replace("lean_workspace = \".\"", "lean_workspace = \"no-such-workspace\"");
+        .replace(
+            "lean_workspace = \".\"",
+            "lean_workspace = \"no-such-workspace\"",
+        );
     put(&mut host, "tiny/lexlean.toml", config.as_bytes()).expect("put");
     assert_eq!(
         build(&mut host, "tiny").map(|_| ()),
@@ -597,7 +700,10 @@ fn start(host: &mut Native, project: &str) -> Result<(String, u32), verify_start
     .map_err(failure)
 }
 
-fn status(host: &mut Native, task: &str) -> Result<verify_control::Completed, verify_control::Failure> {
+fn status(
+    host: &mut Native,
+    task: &str,
+) -> Result<verify_control::Completed, verify_control::Failure> {
     host.verify_control(verify_control::Request {
         task: task.into(),
         action: 0,
@@ -612,7 +718,11 @@ fn wait_for(host: &mut Native, task: &str, state: State) -> verify_control::Comp
         if report.state == state as u32 {
             return report;
         }
-        assert!(Instant::now() < until, "{task} did not reach {state:?}: {}", report.state);
+        assert!(
+            Instant::now() < until,
+            "{task} did not reach {state:?}: {}",
+            report.state
+        );
         std::thread::sleep(Duration::from_millis(10));
     }
 }
@@ -623,7 +733,10 @@ fn verify_start_runs_a_task_to_its_end() {
     let (task, state) = start(&mut host, "tiny").expect("start");
     assert_eq!(task, "task-1");
     assert_eq!(state, State::Running as u32);
-    assert_eq!(status(&mut host, &task).expect("status").state, State::Running as u32);
+    assert_eq!(
+        status(&mut host, &task).expect("status").state,
+        State::Running as u32
+    );
     release.send(()).expect("a signal");
     let done = wait_for(&mut host, &task, State::Verified);
     assert_eq!(done.class, 0);
@@ -639,19 +752,30 @@ fn verify_start_runs_one_task_at_a_time_and_none_fails_for_waiting() {
     let (third, third_state) = start(&mut host, "tiny").expect("start");
     assert_eq!(state, State::Queued as u32);
     assert_eq!(third_state, State::Queued as u32);
-    assert_eq!((first.as_str(), second.as_str(), third.as_str()), ("task-1", "task-2", "task-3"));
+    assert_eq!(
+        (first.as_str(), second.as_str(), third.as_str()),
+        ("task-1", "task-2", "task-3")
+    );
     for task in [&first, &second, &third] {
         release.send(()).expect("a signal");
         wait_for(&mut host, task, State::Verified);
     }
-    assert_eq!(gate.running.lock().expect("a lock").1, 1, "never two at once");
+    assert_eq!(
+        gate.running.lock().expect("a lock").1,
+        1,
+        "never two at once"
+    );
 }
 
 #[test]
 fn verify_start_refuses_a_project_that_is_not_a_draft_project() {
     let (mut host, _directory, _release, _gate) = gated_host();
     for project in ["absent", "..", ""] {
-        assert_eq!(start(&mut host, project), Err(verify_start::Failure::ProjectRefused), "{project:?}");
+        assert_eq!(
+            start(&mut host, project),
+            Err(verify_start::Failure::ProjectRefused),
+            "{project:?}"
+        );
     }
     let error = host
         .verify_start(verify_start::Request {
@@ -661,7 +785,11 @@ fn verify_start_refuses_a_project_that_is_not_a_draft_project() {
         })
         .map(|_| ())
         .map_err(failure);
-    assert_eq!(error, Err(verify_start::Failure::ProjectRefused), "a selection that is not one");
+    assert_eq!(
+        error,
+        Err(verify_start::Failure::ProjectRefused),
+        "a selection that is not one"
+    );
 }
 
 #[test]
@@ -672,7 +800,12 @@ fn verify_start_records_the_failure_of_a_bad_draft() {
         Path::new(TINY),
         &host.config().store.join("drafts").join("tiny"),
     );
-    put(&mut host, "tiny/src/Tiny.lex.tex", b"\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n").expect("put");
+    put(
+        &mut host,
+        "tiny/src/Tiny.lex.tex",
+        b"\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n",
+    )
+    .expect("put");
     let (task, _) = start(&mut host, "tiny").expect("start");
     let done = wait_for(&mut host, &task, State::Failed);
     assert_eq!(done.class, 1, "a language error");
@@ -693,18 +826,32 @@ fn verify_start_runs_a_real_verification_and_leaves_a_record() {
         assert!(Instant::now() < until, "the verification did not end");
         std::thread::sleep(Duration::from_millis(500));
     };
-    assert_eq!(done.state, State::Verified as u32, "{}", String::from_utf8_lossy(&done.result));
+    assert_eq!(
+        done.state,
+        State::Verified as u32,
+        "{}",
+        String::from_utf8_lossy(&done.result)
+    );
     let record: serde_json::Value = serde_json::from_slice(&done.result).expect("JSON");
-    let attestation = record["attestation_id"].as_str().expect("an id").to_string();
+    let attestation = record["attestation_id"]
+        .as_str()
+        .expect("an id")
+        .to_string();
     // The record is found by its ID, and by the digest of a source file it verified.
     let by_id = host
-        .attestation_lookup(attestation_lookup::Request { by: 0, value: attestation.clone() })
+        .attestation_lookup(attestation_lookup::Request {
+            by: 0,
+            value: attestation.clone(),
+        })
         .expect("lookup");
     assert!(by_id.found);
     let source = std::fs::read(Path::new(TINY).join("src/Tiny.lex.tex")).expect("a file");
     let digest = lexlean::Sha256Digest::of(&source).to_hex();
     let by_file = host
-        .attestation_lookup(attestation_lookup::Request { by: 1, value: digest })
+        .attestation_lookup(attestation_lookup::Request {
+            by: 1,
+            value: digest,
+        })
         .expect("lookup");
     assert!(by_file.found);
     assert_eq!(by_file.envelope, by_id.envelope);
@@ -729,14 +876,20 @@ fn verify_control_cancels_a_queued_task_and_it_never_runs() {
     let (second, state) = start(&mut host, "tiny").expect("start");
     assert_eq!(state, State::Queued as u32);
     let cancelled = host
-        .verify_control(verify_control::Request { task: second.clone(), action: 1 })
+        .verify_control(verify_control::Request {
+            task: second.clone(),
+            action: 1,
+        })
         .expect("cancel");
     assert_eq!(cancelled.state, State::Cancelled as u32);
     assert_eq!((cancelled.groups_ended, cancelled.groups_failed), (0, 0));
     release.send(()).expect("a signal");
     wait_for(&mut host, &first, State::Verified);
     std::thread::sleep(Duration::from_millis(100));
-    assert_eq!(status(&mut host, &second).expect("status").state, State::Cancelled as u32);
+    assert_eq!(
+        status(&mut host, &second).expect("status").state,
+        State::Cancelled as u32
+    );
     assert_eq!(gate.running.lock().expect("a lock").1, 1);
 }
 
@@ -745,13 +898,20 @@ fn verify_control_cancels_a_running_task() {
     let (mut host, _directory, release, _gate) = gated_host();
     let (task, _) = start(&mut host, "tiny").expect("start");
     let cancelled = host
-        .verify_control(verify_control::Request { task: task.clone(), action: 1 })
+        .verify_control(verify_control::Request {
+            task: task.clone(),
+            action: 1,
+        })
         .expect("cancel");
     assert_eq!(cancelled.state, State::Cancelled as u32);
     release.send(()).expect("a signal");
     std::thread::sleep(Duration::from_millis(100));
     let after = status(&mut host, &task).expect("status");
-    assert_eq!(after.state, State::Cancelled as u32, "the end of the run does not undo the cancellation");
+    assert_eq!(
+        after.state,
+        State::Cancelled as u32,
+        "the end of the run does not undo the cancellation"
+    );
     // A task started after the cancellation runs: children are allowed again.
     let (next, _) = start(&mut host, "tiny").expect("start");
     release.send(()).expect("a signal");
@@ -775,16 +935,27 @@ fn verify_control_refuses_a_task_that_is_not_known() {
     let (mut host, _directory) = host();
     for action in [0, 1] {
         let error = host
-            .verify_control(verify_control::Request { task: "task-9".into(), action })
+            .verify_control(verify_control::Request {
+                task: "task-9".into(),
+                action,
+            })
             .map(|_| ())
             .map_err(failure);
-        assert_eq!(error, Err(verify_control::Failure::UnknownTask), "action {action}");
+        assert_eq!(
+            error,
+            Err(verify_control::Failure::UnknownTask),
+            "action {action}"
+        );
     }
 }
 
 // ---- lexicon.read ---------------------------------------------------------------------
 
-fn lexicon(host: &mut Native, profile: &str, entry: &str) -> Result<(bool, Vec<u8>), lexicon_read::Failure> {
+fn lexicon(
+    host: &mut Native,
+    profile: &str,
+    entry: &str,
+) -> Result<(bool, Vec<u8>), lexicon_read::Failure> {
     host.lexicon_read(lexicon_read::Request {
         profile: profile.into(),
         entry: entry.into(),
@@ -796,17 +967,31 @@ fn lexicon(host: &mut Native, profile: &str, entry: &str) -> Result<(bool, Vec<u
 #[test]
 fn lexicon_read_returns_an_entry_of_a_profile() {
     let (mut host, _directory) = host();
-    host.store_put(store_put::Request { area: 0, key: "p1/entries/a.toml".into(), content: b"phrase".to_vec() })
-        .expect("put");
-    assert_eq!(lexicon(&mut host, "p1", "entries/a.toml"), Ok((true, b"phrase".to_vec())));
+    host.store_put(store_put::Request {
+        area: 0,
+        key: "p1/entries/a.toml".into(),
+        content: b"phrase".to_vec(),
+    })
+    .expect("put");
+    assert_eq!(
+        lexicon(&mut host, "p1", "entries/a.toml"),
+        Ok((true, b"phrase".to_vec()))
+    );
 }
 
 #[test]
 fn lexicon_read_reports_a_missing_entry_as_not_found() {
     let (mut host, _directory) = host();
-    host.store_put(store_put::Request { area: 0, key: "p1/lexicon.toml".into(), content: b"x".to_vec() })
-        .expect("put");
-    assert_eq!(lexicon(&mut host, "p1", "entries/none.toml"), Ok((false, Vec::new())));
+    host.store_put(store_put::Request {
+        area: 0,
+        key: "p1/lexicon.toml".into(),
+        content: b"x".to_vec(),
+    })
+    .expect("put");
+    assert_eq!(
+        lexicon(&mut host, "p1", "entries/none.toml"),
+        Ok((false, Vec::new()))
+    );
 }
 
 #[test]
@@ -824,8 +1009,12 @@ fn lexicon_read_refuses_a_profile_that_is_not_known() {
 #[test]
 fn lexicon_read_refuses_an_entry_that_is_not_a_key() {
     let (mut host, _directory) = host();
-    host.store_put(store_put::Request { area: 0, key: "p1/x".into(), content: b"x".to_vec() })
-        .expect("put");
+    host.store_put(store_put::Request {
+        area: 0,
+        key: "p1/x".into(),
+        content: b"x".to_vec(),
+    })
+    .expect("put");
     for entry in ["", "..", "../p1/x", "/etc/passwd", "a//b"] {
         assert_eq!(
             lexicon(&mut host, "p1", entry),
@@ -837,10 +1026,17 @@ fn lexicon_read_refuses_an_entry_that_is_not_a_key() {
 
 // ---- attestation.lookup ---------------------------------------------------------------
 
-fn lookup(host: &mut Native, by: u32, value: &str) -> Result<(bool, Vec<u8>), attestation_lookup::Failure> {
-    host.attestation_lookup(attestation_lookup::Request { by, value: value.into() })
-        .map(|done| (done.found, done.envelope))
-        .map_err(failure)
+fn lookup(
+    host: &mut Native,
+    by: u32,
+    value: &str,
+) -> Result<(bool, Vec<u8>), attestation_lookup::Failure> {
+    host.attestation_lookup(attestation_lookup::Request {
+        by,
+        value: value.into(),
+    })
+    .map(|done| (done.found, done.envelope))
+    .map_err(failure)
 }
 
 const ID: &str = "5ee76e509683c39ef3347d2587071270720c04fd7e270b6f4b1538b4d96426cc";
@@ -849,19 +1045,34 @@ const DIGEST: &str = "6dc4489074435e5d259cd98c09af76cade23c313e899ab46f12b8ecbd7
 #[test]
 fn attestation_lookup_finds_a_record_by_its_id() {
     let (mut host, _directory) = host();
-    host.store_put(store_put::Request { area: 3, key: format!("{ID}.json"), content: b"{\"a\":1}".to_vec() })
-        .expect("put");
+    host.store_put(store_put::Request {
+        area: 3,
+        key: format!("{ID}.json"),
+        content: b"{\"a\":1}".to_vec(),
+    })
+    .expect("put");
     assert_eq!(lookup(&mut host, 0, ID), Ok((true, b"{\"a\":1}".to_vec())));
 }
 
 #[test]
 fn attestation_lookup_finds_a_record_by_the_digest_of_a_verified_file() {
     let (mut host, _directory) = host();
-    host.store_put(store_put::Request { area: 3, key: format!("{ID}.json"), content: b"{\"a\":1}".to_vec() })
-        .expect("put");
-    host.store_put(store_put::Request { area: 4, key: format!("by-file/{DIGEST}"), content: ID.as_bytes().to_vec() })
-        .expect("put");
-    assert_eq!(lookup(&mut host, 1, DIGEST), Ok((true, b"{\"a\":1}".to_vec())));
+    host.store_put(store_put::Request {
+        area: 3,
+        key: format!("{ID}.json"),
+        content: b"{\"a\":1}".to_vec(),
+    })
+    .expect("put");
+    host.store_put(store_put::Request {
+        area: 4,
+        key: format!("by-file/{DIGEST}"),
+        content: ID.as_bytes().to_vec(),
+    })
+    .expect("put");
+    assert_eq!(
+        lookup(&mut host, 1, DIGEST),
+        Ok((true, b"{\"a\":1}".to_vec()))
+    );
 }
 
 #[test]
@@ -876,23 +1087,41 @@ fn attestation_lookup_refuses_a_value_that_is_not_a_digest() {
     let (mut host, _directory) = host();
     let upper = ID.to_uppercase();
     let short = &ID[1..];
-    for value in ["", "abc", short, upper.as_str(), "../../x", &format!("{ID}0")] {
+    for value in [
+        "",
+        "abc",
+        short,
+        upper.as_str(),
+        "../../x",
+        &format!("{ID}0"),
+    ] {
         assert_eq!(
             lookup(&mut host, 0, value),
             Err(attestation_lookup::Failure::ValueRefused),
             "{value:?}"
         );
     }
-    assert_eq!(lookup(&mut host, 2, ID), Err(attestation_lookup::Failure::ValueRefused), "a way to look up that is not one");
+    assert_eq!(
+        lookup(&mut host, 2, ID),
+        Err(attestation_lookup::Failure::ValueRefused),
+        "a way to look up that is not one"
+    );
 }
 
 #[test]
 fn attestation_lookup_faults_when_the_index_names_something_that_is_not_an_id() {
     let (mut host, _directory) = host();
-    host.store_put(store_put::Request { area: 4, key: format!("by-file/{DIGEST}"), content: b"not an id".to_vec() })
-        .expect("put");
+    host.store_put(store_put::Request {
+        area: 4,
+        key: format!("by-file/{DIGEST}"),
+        content: b"not an id".to_vec(),
+    })
+    .expect("put");
     let error = host
-        .attestation_lookup(attestation_lookup::Request { by: 1, value: DIGEST.into() })
+        .attestation_lookup(attestation_lookup::Request {
+            by: 1,
+            value: DIGEST.into(),
+        })
         .map(|_| ());
     assert_eq!(error, Err(HostError::Fault));
 }
@@ -909,7 +1138,11 @@ fn rate_calls_answers_with_the_count_before_the_request() {
     };
     assert_eq!(calls(true), 0);
     assert_eq!(calls(true), 1);
-    assert_eq!(calls(false), 2, "a request that is not counted still sees the count");
+    assert_eq!(
+        calls(false),
+        2,
+        "a request that is not counted still sees the count"
+    );
     assert_eq!(calls(false), 2, "and does not move it");
     assert_eq!(calls(true), 2);
 }
@@ -920,7 +1153,14 @@ fn rate_calls_starts_again_when_the_window_closes() {
     let window = host.config().rate_window;
     let start = Instant::now();
     assert_eq!(host.count(true, start), 0);
-    assert_eq!(host.count(true, start + window - Duration::from_millis(1)), 1);
-    assert_eq!(host.count(true, start + window), 0, "the window closed at its length");
+    assert_eq!(
+        host.count(true, start + window - Duration::from_millis(1)),
+        1
+    );
+    assert_eq!(
+        host.count(true, start + window),
+        0,
+        "the window closed at its length"
+    );
     assert_eq!(host.count(true, start + window + Duration::from_secs(1)), 1);
 }

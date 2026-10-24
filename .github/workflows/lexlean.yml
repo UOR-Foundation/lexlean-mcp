@@ -250,6 +250,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: The MCP sources at the pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/lay-out-mcp.sh" gateway/lay-out-mcp.sh
+      - name: The gateway is compiled by the LexLean commit MCP names at the pin
+        run: echo "LEXLEAN_REV_FILE=gateway/mcp/lexlean.rev" >>"$GITHUB_ENV"
       - name: Read the pinned LexLean revision
         id: pin
         run: |
@@ -302,11 +308,7 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "install Lean" install_lean
-      - name: 7a. the MCP sources at the pin
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "gateway/lay-out-mcp.sh" gateway/lay-out-mcp.sh
-      - name: 7b. AC-03 (a) the laid-out modules are the pin's
+      - name: 7a. AC-03 (a) the laid-out modules and the compiler are the pin's
         run: |
           . .github/lexlean-ci/lib.sh
           gate "gateway/mcp-identities.sh" gateway/mcp-identities.sh

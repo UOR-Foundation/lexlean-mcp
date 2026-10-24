@@ -41,6 +41,8 @@ pub fn selection(kind: u32, files: &str) -> Result<Selection, String> {
             }
             Ok(Selection::Files(selected))
         }
-        other => Err(format!("{other} is not a selection: 0 entrypoints, 1 all, 2 files")),
+        other => Err(format!(
+            "{other} is not a selection: 0 entrypoints, 1 all, 2 files"
+        )),
     }
 }

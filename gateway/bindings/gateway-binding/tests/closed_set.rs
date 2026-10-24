@@ -84,8 +84,14 @@ fn tag_of(request: &Request) -> u32 {
 #[test]
 fn the_first_tag_past_the_set_is_undeclared() {
     let first = u32::try_from(EFFECTS.len()).expect("a count");
-    assert_eq!(Request::decode(first, &[]).unwrap_err(), Refusal::Undeclared);
-    assert_eq!(first, 11, "the set is the ten effects of the core and the frame effect");
+    assert_eq!(
+        Request::decode(first, &[]).unwrap_err(),
+        Refusal::Undeclared
+    );
+    assert_eq!(
+        first, 11,
+        "the set is the ten effects of the core and the frame effect"
+    );
 }
 
 #[test]
@@ -103,12 +109,20 @@ fn the_largest_tag_is_undeclared() {
 #[test]
 fn the_decoder_has_one_variant_per_effect() {
     let requests = one_of_each();
-    assert_eq!(requests.len(), EFFECTS.len(), "one request for each declared effect");
+    assert_eq!(
+        requests.len(),
+        EFFECTS.len(),
+        "one request for each declared effect"
+    );
     assert_eq!(REQUEST_MAXIMA.len(), EFFECTS.len());
     assert_eq!(RESULT_MAXIMA.len(), EFFECTS.len());
     for (position, request) in requests.iter().enumerate() {
         let tag = u32::try_from(position).expect("a tag");
-        assert_eq!(tag_of(request), tag, "the variant at {position} has that tag");
+        assert_eq!(
+            tag_of(request),
+            tag,
+            "the variant at {position} has that tag"
+        );
         assert_eq!(request.tag(), tag);
         let payload = request.encode().expect("encodes");
         assert_eq!(

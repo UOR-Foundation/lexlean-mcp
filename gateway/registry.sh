@@ -14,7 +14,8 @@
 #   cargo-home/config.toml           the replacement of crates-io by that directory
 #
 # Where each package comes from:
-#   lexlean   `cargo package` of UOR-Foundation/LexLean at .github/lexlean.rev. Its SHA-256
+#   lexlean   `cargo package` of UOR-Foundation/LexLean at the commit gateway/mcp/lexlean.rev names, which is
+#             MCP's .github/lexlean.rev at .github/mcp.rev (gateway/lay-out-mcp.sh lays it out). Its SHA-256
 #             is recorded in gateway/registry.expected and checked against the package made
 #             now, and against the checksum Cargo.lock records for it, so a moved pin or a
 #             different archive stops the build instead of changing it.
@@ -40,7 +41,7 @@ mode=${1:-build}
 
 # The crates that are not on crates.io yet, each at the revision of its pin file.
 # name  pin file                package in the repository
-pinned_crates=("lexlean|$repo/.github/lexlean.rev|https://github.com/UOR-Foundation/LexLean|lexlean")
+pinned_crates=("lexlean|$here/mcp/lexlean.rev|https://github.com/UOR-Foundation/LexLean|lexlean")
 
 pin_of() {
   local file=$1 rev

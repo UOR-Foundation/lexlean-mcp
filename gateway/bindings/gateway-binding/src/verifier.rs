@@ -196,10 +196,9 @@ fn cancelled() -> Outcome {
 }
 
 fn report(task: &Task, groups_ended: u32, groups_failed: u32) -> Report {
-    let (class, result) = task
-        .outcome
-        .as_ref()
-        .map_or((0, Vec::new()), |outcome| (outcome.class, outcome.result.clone()));
+    let (class, result) = task.outcome.as_ref().map_or((0, Vec::new()), |outcome| {
+        (outcome.class, outcome.result.clone())
+    });
     Report {
         state: task.state,
         class,

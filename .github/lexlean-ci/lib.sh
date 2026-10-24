@@ -59,9 +59,11 @@ gate() {
   return "$status"
 }
 
-# lexlean_rev: the revision .github/lexlean.rev names, or an error.
+# lexlean_rev: the revision .github/lexlean.rev names, or an error. The gateway job sets
+# LEXLEAN_REV_FILE to gateway/mcp/lexlean.rev: the gateway is compiled by the LexLean commit
+# that MCP names at .github/mcp.rev (AC-03 a), not by the root project's.
 lexlean_rev() {
-  local file=.github/lexlean.rev matches
+  local file=${LEXLEAN_REV_FILE:-.github/lexlean.rev} matches
   matches=$(grep -c '^rev = ' "$file") || true
   if [[ $matches != 1 ]]; then
     echo "$file must hold exactly one 'rev = ' line, found $matches" >&2

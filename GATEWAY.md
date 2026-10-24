@@ -33,9 +33,14 @@ core carries to the root unchanged). No marker travels in a tool result, so none
 collide with what a tool returns, and the core stays a pure function that the driver
 replays. The gateway links no MCP crate; its modules are the sources at the pin.
 
-`lexlean.lock` records the compiler of `.github/lexlean.rev`. `gateway/mcp-identities.sh`
-holds the laid-out modules to the pin (AC-03, part a): every file equals the file of MCP at
-`.github/mcp.rev`, and the `mcp.core` lexicon has the tree hash MCP's lock records.
+The gateway is compiled by the LexLean commit that MCP is checked with at the pin
+(`.github/lexlean.rev` of MCP, laid out as `gateway/mcp/lexlean.rev`), not by the root
+project's commit: `gateway/lexlean.lock` records the same `compiler_semantics` as MCP's
+`lexlean.lock`. The gateway job builds `lexlean` and the `lexlean` that `prismpm` vendors
+from that commit (`LEXLEAN_REV_FILE`), and the binding links the `lexlean` crate packaged
+from it. `gateway/mcp-identities.sh` holds the laid-out modules and the compiler to the pin
+(AC-03, part a): every file equals the file of MCP at `.github/mcp.rev`, the `mcp.core`
+lexicon has the tree hash MCP's lock records, and the two locks record one compiler.
 
 ## The effects
 

@@ -18,7 +18,10 @@ pub const RECORD_MAXIMUM: usize = 1 << 20;
 
 /// Whether `text` is a SHA-256 in lowercase hexadecimal.
 pub fn is_digest(text: &str) -> bool {
-    text.len() == 64 && text.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    text.len() == 64
+        && text
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 fn sources(directory: &Path, found: &mut Vec<Vec<u8>>, depth: usize) {
@@ -52,12 +55,7 @@ fn sources(directory: &Path, found: &mut Vec<Vec<u8>>, depth: usize) {
 
 /// Write the record of a verification of the project in `directory`, and the index entry of
 /// each of its source files.
-pub fn record(
-    root: &Path,
-    directory: &Path,
-    attestation: &str,
-    record: &Value,
-) -> Result<(), ()> {
+pub fn record(root: &Path, directory: &Path, attestation: &str, record: &Value) -> Result<(), ()> {
     if !is_digest(attestation) {
         return Err(());
     }
@@ -72,10 +70,23 @@ pub fn record(
         object.insert("files".to_owned(), Value::from(digests.clone()));
     }
     let bytes = serde_json::to_vec(&document).map_err(|_| ())?;
-    store::write(root, 3, &format!("{attestation}.json"), &bytes, RECORD_MAXIMUM).map_err(|_| ())?;
+    store::write(
+        root,
+        3,
+        &format!("{attestation}.json"),
+        &bytes,
+        RECORD_MAXIMUM,
+    )
+    .map_err(|_| ())?;
     for digest in digests {
-        store::write(root, 4, &format!("by-file/{digest}"), attestation.as_bytes(), 64)
-            .map_err(|_| ())?;
+        store::write(
+            root,
+            4,
+            &format!("by-file/{digest}"),
+            attestation.as_bytes(),
+            64,
+        )
+        .map_err(|_| ())?;
     }
     Ok(())
 }

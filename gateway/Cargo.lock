@@ -278,7 +278,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 name = "lexlean"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a770108c98a2f19f7afc9ca012175e345abdfb73a114402a63893116eaedc9e"
+checksum = "8712195e816e155e2b84dc35a989c2042a9fdbddf4a1535b39baee2ed5feec04"
 dependencies = [
  "camino",
  "clap",

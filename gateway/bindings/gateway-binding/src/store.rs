@@ -176,7 +176,12 @@ pub fn read_in(directory: &Path, key: &str, limit: usize) -> Result<Option<Vec<u
 }
 
 /// Read the file `key` of an area of the store at `root`.
-pub fn read(root: &Path, area: u32, key: &str, limit: usize) -> Result<Option<Vec<u8>>, StoreError> {
+pub fn read(
+    root: &Path,
+    area: u32,
+    key: &str,
+    limit: usize,
+) -> Result<Option<Vec<u8>>, StoreError> {
     let directory = area_directory(root, area)?;
     read_in(&directory, key, limit)
 }
@@ -187,12 +192,10 @@ fn ensure_directory(path: &Path) -> Result<(), StoreError> {
         Entry::File => Err(StoreError::Io),
         Entry::Missing => match fs::create_dir(path) {
             Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                match entry(path)? {
-                    Entry::Directory => Ok(()),
-                    _ => Err(StoreError::Io),
-                }
-            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => match entry(path)? {
+                Entry::Directory => Ok(()),
+                _ => Err(StoreError::Io),
+            },
             Err(_) => Err(StoreError::Io),
         },
     }

@@ -46,7 +46,8 @@ fn exchange(
                 return Ok(json!({"response": hex(response), "steps": steps}));
             }
             Step::Perform(tag, payload) => {
-                let effect = Request::decode(tag, payload).map_err(|refusal| format!("{refusal:?}"))?;
+                let effect =
+                    Request::decode(tag, payload).map_err(|refusal| format!("{refusal:?}"))?;
                 let outcome = perform(host, effect).map_err(|failure| format!("{failure:?}"))?;
                 let name = usize::try_from(tag)
                     .ok()
