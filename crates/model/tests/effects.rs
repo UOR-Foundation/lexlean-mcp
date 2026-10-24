@@ -92,7 +92,11 @@ fn theorem(source: &str, name: &str) -> (String, String) {
     let (statement, proof) = rest
         .split_once(", proof: ")
         .unwrap_or_else(|| panic!("theorem {name} has no proof"));
-    let kind = proof.split('{').next().expect("a proof has a kind").to_string();
+    let kind = proof
+        .split('{')
+        .next()
+        .expect("a proof has a kind")
+        .to_string();
     (statement.to_string(), kind)
 }
 
@@ -113,7 +117,10 @@ fn definition_body(source: &str, name: &str) -> String {
     let (_, rest) = body
         .split_once(", body: ")
         .unwrap_or_else(|| panic!("definition {name} has no body"));
-    rest.split(", recursive_argument: ").next().expect("a body").to_string()
+    rest.split(", recursive_argument: ")
+        .next()
+        .expect("a body")
+        .to_string()
 }
 
 /// The effects of `allEffects`, in order.
@@ -183,32 +190,39 @@ fn vectors(source: &str) -> Vec<Vector> {
         .map(|chunk| {
             let label = strings(chunk).remove(0);
             let after_wire = chunk.split_once("wire := ").expect("a wire").1;
-            let (wire, after) = after_wire.split_once(", expected := ").expect("an expectation");
+            let (wire, after) = after_wire
+                .split_once(", expected := ")
+                .expect("an expectation");
             let wire = if let Some(frame) = wire.strip_prefix("(ctor Wire.Frame ") {
-                let octets: Vec<String> = frame
-                    .split("(cons ")
-                    .skip(1)
-                    .map(|part| {
-                        let number: String = part.chars().take_while(char::is_ascii_digit).collect();
-                        format!("{:02x}", number.parse::<u32>().expect("a numeral"))
-                    })
-                    .collect();
                 // An octet value above 255 is spelled in decimal, so no hex pair hides it.
                 let big: Vec<String> = frame
                     .split("(cons ")
                     .skip(1)
-                    .map(|part| part.chars().take_while(char::is_ascii_digit).collect::<String>())
+                    .map(|part| {
+                        part.chars()
+                            .take_while(char::is_ascii_digit)
+                            .collect::<String>()
+                    })
                     .map(|number| {
                         let value: u32 = number.parse().expect("a numeral");
-                        if value > 255 { format!("{value}") } else { format!("{value:02x}") }
+                        if value > 255 {
+                            format!("{value}")
+                        } else {
+                            format!("{value:02x}")
+                        }
                     })
                     .collect();
-                let _ = octets;
-                if big.is_empty() { "frame ()".to_string() } else { format!("frame {}", big.join(" ")) }
+                if big.is_empty() {
+                    "frame ()".to_string()
+                } else {
+                    format!("frame {}", big.join(" "))
+                }
             } else {
                 format!("name \"{}\"", strings(wire).remove(0))
             };
-            let expected = if let Some(found) = after.strip_prefix("(ctor Result.ok [Effect, Refusal] (ctor Effect.") {
+            let expected = if let Some(found) =
+                after.strip_prefix("(ctor Result.ok [Effect, Refusal] (ctor Effect.")
+            {
                 effect_words(found.split(')').next().expect("a name"))
             } else {
                 let refusal = after
@@ -220,7 +234,11 @@ fn vectors(source: &str) -> Vec<Vector> {
                     .expect("a name");
                 format!("refused {refusal}")
             };
-            Vector { label, wire, expected }
+            Vector {
+                label,
+                wire,
+                expected,
+            }
         })
         .collect()
 }
@@ -263,7 +281,10 @@ fn section(document: &str, heading: &str) -> String {
             text.push('\n');
         }
     }
-    assert!(!text.trim().is_empty(), "EFFECTS.md has no section {heading}");
+    assert!(
+        !text.trim().is_empty(),
+        "EFFECTS.md has no section {heading}"
+    );
     text
 }
 
@@ -272,35 +293,69 @@ fn section(document: &str, heading: &str) -> String {
 fn the_effect_set_is_exactly_e1_to_e10_ef_01() {
     let source = source();
     let issue: Vec<String> = ISSUE.iter().map(|(c, _)| (*c).to_string()).collect();
-    assert_eq!(constructors(&source, "Effect"), issue, "the Effect inductive is E1 to E10, in order");
-    assert_eq!(listed_effects(&source), issue, "allEffects lists the same ten effects, in order");
+    assert_eq!(
+        constructors(&source, "Effect"),
+        issue,
+        "the Effect inductive is E1 to E10, in order"
+    );
+    assert_eq!(
+        listed_effects(&source),
+        issue,
+        "allEffects lists the same ten effects, in order"
+    );
     let expected_names: Vec<(String, String)> = ISSUE
         .iter()
         .map(|(c, n)| ((*c).to_string(), (*n).to_string()))
         .collect();
-    assert_eq!(names(&source), expected_names, "the wire names are the dotted names of the issue");
+    assert_eq!(
+        names(&source),
+        expected_names,
+        "the wire names are the dotted names of the issue"
+    );
     let expected_tags: Vec<(String, u32)> = ISSUE
         .iter()
         .enumerate()
         .map(|(index, (c, _))| ((*c).to_string(), u32::try_from(index).expect("small")))
         .collect();
-    assert_eq!(tags(&source), expected_tags, "the wire tag of E<n> is n - 1, its position");
+    assert_eq!(
+        tags(&source),
+        expected_tags,
+        "the wire tag of E<n> is n - 1, its position"
+    );
     for name in ["tenEffects", "tagsAreZeroToNine", "namesAreTheIssueNames"] {
         let (_, proof) = theorem(&source, name);
         assert_eq!(proof, "decide", "{name} is decided by the kernel");
     }
-    assert!(source.contains("tenEffects, parameters: [], statement: ((countEffects (allEffects)) = 10)"));
+    assert!(source
+        .contains("tenEffects, parameters: [], statement: ((countEffects (allEffects)) = 10)"));
     let document = read("EFFECTS.md");
     let table: Vec<(String, String, String, String)> = rows(&document, "## The effects")
         .into_iter()
-        .map(|cells| (cells[0].clone(), cells[1].clone(), cells[2].clone(), cells[3].clone()))
+        .map(|cells| {
+            (
+                cells[0].clone(),
+                cells[1].clone(),
+                cells[2].clone(),
+                cells[3].clone(),
+            )
+        })
         .collect();
     let expected: Vec<(String, String, String, String)> = ISSUE
         .iter()
         .enumerate()
-        .map(|(index, (c, n))| (format!("E{}", index + 1), (*n).to_string(), index.to_string(), (*c).to_string()))
+        .map(|(index, (c, n))| {
+            (
+                format!("E{}", index + 1),
+                (*n).to_string(),
+                index.to_string(),
+                (*c).to_string(),
+            )
+        })
         .collect();
-    assert_eq!(table, expected, "EFFECTS.md lists E1 to E10 with the name, tag and constructor of the model");
+    assert_eq!(
+        table, expected,
+        "EFFECTS.md lists E1 to E10 with the name, tag and constructor of the model"
+    );
 }
 
 /// EF-02: the codec is total and typed, and decode inverts encode.
@@ -317,7 +372,8 @@ fn decode_is_total_and_inverts_encode_ef_02() {
         let (statement, kind) = theorem(&source, name);
         assert_eq!(kind, proof, "{name} is proved by cases on the effect");
         assert!(
-            statement.starts_with("((decode (encode") || statement.starts_with("((decode (encodeName"),
+            statement.starts_with("((decode (encode")
+                || statement.starts_with("((decode (encodeName"),
             "{name} states the round trip: {statement}"
         );
         assert!(
@@ -333,8 +389,18 @@ fn decode_is_total_and_inverts_encode_ef_02() {
     );
     let document = read("EFFECTS.md");
     let wire = section(&document, "## The wire");
-    for needle in ["four octets", "big-endian", "position", "UnknownId", "UnknownName", "MalformedFrame"] {
-        assert!(wire.contains(needle), "the wire section of EFFECTS.md states `{needle}`");
+    for needle in [
+        "four octets",
+        "big-endian",
+        "position",
+        "UnknownId",
+        "UnknownName",
+        "MalformedFrame",
+    ] {
+        assert!(
+            wire.contains(needle),
+            "the wire section of EFFECTS.md states `{needle}`"
+        );
     }
 }
 
@@ -344,15 +410,27 @@ fn no_wire_outside_the_ten_decodes_ef_03() {
     let source = source();
     let (statement, kind) = theorem(&source, "decodeSound");
     assert_eq!(statement, "((soundDecode wire (decode wire)) = true)");
-    assert_eq!(kind, "cases", "decodeSound splits the wire into its two forms");
+    assert_eq!(
+        kind, "cases",
+        "decodeSound splits the wire into its two forms"
+    );
     let parameters = declaration(&source, "theorem", "decodeSound");
     assert!(
         parameters.contains("parameters: [wire : Wire]"),
         "decodeSound quantifies over every wire, not a list of examples: {parameters}"
     );
-    for name in ["decodeWordSound", "decodeFrameSound", "decodeNameInSound", "decodeNameSound"] {
+    for name in [
+        "decodeWordSound",
+        "decodeFrameSound",
+        "decodeNameInSound",
+        "decodeNameSound",
+    ] {
         assert!(has_theorem(&source, name), "the soundness chain has {name}");
-        assert_ne!(theorem(&source, name).1, "decide", "{name} is proved for every input, not decided on examples");
+        assert_ne!(
+            theorem(&source, name).1,
+            "decide",
+            "{name} is proved for every input, not decided on examples"
+        );
     }
     let sound = definition_body(&source, "soundDecode");
     assert_eq!(
@@ -369,8 +447,13 @@ fn no_wire_outside_the_ten_decodes_ef_03() {
         .into_iter()
         .filter_map(|vector| vector.expected.strip_prefix("refused ").map(str::to_string))
         .collect();
-    let all: BTreeSet<String> = ["UnknownId", "UnknownName", "MalformedFrame"].map(str::to_string).into();
-    assert_eq!(seen, all, "a vector refuses with each of the three refusals");
+    let all: BTreeSet<String> = ["UnknownId", "UnknownName", "MalformedFrame"]
+        .map(str::to_string)
+        .into();
+    assert_eq!(
+        seen, all,
+        "a vector refuses with each of the three refusals"
+    );
     let (statement, kind) = theorem(&source, "everyRefusalHasAVector");
     assert_eq!(kind, "decide");
     assert!(statement.contains("refusalSeen (acceptanceVectors) 2"));
@@ -398,7 +481,10 @@ fn ids_and_names_are_pairwise_distinct_ef_04() {
 #[test]
 fn the_engine_effects_are_the_four_engine_calls_ef_05() {
     let source = source();
-    assert_eq!(constructors(&source, "EngineCall"), ["Check", "Snapshot", "Format", "Build"]);
+    assert_eq!(
+        constructors(&source, "EngineCall"),
+        ["Check", "Snapshot", "Format", "Build"]
+    );
     let map = definition_body(&source, "engineEffect");
     for (call, effect) in [
         ("Check", "EngineCheck"),
@@ -411,14 +497,25 @@ fn the_engine_effects_are_the_four_engine_calls_ef_05() {
             "{call} maps to {effect}: {map}"
         );
     }
-    assert_eq!(theorem(&source, "fourEngineEffects").0, "((engineCallCount (allEffects)) = 4)");
+    assert_eq!(
+        theorem(&source, "fourEngineEffects").0,
+        "((engineCallCount (allEffects)) = 4)"
+    );
     assert!(has_theorem(&source, "engineCallRoundTrip"));
     assert!(has_theorem(&source, "everyEngineEffectIsACall"));
     assert_eq!(theorem(&source, "engineCallRoundTrip").1, "cases");
     assert_eq!(theorem(&source, "everyEngineEffectIsACall").1, "cases");
     let statement = theorem(&source, "engineEffectsAreE3ToE6").0;
-    for needle in ["Check))) = 3", "Snapshot))) = 4", "Format))) = 5", "Build))) = 6"] {
-        assert!(statement.contains(needle), "the Engine calls are E3 to E6: {statement}");
+    for needle in [
+        "Check))) = 3",
+        "Snapshot))) = 4",
+        "Format))) = 5",
+        "Build))) = 6",
+    ] {
+        assert!(
+            statement.contains(needle),
+            "the Engine calls are E3 to E6: {statement}"
+        );
     }
 }
 
@@ -427,15 +524,57 @@ fn the_engine_effects_are_the_four_engine_calls_ef_05() {
 fn no_effect_name_is_a_tool_or_method_name_ef_06() {
     let source = source();
     let reserved = strings(&definition_body(&source, "reservedWords"));
-    for needle in ["lexlean_", "tools/", "resources/", "prompts/", "initialize", "ping"] {
-        assert!(reserved.iter().any(|word| word == needle), "the reserved words include `{needle}`");
+    for needle in [
+        "lexlean_",
+        "tools/",
+        "resources/",
+        "prompts/",
+        "initialize",
+        "ping",
+    ] {
+        assert!(
+            reserved.iter().any(|word| word == needle),
+            "the reserved words include `{needle}`"
+        );
     }
     assert_eq!(
         theorem(&source, "effectNamesCarryNoToolOrMethodName").0,
-        "((namesClean (namesOf (allEffects))) = true)"
+        "((effectsClean (allEffects)) = true)"
     );
     assert!(has_theorem(&source, "aToolNameIsNotAnEffectName"));
     assert!(has_theorem(&source, "reservedWordsCoverTheTools"));
+    // The kernel checks the octets of the names, and decides that they spell the names.
+    for name in ["nameBytesSpellTheNames", "reservedBytesSpellTheWords"] {
+        assert_eq!(
+            theorem(&source, name).1,
+            "decide",
+            "{name} is decided by the kernel"
+        );
+    }
+    let hex = |text: &str| -> String { text.bytes().map(|b| format!("{b:02x}")).collect() };
+    let octets = definition_body(&source, "effectNameBytes");
+    for (constructor, name) in names(&source) {
+        let marker = format!("Effect.{constructor} => 0x");
+        let at = octets
+            .find(&marker)
+            .unwrap_or_else(|| panic!("effectNameBytes has no {constructor}"));
+        let digits: String = octets[at + marker.len()..]
+            .chars()
+            .take_while(char::is_ascii_hexdigit)
+            .collect();
+        assert_eq!(
+            digits,
+            hex(&name),
+            "the octets of {constructor} spell {name}"
+        );
+    }
+    let words = definition_body(&source, "reservedWords");
+    for word in strings(&words) {
+        assert!(
+            words.contains(&format!("text := \"{word}\", bytes := 0x{}", hex(&word))),
+            "the octets of the reserved word `{word}` spell it"
+        );
+    }
     // The same check, recomputed on the names the source holds.
     for (_, name) in names(&source) {
         assert!(
@@ -460,19 +599,33 @@ fn every_effect_has_an_acceptance_vector_ef_07() {
     for (index, (_, name)) in ISSUE.iter().enumerate() {
         let expected = format!("E{} {name}", index + 1);
         assert!(
-            model.iter().any(|v| v.expected == expected && v.wire.starts_with("frame ")),
+            model
+                .iter()
+                .any(|v| v.expected == expected && v.wire.starts_with("frame ")),
             "{expected} has a vector by frame"
         );
         assert!(
-            model.iter().any(|v| v.expected == expected && v.wire.starts_with("name ")),
+            model
+                .iter()
+                .any(|v| v.expected == expected && v.wire.starts_with("name ")),
             "{expected} has a vector by name"
         );
     }
-    for name in ["acceptanceVectorsPass", "everyEffectHasAVectorByFrameAndByName", "vectorTotal"] {
-        assert_eq!(theorem(&source, name).1, "decide", "{name} is decided by the kernel");
+    for name in [
+        "acceptanceVectorsPass",
+        "everyEffectHasAVectorByFrameAndByName",
+        "vectorTotal",
+    ] {
+        assert_eq!(
+            theorem(&source, name).1,
+            "decide",
+            "{name} is decided by the kernel"
+        );
     }
     assert!(
-        theorem(&source, "vectorTotal").0.ends_with(&format!("= {})", model.len())),
+        theorem(&source, "vectorTotal")
+            .0
+            .ends_with(&format!("= {})", model.len())),
         "the model states its own vector count"
     );
     let document = read("EFFECTS.md");
@@ -484,7 +637,10 @@ fn every_effect_has_an_acceptance_vector_ef_07() {
             expected: cells[2].clone(),
         })
         .collect();
-    assert_eq!(table, model, "EFFECTS.md lists the vectors of the model, in order, and no other");
+    assert_eq!(
+        table, model,
+        "EFFECTS.md lists the vectors of the model, in order, and no other"
+    );
 }
 
 /// EF-08: each theorem has a planted defect, recorded with its command, diagnostic and restore.
@@ -492,13 +648,25 @@ fn every_effect_has_an_acceptance_vector_ef_07() {
 fn each_gate_rejects_its_planted_defect_ef_08() {
     let document = read("EFFECTS.md");
     let rows = rows(&document, "## Planted defects");
-    assert!(rows.len() >= 5, "five planted defects at least: {}", rows.len());
+    assert!(
+        rows.len() >= 5,
+        "five planted defects at least: {}",
+        rows.len()
+    );
     for cells in &rows {
-        assert_eq!(cells.len(), 5, "a row has a defect, a command, a gate, a diagnostic and a restore");
+        assert_eq!(
+            cells.len(),
+            5,
+            "a row has a defect, a command, a gate, a diagnostic and a restore"
+        );
         for cell in cells {
             assert!(!cell.is_empty(), "no cell of {cells:?} is empty");
         }
-        assert!(cells[1].contains("lexlean verify"), "{} runs lexlean verify", cells[0]);
+        assert!(
+            cells[1].contains("lexlean verify"),
+            "{} runs lexlean verify",
+            cells[0]
+        );
     }
     let defects: Vec<String> = rows.iter().map(|cells| cells[0].clone()).collect();
     for needle in [
@@ -515,6 +683,12 @@ fn each_gate_rejects_its_planted_defect_ef_08() {
     }
     // The plants are restored: the committed source holds none of them.
     let source = source();
-    assert!(!source.contains("Rogue"), "the eleventh effect is not in the source");
-    assert!(!source.contains("name: lexlean_"), "no effect is named after a tool");
+    assert!(
+        !source.contains("Rogue"),
+        "the eleventh effect is not in the source"
+    );
+    assert!(
+        !source.contains("name: lexlean_"),
+        "no effect is named after a tool"
+    );
 }
