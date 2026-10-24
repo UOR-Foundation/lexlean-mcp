@@ -130,7 +130,9 @@ fn constructors(source: &str, name: &str) -> Vec<(String, String)> {
     let mut rest = list;
     while let Some(start) = rest.find("{name: ") {
         let after = &rest[start + "{name: ".len()..];
-        let (ctor, after) = after.split_once(", fields: [").expect("a constructor has fields");
+        let (ctor, after) = after
+            .split_once(", fields: [")
+            .expect("a constructor has fields");
         let end = after.find(']').expect("fields close");
         found.push((ctor.to_string(), after[..end].to_string()));
         rest = &after[end..];
@@ -151,7 +153,10 @@ fn cons_chain(text: &str, from: usize) -> Vec<u128> {
         );
         rest = &after[end + 1..];
     }
-    assert!(rest.starts_with("(nil Nat)"), "a cons chain ends in (nil Nat)");
+    assert!(
+        rest.starts_with("(nil Nat)"),
+        "a cons chain ends in (nil Nat)"
+    );
     found
 }
 
@@ -172,7 +177,9 @@ fn vectors() -> Vec<(String, String, Vec<u128>)> {
             continue;
         }
         let inner = declaration(&source, "theorem", &name);
-        let at = inner.find("(parseTraceparent ").expect("a vector parses a header")
+        let at = inner
+            .find("(parseTraceparent ")
+            .expect("a vector parses a header")
             + "(parseTraceparent ".len();
         let header = text_of(&cons_chain(&inner, at));
         let eq = inner.find(")) = ").expect("a vector states its fields") + ")) = ".len();
@@ -281,9 +288,18 @@ fn error_classes_map_to_the_exit_codes_of_lexlean_ob_01() {
         .collect();
     assert_eq!(
         names,
-        ["Language", "CliOrConfiguration", "Environment", "SecurityOrLimit", "Internal"]
+        [
+            "Language",
+            "CliOrConfiguration",
+            "Environment",
+            "SecurityOrLimit",
+            "Internal"
+        ]
     );
-    require_theorems(&["errorClassesMapToTheExitCodes", "alertsRaiseOnClasses2And3And70"]);
+    require_theorems(&[
+        "errorClassesMapToTheExitCodes",
+        "alertsRaiseOnClasses2And3And70",
+    ]);
     tracked_authority("A-LEXLEAN-SPEC", "OB-01");
 }
 
@@ -461,9 +477,15 @@ fn the_indicators_follow_the_objectives_ob_05() {
     ];
     let mut names = BTreeSet::new();
     for (position, (index, name, unit)) in rows.iter().enumerate() {
-        assert_eq!(*index, position, "the indicators are not in the order of S1 to S8");
+        assert_eq!(
+            *index, position,
+            "the indicators are not in the order of S1 to S8"
+        );
         assert!(names.insert(name.clone()), "{name} is used twice");
-        assert!(name.starts_with("lexlean_mcp."), "{name} is not in the product namespace");
+        assert!(
+            name.starts_with("lexlean_mcp."),
+            "{name} is not in the product namespace"
+        );
         let slo = format!("{{index := {index}, sli := ");
         let at = slos
             .find(&slo)
@@ -576,7 +598,10 @@ fn the_traceparent_parser_agrees_with_the_grammar_ob_07() {
         "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
         "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00",
     ] {
-        assert!(headers.contains(example), "the W3C example {example} is not a vector");
+        assert!(
+            headers.contains(example),
+            "the W3C example {example} is not a vector"
+        );
     }
     for (name, header, expected) in &found {
         assert_eq!(
@@ -593,7 +618,9 @@ fn the_traceparent_parser_agrees_with_the_grammar_ob_07() {
         .collect();
     assert_eq!(faults, BTreeSet::from([101, 102, 103, 104, 105, 106]));
     assert!(
-        found.iter().any(|(_, _, expected)| expected.len() == 4 && expected[0] == 1),
+        found
+            .iter()
+            .any(|(_, _, expected)| expected.len() == 4 && expected[0] == 1),
         "no vector accepts a higher version with extra fields"
     );
 }
@@ -614,7 +641,10 @@ fn trace_context_extraction_follows_its_rules_ob_08() {
         "baggage is not limited to 8192 bytes"
     );
     let tracestate = declaration(&source, "definition", "tracestateOf");
-    assert!(tracestate.contains("carried 512 found"), "tracestate is not limited to 512");
+    assert!(
+        tracestate.contains("carried 512 found"),
+        "tracestate is not limited to 512"
+    );
     let parent = declaration(&source, "definition", "parentOf");
     assert!(
         parent.contains("Lookup.Many => (ctor Parent.Invalid (ctor Fault.Duplicate))")
@@ -622,7 +652,10 @@ fn trace_context_extraction_follows_its_rules_ob_08() {
         "a repeated or non-text traceparent is not refused"
     );
     let limit = declaration(&source, "definition", "carried");
-    assert!(limit.contains("(size bytes) <? (limit + 1)"), "the limit is not inclusive");
+    assert!(
+        limit.contains("(size bytes) <? (limit + 1)"),
+        "the limit is not inclusive"
+    );
     let have = theorem_names(&source);
     for name in [
         "extractAbsent",
@@ -662,13 +695,20 @@ fn the_emitted_notifications_are_closed_and_exclude_the_log_message_ob_09() {
     let all = declaration(&source, "definition", "allEmitted");
     assert!(all.contains("(cons (ctor Emitted.Progress) (nil Emitted))"));
     let mapped = declaration(&source, "definition", "emittedNotification");
-    assert!(!mapped.contains("Message"), "an emitted notification maps to the log message");
+    assert!(
+        !mapped.contains("Message"),
+        "an emitted notification maps to the log message"
+    );
     require_theorems(&[
         "noEmittedNotificationIsALogMessage",
         "emittedMethodsAreProgressOnly",
     ]);
     // No other source can emit it either.
-    for relative in ["src/Architecture.lex.tex", "src/Quality.lex.tex", "src/Security.lex.tex"] {
+    for relative in [
+        "src/Architecture.lex.tex",
+        "src/Quality.lex.tex",
+        "src/Security.lex.tex",
+    ] {
         assert!(
             !read(relative).contains("notifications/message"),
             "{relative} names notifications/message"
@@ -698,16 +738,30 @@ fn every_claim_has_a_recorded_planted_defect_ob_10() {
     }
     let source = module();
     let have = theorem_names(&source);
-    let covered: BTreeSet<String> = rows.iter().map(|row| row[0].trim_matches('`').to_string()).collect();
+    let covered: BTreeSet<String> = rows
+        .iter()
+        .map(|row| row[0].trim_matches('`').to_string())
+        .collect();
     for id in ["OB-04", "OB-06", "OB-07", "OB-08", "OB-09"] {
-        assert!(covered.contains(id), "OBSERVABILITY.md has no planted defect for {id}");
+        assert!(
+            covered.contains(id),
+            "OBSERVABILITY.md has no planted defect for {id}"
+        );
     }
     assert!(rows.len() >= 5, "five planted defects are recorded");
     for row in &rows {
         for theorem in row[2].split(',').map(|name| name.trim().trim_matches('`')) {
-            assert!(have.contains(theorem), "{} names {theorem}, which is not a theorem", row[0]);
+            assert!(
+                have.contains(theorem),
+                "{} names {theorem}, which is not a theorem",
+                row[0]
+            );
         }
-        assert!(row[3].contains("lexlean verify"), "{}: the command is lexlean verify", row[0]);
+        assert!(
+            row[3].contains("lexlean verify"),
+            "{}: the command is lexlean verify",
+            row[0]
+        );
     }
     // The module on disk is the restored one.
     for planted in [
@@ -716,6 +770,9 @@ fn every_claim_has_a_recorded_planted_defect_ob_10() {
         "(threshold 0) + 1) <? count",
         "(version =? 256)",
     ] {
-        assert!(!source.contains(planted), "the module still carries the planted `{planted}`");
+        assert!(
+            !source.contains(planted),
+            "the module still carries the planted `{planted}`"
+        );
     }
 }

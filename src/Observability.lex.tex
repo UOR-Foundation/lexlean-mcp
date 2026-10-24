@@ -573,14 +573,14 @@ theorem{
   statement: (((sliIndex sample) <? 8) = true),
   proof: cases{
     branches: [
-      {proof: decide{}, binders: [class, count], constructor: ToolOutcome},
-      {proof: decide{}, binders: [code, share], constructor: ProtocolErrors},
-      {proof: decide{}, binders: [profile, ms], constructor: CheckLatency},
-      {proof: decide{}, binders: [profile, outcome, ms], constructor: VerifyDuration},
-      {proof: decide{}, binders: [ms], constructor: QueueWait},
-      {proof: decide{}, binders: [end, count], constructor: ChildGroupEnds},
-      {proof: decide{}, binders: [profile, count], constructor: ProfileDrift},
-      {proof: decide{}, binders: [count], constructor: SigningFailures}
+      {proof: reflexivity{}, binders: [class, count], constructor: ToolOutcome},
+      {proof: reflexivity{}, binders: [code, share], constructor: ProtocolErrors},
+      {proof: reflexivity{}, binders: [profile, ms], constructor: CheckLatency},
+      {proof: reflexivity{}, binders: [profile, outcome, ms], constructor: VerifyDuration},
+      {proof: reflexivity{}, binders: [ms], constructor: QueueWait},
+      {proof: reflexivity{}, binders: [end, count], constructor: ChildGroupEnds},
+      {proof: reflexivity{}, binders: [profile, count], constructor: ProfileDrift},
+      {proof: reflexivity{}, binders: [count], constructor: SigningFailures}
     ],
     scrutinee: sample
   }
