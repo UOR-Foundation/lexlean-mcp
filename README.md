@@ -45,6 +45,10 @@ verification and signing (#11); [STORE.md](STORE.md) says what is and is not met
   does, and Q8, that each of its 86 diagnostic codes is explained (QM-01 to
   QM-08, `crates/quality-map`, `QUALITY.md`). The tools themselves do not exist
   yet, so Q1 and Q3 to Q7 stay pending and so does the runtime half of Q2 and Q8.
+- The 13 features and 6 journeys of #18 are declared (`Features`), checked by kernel
+  theorems and by FJ-01 to FJ-10. `prismpm check` has not validated them: the SDK
+  image bound in `prismpm.lock` predates PrismPM#330. [FEATURES.md](FEATURES.md)
+  states where each feature and journey comes from and which rows await the owner.
 - The repository is not bound to a PrismPM SDK release (#4): `prismpm.lock` and
   `template.lock` are absent, so `just vv` and the devcontainer cannot run, and
   `prismpm check` has not validated the model.
@@ -61,7 +65,7 @@ oracles of their own (UOR-Foundation/MCP#15).
 | Path | Owner |
 | --- | --- |
 | `src/` | authoritative LexLean model modules |
-| `language/prism.arch/` | the architecture vocabulary lexicon, a copy of prism-code's |
+| `language/prism.arch/` | the architecture vocabulary lexicon, a copy of PrismPM main at `d11ace6f` (authority `A-PRISMPM-ARCH`, FJ-09) |
 | `language/prism.sec/`, `language/prism.qual/` | the security and quality vocabulary lexicons, copies of prism-code's |
 | `language/lexleanmcp.titles/` | the lexicon phrases that title this repository's modules |
 | `lexlean.toml`, `lexlean.lock` | LexLean project and its locked package closure |
@@ -80,7 +84,9 @@ oracles of their own (UOR-Foundation/MCP#15).
 | `Sha256` | the LexLean standard library module `Sha256` (FIPS 180-4), a byte-identical copy of `stdlib/src/Sha256.lex.tex` from LexLean `release/v0.4` at `9796067` (register row SL-02). The module name must equal its path, so it is `src/Sha256.lex.tex` and not under `src/Foundation/` |
 | `OwnerValues` | the values of #19 that no source determines, each bound to the proposal of [OWNER-VALUES.md](OWNER-VALUES.md): signing and `request-state-key` custody and rotation, `verify.width`, `verify.memory_kib`, `verify.concurrency`, `rate.tool_calls`, `rate.window_ms`, `draft.max_bytes`, `draft.max_files`, the two retentions, `cache.ttl_ms`, `listen.port`, the service level objectives S1 to S8 and the 17 profiles; the kernel-checked theorems bind the ranges, and `cargo test -p repo-model` (OV-01 to OV-03) holds the sources, the table, `lexlean.toml` and `Cargo.toml` to one statement |
 | `Store` | the store, persistence and lifecycle model of #13 (register `ST-`): the seven directories of `lexlean-mcp/store/1` with their wire names, the backup set (`verifications`, `keys`, the drafts references), retention as total functions of the bound owner values, the drift check as a total function with the decision order lock, ID, toolchain, the rollout, rollback, upgrade and retirement machine, and AC-14 to AC-17 as theorems over a record-resolution model that rest on `Identity`'s round trip of the profile preimage (`profileRT`) and claim nothing about SHA-256. Attestation signing stays abstract until #11. [STORE.md](STORE.md) holds the claims, what is not met and the planted defects |
-| `Foundation.Arch`, `Foundation.Sec`, `Foundation.Qual` | the architecture, security and quality vocabularies (copies of the PrismPM stdlib modules, as in prism-code) |
+| `Features` | the features F1 to F13 and journeys J1 to J6 (#18) as `Foundation.Arch::Feature` and `Foundation.Arch::Journey` definitions with the interface calls and acceptance rows they name, and the kernel theorems that restate PrismPM's rules PP2014 to PP2018 over them (`featuresModelHolds`) |
+| `Foundation.Arch` | the architecture vocabulary, a byte-identical copy of `stdlib/src/Foundation/Arch.lex.tex` of PrismPM main at `d11ace6f` (FJ-09) |
+| `Foundation.Sec`, `Foundation.Qual` | the security and quality vocabularies (copies of the PrismPM stdlib modules, as in prism-code) |
 
 ## Repository
 
@@ -91,6 +97,8 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   SDK and template update process.
 - [VERIFICATION.md](VERIFICATION.md) defines the acceptance boundary; `just vv`
   is the complete gate.
+- [FEATURES.md](FEATURES.md) states the origin of each feature and journey, the rows that
+  need the owner, and the defects planted in the theorems that check them.
 - [FIXTURES.md](FIXTURES.md) states the counts and the classes of the AC-07
   fixture register and the defects planted in its gates.
 - [STORE.md](STORE.md) states what the store model claims and does not claim
