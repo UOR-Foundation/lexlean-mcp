@@ -294,7 +294,7 @@ fn the_core_is_one_production_root_over_mcp_and_the_tool_layer_gw_03() {
     );
     let project = read("gateway/lexlean.toml");
     assert!(
-        project.contains("source_roots = [\"src\", \"mcp/src\"]"),
+        project.contains("source_roots = [\"mcp/src\", \"src\"]"),
         "the project reads the gateway sources and the MCP sources laid out from the pin"
     );
     assert!(

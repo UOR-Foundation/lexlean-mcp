@@ -1,0 +1,11 @@
+# The UOR-Foundation/MCP commit whose LexLean sources the gateway is built over, and
+# the only place it is written (AGENTS.md R1). gateway/lay-out-mcp.sh lays out `src` and
+# `language/mcp.core` of exactly this commit under gateway/mcp and gateway/language, and
+# refuses any other. The gateway holds one production root over those modules and its
+# tool layer (issue #7); it links no MCP crate.
+#
+# Development imports upstream commits; a release pins only upstream releases. This pin
+# moves to the MCP release tag before lexlean-mcp v0.1.0.
+#
+# Currently: UOR-Foundation/MCP main at 8b19d5a (the conformance build, MCP#37).
+rev = 8b19d5a0c8c6fd68755f21c5d64a95e3a2c3cfcf

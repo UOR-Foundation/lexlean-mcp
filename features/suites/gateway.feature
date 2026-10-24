@@ -3,7 +3,7 @@ Feature: Generated gateway
   Issue #7 generates the host adapter and the gateway binary from the model: a PrismPM server application over one LexLean production root that holds the MCP protocol core and the tool layer, a binding crate that implements the ten host effects, and the acceptance vectors that exercise each effect.
 
   @GW-01 @build
-  Scenario: The gateway declares the ten effects of src/Effects.lex.tex and no other: the host protocol of gateway/src/Application.lex.tex lists, in order, the names E1 to E10 that Effects.lex.tex declares, so that the tag of an effect is its position 0 to 9, and a test holds the two lists equal.
+  Scenario: The gateway declares the ten effects of src/Effects.lex.tex, in order, followed by one frame effect: the host protocol of gateway/src/Application.lex.tex lists the names E1 to E10 that Effects.lex.tex declares at the tags 0 to 9 and then rate.calls at the tag 10, which no core can request, and a test holds the first ten equal to the model and names the eleventh.
     Given gateway/src/Application.lex.tex and src/Effects.lex.tex
     When the effect names and their positions are read from both
     Then the two lists are equal, ten long, with no name twice
@@ -15,7 +15,7 @@ Feature: Generated gateway
     Then they are equal, every kind is one of U32, U64, Flag, Bytes and Text, and the bounds follow the owner values
 
   @GW-03 @build
-  Scenario: The core of the gateway is one LexLean production root, LexLeanMcpGateway.Gateway.gatewayRun, over the sources of UOR-Foundation/MCP at the commit of .github/mcp.rev and the tool layer: gateway/lexlean.toml has those two source roots, the root declares only the allocation and overflow effects, and the committed export request names the root and its package.
+  Scenario: The core of the gateway is one LexLean production root, LexLeanMcpGateway.Gateway.gatewayRun, over the sources of UOR-Foundation/MCP at the commit of .github/mcp.rev (the provider effects of MCP#39) and the tool layer, whose functions take the arguments and the effect outcomes of the turn and return a typed outcome: gateway/lexlean.toml has those two source roots, the root declares only the allocation and overflow effects, and the committed export request names the root and its package.
     Given gateway/lexlean.toml, gateway/src/Gateway.lex.tex, gateway/generated/request.json and .github/mcp.rev
     When the project, the root and the request are read
     Then the project has the two roots, the root is a production root with no recursion effect, and the pin is a full commit
@@ -27,7 +27,7 @@ Feature: Generated gateway
     Then the set is exactly the ten effects, and each vector is in the file that generated it
 
   @GW-05 @build
-  Scenario: No effect outside E1 to E10 can be encoded: the generated Request sum has ten variants and its decoder refuses every other tag with EffectUndeclared, which a negative test of the binding crate asserts for the first tag past the set and for the largest tag.
+  Scenario: No effect outside E1 to E10 can be encoded by the core: the model's decoder refuses the tag of the frame effect and every other tag past the set, the generated tables mark exactly the tags 0 to 9 as the core's (the Request sum decodes eleven tags and refuses every other with an undeclared effect), and negative tests of the binding crate assert the tag 10 is not the core's and the first and the largest tag past the eleven are refused.
     Given the binding crate tests of gateway/bindings/gateway-binding
     When the tests that name the closed set are listed
     Then the closed-set tests exist, each is run by the gateway job with a count check and none is ignored without that reason
@@ -56,3 +56,14 @@ Feature: Generated gateway
     When the script, the manifests and the document are read
     Then the script checks the digests, the manifests have only registry dependencies and CI.md names the release step
 
+  @GW-10 @build
+  Scenario: The rate counter is a frame effect and not a constant: the declaration has the effect rate.calls (request: counted, result: calls), the serving frame section tool_calls takes the field calls of its result, the adapter and not the core requests it once for every request that reaches the core, EFFECTS.md records that it is outside the ten effects the core can encode, and a test holds that the model's decoder refuses its tag.
+    Given the host protocol of gateway/src/Application.lex.tex, EFFECTS.md and the decoder of src/Effects.lex.tex
+    When the frame effect, its section and the tag 10 are read
+    Then the section takes its field from the effect, the effect is the eleventh and the decoder refuses its tag
+
+  @GW-11 @build
+  Scenario: The MCP modules laid out under gateway/mcp are those of the pin: every laid-out source file and lexicon file equals the file of UOR-Foundation/MCP at .github/mcp.rev byte for byte, and the lexicon package mcp.core has in gateway/lexlean.lock the tree hash that MCP's lexlean.lock at the pin records for it, which restates AC-03 for a gateway that cannot carry the fixture core's digest.
+    Given gateway/mcp-identities.sh, the two lexlean.lock files and the MCP tree at the pin
+    When the laid-out files and the lock entry of mcp.core are compared with the pin
+    Then every file is equal and the tree hashes of mcp.core are equal

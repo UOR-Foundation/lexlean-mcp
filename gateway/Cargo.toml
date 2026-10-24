@@ -1,0 +1,20 @@
+# The consumer workspace of the gateway (`prismpm build` in this directory, then
+# `gateway/lay-out.sh`): the core package and the two host packages that PrismPM generates,
+# laid beside the binding crate this repository owns. It is its own workspace, with its own
+# Cargo.lock, because the binding links `lexlean`, which is not on crates.io yet: the root
+# workspace and the SDK's offline `just vv` stay free of it, and the gateway job builds this
+# one against the local registry that gateway/registry.sh assembles from the pins. The members
+# are listed exactly, no glob, as PrismPM's `server_host::workspace::verify` requires; the
+# three generated packages are not committed (.gitignore) and exist only after a build.
+[workspace]
+resolver = "2"
+members = [
+    "lexlean_mcp_gateway_core",
+    "gateway-host-api",
+    "gateway-host",
+    "bindings/gateway-binding",
+]
+
+[profile.release]
+opt-level = 2
+debug = 0

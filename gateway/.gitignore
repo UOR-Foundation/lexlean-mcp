@@ -1,0 +1,12 @@
+# Laid out from the pins (lay-out-mcp.sh, lay-out.sh); never committed.
+/mcp/
+/language/mcp.core/
+/lexlean-mcp-gateway-core/
+/lexlean-mcp-gateway-host-api/
+/lexlean-mcp-gateway-host/
+/lexlean_mcp_gateway_core/
+/target/
+/.lexlean/
+/.prism/
+/.lake/
+/registry/
