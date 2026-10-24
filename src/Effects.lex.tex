@@ -1090,5 +1090,54 @@ theorem{
   statement: ((vectorCount (acceptanceVectors)) = 35),
   proof: decide{}
 }
+
+theorem{
+  name: probeOctetsDecide,
+  parameters: [],
+  statement: ((octetsOfText "ab") = (cons 97 (cons 98 (nil Nat)))),
+  proof: decide{}
+}
+
+theorem{
+  name: probeOctetsRefl,
+  parameters: [],
+  statement: ((octetsOfText "ab") = (cons 97 (cons 98 (nil Nat)))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: probeLengthDecide,
+  parameters: [],
+  statement: ((prim length (prim utf8_encode "ab" : Bytes) : Nat) = 2),
+  proof: decide{}
+}
+
+theorem{
+  name: probeNamesCleanRefl,
+  parameters: [],
+  statement: ((namesClean (namesOf (allEffects))) = true),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: probeNameCleanDecide,
+  parameters: [],
+  statement: ((nameClean "store.get") = true),
+  proof: decide{}
+}
+
+theorem{
+  name: probeShapeDecide,
+  parameters: [],
+  statement: ((shapeFrom 46 (cons 97 (cons 46 (cons 98 (nil Nat))))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: probeInfixDecide,
+  parameters: [],
+  statement: ((hasInfix (cons 98 (nil Nat)) (cons 97 (cons 98 (nil Nat)))) = true),
+  proof: decide{}
+}
 \end{semanticmodule}
 \end{lexlean}
