@@ -1,0 +1,1417 @@
+\begin{lexlean}{Store}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Sha256}
+\importmodule{Identity}
+\importmodule{OwnerValues}
+\title{LexLean MCP store and lifecycle}
+\begin{semanticmodule}
+inductive{
+  name: Dir,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Profiles, fields: []},
+    {name: Drafts, fields: []},
+    {name: Builds, fields: []},
+    {name: Verifications, fields: []},
+    {name: Index, fields: []},
+    {name: Exports, fields: []},
+    {name: Keys, fields: []}
+  ]
+}
+
+definition{
+  name: dirName,
+  parameters: [d : Dir],
+  result: String,
+  body: (match d
+    | Dir.Profiles => "profiles"
+    | Dir.Drafts => "drafts"
+    | Dir.Builds => "builds"
+    | Dir.Verifications => "verifications"
+    | Dir.Index => "index"
+    | Dir.Exports => "exports"
+    | Dir.Keys => "keys")
+}
+
+definition{
+  name: allDirs,
+  parameters: [],
+  result: (List Dir),
+  body: (cons (ctor Dir.Profiles) (cons (ctor Dir.Drafts) (cons (ctor Dir.Builds) (cons (ctor Dir.Verifications) (cons (ctor Dir.Index) (cons (ctor Dir.Exports) (cons (ctor Dir.Keys) (nil Dir))))))))
+}
+
+definition{name: storeRoot, parameters: [], result: String, body: "lexlean-mcp/store/1"}
+
+definition{
+  name: dirCount,
+  parameters: [ds : (List Dir)],
+  result: Nat,
+  body: (match ds | List.nil => 0 | List.cons d rest => (1 + (dirCount rest))),
+  recursive_argument: ds
+}
+
+definition{
+  name: dirNames,
+  parameters: [ds : (List Dir)],
+  result: (List String),
+  body: (match ds
+    | List.nil => (nil String)
+    | List.cons d rest => (cons (dirName d) (dirNames rest))),
+  recursive_argument: ds
+}
+
+definition{
+  name: dirIndex,
+  parameters: [d : Dir],
+  result: Nat,
+  body: (match d
+    | Dir.Profiles => 0
+    | Dir.Drafts => 1
+    | Dir.Builds => 2
+    | Dir.Verifications => 3
+    | Dir.Index => 4
+    | Dir.Exports => 5
+    | Dir.Keys => 6)
+}
+
+definition{
+  name: sameDir,
+  parameters: [a : Dir, b : Dir],
+  result: Bool,
+  body: ((dirIndex a) =? (dirIndex b))
+}
+
+definition{
+  name: memberDir,
+  parameters: [d : Dir, ds : (List Dir)],
+  result: Bool,
+  body: (match ds
+    | List.nil => false
+    | List.cons x rest => (if (sameDir x d) then true else (memberDir d rest))),
+  recursive_argument: ds
+}
+
+definition{
+  name: memberName,
+  parameters: [name : String, names : (List String)],
+  result: Bool,
+  body: (match names
+    | List.nil => false
+    | List.cons x rest => (if (prim equal x name : Bool) then true else (memberName name rest))),
+  recursive_argument: names
+}
+
+definition{
+  name: distinctNames,
+  parameters: [names : (List String)],
+  result: Bool,
+  body: (match names
+    | List.nil => true
+    | List.cons x rest => (if (memberName x rest) then false else (distinctNames rest))),
+  recursive_argument: names
+}
+
+definition{
+  name: dirOfName,
+  parameters: [name : String],
+  result: (Option Dir),
+  body: (if (prim equal name "profiles" : Bool) then (ctor Option.some [Dir] (ctor Dir.Profiles)) else (if (prim equal name "drafts" : Bool) then (ctor Option.some [Dir] (ctor Dir.Drafts)) else (if (prim equal name "builds" : Bool) then (ctor Option.some [Dir] (ctor Dir.Builds)) else (if (prim equal name "verifications" : Bool) then (ctor Option.some [Dir] (ctor Dir.Verifications)) else (if (prim equal name "index" : Bool) then (ctor Option.some [Dir] (ctor Dir.Index)) else (if (prim equal name "exports" : Bool) then (ctor Option.some [Dir] (ctor Dir.Exports)) else (if (prim equal name "keys" : Bool) then (ctor Option.some [Dir] (ctor Dir.Keys)) else (ctor Option.none [Dir]))))))))
+}
+
+theorem{
+  name: sevenDirectories,
+  parameters: [],
+  statement: ((dirCount (allDirs)) = 7),
+  proof: decide{}
+}
+
+theorem{
+  name: wireNamesAreTheIssuesSeven,
+  parameters: [],
+  statement: ((dirNames (allDirs)) = (cons "profiles" (cons "drafts" (cons "builds" (cons "verifications" (cons "index" (cons "exports" (cons "keys" (nil String))))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: wireNamesAreDistinct,
+  parameters: [],
+  statement: ((distinctNames (dirNames (allDirs))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyDirectoryIsListed,
+  parameters: [d : Dir],
+  statement: ((memberDir d (allDirs)) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Profiles},
+      {proof: reflexivity{}, binders: [], constructor: Drafts},
+      {proof: reflexivity{}, binders: [], constructor: Builds},
+      {proof: reflexivity{}, binders: [], constructor: Verifications},
+      {proof: reflexivity{}, binders: [], constructor: Index},
+      {proof: reflexivity{}, binders: [], constructor: Exports},
+      {proof: reflexivity{}, binders: [], constructor: Keys}
+    ],
+    scrutinee: d
+  }
+}
+
+theorem{
+  name: everyWireNameParsesBack,
+  parameters: [d : Dir],
+  statement: ((dirOfName (dirName d)) = (ctor Option.some [Dir] d)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Profiles},
+      {proof: reflexivity{}, binders: [], constructor: Drafts},
+      {proof: reflexivity{}, binders: [], constructor: Builds},
+      {proof: reflexivity{}, binders: [], constructor: Verifications},
+      {proof: reflexivity{}, binders: [], constructor: Index},
+      {proof: reflexivity{}, binders: [], constructor: Exports},
+      {proof: reflexivity{}, binders: [], constructor: Keys}
+    ],
+    scrutinee: d
+  }
+}
+
+theorem{
+  name: anUnknownNameIsRefused,
+  parameters: [],
+  statement: ((dirOfName "tmp") = (ctor Option.none [Dir])),
+  proof: reflexivity{}
+}
+
+inductive{
+  name: Item,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Profiles, fields: []},
+    {name: Drafts, fields: []},
+    {name: Builds, fields: []},
+    {name: Verifications, fields: []},
+    {name: Index, fields: []},
+    {name: Exports, fields: []},
+    {name: Keys, fields: []},
+    {name: DraftReferences, fields: []}
+  ]
+}
+
+definition{
+  name: inBackup,
+  parameters: [item : Item],
+  result: Bool,
+  body: (match item
+    | Item.Profiles => false
+    | Item.Drafts => false
+    | Item.Builds => false
+    | Item.Verifications => true
+    | Item.Index => false
+    | Item.Exports => false
+    | Item.Keys => true
+    | Item.DraftReferences => true)
+}
+
+definition{
+  name: recomputable,
+  parameters: [item : Item],
+  result: Bool,
+  body: (match item
+    | Item.Profiles => true
+    | Item.Drafts => false
+    | Item.Builds => true
+    | Item.Verifications => false
+    | Item.Index => true
+    | Item.Exports => true
+    | Item.Keys => false
+    | Item.DraftReferences => false)
+}
+
+definition{
+  name: expiresByRetention,
+  parameters: [item : Item],
+  result: Bool,
+  body: (match item
+    | Item.Profiles => false
+    | Item.Drafts => true
+    | Item.Builds => false
+    | Item.Verifications => false
+    | Item.Index => false
+    | Item.Exports => false
+    | Item.Keys => false
+    | Item.DraftReferences => false)
+}
+
+definition{
+  name: itemIndex,
+  parameters: [item : Item],
+  result: Nat,
+  body: (match item
+    | Item.Profiles => 0
+    | Item.Drafts => 1
+    | Item.Builds => 2
+    | Item.Verifications => 3
+    | Item.Index => 4
+    | Item.Exports => 5
+    | Item.Keys => 6
+    | Item.DraftReferences => 7)
+}
+
+definition{
+  name: sameItem,
+  parameters: [a : Item, b : Item],
+  result: Bool,
+  body: ((itemIndex a) =? (itemIndex b))
+}
+
+definition{
+  name: memberItem,
+  parameters: [item : Item, items : (List Item)],
+  result: Bool,
+  body: (match items
+    | List.nil => false
+    | List.cons x rest => (if (sameItem x item) then true else (memberItem item rest))),
+  recursive_argument: items
+}
+
+definition{
+  name: itemCount,
+  parameters: [items : (List Item)],
+  result: Nat,
+  body: (match items | List.nil => 0 | List.cons x rest => (1 + (itemCount rest))),
+  recursive_argument: items
+}
+
+definition{
+  name: backupItems,
+  parameters: [],
+  result: (List Item),
+  body: (cons (ctor Item.Verifications) (cons (ctor Item.Keys) (cons (ctor Item.DraftReferences) (nil Item))))
+}
+
+theorem{
+  name: backupSetHasThreeItems,
+  parameters: [],
+  statement: ((itemCount (backupItems)) = 3),
+  proof: decide{}
+}
+
+theorem{
+  name: backupPredicateIsMembershipOfTheSet,
+  parameters: [item : Item],
+  statement: ((inBackup item) = (memberItem item (backupItems))),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Profiles},
+      {proof: reflexivity{}, binders: [], constructor: Drafts},
+      {proof: reflexivity{}, binders: [], constructor: Builds},
+      {proof: reflexivity{}, binders: [], constructor: Verifications},
+      {proof: reflexivity{}, binders: [], constructor: Index},
+      {proof: reflexivity{}, binders: [], constructor: Exports},
+      {proof: reflexivity{}, binders: [], constructor: Keys},
+      {proof: reflexivity{}, binders: [], constructor: DraftReferences}
+    ],
+    scrutinee: item
+  }
+}
+
+theorem{
+  name: backupCoversWhatNothingElseRecovers,
+  parameters: [item : Item],
+  statement: (((recomputable item) || ((expiresByRetention item) || (inBackup item))) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Profiles},
+      {proof: reflexivity{}, binders: [], constructor: Drafts},
+      {proof: reflexivity{}, binders: [], constructor: Builds},
+      {proof: reflexivity{}, binders: [], constructor: Verifications},
+      {proof: reflexivity{}, binders: [], constructor: Index},
+      {proof: reflexivity{}, binders: [], constructor: Exports},
+      {proof: reflexivity{}, binders: [], constructor: Keys},
+      {proof: reflexivity{}, binders: [], constructor: DraftReferences}
+    ],
+    scrutinee: item
+  }
+}
+
+theorem{
+  name: backupHoldsNothingRecomputable,
+  parameters: [item : Item],
+  statement: (((recomputable item) && (inBackup item)) = false),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Profiles},
+      {proof: reflexivity{}, binders: [], constructor: Drafts},
+      {proof: reflexivity{}, binders: [], constructor: Builds},
+      {proof: reflexivity{}, binders: [], constructor: Verifications},
+      {proof: reflexivity{}, binders: [], constructor: Index},
+      {proof: reflexivity{}, binders: [], constructor: Exports},
+      {proof: reflexivity{}, binders: [], constructor: Keys},
+      {proof: reflexivity{}, binders: [], constructor: DraftReferences}
+    ],
+    scrutinee: item
+  }
+}
+
+inductive{
+  name: Kind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Draft, fields: []}, {name: Attestation, fields: []}]
+}
+
+definition{
+  name: retentionOf,
+  parameters: [kind : Kind],
+  result: OwnerValues::Retention,
+  body: (match kind
+    | Kind.Draft => (OwnerValues::storeDraftRetention)
+    | Kind.Attestation => (OwnerValues::storeAttestationRetention))
+}
+
+definition{
+  name: expired,
+  parameters: [retention : OwnerValues::Retention, ageDays : Nat],
+  result: Bool,
+  body: (match retention
+    | OwnerValues::Retention.Days days => (days <? ageDays)
+    | OwnerValues::Retention.Forever => false)
+}
+
+definition{
+  name: isExpired,
+  parameters: [kind : Kind, ageDays : Nat],
+  result: Bool,
+  body: (expired (retentionOf kind) ageDays)
+}
+
+theorem{
+  name: attestationsNeverExpire,
+  parameters: [ageDays : Nat],
+  statement: ((isExpired (ctor Kind.Attestation) ageDays) = false),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: draftsExpireByTheBoundRetention,
+  parameters: [ageDays : Nat],
+  statement: ((isExpired (ctor Kind.Draft) ageDays) = (expired (OwnerValues::storeDraftRetention) ageDays)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aDraftIsKeptAtThirtyDays,
+  parameters: [],
+  statement: ((isExpired (ctor Kind.Draft) 30) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: aDraftExpiresAtThirtyOneDays,
+  parameters: [],
+  statement: ((isExpired (ctor Kind.Draft) 31) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: anAttestationIsKeptAfterTenYears,
+  parameters: [],
+  statement: ((isExpired (ctor Kind.Attestation) 3650) = false),
+  proof: decide{}
+}
+
+inductive{
+  name: LockResult,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Clean, fields: []}, {name: Drifted, fields: []}]
+}
+
+inductive{
+  name: Verdict,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: NoDrift, fields: []},
+    {name: LockDrift, fields: []},
+    {name: IdDrift, fields: []},
+    {name: ToolchainDrift, fields: []}
+  ]
+}
+
+structure{
+  name: ProfileRecord,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: Sha256::Digest}, {name: hashes, type: (List (List Nat))}]
+}
+
+definition{
+  name: sameOctets,
+  parameters: [a : (List Nat), b : (List Nat)],
+  result: Bool,
+  body: (match a
+    | List.nil => (match b | List.nil => true | List.cons y ys => false)
+    | List.cons x xs => (match b
+      | List.nil => false
+      | List.cons y ys => (match (x =? y)
+        | Bool.true => (sameOctets xs ys)
+        | Bool.false => false))),
+  recursive_argument: a
+}
+
+definition{
+  name: idMatches,
+  parameters: [stored : Sha256::Digest, found : Identity::Outcome],
+  result: Bool,
+  body: (match found
+    | Identity::Outcome.Identified digest => (Identity::sameDigest digest stored)
+    | Identity::Outcome.DuplicatePath => false
+    | Identity::Outcome.DuplicateReview => false
+    | Identity::Outcome.FieldTooLong => false)
+}
+
+definition{
+  name: hashesMatch,
+  parameters: [stored : (List (List Nat)), found : (List (List Nat))],
+  result: Bool,
+  body: (match stored
+    | List.nil => (match found | List.nil => true | List.cons y ys => false)
+    | List.cons x xs => (match found
+      | List.nil => false
+      | List.cons y ys => (match (sameOctets x y)
+        | Bool.true => (hashesMatch xs ys)
+        | Bool.false => false))),
+  recursive_argument: stored
+}
+
+definition{
+  name: driftStage,
+  parameters: [lock : LockResult, idMatched : Bool, hashesMatched : Bool],
+  result: Verdict,
+  body: (match lock
+    | LockResult.Drifted => (ctor Verdict.LockDrift)
+    | LockResult.Clean => (if idMatched then (if hashesMatched then (ctor Verdict.NoDrift) else (ctor Verdict.ToolchainDrift)) else (ctor Verdict.IdDrift)))
+}
+
+definition{
+  name: driftCheck,
+  parameters: [
+    stored : ProfileRecord,
+    lock : LockResult,
+    found : Identity::Outcome,
+    hashes : (List (List Nat))
+  ],
+  result: Verdict,
+  body: (driftStage lock (idMatches (project stored id) found) (hashesMatch (project stored hashes) hashes))
+}
+
+theorem{
+  name: lockDriftIsReportedFirst,
+  parameters: [idMatched : Bool, hashesMatched : Bool],
+  statement: ((driftStage (ctor LockResult.Drifted) idMatched hashesMatched) = (ctor Verdict.LockDrift)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: idDriftIsReportedBeforeToolchainDrift,
+  parameters: [hashesMatched : Bool],
+  statement: ((driftStage (ctor LockResult.Clean) false hashesMatched) = (ctor Verdict.IdDrift)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: toolchainDriftNeedsAMatchingId,
+  parameters: [],
+  statement: ((driftStage (ctor LockResult.Clean) true false) = (ctor Verdict.ToolchainDrift)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: noDriftNeedsAllThree,
+  parameters: [],
+  statement: ((driftStage (ctor LockResult.Clean) true true) = (ctor Verdict.NoDrift)),
+  proof: reflexivity{}
+}
+
+definition{
+  name: driftTable,
+  parameters: [],
+  result: (List Verdict),
+  body: (cons (driftStage (ctor LockResult.Clean) true true) (cons (driftStage (ctor LockResult.Clean) true false) (cons (driftStage (ctor LockResult.Clean) false true) (cons (driftStage (ctor LockResult.Clean) false false) (cons (driftStage (ctor LockResult.Drifted) true true) (cons (driftStage (ctor LockResult.Drifted) true false) (cons (driftStage (ctor LockResult.Drifted) false true) (cons (driftStage (ctor LockResult.Drifted) false false) (nil Verdict)))))))))
+}
+
+theorem{
+  name: theDecisionTableIsExact,
+  parameters: [],
+  statement: ((driftTable) = (cons (ctor Verdict.NoDrift) (cons (ctor Verdict.ToolchainDrift) (cons (ctor Verdict.IdDrift) (cons (ctor Verdict.IdDrift) (cons (ctor Verdict.LockDrift) (cons (ctor Verdict.LockDrift) (cons (ctor Verdict.LockDrift) (cons (ctor Verdict.LockDrift) (nil Verdict)))))))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aDuplicatePathIsIdDrift,
+  parameters: [stored : ProfileRecord, hashes : (List (List Nat))],
+  statement: ((driftCheck stored (ctor LockResult.Clean) (ctor Identity::Outcome.DuplicatePath) hashes) = (ctor Verdict.IdDrift)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aDuplicateReviewIsIdDrift,
+  parameters: [stored : ProfileRecord, hashes : (List (List Nat))],
+  statement: ((driftCheck stored (ctor LockResult.Clean) (ctor Identity::Outcome.DuplicateReview) hashes) = (ctor Verdict.IdDrift)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aFieldTooLongIsIdDrift,
+  parameters: [stored : ProfileRecord, hashes : (List (List Nat))],
+  statement: ((driftCheck stored (ctor LockResult.Clean) (ctor Identity::Outcome.FieldTooLong) hashes) = (ctor Verdict.IdDrift)),
+  proof: reflexivity{}
+}
+
+structure{
+  name: Inputs,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: draft, type: (List Nat)},
+    {name: toolchain, type: (List Nat)},
+    {name: host, type: (List Nat)}
+  ]
+}
+
+structure{
+  name: Verification,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: profile, type: (List Nat)},
+    {name: attestation, type: (List Nat)},
+    {name: inputs, type: Inputs}
+  ]
+}
+
+definition{
+  name: attestHead,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 0 (cons 0 (cons 0 (cons 3 (cons 97 (cons 105 (cons 100 (nil Nat))))))))
+}
+
+definition{
+  name: attestationId,
+  parameters: [profile : (List Nat), inputs : Inputs],
+  result: (List Nat),
+  body: (Identity::encFields (attestHead) (cons profile (cons (project inputs draft) (cons (project inputs toolchain) (cons (project inputs host) (nil (List Nat)))))))
+}
+
+definition{
+  name: makeVerification,
+  parameters: [profile : (List Nat), inputs : Inputs],
+  result: Verification,
+  body: (record Verification {profile := profile, attestation := (attestationId profile inputs), inputs := inputs})
+}
+
+definition{
+  name: reverify,
+  parameters: [v : Verification],
+  result: (List Nat),
+  body: (attestationId (project v profile) (project v inputs))
+}
+
+definition{
+  name: holdsValid,
+  parameters: [v : Verification],
+  result: Bool,
+  body: (sameOctets (reverify v) (project v attestation))
+}
+
+definition{
+  name: sameKey,
+  parameters: [v : Verification, profile : (List Nat), attestation : (List Nat)],
+  result: Bool,
+  body: (match (sameOctets (project v profile) profile)
+    | Bool.true => (sameOctets (project v attestation) attestation)
+    | Bool.false => false)
+}
+
+definition{
+  name: resolve,
+  parameters: [s : (List Verification), profile : (List Nat), attestation : (List Nat)],
+  result: (Option Verification),
+  body: (match s
+    | List.nil => (ctor Option.none [Verification])
+    | List.cons v rest => (match (sameKey v profile attestation)
+      | Bool.true => (ctor Option.some [Verification] v)
+      | Bool.false => (resolve rest profile attestation))),
+  recursive_argument: s
+}
+
+definition{
+  name: resolves,
+  parameters: [s : (List Verification), profile : (List Nat), attestation : (List Nat)],
+  result: Bool,
+  body: (match (resolve s profile attestation) | Option.none => false | Option.some v => true)
+}
+
+definition{
+  name: putWith,
+  parameters: [s : (List Verification), v : Verification, found : Bool],
+  result: (List Verification),
+  body: (match found | Bool.true => s | Bool.false => (cons v s))
+}
+
+definition{
+  name: put,
+  parameters: [s : (List Verification), v : Verification],
+  result: (List Verification),
+  body: (putWith s v (resolves s (project v profile) (project v attestation)))
+}
+
+theorem{
+  name: natBeqSelf,
+  parameters: [x : Nat],
+  statement: ((x =? x) = true),
+  proof: linear_arithmetic{},
+  axioms: [propext]
+}
+
+theorem{
+  name: octetsEqualSelf,
+  parameters: [xs : (List Nat)],
+  statement: ((sameOctets xs xs) = true),
+  proof: induction{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: nil},
+      {
+        proof: simplify{definitions: [ih, natBeqSelf, sameOctets]},
+        binders: [x, rest, ih],
+        constructor: cons
+      }
+    ],
+    scrutinee: xs
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: makeVerificationHolds,
+  parameters: [profile : (List Nat), inputs : Inputs],
+  statement: ((holdsValid (makeVerification profile inputs)) = true),
+  proof: simplify{definitions: [holdsValid, makeVerification, octetsEqualSelf, reverify]},
+  axioms: [propext]
+}
+
+theorem{
+  name: reverifyGivesTheStoredId,
+  parameters: [profile : (List Nat), inputs : Inputs],
+  statement: ((reverify (makeVerification profile inputs)) = (project (makeVerification profile inputs) attestation)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: theKeyOfAVerificationMatchesItself,
+  parameters: [v : Verification],
+  statement: ((sameKey v (project v profile) (project v attestation)) = true),
+  proof: simplify{definitions: [octetsEqualSelf, sameKey]},
+  axioms: [propext]
+}
+
+definition{
+  name: orElseTrue,
+  parameters: [found : Bool, r : Bool],
+  result: Bool,
+  body: (match found | Bool.true => r | Bool.false => true)
+}
+
+theorem{
+  name: putWithResolves,
+  parameters: [s : (List Verification), v : Verification, found : Bool],
+  statement: ((resolves (putWith s v found) (project v profile) (project v attestation)) = (orElseTrue found (resolves s (project v profile) (project v attestation)))),
+  proof: cases{
+    branches: [
+      {
+        proof: simplify{
+          definitions: [orElseTrue, putWith, resolve, resolves, theKeyOfAVerificationMatchesItself]
+        },
+        binders: [],
+        constructor: "false"
+      },
+      {proof: reflexivity{}, binders: [], constructor: "true"}
+    ],
+    scrutinee: found
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: anyBoolOrTrue,
+  parameters: [b : Bool],
+  statement: ((orElseTrue b b) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: "false"},
+      {proof: reflexivity{}, binders: [], constructor: "true"}
+    ],
+    scrutinee: b
+  }
+}
+
+theorem{
+  name: aWrittenVerificationResolves,
+  parameters: [s : (List Verification), v : Verification],
+  statement: ((resolves (put s v) (project v profile) (project v attestation)) = true),
+  proof: simplify{definitions: [anyBoolOrTrue, put, putWithResolves]},
+  axioms: [propext]
+}
+
+structure{
+  name: Rev,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: revision, type: (List Nat)}, {name: served, type: (List (List Nat))}]
+}
+
+inductive{
+  name: Prior,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: NoPrior, fields: []}, {name: Prior, fields: [Rev]}]
+}
+
+structure{
+  name: Machine,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: current, type: Rev},
+    {name: previous, type: Prior},
+    {name: retired, type: (List (List Nat))},
+    {name: records, type: (List Verification)}
+  ]
+}
+
+inductive{
+  name: Event,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Rollout, fields: [Rev]},
+    {name: Rollback, fields: []},
+    {name: Upgrade, fields: [(List Nat)]},
+    {name: Retire, fields: [(List Nat)]},
+    {name: Write, fields: [Verification]}
+  ]
+}
+
+definition{
+  name: memberKey,
+  parameters: [keys : (List (List Nat)), key : (List Nat)],
+  result: Bool,
+  body: (match keys
+    | List.nil => false
+    | List.cons x rest => (match (sameOctets x key)
+      | Bool.true => true
+      | Bool.false => (memberKey rest key))),
+  recursive_argument: keys
+}
+
+definition{
+  name: serves,
+  parameters: [m : Machine, key : (List Nat)],
+  result: Bool,
+  body: (match (memberKey (project m retired) key)
+    | Bool.true => false
+    | Bool.false => (memberKey (project (project m current) served) key))
+}
+
+definition{
+  name: rollbackWith,
+  parameters: [m : Machine, p : Prior],
+  result: Machine,
+  body: (match p
+    | Prior.NoPrior => m
+    | Prior.Prior q => (record Machine {current := q, previous := (ctor Prior.Prior (project m current)), retired := (project m retired), records := (project m records)}))
+}
+
+definition{
+  name: step,
+  parameters: [m : Machine, e : Event],
+  result: Machine,
+  body: (match e
+    | Event.Rollout rev => (record Machine {current := rev, previous := (ctor Prior.Prior (project m current)), retired := (project m retired), records := (project m records)})
+    | Event.Rollback => (rollbackWith m (project m previous))
+    | Event.Upgrade key => (record Machine {current := (record Rev {revision := (project (project m current) revision), served := (cons key (project (project m current) served))}), previous := (project m previous), retired := (project m retired), records := (project m records)})
+    | Event.Retire key => (record Machine {current := (project m current), previous := (project m previous), retired := (cons key (project m retired)), records := (project m records)})
+    | Event.Write v => (record Machine {current := (project m current), previous := (project m previous), retired := (project m retired), records := (put (project m records) v)}))
+}
+
+theorem{
+  name: rollbackWithKeepsRecords,
+  parameters: [m : Machine, p : Prior],
+  statement: ((project (rollbackWith m p) records) = (project m records)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: NoPrior},
+      {proof: reflexivity{}, binders: [q], constructor: Prior}
+    ],
+    scrutinee: p
+  }
+}
+
+theorem{
+  name: aRolloutKeepsEveryRecord,
+  parameters: [m : Machine, rev : Rev],
+  statement: ((project (step m (ctor Event.Rollout rev)) records) = (project m records)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aRollbackKeepsEveryRecord,
+  parameters: [m : Machine],
+  statement: ((project (step m (ctor Event.Rollback)) records) = (project m records)),
+  proof: simplify{definitions: [rollbackWithKeepsRecords, step]},
+  axioms: [propext]
+}
+
+theorem{
+  name: anUpgradeKeepsEveryRecord,
+  parameters: [m : Machine, key : (List Nat)],
+  statement: ((project (step m (ctor Event.Upgrade key)) records) = (project m records)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aRetirementKeepsEveryRecord,
+  parameters: [m : Machine, key : (List Nat)],
+  statement: ((project (step m (ctor Event.Retire key)) records) = (project m records)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: rollbackRestoresTheRevision,
+  parameters: [m : Machine, rev : Rev],
+  statement: ((project (project (step (step m (ctor Event.Rollout rev)) (ctor Event.Rollback)) current) revision) = (project (project m current) revision)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: rollbackRestoresTheServedSet,
+  parameters: [m : Machine, rev : Rev],
+  statement: ((project (project (step (step m (ctor Event.Rollout rev)) (ctor Event.Rollback)) current) served) = (project (project m current) served)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: rollbackKeepsARecordWrittenAfterTheRollout,
+  parameters: [m : Machine, rev : Rev, v : Verification],
+  statement: ((resolves (project (step (step (step m (ctor Event.Rollout rev)) (ctor Event.Write v)) (ctor Event.Rollback)) records) (project v profile) (project v attestation)) = true),
+  proof: simplify{definitions: [aWrittenVerificationResolves, rollbackWithKeepsRecords, step]},
+  axioms: [propext]
+}
+
+theorem{
+  name: anUpgradeServesTheNewProfile,
+  parameters: [m : Machine, key : (List Nat)],
+  statement: ((memberKey (project (project (step m (ctor Event.Upgrade key)) current) served) key) = true),
+  proof: simplify{definitions: [memberKey, octetsEqualSelf, step]},
+  axioms: [propext]
+}
+
+theorem{
+  name: aRetiredProfileIsNotServed,
+  parameters: [m : Machine, key : (List Nat)],
+  statement: ((serves (step m (ctor Event.Retire key)) key) = false),
+  proof: simplify{definitions: [memberKey, octetsEqualSelf, serves, step]},
+  axioms: [propext]
+}
+
+definition{
+  name: toolchainOfFound,
+  parameters: [found : (Option (Identity::ProfileParts * (List Nat)))],
+  result: (Option (List Nat)),
+  body: (match found
+    | Option.none => (ctor Option.none [(List Nat)])
+    | Option.some pair => (ctor Option.some [(List Nat)] (project (first pair) toolchain)))
+}
+
+definition{
+  name: toolchainOfPreimage,
+  parameters: [bytes : (List Nat)],
+  result: (Option (List Nat)),
+  body: (toolchainOfFound (Identity::decProfile bytes))
+}
+
+theorem{
+  name: toolchainOfFoundGate,
+  parameters: [c : Nat, found : (Option (Identity::ProfileParts * (List Nat)))],
+  statement: ((toolchainOfFound (Identity::gate [(Identity::ProfileParts * (List Nat))] c found)) = (Identity::gate [(List Nat)] c (toolchainOfFound found))),
+  proof: cases{
+    branches: [
+      {
+        proof: simplify{definitions: [toolchainOfFound, Identity::gate, Identity::toFit]},
+        binders: [],
+        constructor: zero
+      },
+      {
+        proof: simplify{definitions: [toolchainOfFound, Identity::gate, Identity::toFit]},
+        binders: [pred],
+        constructor: succ
+      }
+    ],
+    scrutinee: c
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: toolchainOfFoundSome,
+  parameters: [parts : Identity::ProfileParts, rest : (List Nat)],
+  statement: ((toolchainOfFound (ctor Option.some [(Identity::ProfileParts * (List Nat))] (parts, rest))) = (ctor Option.some [(List Nat)] (project parts toolchain))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aPreimageDeterminesItsToolchain,
+  parameters: [
+    domain : (List Nat),
+    files : Identity::Rows,
+    reviews : (List (List Nat)),
+    toolchain : (List Nat),
+    rest : (List Nat)
+  ],
+  statement: ((toolchainOfPreimage (Identity::app (Identity::encProfile domain files reviews toolchain) rest)) = (Identity::gate [(List Nat)] (Identity::sizeProfile domain files reviews toolchain) (ctor Option.some [(List Nat)] toolchain))),
+  proof: simplify{
+    definitions: [
+      toolchainOfFoundGate,
+      toolchainOfFoundSome,
+      toolchainOfPreimage,
+      Identity::profileRT
+    ]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: allValid,
+  parameters: [s : (List Verification)],
+  result: Bool,
+  body: (match s
+    | List.nil => true
+    | List.cons v rest => (match (holdsValid v)
+      | Bool.true => (allValid rest)
+      | Bool.false => false)),
+  recursive_argument: s
+}
+
+theorem{
+  name: madeVerificationsKeepAStoreValid,
+  parameters: [s : (List Verification), profile : (List Nat), inputs : Inputs],
+  statement: ((allValid (cons (makeVerification profile inputs) s)) = (allValid s)),
+  proof: simplify{definitions: [allValid, makeVerificationHolds]},
+  axioms: [propext]
+}
+
+theorem{
+  name: allValidPutWith,
+  parameters: [s : (List Verification), profile : (List Nat), inputs : Inputs, found : Bool],
+  statement: ((allValid (putWith s (makeVerification profile inputs) found)) = (allValid s)),
+  proof: cases{
+    branches: [
+      {
+        proof: simplify{definitions: [madeVerificationsKeepAStoreValid, putWith]},
+        binders: [],
+        constructor: "false"
+      },
+      {proof: reflexivity{}, binders: [], constructor: "true"}
+    ],
+    scrutinee: found
+  },
+  axioms: [propext]
+}
+
+theorem{
+  name: aWriteNeverInvalidatesAStore,
+  parameters: [s : (List Verification), profile : (List Nat), inputs : Inputs],
+  statement: ((allValid (put s (makeVerification profile inputs))) = (allValid s)),
+  proof: simplify{definitions: [allValidPutWith, put]},
+  axioms: [propext]
+}
+
+structure{
+  name: Disk,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: profiles, type: (List (List Nat))},
+    {name: drafts, type: (List (List Nat))},
+    {name: builds, type: (List (List Nat))},
+    {name: verifications, type: (List Verification)},
+    {name: index, type: (List (List Nat))},
+    {name: exports, type: (List (List Nat))},
+    {name: keys, type: (List (List Nat))},
+    {name: draftReferences, type: (List (List Nat))}
+  ]
+}
+
+structure{
+  name: Archive,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: verifications, type: (List Verification)},
+    {name: keys, type: (List (List Nat))},
+    {name: draftReferences, type: (List (List Nat))}
+  ]
+}
+
+definition{
+  name: backup,
+  parameters: [d : Disk],
+  result: Archive,
+  body: (record Archive {verifications := (project d verifications), keys := (project d keys), draftReferences := (project d draftReferences)})
+}
+
+definition{
+  name: restore,
+  parameters: [a : Archive],
+  result: Disk,
+  body: (record Disk {profiles := (nil (List Nat)), drafts := (nil (List Nat)), builds := (nil (List Nat)), verifications := (project a verifications), index := (nil (List Nat)), exports := (nil (List Nat)), keys := (project a keys), draftReferences := (project a draftReferences)})
+}
+
+definition{
+  name: isEmptyKeys,
+  parameters: [xs : (List (List Nat))],
+  result: Bool,
+  body: (match xs | List.nil => true | List.cons x rest => false)
+}
+
+definition{
+  name: itemField,
+  parameters: [item : Item],
+  result: String,
+  body: (match item
+    | Item.Profiles => "profiles"
+    | Item.Drafts => "drafts"
+    | Item.Builds => "builds"
+    | Item.Verifications => "verifications"
+    | Item.Index => "index"
+    | Item.Exports => "exports"
+    | Item.Keys => "keys"
+    | Item.DraftReferences => "draftReferences")
+}
+
+definition{
+  name: fieldsOf,
+  parameters: [items : (List Item)],
+  result: (List String),
+  body: (match items
+    | List.nil => (nil String)
+    | List.cons item rest => (cons (itemField item) (fieldsOf rest))),
+  recursive_argument: items
+}
+
+definition{
+  name: archiveFields,
+  parameters: [],
+  result: (List String),
+  body: (cons "verifications" (cons "keys" (cons "draftReferences" (nil String))))
+}
+
+theorem{
+  name: theArchiveHoldsExactlyTheBackupSet,
+  parameters: [],
+  statement: ((archiveFields) = (fieldsOf (backupItems))),
+  proof: decide{}
+}
+
+theorem{
+  name: restoreReturnsTheVerifications,
+  parameters: [d : Disk],
+  statement: ((project (restore (backup d)) verifications) = (project d verifications)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: restoreReturnsTheKeys,
+  parameters: [d : Disk],
+  statement: ((project (restore (backup d)) keys) = (project d keys)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: restoreReturnsTheDraftReferences,
+  parameters: [d : Disk],
+  statement: ((project (restore (backup d)) draftReferences) = (project d draftReferences)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: restoreLeavesTheRecomputedDirectoriesToBeRebuilt,
+  parameters: [a : Archive],
+  statement: (((isEmptyKeys (project (restore a) profiles)) && ((isEmptyKeys (project (restore a) builds)) && ((isEmptyKeys (project (restore a) index)) && (isEmptyKeys (project (restore a) exports))))) = true),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: everyRestoredRecordResolvesAsBefore,
+  parameters: [d : Disk, profile : (List Nat), attestation : (List Nat)],
+  statement: ((resolve (project (restore (backup d)) verifications) profile attestation) = (resolve (project d verifications) profile attestation)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aRollbackResolvesWhatItResolved,
+  parameters: [m : Machine, profile : (List Nat), attestation : (List Nat)],
+  statement: ((resolve (project (step m (ctor Event.Rollback)) records) profile attestation) = (resolve (project m records) profile attestation)),
+  proof: simplify{definitions: [aRollbackKeepsEveryRecord]},
+  axioms: [propext]
+}
+
+definition{
+  name: tcOld,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 45 (cons 118 (cons 48 (cons 46 (cons 52 (nil Nat)))))))))))))
+}
+
+definition{
+  name: tcNew,
+  parameters: [],
+  result: (List Nat),
+  body: (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 45 (cons 118 (cons 48 (cons 46 (cons 53 (nil Nat)))))))))))))
+}
+
+definition{name: profileOld, parameters: [], result: (List Nat), body: (cons 1 (cons 2 (nil Nat)))}
+
+definition{name: profileNew, parameters: [], result: (List Nat), body: (cons 3 (cons 4 (nil Nat)))}
+
+definition{
+  name: inputsWith,
+  parameters: [toolchain : (List Nat)],
+  result: Inputs,
+  body: (record Inputs {draft := (cons 5 (nil Nat)), toolchain := toolchain, host := (cons 7 (nil Nat))})
+}
+
+definition{
+  name: recordOld,
+  parameters: [],
+  result: Verification,
+  body: (makeVerification (profileOld) (inputsWith (tcOld)))
+}
+
+definition{
+  name: recordNew,
+  parameters: [],
+  result: Verification,
+  body: (makeVerification (profileNew) (inputsWith (tcNew)))
+}
+
+definition{
+  name: revOld,
+  parameters: [],
+  result: Rev,
+  body: (record Rev {revision := (tcOld), served := (cons (profileOld) (nil (List Nat)))})
+}
+
+definition{
+  name: revNew,
+  parameters: [],
+  result: Rev,
+  body: (record Rev {revision := (tcNew), served := (cons (profileNew) (nil (List Nat)))})
+}
+
+definition{
+  name: firstMachine,
+  parameters: [],
+  result: Machine,
+  body: (record Machine {current := (revOld), previous := (ctor Prior.NoPrior), retired := (nil (List Nat)), records := (nil Verification)})
+}
+
+definition{
+  name: afterWritingOld,
+  parameters: [],
+  result: Machine,
+  body: (step (firstMachine) (ctor Event.Write (recordOld)))
+}
+
+definition{
+  name: afterTheUpgrade,
+  parameters: [],
+  result: Machine,
+  body: (step (afterWritingOld) (ctor Event.Rollout (revNew)))
+}
+
+definition{
+  name: afterWritingNew,
+  parameters: [],
+  result: Machine,
+  body: (step (afterTheUpgrade) (ctor Event.Write (recordNew)))
+}
+
+definition{
+  name: afterTheRollback,
+  parameters: [],
+  result: Machine,
+  body: (step (afterWritingNew) (ctor Event.Rollback))
+}
+
+definition{
+  name: bothResolve,
+  parameters: [s : (List Verification)],
+  result: Bool,
+  body: ((resolves s (project (recordOld) profile) (project (recordOld) attestation)) && (resolves s (project (recordNew) profile) (project (recordNew) attestation)))
+}
+
+definition{
+  name: theDisk,
+  parameters: [],
+  result: Disk,
+  body: (record Disk {profiles := (cons (cons 9 (nil Nat)) (nil (List Nat))), drafts := (cons (cons 10 (nil Nat)) (nil (List Nat))), builds := (nil (List Nat)), verifications := (cons (recordNew) (cons (recordOld) (nil Verification))), index := (nil (List Nat)), exports := (nil (List Nat)), keys := (cons (cons 11 (nil Nat)) (nil (List Nat))), draftReferences := (cons (cons 12 (nil Nat)) (nil (List Nat)))})
+}
+
+theorem{
+  name: anotherRevisionHasAnotherProfilePreimage,
+  parameters: [],
+  statement: ((sameOctets (Identity::encProfile (Identity::profileDomain) (ctor Identity::Rows.Cons (cons 97 (nil Nat)) (cons 98 (nil Nat)) (ctor Identity::Rows.Nil)) (nil (List Nat)) (tcOld)) (Identity::encProfile (Identity::profileDomain) (ctor Identity::Rows.Cons (cons 97 (nil Nat)) (cons 98 (nil Nat)) (ctor Identity::Rows.Nil)) (nil (List Nat)) (tcNew))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: theEarlierRecordResolvesAfterTheUpgrade,
+  parameters: [],
+  statement: ((bothResolve (project (afterWritingNew) records)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: theEarlierRecordStillValidatesAfterTheUpgrade,
+  parameters: [],
+  statement: ((allValid (project (afterWritingNew) records)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: theUpgradeServesTheNewProfileOnly,
+  parameters: [],
+  statement: ((project (project (afterTheUpgrade) current) served) = (cons (profileNew) (nil (List Nat)))),
+  proof: decide{}
+}
+
+theorem{
+  name: rollbackServesThePreviousProfiles,
+  parameters: [],
+  statement: ((project (project (afterTheRollback) current) served) = (cons (profileOld) (nil (List Nat)))),
+  proof: decide{}
+}
+
+theorem{
+  name: rollbackServesThePreviousRevision,
+  parameters: [],
+  statement: ((project (project (afterTheRollback) current) revision) = (tcOld)),
+  proof: decide{}
+}
+
+theorem{
+  name: theLaterRecordResolvesAfterTheRollback,
+  parameters: [],
+  statement: ((bothResolve (project (afterTheRollback) records)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: theRestoredStoreResolvesEveryBackedUpRecord,
+  parameters: [],
+  statement: ((bothResolve (project (restore (backup (theDisk))) verifications)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: theRestoredStoreKeepsTheKeys,
+  parameters: [],
+  statement: ((project (restore (backup (theDisk))) keys) = (cons (cons 11 (nil Nat)) (nil (List Nat)))),
+  proof: decide{}
+}
+
+theorem{
+  name: reverifyingARestoredStoreGivesTheSameIds,
+  parameters: [],
+  statement: ((allValid (project (restore (backup (theDisk))) verifications)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: anotherToolchainGivesAnotherAttestationId,
+  parameters: [],
+  statement: ((sameOctets (attestationId (profileOld) (inputsWith (tcOld))) (attestationId (profileOld) (inputsWith (tcNew)))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: aReleaseRollbackLeavesBothRecordsResolvable,
+  parameters: [],
+  statement: ((bothResolve (project (step (afterTheRollback) (ctor Event.Rollback)) records)) = true),
+  proof: decide{}
+}
+
+definition{
+  name: zeroDigest,
+  parameters: [],
+  result: Sha256::Digest,
+  body: (record Sha256::Digest {h0 := (0 : UInt32), h1 := (0 : UInt32), h2 := (0 : UInt32), h3 := (0 : UInt32), h4 := (0 : UInt32), h5 := (0 : UInt32), h6 := (0 : UInt32), h7 := (0 : UInt32)})
+}
+
+definition{
+  name: oneDigest,
+  parameters: [],
+  result: Sha256::Digest,
+  body: (record Sha256::Digest {h0 := (1 : UInt32), h1 := (0 : UInt32), h2 := (0 : UInt32), h3 := (0 : UInt32), h4 := (0 : UInt32), h5 := (0 : UInt32), h6 := (0 : UInt32), h7 := (0 : UInt32)})
+}
+
+definition{
+  name: storedProfile,
+  parameters: [],
+  result: ProfileRecord,
+  body: (record ProfileRecord {id := (zeroDigest), hashes := (cons (cons 1 (nil Nat)) (nil (List Nat)))})
+}
+
+theorem{
+  name: anUnchangedProfileHasNoDrift,
+  parameters: [],
+  statement: ((driftCheck (storedProfile) (ctor LockResult.Clean) (ctor Identity::Outcome.Identified (zeroDigest)) (cons (cons 1 (nil Nat)) (nil (List Nat)))) = (ctor Verdict.NoDrift)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aChangedLockIsLockDrift,
+  parameters: [],
+  statement: ((driftCheck (storedProfile) (ctor LockResult.Drifted) (ctor Identity::Outcome.Identified (oneDigest)) (cons (cons 2 (nil Nat)) (nil (List Nat)))) = (ctor Verdict.LockDrift)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aChangedIdIsIdDriftEvenWhenTheToolchainChanged,
+  parameters: [],
+  statement: ((driftCheck (storedProfile) (ctor LockResult.Clean) (ctor Identity::Outcome.Identified (oneDigest)) (cons (cons 2 (nil Nat)) (nil (List Nat)))) = (ctor Verdict.IdDrift)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: aChangedToolchainHashIsToolchainDrift,
+  parameters: [],
+  statement: ((driftCheck (storedProfile) (ctor LockResult.Clean) (ctor Identity::Outcome.Identified (zeroDigest)) (cons (cons 2 (nil Nat)) (nil (List Nat)))) = (ctor Verdict.ToolchainDrift)),
+  proof: reflexivity{}
+}
+
+definition{
+  name: storeModelHolds,
+  parameters: [],
+  result: Bool,
+  body: (((dirCount (allDirs)) =? 7) && (((itemCount (backupItems)) =? 3) && ((distinctNames (dirNames (allDirs))) && (if (isExpired (ctor Kind.Attestation) 3650) then false else true))))
+}
+\end{semanticmodule}
+\end{lexlean}
