@@ -27,6 +27,19 @@ model does not sanction.
 | `DL-03` | `build` | Draft admission through the exported root admitDraftRun on the full tables gives the verdicts of the kernel-checked instances of admitDraft, with the refusal named by the constructor order of Refusal, and decides in this order: the path refusals of the rows in row order, then TooManyFiles, then TooManyBytes, then DuplicatePath. |
 | `DL-04` | `build` | The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound. |
 
+## effects
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `EF-01` | `build` | The effect set is the ten effects of issue #7, E1 to E10, and no other: the Effect inductive of src/Effects.lex.tex has exactly those ten constructors in that order, allEffects lists them, their wire names are the dotted names of the issue, and their wire tags are their positions 0 to 9, which EFFECTS.md lists. |
+| `EF-02` | `build` | decode is a total function from a wire to Result Effect Refusal with the typed refusals UnknownId, UnknownName and MalformedFrame, and decode inverts encode: for every effect, the frame and the name it encodes to decode back to it, proved by cases on the effect. |
+| `EF-03` | `build` | No wire outside the encodings of E1 to E10 decodes: decodeSound states over every Wire, not a list of examples, that a wire which decodes to an effect is that effect's frame or name, proved for every input by cases and induction, and the acceptance vectors refuse with each of the three refusals. |
+| `EF-04` | `build` | The wire tags of E1 to E10 are the pairwise distinct numbers 0 to 9 and their wire names are pairwise distinct, decided by the kernel. |
+| `EF-05` | `build` | The Engine-call effects E3 to E6 correspond one to one to the four Engine operations check, snapshot, format and build: engineEffect and effectEngine are inverse on them, exactly four effects are Engine calls, and their numbers are 3 to 6. |
+| `EF-06` | `build` | No effect name contains a tool name or an MCP method name (Q6): every name is lower case letters and dots with no empty segment and avoids the reserved words lexlean_, tools/, resources/, prompts/ and the other method prefixes, decided by the kernel over the name list. |
+| `EF-07` | `build` | Every effect is exercised by an acceptance vector by frame and by name, the vectors decode as they state, and EFFECTS.md lists the vectors of the model, in order, and no other. |
+| `EF-08` | `build` | Each gate of the effect set rejects its planted defect: an eleventh effect, a duplicated id, a decode that accepts an unknown wire, an effect name containing a tool name and a mismapped Engine call; EFFECTS.md records the command, the diagnostic and the restore of each. |
+
 ## features
 
 | ID | Level | Statement |
