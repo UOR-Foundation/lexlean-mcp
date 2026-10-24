@@ -23,6 +23,8 @@
 # The AC-07 fixture register (issue #10) registers FX-01 to FX-08: two rows that
 # reproduce the negative fixtures of the pinned LexLean and six that are checked here.
 # The owner-set values of issue #19 register OV-01..OV-03.
+# The executable measures of Q2 and Q8 of issue #15 register QM-01 to QM-08: two rows that
+# reproduce the pinned LexLean (its public API and its diagnostic registry) and six that are checked here.
 # The features F1 to F13 and journeys J1 to J6 of issue #18 register FJ-01..FJ-10: the
 # model-side slice, whose rules prismpm check cannot yet run on the bound SDK image.
 
@@ -213,6 +215,54 @@ id = "OV-03"
 level = "build"
 suite = "owner-values"
 statement = "Each bound value respects the constraint it follows from: draft.max_bytes and draft.max_files hold the largest example and stay within the limits of lexlean.toml, verify.concurrency times verify.memory_kib fits a 16 GiB host, verify.width is within the range of LexLean SPEC 22.11, listen.port is a registered-range port below the ephemeral range, and the product version equals the workspace package version."
+
+[[id]]
+id = "QM-01"
+level = "some-true"
+suite = "quality"
+statement = "LexLean release/v0.4 at 9796067 declares 33 public functions in the files of its stable API surface: 7 methods of Engine, 8 functions of lexlean::sdk, 11 of lexlean::api::production with the methods of its request, result and report, 5 free functions of lexlean::api and the 2 lifecycle functions of lexlean::verify; the vendored copies of crates/lexlean/src/api.rs, api/production.rs, sdk.rs and verify/lifeline.rs are the files of that commit, each with the git blob id the table records."
+
+[[id]]
+id = "QM-02"
+level = "build"
+suite = "quality"
+statement = "The API-to-tool map has one row for each of the 33 public functions the vendored sources declare, with the signature they declare, and no other row; the source declares every function SPEC 24.1, 24.6, 24.7 and 24.8 declare, and Engine and lexlean::sdk have exactly the methods and functions SPEC lists."
+
+[[id]]
+id = "QM-03"
+level = "build"
+suite = "quality"
+statement = "Q2 is measured: every one of the 33 public functions reaches exactly one tool or states a reason no tool does, every tool named is one of the 14 that issues 8 to 12 define, and the 9 functions that reach a tool are the 9 in-scope functions the model of Q2 names (Engine check, snapshot, format, build and verify; sdk assemble, write_module, read_module and declaration_spans)."
+
+[[id]]
+id = "QM-04"
+level = "some-true"
+suite = "quality"
+statement = "LexLean release/v0.4 at 9796067 registers 86 diagnostic codes in model/errors.toml, each with a class, an exit status, a title and a statement, and generates ERRORS.md from the registry, one entry per code, which lexlean explain prints; the vendored copies are the files of that commit."
+
+[[id]]
+id = "QM-05"
+level = "build"
+suite = "quality"
+statement = "Every one of the 86 registered codes is explained: its row has a well formed code in its range, a class with its exit status, a title and a statement, rows are sorted and unique, and ERRORS.md holds one entry for each code, no other, equal to the text explain prints."
+
+[[id]]
+id = "QM-06"
+level = "build"
+suite = "quality"
+statement = "Every diagnostic code that the 297 negative fixtures of AC-07 return is a registered code with an entry in ERRORS.md, so a code in a result resolves through explain."
+
+[[id]]
+id = "QM-07"
+level = "build"
+suite = "quality"
+statement = "The measures of Q2 and Q8 are Executed in src/Quality.lex.tex by QM-01, QM-02 and QM-03 (Q2) and by QM-04, QM-05 and QM-06 (Q8), whose tests pass; Q1 and Q3 to Q7 stay Pending, each naming the issue that executes it, the clause of each executed measure that waits for the tools stays in pendingClauses, and the counts the model states (9 functions, 86 codes) are those of the pinned files."
+
+[[id]]
+id = "QM-08"
+level = "build"
+suite = "quality"
+statement = "Each gate of Q2 and Q8 rejects its planted defect: a function removed from the map, a tool name misspelled, a function with no tool and no reason, a function both mapped and not exposed, a function added or re-signed upstream, a vendored byte altered or removed, a pin moved without a new import, a code returned that the registry lacks, a code with no statement, an entry removed from ERRORS.md or altered, an exit status that disagrees with its class, rows out of order, Q2 or Q8 flipped back to Pending, a measure flipped to Executed without rows, a cited row missing and a count that disagrees; QUALITY.md records the command, the diagnostic and the restore of each."
 
 [[id]]
 id = "FJ-01"

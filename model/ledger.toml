@@ -12,7 +12,8 @@
 #
 # The claims below are facts the NFC decision reproduces from the standard, the
 # database files and the crate it cites, and facts the fixture register reproduces
-# from the negative fixtures of the pinned LexLean; the level of each is some-true.
+# from the negative fixtures of the pinned LexLean, and the facts the measures of Q2 and Q8 reproduce
+# from its public API and its diagnostic registry; the level of each is some-true.
 
 spec = "template/1"
 
@@ -25,5 +26,7 @@ claim = [
   { id = "AUTH-05", level = "some-true", statement = "unicode-normalization 0.1.25 implements Unicode 17.0.0, and LexLean release/v0.4 at 9796067 pins it.", authority = "A-UNICODE-NORMALIZATION" },
   { id = "AUTH-07", level = "some-true", statement = "LexLean release/v0.4 at 9796067 holds 297 fixtures in tests/negative, the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864.", authority = "A-LEXLEAN-NEGATIVE" },
   { id = "AUTH-08", level = "some-true", statement = "The expected/command.json of each of those fixtures is the canonical command result the LexLean CLI of that commit gives for the project of the fixture.", authority = "A-LEXLEAN-NEGATIVE" },
-  { id = "AUTH-09", level = "some-true", statement = "PrismPM d11ace6f declares a feature and a journey as Foundation.Arch::Feature and Foundation.Arch::Journey and refuses, with PP2014 to PP2018, a feature without a call or an acceptance row, a journey step that names no declared feature, a journey actor that is no declared stakeholder, and a malformed declaration or a call or acceptance row that names no definition.", authority = "A-PRISMPM-ARCH" },
+  { id = "AUTH-09", level = "some-true", statement = "The stable API surface of LexLean release/v0.4 at 9796067 is the 33 public functions that crates/lexlean/src/api.rs, api/production.rs, sdk.rs and verify/lifeline.rs declare.", authority = "A-LEXLEAN-API" },
+  { id = "AUTH-10", level = "some-true", statement = "LexLean release/v0.4 at 9796067 registers 86 diagnostic codes, and lexlean explain prints the ERRORS.md entry of each.", authority = "A-LEXLEAN-ERRORS" },
+  { id = "AUTH-11", level = "some-true", statement = "PrismPM d11ace6f declares a feature and a journey as Foundation.Arch::Feature and Foundation.Arch::Journey and refuses, with PP2014 to PP2018, a feature without a call or an acceptance row, a journey step that names no declared feature, a journey actor that is no declared stakeholder, and a malformed declaration or a call or acceptance row that names no definition.", authority = "A-PRISMPM-ARCH" },
 ]
