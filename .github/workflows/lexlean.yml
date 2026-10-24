@@ -254,6 +254,10 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "gateway/lay-out-mcp.sh" gateway/lay-out-mcp.sh
+      - name: The PrismPM lexicon at the pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/lay-out-sdk.sh" gateway/lay-out-sdk.sh
       - name: The gateway is compiled by the LexLean commit MCP names at the pin
         run: echo "LEXLEAN_REV_FILE=gateway/mcp/lexlean.rev" >>"$GITHUB_ENV"
       - name: Read the pinned LexLean revision
@@ -312,7 +316,7 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "gateway/mcp-identities.sh" gateway/mcp-identities.sh
-      - name: 7c. the copies of the PrismPM standard library
+      - name: 7c. the laid-out lexicon and the copies of the PrismPM standard library
         run: |
           . .github/lexlean-ci/lib.sh
           gate "the SDK copies agree" sdk_copies_agree

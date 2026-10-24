@@ -205,7 +205,10 @@ fn the_gateway_declares_the_ten_effects_in_order_gw_01() {
         model[..],
         "the host protocol lists the effects of src/Effects.lex.tex first, so the tag of an effect is its position"
     );
-    assert_eq!(declared[10], FRAME_EFFECT, "the eleventh effect is the frame effect");
+    assert_eq!(
+        declared[10], FRAME_EFFECT,
+        "the eleventh effect is the frame effect"
+    );
     let distinct: BTreeSet<&String> = declared.iter().collect();
     assert_eq!(distinct.len(), 11, "no effect is declared twice");
     let document = read("GATEWAY.md");
@@ -720,9 +723,14 @@ fn the_gateway_builds_from_the_pins_without_a_published_crate_gw_09() {
         // repository's own.
         .filter(|f| {
             let path = f.to_string_lossy();
-            !["/gateway/gateway-host/", "/gateway/gateway-host-api/", "/gateway/lexlean_mcp_gateway_core/", "/gateway/registry/"]
-                .iter()
-                .any(|laid| path.contains(laid))
+            ![
+                "/gateway/gateway-host/",
+                "/gateway/gateway-host-api/",
+                "/gateway/lexlean_mcp_gateway_core/",
+                "/gateway/registry/",
+            ]
+            .iter()
+            .any(|laid| path.contains(laid))
         })
         .collect();
     assert!(!manifests.is_empty(), "the gateway workspace has manifests");
@@ -782,7 +790,9 @@ fn the_rate_counter_is_a_frame_effect_outside_the_cores_ten_gw_10() {
     );
     assert!(frame.failures.is_empty(), "the counter cannot fail");
     assert_eq!(
-        declared.iter().position(|effect| effect.name == FRAME_EFFECT),
+        declared
+            .iter()
+            .position(|effect| effect.name == FRAME_EFFECT),
         Some(10),
         "its tag is 10, the first past the ten of the core"
     );
@@ -824,7 +834,10 @@ fn the_laid_out_mcp_modules_are_those_of_the_pin_gw_11() {
         "compiler_semantics",
         "mcp/lexlean.rev",
     ] {
-        assert!(script.contains(needle), "gateway/mcp-identities.sh checks {needle}");
+        assert!(
+            script.contains(needle),
+            "gateway/mcp-identities.sh checks {needle}"
+        );
     }
     let workflow = read(".github/workflows/lexlean.yml");
     assert!(

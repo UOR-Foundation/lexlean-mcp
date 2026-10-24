@@ -8,5 +8,5 @@
 # moves to the PrismPM SDK release that contains PrismPM#216 before lexlean-mcp v0.1.0.
 #
 # Currently: UOR-Foundation/PrismPM#342 at its head, the verification of a server
-# application (slice 3 of #216), stacked on #339 and #246.
-rev = b9a89011354410d23c766e6a3c8066454cefcab0
+# application (slice 3 of #216) and the replay of its release (slice 4), stacked on #339 and #246.
+rev = 706fb746100c1d220841d93820a035d07beb5323

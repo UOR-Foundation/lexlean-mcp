@@ -322,8 +322,9 @@ install_prismpm() {
 }
 
 # sdk_copies_agree: the files the gateway copies from the PrismPM standard library and
-# lexicon, `Foundation.Bytes`, `Foundation.Server.V1.Model` and the `prism.arch` lexicon
-# package, are byte for byte the ones at the pinned revision.
+# lexicon, `Foundation.Bytes` and `Foundation.Server.V1.Model`, are byte for byte the ones at
+# the pinned revision, and so is the whole `prism.arch` lexicon package that
+# gateway/lay-out-sdk.sh laid out from it (no subset is kept).
 sdk_copies_agree() {
   local rev scratch status=0 file
   rev=$(prismpm_rev)

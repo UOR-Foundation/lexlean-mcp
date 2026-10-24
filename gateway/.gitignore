@@ -1,4 +1,4 @@
-# Laid out from the pins (lay-out-mcp.sh, lay-out.sh); never committed.
+# Laid out from the pins (lay-out-mcp.sh, lay-out-sdk.sh, lay-out.sh); never committed.
 /mcp/
 /language/mcp.core/
 /gateway-host-api/
@@ -13,3 +13,4 @@
 /lexlean-mcp-store/
 # The scratch of the vector generator.
 /vectors/out/
+/language/prism.arch/

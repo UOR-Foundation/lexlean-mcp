@@ -123,6 +123,7 @@ real cancellation.
 ```sh
 gateway/lay-out-mcp.sh                  # the sources of MCP at the pin
 gateway/mcp-identities.sh               # AC-03 (a)
+gateway/lay-out-sdk.sh                  # language/prism.arch of PrismPM at the pin
 gateway/registry.sh                     # the registry; CARGO_HOME=gateway/registry/cargo-home
 (cd gateway && prismpm build)           # exports the core, generates the host packages
 gateway/lay-out.sh gateway/.prism/build/<id>

@@ -96,8 +96,29 @@ DESCRIPTION = (
 )
 
 
+# LexLean lowers a byte literal to an array with one nested `let` per repeated byte value, and
+# Lean stops at its recursion depth when such a literal sits inside the nested records and lists
+# of the application. So every literal is a definition of its own, no longer than CHUNK bytes,
+# and a longer value is the append of its chunks.
+CHUNK = 256
+BYTES = "Foundation.Bytes"
+LITERALS: dict = {}
+
+
 def hexed(value: bytes) -> str:
-    return "0x" + value.hex()
+    """A reference to the definition that holds `value` (made once per distinct value)."""
+    if value in LITERALS:
+        return f"({LITERALS[value][0]})"
+    if len(value) <= CHUNK:
+        body = "0x" + value.hex()
+    else:
+        refs = [hexed(value[i:i + CHUNK]) for i in range(0, len(value), CHUNK)]
+        body = refs[-1]
+        for ref in reversed(refs[:-1]):
+            body = f"({BYTES}::appendBytes {ref} {body})"
+    name = f"bytes{len(LITERALS):03d}"
+    LITERALS[value] = (name, body)
+    return f"({name})"
 
 
 def text(value: str) -> str:
@@ -143,6 +164,7 @@ def host_effect(effect) -> str:
 
 
 def render(vectors: list) -> str:
+    LITERALS.clear()
     acceptance = [
         record("AcceptanceVector", [
             ("request", hexed(bytes.fromhex(v["frame_request"]))),
@@ -243,6 +265,10 @@ def render(vectors: list) -> str:
         ("verifyBuildTimeoutSeconds", word(VERIFY_BUILD_TIMEOUT_SECONDS)),
         ("host", host),
     ])
+    literal_definitions = "".join(
+        f"definition{{\n  name: {name},\n  parameters: [],\n  result: Bytes,\n  body: {body}\n}}\n\n"
+        for name, body in LITERALS.values()
+    )
     return (
         "\\begin{lexlean}{Application}\n"
         "\\useglossary{lexlean.std.bool@1.2.0}\n"
@@ -252,6 +278,7 @@ def render(vectors: list) -> str:
         f"\\importmodule{{{MODEL}}}\n"
         "\\title{Server application model}\n"
         "\\begin{semanticmodule}\n"
+        f"{literal_definitions}"
         "definition{\n"
         "  name: application,\n"
         "  parameters: [],\n"
