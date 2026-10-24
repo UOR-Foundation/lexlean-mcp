@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-features-and-journeys"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Features"
+component = "featuresValid"
+
+[[form]]
+id = "lexlean-mcp-features-and-journeys"
+channel = "text"
+surface = "LexLean MCP features and journeys"
+canonical_source = true
+features = ["sentence-case", "singular"]
