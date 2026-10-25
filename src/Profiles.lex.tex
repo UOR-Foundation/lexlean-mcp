@@ -1,0 +1,975 @@
+\begin{lexlean}{Profiles}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Identity}
+\importmodule{OwnerValues}
+\title{LexLean MCP profiles and vocabulary}
+\begin{semanticmodule}
+definition{name: separator, parameters: [], result: Nat, body: 47}
+
+definition{
+  name: underRoot,
+  parameters: [root : Bytes, path : Bytes],
+  result: Bool,
+  body: (match (Identity::stripPrefix (Identity::octetsOfBytes root) (Identity::octetsOfBytes path))
+    | Option.none => false
+    | Option.some rest => (match rest
+      | List.nil => false
+      | List.cons c more => (c =? (separator)))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: insideRoots,
+  parameters: [roots : (List Bytes), path : Bytes],
+  result: Bool,
+  body: (match roots
+    | List.nil => false
+    | List.cons root more => (if (underRoot root path) then true else (insideRoots more path))),
+  axioms: [Quot.sound, propext],
+  recursive_argument: roots
+}
+
+definition{
+  name: profileFiles,
+  parameters: [roots : (List Bytes), files : (List (Bytes * Bytes))],
+  result: (List (Bytes * Bytes)),
+  body: (match files
+    | List.nil => (nil (Bytes * Bytes))
+    | List.cons file rest => (if (insideRoots roots (first file)) then (profileFiles roots rest) else (cons file (profileFiles roots rest)))),
+  axioms: [Quot.sound, propext],
+  recursive_argument: files
+}
+
+definition{
+  name: profileIdOf,
+  parameters: [
+    roots : (List Bytes),
+    files : (List (Bytes * Bytes)),
+    reviews : (List Bytes),
+    toolchain : Bytes
+  ],
+  result: Identity::Outcome,
+  body: (Identity::profileId (profileFiles roots files) reviews toolchain),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: sameId,
+  parameters: [left : Identity::Outcome, right : Identity::Outcome],
+  result: Bool,
+  body: (match left
+    | Identity::Outcome.Identified found => (match right
+      | Identity::Outcome.Identified wanted => (Identity::sameDigest found wanted)
+      | Identity::Outcome.DuplicatePath => false
+      | Identity::Outcome.DuplicateReview => false
+      | Identity::Outcome.FieldTooLong => false)
+    | Identity::Outcome.DuplicatePath => false
+    | Identity::Outcome.DuplicateReview => false
+    | Identity::Outcome.FieldTooLong => false)
+}
+
+definition{
+  name: otherId,
+  parameters: [left : Identity::Outcome, right : Identity::Outcome],
+  result: Bool,
+  body: (match left
+    | Identity::Outcome.Identified found => (match right
+      | Identity::Outcome.Identified wanted => (if (Identity::sameDigest found wanted) then false else true)
+      | Identity::Outcome.DuplicatePath => false
+      | Identity::Outcome.DuplicateReview => false
+      | Identity::Outcome.FieldTooLong => false)
+    | Identity::Outcome.DuplicatePath => false
+    | Identity::Outcome.DuplicateReview => false
+    | Identity::Outcome.FieldTooLong => false)
+}
+
+definition{
+  name: pfConfig,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x6c65786c65616e2e746f6d6c, 0x636f6e666967)
+}
+
+definition{
+  name: pfLock,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x6c65786c65616e2e6c6f636b, 0x6c6f636b)
+}
+
+definition{
+  name: pfLexicon,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x6c616e67756167652f7061636b2f6c657869636f6e2e746f6d6c, 0x6c657869636f6e)
+}
+
+definition{
+  name: pfArtifact,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x6172746966616374732f646174612e62696e, 0x6172746966616374)
+}
+
+definition{
+  name: pfSource,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x7372632f4d61696e2e6c65782e746578, 0x736f75726365)
+}
+
+definition{
+  name: pfSourceDeep,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x7372632f646565702f4f746865722e6c65782e746578, 0x646565706572)
+}
+
+definition{
+  name: pfConfigBytes,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x6c65786c65616e2e746f6d6c, 0x434f4e464947)
+}
+
+definition{
+  name: pfLockBytes,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x6c65786c65616e2e6c6f636b, 0x4c4f434b)
+}
+
+definition{
+  name: pfLexiconBytes,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x6c616e67756167652f7061636b2f6c657869636f6e2e746f6d6c, 0x4c455849434f4e)
+}
+
+definition{
+  name: pfArtifactBytes,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x6172746966616374732f646174612e62696e, 0x4152544946414354)
+}
+
+definition{
+  name: pfConfigPath,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x6c65786c65616e322e746f6d6c, 0x636f6e666967)
+}
+
+definition{
+  name: pfExtra,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x65787472612e746f6d6c, 0x6578747261)
+}
+
+definition{
+  name: pfLookalike,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x737263732f4d61696e2e6c65782e746578, 0x736f75726365)
+}
+
+definition{
+  name: pfBareRoot,
+  parameters: [],
+  result: (Bytes * Bytes),
+  body: (0x737263, 0x736f75726365)
+}
+
+definition{
+  name: exampleRoots,
+  parameters: [],
+  result: (List Bytes),
+  body: (cons 0x737263 (nil Bytes))
+}
+
+definition{
+  name: exampleReviews,
+  parameters: [],
+  result: (List Bytes),
+  body: (cons 0x7231 (nil Bytes))
+}
+
+definition{name: exampleToolchain, parameters: [], result: Bytes, body: 0x6c65786c65616e2d76302e34}
+
+definition{
+  name: baseFiles,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfig) (cons (pfLock) (cons (pfLexicon) (cons (pfArtifact) (nil (Bytes * Bytes))))))
+}
+
+definition{
+  name: withSource,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfSource) (cons (pfConfig) (cons (pfLock) (cons (pfLexicon) (cons (pfArtifact) (nil (Bytes * Bytes)))))))
+}
+
+definition{
+  name: withSources,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfSource) (cons (pfConfig) (cons (pfSourceDeep) (cons (pfLock) (cons (pfLexicon) (cons (pfArtifact) (nil (Bytes * Bytes))))))))
+}
+
+definition{
+  name: changedConfig,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfigBytes) (cons (pfLock) (cons (pfLexicon) (cons (pfArtifact) (nil (Bytes * Bytes))))))
+}
+
+definition{
+  name: changedLock,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfig) (cons (pfLockBytes) (cons (pfLexicon) (cons (pfArtifact) (nil (Bytes * Bytes))))))
+}
+
+definition{
+  name: changedLexicon,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfig) (cons (pfLock) (cons (pfLexiconBytes) (cons (pfArtifact) (nil (Bytes * Bytes))))))
+}
+
+definition{
+  name: changedArtifact,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfig) (cons (pfLock) (cons (pfLexicon) (cons (pfArtifactBytes) (nil (Bytes * Bytes))))))
+}
+
+definition{
+  name: renamedConfig,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfigPath) (cons (pfLock) (cons (pfLexicon) (cons (pfArtifact) (nil (Bytes * Bytes))))))
+}
+
+definition{
+  name: addedFile,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfig) (cons (pfLock) (cons (pfLexicon) (cons (pfArtifact) (cons (pfExtra) (nil (Bytes * Bytes)))))))
+}
+
+definition{
+  name: removedFile,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfig) (cons (pfLock) (cons (pfLexicon) (nil (Bytes * Bytes)))))
+}
+
+definition{
+  name: withLookalike,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfig) (cons (pfLock) (cons (pfLexicon) (cons (pfArtifact) (cons (pfLookalike) (nil (Bytes * Bytes)))))))
+}
+
+definition{
+  name: withBareRoot,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfig) (cons (pfLock) (cons (pfLexicon) (cons (pfArtifact) (cons (pfBareRoot) (nil (Bytes * Bytes)))))))
+}
+
+definition{
+  name: order2,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfLock) (cons (pfConfig) (cons (pfLexicon) (cons (pfArtifact) (nil (Bytes * Bytes))))))
+}
+
+definition{
+  name: order3,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfArtifact) (cons (pfLexicon) (cons (pfLock) (cons (pfConfig) (nil (Bytes * Bytes))))))
+}
+
+definition{
+  name: order4,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfLexicon) (cons (pfArtifact) (cons (pfConfig) (cons (pfLock) (nil (Bytes * Bytes))))))
+}
+
+definition{
+  name: order5,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfSource) (cons (pfArtifact) (cons (pfConfig) (cons (pfLexicon) (cons (pfLock) (nil (Bytes * Bytes)))))))
+}
+
+definition{
+  name: tinyBase,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfig) (nil (Bytes * Bytes)))
+}
+
+definition{
+  name: tinyChanged,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfigBytes) (nil (Bytes * Bytes)))
+}
+
+definition{
+  name: tinyRenamed,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfigPath) (nil (Bytes * Bytes)))
+}
+
+definition{
+  name: duplicatePath,
+  parameters: [],
+  result: (List (Bytes * Bytes)),
+  body: (cons (pfConfig) (cons (pfLock) (cons (pfLexicon) (cons (pfArtifact) (cons (pfConfig) (nil (Bytes * Bytes)))))))
+}
+
+definition{
+  name: framingOf,
+  parameters: [files : (List (Bytes * Bytes))],
+  result: Identity::Framing,
+  body: (Identity::profileFraming (profileFiles (exampleRoots) files) (exampleReviews) (exampleToolchain)),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: otherFraming,
+  parameters: [left : Identity::Framing, right : Identity::Framing],
+  result: Bool,
+  body: (match left
+    | Identity::Framing.Preimage found => (match right
+      | Identity::Framing.Preimage wanted => (if (Identity::octetsEqual found wanted) then false else true)
+      | Identity::Framing.DuplicatePath => false
+      | Identity::Framing.DuplicateReview => false
+      | Identity::Framing.FieldTooLong => false)
+    | Identity::Framing.DuplicatePath => false
+    | Identity::Framing.DuplicateReview => false
+    | Identity::Framing.FieldTooLong => false)
+}
+
+definition{
+  name: idOf,
+  parameters: [files : (List (Bytes * Bytes))],
+  result: Identity::Outcome,
+  body: (Identity::identify (framingOf files)),
+  axioms: [Quot.sound, propext]
+}
+
+inductive{
+  name: PackageCheck,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Admitted, fields: []}, {name: Refused, fields: [String]}]
+}
+
+structure{
+  name: PackageDecl,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: package, type: String}, {name: language, type: String}]
+}
+
+definition{name: languageMismatchCode, parameters: [], result: String, body: "LLC0103"}
+
+definition{
+  name: checkPackage,
+  parameters: [profile : String, package : String],
+  result: PackageCheck,
+  body: (if (prim equal profile package : Bool) then (ctor PackageCheck.Admitted) else (ctor PackageCheck.Refused (languageMismatchCode)))
+}
+
+definition{
+  name: checkPackages,
+  parameters: [profile : String, packages : (List PackageDecl)],
+  result: PackageCheck,
+  body: (match packages
+    | List.nil => (ctor PackageCheck.Admitted)
+    | List.cons head rest => (match (checkPackage profile (project head language))
+      | PackageCheck.Admitted => (checkPackages profile rest)
+      | PackageCheck.Refused code => (ctor PackageCheck.Refused code))),
+  recursive_argument: packages
+}
+
+definition{
+  name: admitted,
+  parameters: [check : PackageCheck],
+  result: Bool,
+  body: (match check | PackageCheck.Admitted => true | PackageCheck.Refused code => false)
+}
+
+definition{
+  name: refusedWith,
+  parameters: [expected : String, check : PackageCheck],
+  result: Bool,
+  body: (match check
+    | PackageCheck.Admitted => false
+    | PackageCheck.Refused code => (prim equal expected code : Bool))
+}
+
+definition{
+  name: languageTable,
+  parameters: [],
+  result: Bool,
+  body: ((admitted (checkPackage "1.0" "1.0")) && ((admitted (checkPackage "1.1" "1.1")) && ((admitted (checkPackage "1.2" "1.2")) && ((refusedWith (languageMismatchCode) (checkPackage "1.0" "1.1")) && ((refusedWith (languageMismatchCode) (checkPackage "1.0" "1.2")) && ((refusedWith (languageMismatchCode) (checkPackage "1.1" "1.0")) && ((refusedWith (languageMismatchCode) (checkPackage "1.1" "1.2")) && ((refusedWith (languageMismatchCode) (checkPackage "1.2" "1.0")) && (refusedWith (languageMismatchCode) (checkPackage "1.2" "1.1"))))))))))
+}
+
+definition{
+  name: languageOfProfile,
+  parameters: [wanted : String, records : (List OwnerValues::ProfileSpec)],
+  result: (Option String),
+  body: (match records
+    | List.nil => (ctor Option.none [String])
+    | List.cons head rest => (if (prim equal wanted (project head name) : Bool) then (ctor Option.some [String] (project head language)) else (languageOfProfile wanted rest))),
+  recursive_argument: records
+}
+
+structure{
+  name: LexiconEntry,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: denotes, type: String}]
+}
+
+definition{name: atlasPackage, parameters: [], result: String, body: "lexlean.uor.atlas"}
+
+definition{name: atlasVersion, parameters: [], result: String, body: "1.0.0"}
+
+definition{name: atlasLanguage, parameters: [], result: String, body: "1.0"}
+
+definition{name: atlasProfileName, parameters: [], result: String, body: "uor-atlas"}
+
+definition{name: atlasModuleName, parameters: [], result: String, body: "Atlas"}
+
+definition{name: atlasEntryCount, parameters: [], result: Nat, body: 293}
+
+definition{name: atlasModuleCount, parameters: [], result: Nat, body: 86}
+
+definition{
+  name: joinTexts,
+  parameters: [left : (List String), right : (List String)],
+  result: (List String),
+  body: (match left
+    | List.nil => right
+    | List.cons head rest => (cons head (joinTexts rest right))),
+  recursive_argument: left
+}
+
+definition{
+  name: joinEntries,
+  parameters: [left : (List LexiconEntry), right : (List LexiconEntry)],
+  result: (List LexiconEntry),
+  body: (match left
+    | List.nil => right
+    | List.cons head rest => (cons head (joinEntries rest right))),
+  recursive_argument: left
+}
+
+definition{
+  name: atlasModules00,
+  parameters: [],
+  result: (List String),
+  body: (cons "Atlas" (cons "Blocks" (cons "Category" (cons "Census" (cons "CensusCert0" (cons "CensusCert10" (cons "CensusCert100" (cons "CensusCert101" (cons "CensusCert102" (cons "CensusCert103" (cons "CensusCert104" (cons "CensusCert105" (cons "CensusCert106" (cons "CensusCert107" (cons "CensusCert108" (cons "CensusCert109" (cons "CensusCert11" (cons "CensusCert12" (cons "CensusCert13" (cons "CensusCert14" (cons "CensusCert15" (cons "CensusCert4" (cons "CensusCert40" (cons "CensusCert41" (cons "CensusCert42" (nil String))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasModules01,
+  parameters: [],
+  result: (List String),
+  body: (cons "CensusCert43" (cons "CensusCert44" (cons "CensusCert45" (cons "CensusCert46" (cons "CensusCert47" (cons "CensusCert48" (cons "CensusCert49" (cons "CensusCert5" (cons "CensusCert6" (cons "CensusCert7" (cons "CensusCert70" (cons "CensusCert71" (cons "CensusCert72" (cons "CensusCert73" (cons "CensusCert74" (cons "CensusCert75" (cons "CensusCert76" (cons "CensusCert77" (cons "CensusCert78" (cons "CensusCert79" (cons "CensusCert8" (cons "CensusCert9" (cons "CensusClosure" (cons "CensusComplete" (cons "Closure" (nil String))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasModules02,
+  parameters: [],
+  result: (List String),
+  body: (cons "ClosureGauge" (cons "ClosureOrbit" (cons "ClosureOrbitCount" (cons "ClosureOrbitTransport" (cons "ClosurePairCert0" (cons "ClosurePairCert1" (cons "ClosurePairCert10" (cons "ClosurePairCert11" (cons "ClosurePairCert12" (cons "ClosurePairCert13" (cons "ClosurePairCert14" (cons "ClosurePairCert15" (cons "ClosurePairCert2" (cons "ClosurePairCert3" (cons "ClosurePairCert4" (cons "ClosurePairCert5" (cons "ClosurePairCert6" (cons "ClosurePairCert7" (cons "ClosurePairCert8" (cons "ClosurePairCert9" (cons "ClosurePairComplete" (cons "ClosurePairs" (cons "Functor" (cons "Glue" (cons "Group" (nil String))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasModules03,
+  parameters: [],
+  result: (List String),
+  body: (cons "GroupSeries" (cons "Parameters" (cons "Places" (cons "Prelude.Algebra" (cons "Prelude.Bitset" (cons "Prelude.Linear" (cons "Prelude.NumInstances" (cons "Prelude.Perm" (cons "Prelude.RingLemmas" (cons "Roots" (cons "Scales" (nil String))))))))))))
+}
+
+definition{
+  name: atlasModules,
+  parameters: [],
+  result: (List String),
+  body: (joinTexts (atlasModules00) (joinTexts (atlasModules01) (joinTexts (atlasModules02) (joinTexts (atlasModules03) (nil String)))))
+}
+
+definition{
+  name: atlasEntries00,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-a1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-bc1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d10", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d11", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d12", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d13", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d14", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d15", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d16", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d17", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d17a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d18", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d19", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d19a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d2", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d20", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d21", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d21a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d22", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d22a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d23", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d24", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d25", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d26", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries01,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-d27", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d28", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d28a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d29", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d3", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d30", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d31", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d32", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d33", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d34", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d35", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d35a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d36", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d37", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d38", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d39", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d4", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d40", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d41", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d42", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d43", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d44", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d45", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d46", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d46a", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries02,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-d47", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d48", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d49", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d49a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d49b", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d5", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d50", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d51", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d51a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d52", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d53", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d54", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d54a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d55", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d56", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d57", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d58", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d59", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d6", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d60", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d61", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d62", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d63", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d64", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d65", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries03,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-d66", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d67", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d7", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d8", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-d9", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-dv1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f12", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f13", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f14", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f15", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f15a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f15p", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f16", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f17", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f18", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f19", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f19a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f2", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f20", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f21", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f22", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f3", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f4", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f5", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries04,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-f6", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f6p", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-f7", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-fi1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-fr1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-ig1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-li1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-m1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-m2", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-m3", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-m4", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-p1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-p2", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-presentation", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-ql1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-rc1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-rh1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-rp1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s10", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s11", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s12", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s13", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s14", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s15", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries05,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-s16", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s17", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s18", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s19", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s2", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s20", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s21", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s22", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s23", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s24", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s25", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s26", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s27", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s28", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s29", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s3", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s30", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s31", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s32", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s33", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s34", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s35", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s36", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s37", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s38", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries06,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-s39", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s4", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s40", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s41", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s41a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s41c", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s41d", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s42", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s43", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s5", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s6", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s7", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s8", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s9", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-s9a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-sd1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-support", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t1", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t10a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t10b", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t10c", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t11", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t12", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t13", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t14", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries07,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-t15", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t16", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t16x", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t17", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t18", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t19", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t2", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t20", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t20a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t21", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t22", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t22a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t23", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t24", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t25", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t25x", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t26", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t26a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t26b", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t26x", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t27", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t28", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t29", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t3", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t30", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries08,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-t31", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t32", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t33", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t34", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t35", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t36", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t37", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t38", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t39", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t39p", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t4", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t40", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t41", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t42", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t43", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t44", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t45", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t46", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t47", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t49", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t5", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t50", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t51", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t52", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t53", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries09,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-t54", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t55", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t56", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t57a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t57b", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t57c", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t58", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t58x", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t59", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t59a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t59p", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t59p0", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t6", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t60", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t61", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t61a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t62", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t63", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t63a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t64", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t65", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t66", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t67", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t68", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t69", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries10,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-t7", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t70", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t71", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t72", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t73", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t74", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t75", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t76", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t76a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t77", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t77a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t78", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t79", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t8", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t80", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t80a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t80p", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t81", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t82", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t83", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t84", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t85", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t9", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-t9a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-ti1", denotes := "Atlas"}) (nil LexiconEntry))))))))))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries11,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (cons (record LexiconEntry {id := "atlas-v65a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v65b", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v65c", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v66a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v66b", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v66c", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v67", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v68a", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v68b", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v69", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v70", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v71", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v72", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v73", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v74", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v75", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v76", denotes := "Atlas"}) (cons (record LexiconEntry {id := "atlas-v77", denotes := "Atlas"}) (nil LexiconEntry)))))))))))))))))))
+}
+
+definition{
+  name: atlasEntries,
+  parameters: [],
+  result: (List LexiconEntry),
+  body: (joinEntries (atlasEntries00) (joinEntries (atlasEntries01) (joinEntries (atlasEntries02) (joinEntries (atlasEntries03) (joinEntries (atlasEntries04) (joinEntries (atlasEntries05) (joinEntries (atlasEntries06) (joinEntries (atlasEntries07) (joinEntries (atlasEntries08) (joinEntries (atlasEntries09) (joinEntries (atlasEntries10) (joinEntries (atlasEntries11) (nil LexiconEntry)))))))))))))
+}
+
+definition{
+  name: countTexts,
+  parameters: [texts : (List String)],
+  result: Nat,
+  body: (match texts | List.nil => 0 | List.cons head rest => (1 + (countTexts rest))),
+  recursive_argument: texts
+}
+
+definition{
+  name: countEntries,
+  parameters: [entries : (List LexiconEntry)],
+  result: Nat,
+  body: (match entries | List.nil => 0 | List.cons head rest => (1 + (countEntries rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: memberText,
+  parameters: [wanted : String, texts : (List String)],
+  result: Bool,
+  body: (match texts
+    | List.nil => false
+    | List.cons head rest => (if (prim equal wanted head : Bool) then true else (memberText wanted rest))),
+  recursive_argument: texts
+}
+
+definition{
+  name: removeText,
+  parameters: [wanted : String, texts : (List String)],
+  result: (List String),
+  body: (match texts
+    | List.nil => (nil String)
+    | List.cons head rest => (if (prim equal wanted head : Bool) then (removeText wanted rest) else (cons head (removeText wanted rest)))),
+  recursive_argument: texts
+}
+
+definition{
+  name: servedCount,
+  parameters: [modules : (List String), entries : (List LexiconEntry)],
+  result: Nat,
+  body: (match entries
+    | List.nil => 0
+    | List.cons head rest => (if (memberText (project head denotes) modules) then (1 + (servedCount modules rest)) else (servedCount modules rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: allDenote,
+  parameters: [module : String, entries : (List LexiconEntry)],
+  result: Bool,
+  body: (match entries
+    | List.nil => true
+    | List.cons head rest => ((prim equal module (project head denotes) : Bool) && (allDenote module rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: servesAll,
+  parameters: [modules : (List String), entries : (List LexiconEntry)],
+  result: Bool,
+  body: ((servedCount modules entries) =? (countEntries entries))
+}
+
+definition{
+  name: unknownEntry,
+  parameters: [],
+  result: LexiconEntry,
+  body: (record LexiconEntry {id := "atlas-unknown", denotes := "Missing"})
+}
+
+theorem{
+  name: profileDomainIsTheIssuesTag,
+  parameters: [],
+  statement: ((Identity::profileDomain) = (cons 108 (cons 101 (cons 120 (cons 108 (cons 101 (cons 97 (cons 110 (cons 45 (cons 109 (cons 99 (cons 112 (cons 45 (cons 112 (cons 114 (cons 111 (cons 102 (cons 105 (cons 108 (cons 101 (cons 45 (cons 118 (cons 49 (nil Nat)))))))))))))))))))))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: rootsMatchWholeComponents,
+  parameters: [],
+  statement: (((underRoot 0x737263 0x7372632f4d61696e2e6c65782e746578) && ((underRoot 0x737263 0x7372632f646565702f4f746865722e6c65782e746578) && ((if (underRoot 0x737263 0x737263732f4d61696e2e6c65782e746578) then false else true) && ((if (underRoot 0x737263 0x737263) then false else true) && (if (underRoot 0x737263 0x6c65786c65616e2e746f6d6c) then false else true))))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: sourceFilesAreNotProfileFiles,
+  parameters: [],
+  statement: ((profileFiles (exampleRoots) (withSources)) = (profileFiles (exampleRoots) (baseFiles))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: profileFilesKeepEverythingOutsideTheRoots,
+  parameters: [],
+  statement: ((profileFiles (exampleRoots) (baseFiles)) = (baseFiles)),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aSourceFileNeverChangesTheId,
+  parameters: [files : (List (Bytes * Bytes)), reviews : (List Bytes), toolchain : Bytes],
+  statement: ((profileIdOf (exampleRoots) (cons (pfSource) files) reviews toolchain) = (profileIdOf (exampleRoots) files reviews toolchain)),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aDeeperSourceFileNeverChangesTheId,
+  parameters: [files : (List (Bytes * Bytes)), reviews : (List Bytes), toolchain : Bytes],
+  statement: ((profileIdOf (exampleRoots) (cons (pfSourceDeep) files) reviews toolchain) = (profileIdOf (exampleRoots) files reviews toolchain)),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: changedBytesOfConfigChangeThePreimage,
+  parameters: [],
+  statement: ((otherFraming (framingOf (baseFiles)) (framingOf (changedConfig))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: changedBytesOfLockChangeThePreimage,
+  parameters: [],
+  statement: ((otherFraming (framingOf (baseFiles)) (framingOf (changedLock))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: changedBytesOfLexiconChangeThePreimage,
+  parameters: [],
+  statement: ((otherFraming (framingOf (baseFiles)) (framingOf (changedLexicon))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: changedBytesOfArtifactChangeThePreimage,
+  parameters: [],
+  statement: ((otherFraming (framingOf (baseFiles)) (framingOf (changedArtifact))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aRenamedFileChangesThePreimage,
+  parameters: [],
+  statement: ((otherFraming (framingOf (baseFiles)) (framingOf (renamedConfig))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: anAddedFileChangesThePreimage,
+  parameters: [],
+  statement: ((otherFraming (framingOf (baseFiles)) (framingOf (addedFile))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aRemovedFileChangesThePreimage,
+  parameters: [],
+  statement: ((otherFraming (framingOf (baseFiles)) (framingOf (removedFile))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aLookalikeDirectoryCounts,
+  parameters: [],
+  statement: ((otherFraming (framingOf (baseFiles)) (framingOf (withLookalike))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aFileNamedLikeTheRootCounts,
+  parameters: [],
+  statement: ((otherFraming (framingOf (baseFiles)) (framingOf (withBareRoot))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: changedBytesOfConfigChangeTheDigest,
+  parameters: [],
+  statement: ((otherId (idOf (tinyBase)) (idOf (tinyChanged))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aRenamedFileChangesTheDigest,
+  parameters: [],
+  statement: ((otherId (idOf (tinyBase)) (idOf (tinyRenamed))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aSourceFileLeavesThePreimageAlone,
+  parameters: [],
+  statement: ((framingOf (withSource)) = (framingOf (baseFiles))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: rowOrder2GivesTheSamePreimage,
+  parameters: [],
+  statement: ((framingOf (order2)) = (framingOf (baseFiles))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: rowOrder3GivesTheSamePreimage,
+  parameters: [],
+  statement: ((framingOf (order3)) = (framingOf (baseFiles))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: rowOrder4GivesTheSamePreimage,
+  parameters: [],
+  statement: ((framingOf (order4)) = (framingOf (baseFiles))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: rowOrder5GivesTheSamePreimage,
+  parameters: [],
+  statement: ((framingOf (order5)) = (framingOf (baseFiles))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: idOfIsTheProfileId,
+  parameters: [files : (List (Bytes * Bytes))],
+  statement: ((idOf files) = (profileIdOf (exampleRoots) files (exampleReviews) (exampleToolchain))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: rowOrder2GivesTheSameId,
+  parameters: [],
+  statement: ((idOf (order2)) = (idOf (baseFiles))),
+  proof: simplify{definitions: [idOf, rowOrder2GivesTheSamePreimage]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aDuplicatePathIsRefused,
+  parameters: [],
+  statement: ((idOf (duplicatePath)) = (ctor Identity::Outcome.DuplicatePath)),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: everyLanguagePairIsDecided,
+  parameters: [],
+  statement: ((languageTable) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: anotherLanguageIsRefusedWithLLC0103,
+  parameters: [],
+  statement: ((refusedWith "LLC0103" (checkPackages "1.2" (cons (record PackageDecl {package := "a", language := "1.2"}) (cons (record PackageDecl {package := "b", language := "1.0"}) (nil PackageDecl))))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: samePackageLanguagesAreAdmitted,
+  parameters: [],
+  statement: ((admitted (checkPackages "1.2" (cons (record PackageDecl {package := "a", language := "1.2"}) (cons (record PackageDecl {package := "b", language := "1.2"}) (nil PackageDecl))))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: theAtlasProfileIsLanguageOneZero,
+  parameters: [],
+  statement: ((languageOfProfile (atlasProfileName) (OwnerValues::profileRecords)) = (ctor Option.some [String] (atlasLanguage))),
+  proof: decide{}
+}
+
+theorem{
+  name: theAtlasProfileRefusesALanguageOnePackage,
+  parameters: [],
+  statement: ((refusedWith (languageMismatchCode) (checkPackage (atlasLanguage) "1.2")) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: theAtlasProfileHasTheIssuesCounts,
+  parameters: [],
+  statement: ((((countEntries (atlasEntries)) =? (atlasEntryCount)) && ((countTexts (atlasModules)) =? (atlasModuleCount))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: everyAtlasEntryDenotesTheAtlasModule,
+  parameters: [],
+  statement: ((allDenote (atlasModuleName) (atlasEntries)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: theAtlasModuleIsInTheProjectsModules,
+  parameters: [],
+  statement: ((memberText (atlasModuleName) (atlasModules)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: anAtlasProfileServesAll293Entries,
+  parameters: [],
+  statement: ((servedCount (atlasModules) (atlasEntries)) = 293),
+  proof: decide{}
+}
+
+theorem{
+  name: withoutTheAtlasModuleNoEntryIsServed,
+  parameters: [],
+  statement: ((servedCount (removeText (atlasModuleName) (atlasModules)) (atlasEntries)) = 0),
+  proof: decide{}
+}
+
+theorem{
+  name: anEntryIntoAMissingModuleIsNotServed,
+  parameters: [],
+  statement: ((servedCount (atlasModules) (cons (unknownEntry) (atlasEntries))) = 293),
+  proof: decide{}
+}
+
+theorem{
+  name: aMissingModuleIsDetected,
+  parameters: [],
+  statement: ((servesAll (atlasModules) (cons (unknownEntry) (atlasEntries))) = false),
+  proof: decide{}
+}
+
+definition{
+  name: profilesModelHolds,
+  parameters: [],
+  result: Bool,
+  body: ((servesAll (atlasModules) (atlasEntries)) && ((languageTable) && ((countEntries (atlasEntries)) =? (atlasEntryCount))))
+}
+
+theorem{
+  name: profilesModelHoldsTheorem,
+  parameters: [],
+  statement: ((profilesModelHolds) = true),
+  proof: decide{}
+}
+\end{semanticmodule}
+\end{lexlean}
