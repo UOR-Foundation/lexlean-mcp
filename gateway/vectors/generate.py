@@ -319,7 +319,7 @@ def spec() -> list:
     """The requests, in the order they run: (name, kind, method, tool, arguments).
 
     The kind is what the vector shows: a request the gateway answers without any effect
-    (`tools-list`, `invalid-arguments`, `unknown-tool`), or the call of a tool, which
+    (`tools-list`, `invalid-arguments`, `unknown-tool`, `explain`), or the call of a tool, which
     asks for the effect named in its name."""
     call = "tools/call"
     out = [
@@ -353,6 +353,11 @@ def spec() -> list:
          {"profile": "absent", "entry": "entries"}),
         ("attestation.lookup finds nothing", "tool-call", call, "lexlean_attestation",
          {"by": "id", "value": DIGEST}),
+        # An explanation is a function of the code, compiled into the core: no effect is asked.
+        ("lexlean_explain a registered code", "explain", call, "lexlean_explain",
+         {"code": "LLL1004"}),
+        ("lexlean_explain a code the registry lacks", "explain", call, "lexlean_explain",
+         {"code": "LLX\"9999\\"}),
     ]
     return out
 

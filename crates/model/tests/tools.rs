@@ -451,6 +451,13 @@ fn lexlean_explain_is_a_pure_function_of_the_code_tl_10() {
         !plan.contains("lexlean_explain"),
         "lexlean_explain has no effect to plan"
     );
+    // Two recorded vectors show it: a registered code and one the registry lacks ask for no effect.
+    let vectors = read("gateway/vectors/exchanges.json");
+    assert_eq!(
+        vectors.matches("\"kind\": \"explain\"").count(),
+        2,
+        "the vectors hold an explanation of a registered code and of an unregistered one"
+    );
     needs(
         "TL-10",
         &[

@@ -100,9 +100,13 @@ run as `lexlean explain <CODE>` for each of the 86 codes: its output equals the 
 `LLC0001`. No test of this repository runs the binary.
 
 **What it does not show.** That a code in the result of a running tool resolves
-through the running `lexlean_explain` (F11). That clause is in `pendingClauses` for
-#10. It also does not show that the registry is closed over what the compiler can
-emit: that is LexLean's own gate (`validate-model` rejects an unregistered code in use
+through the running `lexlean_explain` (F11) is not shown by this evidence. `TL-13`
+(`gateway/tool-tests/tests/equality.rs`, TOOLS.md) executes it where the tool is built:
+every code in the results of `lexlean_check` and `lexlean_build` on the fixtures of
+`TL-03` is resolved through the running tool to the entry the CLI prints. That test is
+a register row of the issue-10 change; the quality model (`pendingClauses`, the measure
+rows of `src/Quality.lex.tex`) is not edited by it and still lists the clause. It also does not show that the registry is closed over what the
+compiler can emit: that is LexLean's own gate (`validate-model` rejects an unregistered code in use
 and an unused registered one, SPEC 26.1), cited here and not re-run. The fixtures
 return only some of the 86 codes; the others are explained but not observed in a
 result.
@@ -112,7 +116,7 @@ result.
 Q1 (CLI equality as a run), Q3 (fault tolerance), Q4 (no child processes), Q5 (the MCP
 oracles), Q6 (modularity) and Q7 (the same `build_id` on both platforms) stay
 `Pending`: each needs the tools or the deployed service, and each says in the model
-which issue executes it. For Q2 and Q8 the runtime half is not met, as above. Issue
+which issue executes it. For Q2 the runtime half is not met, as above; for Q8 it is executed by `TL-13` and is still listed as pending by the quality model. Issue
 #15 stays open.
 
 ## Planted defects

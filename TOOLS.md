@@ -1,11 +1,11 @@
 # The engine tools
 
 Issue #10 asks that `lexlean_check`, `lexlean_snapshot`, `lexlean_format` and `lexlean_build`
-(F4 to F7) agree with the `lexlean` CLI. This file says what each tool returns, how an
-answer of the Engine becomes an MCP result, and how the claim "the tool equals the CLI" is
-tested. The rows are `TL-01` to `TL-09` (suite `tools`); the tests are
-`cargo test -p repo-model --test tools` (the register half) and, in the gateway workspace,
-`cargo test -p gateway-tool-tests` (the behaviour half). The effects are those of
+(F4 to F7) and `lexlean_explain` (F11) agree with the `lexlean` CLI. This file says what each
+tool returns, how an answer of the Engine becomes an MCP result, and how the claim "the tool
+equals the CLI" is tested. The rows are `TL-01` to `TL-09` (F4 to F7) and `TL-10` to `TL-14`
+(F11), suite `tools`; the tests are `cargo test -p repo-model --test tools` (the register half)
+and, in the gateway workspace, `cargo test -p gateway-tool-tests` (the behaviour half). The effects are those of
 `src/Effects.lex.tex` and are not changed: `engine.check`, `engine.snapshot`,
 `engine.format` and `engine.build` are E3 to E6, and the set stays E1 to E10.
 
@@ -101,6 +101,48 @@ differ from `expected/build` in 12 of 18 (the identities are in the manifest and
 tool's tree equals the CLI's for every one of the 18. AC-04 as the issue words it ("the
 examples build to their `expected/build`") is therefore not shown at this pin for 12 examples
 (PR body, "Not met").
+
+## `lexlean_explain` (F11)
+
+`lexlean explain <CODE>` (SPEC 23.4) opens no project: it renders the row of `model/errors.toml`
+that the binary embeds (`cli::explain_text`), or refuses a code the registry lacks. That is a
+function of the code, so the tool is one too and the host is asked for nothing: the set of
+effects stays `E1` to `E10` of `src/Effects.lex.tex`, and `TL-10` observes that a call performs
+none. The entries are compiled into the core instead:
+
+| Part | What it is |
+| --- | --- |
+| `gateway/src/Explain.lex.tex` | the entry of each registered code, as `explain_text` renders it, in groups of eight rows and a lookup `Explain.entry : String -> Option String` |
+| `gateway/explain/generate.py` | renders the module from `model/errors.toml` of the LexLean commit of `gateway/mcp/lexlean.rev` (`render`, `check`, `codes`); the module has no author but this script (R1) |
+| `GatewayTools.explainDocument` | builds the command result as a JSON value with the members in the CLI's order (UTF-8 byte order of the keys) |
+| `GatewayTools.explainReply` | writes it with MCP's `JsonWrite.writeJson`, appends the final line feed, and returns it as text and `structuredContent` |
+
+MCP's writer escapes a string with the rules of LexLean's canonical JSON (the quotation mark, the
+reverse solidus, `\b \t \n \f \r`, `\u00xx` for the other controls, everything else raw
+UTF-8), so a code the registry lacks is quoted in the refusal as the CLI quotes it.
+
+| The code | The tool returns | The CLI |
+| --- | --- | --- |
+| registered | no `isError`; the command result with `command: "explain"`, `exit_code: 0` and the `explanation`; the text block is the CLI's standard output | exit 0 |
+| any other string, the empty one included | `isError: true`; the command result with one `LLC0001` diagnostic, ``` `CODE` is not a registered diagnostic code ```, `exit_code: 2`; the same bytes as text | exit 2 |
+
+The match is exact and case-sensitive, as the CLI's is. A code that begins with `-` is an option
+to the CLI's parser (it answers `LLC0001`, "unexpected argument", which is a parser error and not
+a lookup); the tool equals `lexlean explain -- CODE`, and the test runs the CLI that way. The input
+schema is closed: `code` (a string) is required, and a call that breaks it is refused by the core as
+`Invalid arguments`, with no effect, like the other tools.
+
+`TL-12` (`gateway/tool-tests/tests/explain.rs`, ignored, run by the gateway job) reads the codes
+from `model/errors.toml` of the checkout of LexLean at the pin (86, asserted) and, for each, and
+for a corpus of strings the registry lacks (the empty string, case and spacing variants, the
+backquote, the quotation mark, the reverse solidus, controls, DEL, accents, `§`, CJK, an emoji,
+dashes, a path, and for every code its lower-case form, the code and a space, and the code
+without its last character), runs `lexlean --diagnostic-format json explain` in a directory with no
+project and calls the tool, and requires the same text bytes, `structuredContent` equal to the
+parsed standard output, `isError` equal to `exit_code != 0`, the exit status, an empty standard
+error and no effect. `TL-13` (in `equality.rs`) collects the codes in the results of
+`lexlean_check` and `lexlean_build` on the fixtures of `TL-03`, requires them to be the codes the
+fixtures expect, and resolves each through the tool: Q8's running clause.
 
 ## Q4: no child process
 

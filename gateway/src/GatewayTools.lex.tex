@@ -5,6 +5,7 @@
 \importmodule{Common}
 \importmodule{Content}
 \importmodule{Effects}
+\importmodule{Explain}
 \importmodule{Frame}
 \importmodule{HostEffect}
 \importmodule{Http}
@@ -13,6 +14,7 @@
 \importmodule{JsonEq}
 \importmodule{JsonRead}
 \importmodule{JsonText}
+\importmodule{JsonWrite}
 \importmodule{Methods}
 \importmodule{Numeric}
 \importmodule{Refusal}
@@ -496,16 +498,61 @@ definition{
 }
 
 definition{
+  name: noItems,
+  parameters: [],
+  result: Json::Json,
+  body: (ctor Json::Json.array (nil Json::Json)),
+  executable: true
+}
+
+definition{
+  name: unregisteredDiagnostic,
+  parameters: [code : String],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("causes", (noItems)) (cons ("code", (textJson "LLC0001")) (cons ("help", (noItems)) (cons ("labels", (noItems)) (cons ("message", (textJson (prim join (cons "`" (cons code (cons "` is not a registered diagnostic code" (nil String)))) "" : String))) (cons ("notes", (noItems)) (cons ("severity", (textJson "error")) (member "spec" (textJson "lexlean/diagnostic/1")))))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: explainDocument,
+  parameters: [code : String],
+  result: Json::Json,
+  body: (match (Explain::entry code)
+    | Option.some text => (ctor Json::Json.object (cons ("artifacts", (noItems)) (cons ("command", (textJson "explain")) (cons ("diagnostics", (noItems)) (cons ("exit_code", (ResultJson::natJson 0)) (cons ("explanation", (textJson text)) (cons ("modules", (noItems)) (cons ("spec", (textJson "lexlean/command-result/1")) (member "success" (flagJson true))))))))))
+    | Option.none => (ctor Json::Json.object (cons ("artifacts", (noItems)) (cons ("command", (textJson "explain")) (cons ("diagnostics", (ctor Json::Json.array (cons (unregisteredDiagnostic code) (nil Json::Json)))) (cons ("exit_code", (ResultJson::natJson 2)) (cons ("modules", (noItems)) (cons ("spec", (textJson "lexlean/command-result/1")) (member "success" (flagJson false)))))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: explainReply,
+  parameters: [code : String],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (let document : Json::Json := (explainDocument code); (match (JsonWrite::writeJson document)
+    | Result.error reason => (refused "the command result of explain cannot be written")
+    | Result.ok written => (accepted (reply (prim join (cons (contentText written) (cons "\n" (nil String))) "" : String) document (match (Explain::entry code)
+      | Option.some text => false
+      | Option.none => true))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
   name: behave,
   parameters: [completed : (List HostEffect::Completed), params : Methods::CallToolParams],
   result: (Result Methods::Progressed Refusal::ProviderRefusal),
-  body: (match (plan params)
+  body: (if (isTool params "lexlean_explain") then (match completed
+    | List.nil => (match (argText params "code")
+      | Option.none => (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments "code is not a string"))
+      | Option.some code => (explainReply code))
+    | List.cons entry rest => (refused "the host performed an effect that nothing asked for")) else (match (plan params)
     | Option.none => (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments "a file name holds a line feed, a draft is over draft.max_bytes, or all is true with files"))
     | Option.some chosen => (match completed
       | List.nil => (asking (tagOf (project chosen effect)) (project chosen payload))
       | List.cons entry rest => (match rest
         | List.nil => (if ((project entry tag) =? (tagOf (project chosen effect))) then (render (project chosen effect) (project entry outcome)) else (refused "the host performed another effect"))
-        | List.cons more again => (refused "the host performed more than one effect")))),
+        | List.cons more again => (refused "the host performed more than one effect"))))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -618,6 +665,14 @@ definition{
 }
 
 definition{
+  name: explainResultSchema,
+  parameters: [],
+  result: Json::JsonObject,
+  body: (objectOf (cons ("spec", (constProp "lexlean/command-result/1")) (cons ("command", (constProp "explain")) (cons ("success", (kindProp "boolean")) (cons ("exit_code", (kindProp "integer")) (cons ("modules", (stringsProp)) (cons ("artifacts", (stringsProp)) (cons ("diagnostics", (diagnosticsProp)) (member "explanation" (kindProp "string"))))))))) (cons "spec" (cons "command" (cons "success" (cons "exit_code" (cons "modules" (cons "artifacts" (cons "diagnostics" (nil String))))))))),
+  executable: true
+}
+
+definition{
   name: snapshotSchema,
   parameters: [],
   result: Json::JsonObject,
@@ -642,7 +697,7 @@ definition{
   name: gatewayTools,
   parameters: [],
   result: (List Content::Tool),
-  body: (cons (effectTool "lexlean_draft_write" "Write a file of a draft in the store." (objectOf (cons ("path", (nonEmptyProp)) (member "content" (kindProp "string"))) (cons "path" (cons "content" (nil String))))) (cons (effectTool "lexlean_draft_read" "Read a file of a draft from the store." (objectOf (member "path" (nonEmptyProp)) (cons "path" (nil String)))) (cons (engineTool "lexlean_check" "Check a project with the LexLean engine: the result is what lexlean check prints with --diagnostic-format json, and a refused project is an error result that carries it." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "check")) (cons (engineTool "lexlean_snapshot" "Take the semantic snapshot of a project with the LexLean engine: the result is the snapshot, and a refused project is an error result with the command result of check." (objectOf (engineProperties) (cons "project" (nil String))) (snapshotSchema)) (cons (engineTool "lexlean_format" "Format a project with the LexLean engine as lexlean fmt does, or check its formatting with check_only." (objectOf (prim append (engineProperties) (member "check_only" (kindProp "boolean")) : (List (String * Json::Json))) (cons "project" (nil String))) (commandResultSchema "fmt")) (cons (engineTool "lexlean_build" "Build a project with the LexLean engine as lexlean build does." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "build")) (cons (effectTool "lexlean_verify" "Start the verification of a project and return its task." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify_control" "Read the state of a verification task, or cancel it." (objectOf (cons ("task", (nonEmptyProp)) (member "action" (choiceProp "status" "cancel"))) (cons "task" (cons "action" (nil String))))) (cons (effectTool "lexlean_lexicon_read" "Read an entry of the lexicon of a profile." (objectOf (cons ("profile", (nonEmptyProp)) (member "entry" (nonEmptyProp))) (cons "profile" (cons "entry" (nil String))))) (cons (effectTool "lexlean_attestation" "Look an attestation up by its ID or by the digest of its file." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (nil Content::Tool))))))))))),
+  body: (cons (effectTool "lexlean_draft_write" "Write a file of a draft in the store." (objectOf (cons ("path", (nonEmptyProp)) (member "content" (kindProp "string"))) (cons "path" (cons "content" (nil String))))) (cons (effectTool "lexlean_draft_read" "Read a file of a draft from the store." (objectOf (member "path" (nonEmptyProp)) (cons "path" (nil String)))) (cons (engineTool "lexlean_check" "Check a project with the LexLean engine: the result is what lexlean check prints with --diagnostic-format json, and a refused project is an error result that carries it." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "check")) (cons (engineTool "lexlean_snapshot" "Take the semantic snapshot of a project with the LexLean engine: the result is the snapshot, and a refused project is an error result with the command result of check." (objectOf (engineProperties) (cons "project" (nil String))) (snapshotSchema)) (cons (engineTool "lexlean_format" "Format a project with the LexLean engine as lexlean fmt does, or check its formatting with check_only." (objectOf (prim append (engineProperties) (member "check_only" (kindProp "boolean")) : (List (String * Json::Json))) (cons "project" (nil String))) (commandResultSchema "fmt")) (cons (engineTool "lexlean_build" "Build a project with the LexLean engine as lexlean build does." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "build")) (cons (engineTool "lexlean_explain" "Explain a diagnostic code of LexLean: the result is what lexlean explain prints with --diagnostic-format json, and a code the registry does not hold is an error result that carries the refusal of the CLI." (objectOf (member "code" (kindProp "string")) (cons "code" (nil String))) (explainResultSchema)) (cons (effectTool "lexlean_verify" "Start the verification of a project and return its task." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify_control" "Read the state of a verification task, or cancel it." (objectOf (cons ("task", (nonEmptyProp)) (member "action" (choiceProp "status" "cancel"))) (cons "task" (cons "action" (nil String))))) (cons (effectTool "lexlean_lexicon_read" "Read an entry of the lexicon of a profile." (objectOf (cons ("profile", (nonEmptyProp)) (member "entry" (nonEmptyProp))) (cons "profile" (cons "entry" (nil String))))) (cons (effectTool "lexlean_attestation" "Look an attestation up by its ID or by the digest of its file." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (nil Content::Tool)))))))))))),
   executable: true
 }
 

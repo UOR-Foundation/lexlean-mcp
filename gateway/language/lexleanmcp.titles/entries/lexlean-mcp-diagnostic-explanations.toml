@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-diagnostic-explanations"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Explain"
+component = "entry"
+
+[[form]]
+id = "lexlean-mcp-diagnostic-explanations"
+channel = "text"
+surface = "LexLean MCP diagnostic explanations"
+canonical_source = true
+features = ["sentence-case", "singular"]

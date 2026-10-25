@@ -357,7 +357,8 @@ jobs:
           # install_prismpm built at that pin.
           gate "gateway/lay-out-lexlean.sh" gateway/lay-out-lexlean.sh "$RUNNER_TEMP/lexlean-at-the-pin" &&
             export LEXLEAN_SOURCES="$RUNNER_TEMP/lexlean-at-the-pin" &&
-            gate "gateway-tool-tests ignored tests" gateway_ignored_tests gateway-tool-tests 4
+            gate "gateway/explain/generate.py check" python3 -I gateway/explain/generate.py check &&
+            gate "gateway-tool-tests ignored tests" gateway_ignored_tests gateway-tool-tests 6
       - name: 7i. the generated host source names no tool or method (Q6)
         run: |
           . .github/lexlean-ci/lib.sh
