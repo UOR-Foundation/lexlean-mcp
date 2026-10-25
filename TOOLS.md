@@ -126,6 +126,18 @@ UTF-8), so a code the registry lacks is quoted in the refusal as the CLI quotes 
 | registered | no `isError`; the command result with `command: "explain"`, `exit_code: 0` and the `explanation`; the text block is the CLI's standard output | exit 0 |
 | any other string, the empty one included | `isError: true`; the command result with one `LLC0001` diagnostic, ``` `CODE` is not a registered diagnostic code ```, `exit_code: 2`; the same bytes as text | exit 2 |
 
+The core writes every `tools/call` result through MCP's output sanitizer (`Sanitize.sanitizeJson`,
+applied by `ResultJson`), which replaces with U+FFFD each control character but the tab, the line
+feed and the carriage return, the delete character, each character of the C1 range, and the
+bidirectional embedding, override and isolate characters (U+202A to U+202E, U+2066 to U+2069). It
+touches no byte of the explanation of a registered code and none of the refusal of a code without
+such a character; it does change the refusal of a code that holds one, in `structuredContent`
+(where the character is a character) and in the text where the CLI prints it raw (the delete
+character and the C1 range: the writer escapes the others as `\u00xx`, so the text keeps the
+escape). So for such a code the tool returns the CLI's refusal with U+FFFD for the character. This
+is the pinned core's rule for every tool, not a choice of `lexlean_explain`; `TL-12` states it as
+`core_sanitized` and requires the difference on exactly the strings that hold such a character.
+
 The match is exact and case-sensitive, as the CLI's is. A code that begins with `-` is an option
 to the CLI's parser (it answers `LLC0001`, "unexpected argument", which is a parser error and not
 a lookup); the tool equals `lexlean explain -- CODE`, and the test runs the CLI that way. The input
@@ -139,7 +151,8 @@ backquote, the quotation mark, the reverse solidus, controls, DEL, accents, `§`
 dashes, a path, and for every code its lower-case form, the code and a space, and the code
 without its last character), runs `lexlean --diagnostic-format json explain` in a directory with no
 project and calls the tool, and requires the same text bytes, `structuredContent` equal to the
-parsed standard output, `isError` equal to `exit_code != 0`, the exit status, an empty standard
+parsed standard output (both after `core_sanitized`, which changes the 12 strings of the corpus
+that hold a character of the sanitizer and no registered code), `isError` equal to `exit_code != 0`, the exit status, an empty standard
 error and no effect. `TL-13` (in `equality.rs`) collects the codes in the results of
 `lexlean_check` and `lexlean_build` on the fixtures of `TL-03`, requires them to be the codes the
 fixtures expect, and resolves each through the tool: Q8's running clause.

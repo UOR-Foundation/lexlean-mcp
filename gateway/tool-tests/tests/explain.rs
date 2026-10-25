@@ -193,6 +193,15 @@ fn unregistered(codes: &[String]) -> Vec<String> {
         "\u{c}",
         "\u{1f}",
         "\u{7f}",
+        "\u{85}",
+        "\u{9f}",
+        "\u{a0}",
+        "\u{2028}",
+        "\u{200b}",
+        "\u{202a}",
+        "\u{202e}",
+        "\u{2066}",
+        "\u{2069}",
         "é",
         "e\u{301}",
         "§",
@@ -216,6 +225,41 @@ fn unregistered(codes: &[String]) -> Vec<String> {
         strings.push(code[..code.len() - 1].to_string());
     }
     strings
+}
+
+/// What the core does to every string of a result before it writes the result (MCP's
+/// `Sanitize`, applied by `ResultJson` to every `tools/call` result): each control character other
+/// than the tab, the line feed and the carriage return, the delete character, each character of
+/// the C1 range (U+0080 to U+009F), the five bidirectional embedding and override characters
+/// (U+202A to U+202E) and the four isolates (U+2066 to U+2069) becomes U+FFFD. The text of a
+/// command result holds none of these but the delete character and the C1 range (the writer
+/// escapes the others), and `structuredContent` holds all of them as the code the caller sent.
+fn core_sanitized(text: &str) -> String {
+    text.chars()
+        .map(|c| match c {
+            '\t' | '\n' | '\r' => c,
+            '\u{0}'..='\u{1f}'
+            | '\u{7f}'..='\u{9f}'
+            | '\u{202a}'..='\u{202e}'
+            | '\u{2066}'..='\u{2069}' => '\u{fffd}',
+            _ => c,
+        })
+        .collect()
+}
+
+/// `value` with `core_sanitized` applied to each string in it.
+fn core_sanitized_value(value: &Value) -> Value {
+    match value {
+        Value::String(text) => Value::String(core_sanitized(text)),
+        Value::Array(items) => Value::Array(items.iter().map(core_sanitized_value).collect()),
+        Value::Object(members) => Value::Object(
+            members
+                .iter()
+                .map(|(key, member)| (core_sanitized(key), core_sanitized_value(member)))
+                .collect(),
+        ),
+        other => other.clone(),
+    }
 }
 
 /// Run the CLI as `lexlean explain CODE`, with `--` before a code that begins with a dash, in a
@@ -242,6 +286,7 @@ fn tool_equals_cli_on_every_registered_code_and_on_unregistered_strings_tl_12() 
     let mut failures = Vec::new();
     let mut registered = 0;
     let mut refused = 0;
+    let mut changed: Vec<String> = Vec::new();
     let strings: Vec<(String, bool)> = codes
         .iter()
         .map(|code| (code.clone(), true))
@@ -268,13 +313,18 @@ fn tool_equals_cli_on_every_registered_code_and_on_unregistered_strings_tl_12() 
         } else {
             let result = &reply.body["result"];
             let printed = String::from_utf8_lossy(&cli.stdout).into_owned();
-            if result["content"][0]["text"].as_str() != Some(printed.as_str()) {
+            let expected_text = core_sanitized(&printed);
+            if result["content"][0]["text"].as_str() != Some(expected_text.as_str()) {
                 found.push(format!(
                     "the text is {:?}, the CLI printed {printed:?}",
                     result["content"][0]["text"]
                 ));
             }
             let parsed: Value = serde_json::from_str(&printed).expect("the CLI printed JSON");
+            if core_sanitized_value(&parsed) != parsed || expected_text != printed {
+                changed.push(code.clone());
+            }
+            let parsed = core_sanitized_value(&parsed);
             if result["structuredContent"] != parsed {
                 found.push(format!(
                     "structuredContent is {}, the CLI printed {parsed}",
@@ -307,5 +357,24 @@ fn tool_equals_cli_on_every_registered_code_and_on_unregistered_strings_tl_12() 
         failures.join("\n")
     );
     assert_eq!(registered, REGISTERED_CODES);
-    eprintln!("TL-12: {registered} registered codes and {refused} other strings, every one equal to the CLI");
+    // The core rewrites a result only where a character of its sanitizer is quoted: never in the
+    // explanation of a registered code, and only in the refusal of a string that holds such a
+    // character.
+    assert!(
+        changed.iter().all(|code| core_sanitized(code) != *code),
+        "the core changed a result that quotes no character of its sanitizer: {changed:?}"
+    );
+    assert!(
+        changed.iter().all(|code| !codes.contains(code)),
+        "the core changed the explanation of a registered code: {changed:?}"
+    );
+    assert!(
+        changed.len() >= 10,
+        "the corpus holds the characters the core replaces: {changed:?}"
+    );
+    eprintln!(
+        "TL-12: {registered} registered codes and {refused} other strings, every one equal to the CLI \
+         ({} of them as the core's sanitizer writes them)",
+        changed.len()
+    );
 }
