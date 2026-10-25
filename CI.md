@@ -74,6 +74,15 @@ committed.
 committed. Run them after `prismpm build` and `gateway/lay-out.sh`: the lock names the
 generated members.
 
+### The executables `prismpm verify` pins
+
+`prismpm verify` runs only with the executables PrismPM's `tools.lock` names, by digest, and stops
+with PP5008 otherwise: the elan proxy (`lake`, `lean`) of elan v4.2.3, the rustup proxy
+(`rustc`, `rustfmt`) and the `timeout` of Debian's coreutils 9.1-1. The gateway job therefore
+sets `ELAN_VERSION` and `ELAN_SHA256` for itself to elan v4.2.3 (the other jobs keep v4.2.4), and
+`install_pinned_timeout` (`.github/lexlean-ci/lib.sh`) takes `timeout` out of the Debian package
+and checks its digest before the verify step. The runner's rustup (1.28.2) is the pinned proxy.
+
 ### The release step
 
 Uploading to crates.io is the last step of a release, at the tag. Development does not wait

@@ -442,6 +442,28 @@ gateway_ignored_tests() {
 }
 
 # gateway_verify: `prismpm verify` in the gateway project, on a store that starts empty.
+# install_pinned_timeout: `prismpm verify` runs its children under `timeout` and refuses any
+# `timeout` but the one of coreutils 9.1-1 (Debian bookworm), which PrismPM's tools.lock pins by
+# digest (timeout_sha256, timeout_package) and which the runner's coreutils 9.4 is not. The
+# package is fetched from Debian, the one file is taken out, its digest is checked, and its
+# directory goes first on PATH for the verify step. The digest here is PrismPM's at the pin;
+# a different one makes `prismpm verify` itself stop with PP5008.
+TIMEOUT_SHA256=5ef0eaaaa4220593add7716aad74da927ca3bb10605e964330de64fecc3ef15e
+install_pinned_timeout() {
+  local dir bin
+  dir=$(mktemp -d)
+  bin=${RUNNER_TEMP:-${TMPDIR:-/tmp}}/pinned-bin
+  mkdir -p "$bin"
+  curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+    --output "$dir/coreutils.deb" \
+    "https://deb.debian.org/debian/pool/main/c/coreutils/coreutils_9.1-1_amd64.deb"
+  dpkg-deb -x "$dir/coreutils.deb" "$dir/root"
+  install -m 0755 "$dir/root/usr/bin/timeout" "$bin/timeout"
+  echo "${TIMEOUT_SHA256}  $bin/timeout" | sha256sum --check --strict -
+  echo "$bin" >>"${GITHUB_PATH:-/dev/null}"
+  rm -rf "$dir"
+}
+
 gateway_verify() {
   local store
   store=$(mktemp -d)

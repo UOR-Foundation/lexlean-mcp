@@ -362,4 +362,6 @@ jobs:
       - name: 7k. prismpm verify
         run: |
           . .github/lexlean-ci/lib.sh
+          gate "the pinned timeout" install_pinned_timeout
+          export PATH="${RUNNER_TEMP:-/tmp}/pinned-bin:$PATH"
           gate "prismpm verify" gateway_verify
