@@ -260,10 +260,14 @@ def render(vectors: list) -> str:
         ("verifyBuildTimeoutSeconds", word(VERIFY_BUILD_TIMEOUT_SECONDS)),
         ("host", host),
     ])
-    literal_definitions = "".join(
-        f"definition{{\n  name: {name},\n  parameters: [],\n  result: Bytes,\n  body: {body}\n}}\n\n"
-        for name, body in LITERALS.values()
-    )
+    def literal_definition(name: str, body: str) -> str:
+        # `lexlean fmt` writes a definition on one line when the line is at most 100 columns.
+        line = f"definition{{name: {name}, parameters: [], result: Bytes, body: {body}}}"
+        if len(line) <= 100:
+            return line + "\n\n"
+        return f"definition{{\n  name: {name},\n  parameters: [],\n  result: Bytes,\n  body: {body}\n}}\n\n"
+
+    literal_definitions = "".join(literal_definition(name, body) for name, body in LITERALS.values())
     return (
         "\\begin{lexlean}{Application}\n"
         "\\useglossary{lexlean.std.bool@1.2.0}\n"

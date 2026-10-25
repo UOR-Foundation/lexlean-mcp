@@ -98,6 +98,11 @@ process in a fixed window and answers with the count before the request being se
 The attestation record is unsigned: DSSE signing is #11. `attestation.lookup` finds the
 record the verifier wrote, by ID or by the digest of a verified file.
 
+The generated host crates carry one method name, `tools/call`: it is the value the application
+declares for counting (`countedValue` of the serving section, the `Mcp-Method` of the requests
+`rate.calls` counts), which PrismPM renders into the serving surface and its tests. GW-06 allows
+that one name there and nowhere else; the binding, the source the repository writes, carries none.
+
 ## The vectors
 
 `vectors/exchanges.json` holds each vector as the real host answered it: the HTTP request,

@@ -330,9 +330,10 @@ jobs:
       - name: 7d. lexlean fmt --check, lock --check, check
         run: |
           . .github/lexlean-ci/lib.sh
-          gate "gateway modules are canonical" gateway_fmt_check
-          gate "gateway lexlean lock --check" gateway_lexlean lock --check
-          gate "gateway lexlean check" gateway_lexlean check
+          # `gate` leaves errexit off, so the gates of a step are chained.
+          gate "gateway modules are canonical" gateway_fmt_check &&
+            gate "gateway lexlean lock --check" gateway_lexlean lock --check &&
+            gate "gateway lexlean check" gateway_lexlean check
       - name: 7e. the registry from the pins
         run: |
           . .github/lexlean-ci/lib.sh
@@ -344,13 +345,13 @@ jobs:
       - name: 7g. the binding compiles, is formatted and passes clippy
         run: |
           . .github/lexlean-ci/lib.sh
-          gate "gateway cargo fmt" gateway_cargo fmt -p gateway-binding -p gateway-vectors -- --check
-          gate "gateway cargo clippy" gateway_cargo clippy -p gateway-binding -p gateway-vectors --all-targets --no-deps --locked --offline -- -D warnings
+          gate "gateway cargo fmt" gateway_cargo fmt -p gateway-binding -p gateway-vectors -- --check &&
+            gate "gateway cargo clippy" gateway_cargo clippy -p gateway-binding -p gateway-vectors --all-targets --no-deps --locked --offline -- -D warnings
       - name: 7h. the binding tests
         run: |
           . .github/lexlean-ci/lib.sh
-          gate "gateway-binding tests" gateway_cargo test -p gateway-binding --locked --offline
-          gate "gateway-binding ignored tests" gateway_ignored_tests gateway-binding 1
+          gate "gateway-binding tests" gateway_cargo test -p gateway-binding --locked --offline &&
+            gate "gateway-binding ignored tests" gateway_ignored_tests gateway-binding 1
       - name: 7i. the generated host source names no tool or method (Q6)
         run: |
           . .github/lexlean-ci/lib.sh
@@ -362,6 +363,6 @@ jobs:
       - name: 7k. prismpm verify
         run: |
           . .github/lexlean-ci/lib.sh
-          gate "the pinned timeout" install_pinned_timeout
-          export PATH="${RUNNER_TEMP:-/tmp}/pinned-bin:$PATH"
-          gate "prismpm verify" gateway_verify
+          gate "the pinned timeout" install_pinned_timeout &&
+            export PATH="${RUNNER_TEMP:-/tmp}/pinned-bin:$PATH" &&
+            gate "prismpm verify" gateway_verify

@@ -468,23 +468,16 @@ fn no_effect_outside_e1_to_e10_can_be_encoded_gw_05() {
 
 /// The tool names of the tool layer: the `lexlean_` string literals of `gateway/src`.
 fn tool_names() -> BTreeSet<String> {
-    let mut files = Vec::new();
-    walk(&root().join("gateway/src"), &mut files);
-    let mut names = BTreeSet::new();
-    for file in files
-        .iter()
-        .filter(|f| f.to_string_lossy().ends_with(".lex.tex"))
-    {
-        let text = std::fs::read_to_string(file).unwrap_or_default();
-        for literal in strings(&text) {
-            if literal.starts_with("lexlean_")
+    // The catalogue of the tool layer: the names the clients call. (The package name of the
+    // core, `lexlean_mcp_gateway_core`, has the same shape and is not a tool.)
+    let text = read("gateway/src/GatewayTools.lex.tex");
+    strings(&text)
+        .into_iter()
+        .filter(|literal| {
+            literal.starts_with("lexlean_")
                 && literal.chars().all(|c| c.is_ascii_lowercase() || c == '_')
-            {
-                names.insert(literal);
-            }
-        }
-    }
-    names
+        })
+        .collect()
 }
 
 /// The method names the MCP sources at the pin dispatch, plus the reserved prefixes.
@@ -626,7 +619,20 @@ fn no_tool_or_method_name_occurs_in_adapter_source_gw_06() {
 fn no_tool_or_method_name_occurs_in_generated_host_source_gw_06() {
     let tools = tool_names();
     let methods = method_names();
-    let names: BTreeSet<String> = tools.union(&methods).cloned().collect();
+    let mut names: BTreeSet<String> = tools.union(&methods).cloned().collect();
+    // The one method name the generated source carries is the value the application declares
+    // for counting (`countedValue`, rendered into the serving surface); the adapter source
+    // (GW-06, above) still carries no method name at all.
+    let declared = application();
+    let counted = declared
+        .split_once("countedValue := \"")
+        .and_then(|(_, rest)| rest.split_once('"'))
+        .map(|(value, _)| value.to_string())
+        .expect("the serving declares the counted value");
+    assert!(
+        names.remove(&counted),
+        "the counted value {counted} is an MCP method name"
+    );
     let generated: Vec<String> = std::fs::read_dir(root().join("gateway"))
         .expect("gateway")
         .flatten()

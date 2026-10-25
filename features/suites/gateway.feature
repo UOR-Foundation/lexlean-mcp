@@ -33,7 +33,7 @@ Feature: Generated gateway
     Then the closed-set tests exist, each is run by the gateway job with a count check and none is ignored without that reason
 
   @GW-06 @build
-  Scenario: Tool names and MCP method names occur nowhere in host adapter source (Q6): the names of the tools of gateway/src and the methods of the MCP sources at the pin do not occur in gateway/bindings, and, in the gateway job, not in the generated host-api and host crates either.
+  Scenario: Tool names and MCP method names occur nowhere in host adapter source (Q6): the names of the tools of gateway/src and the methods of the MCP sources at the pin do not occur in gateway/bindings, and, in the gateway job, not in the generated host-api and host crates either, except the one method the application declares as the counted value of its frame section, which the generated serving surface carries.
     Given the tool names of gateway/src, the method names of gateway/mcp/src and the host adapter source
     When every name is searched for in every file of the adapter source
     Then none is found, and a planted tool name in an adapter file is found
