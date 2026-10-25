@@ -19,7 +19,8 @@ modeled. One capability is built: the Unicode 17.0.0 NFC decision (#25),
 registered as NF-01 to NF-15 and used by path admission. The AC-07 fixture
 register of #10 is checked: FX-01 to FX-08 classify the 297 negative fixtures of
 LexLean `release/v0.4` at `9796067`, 285 of which reach a tool, with the expected
-command result of each. No tool runs them yet.
+command result of each. The four engine tools run them beside the CLI of the
+same commit (TL-01 to TL-09, [TOOLS.md](TOOLS.md)).
 The observability model of #16 is modeled: OB-01 to OB-10 hold the telemetry
 record types with redaction as a type, the eight service level indicators, the
 alert predicates, trace context extraction and the closed set of notifications the
@@ -118,6 +119,9 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   need the owner, and the defects planted in the theorems that check them.
 - [EFFECTS.md](EFFECTS.md) states the host effect set, its wire, its acceptance vectors, the
   mapping to PrismPM#216 and the defects planted in its gates.
+- [TOOLS.md](TOOLS.md) states what `lexlean_check`, `lexlean_snapshot`, `lexlean_format` and
+  `lexlean_build` return, how an answer of the Engine becomes a tool result, how the tool is
+  compared with the CLI, and the defects planted in those tests.
 - [FIXTURES.md](FIXTURES.md) states the counts and the classes of the AC-07
   fixture register and the defects planted in its gates.
 - [QUALITY.md](QUALITY.md) states what the executed measures of Q2 and Q8 show,
