@@ -34,10 +34,17 @@ fn waited_for() -> [u64; 4] {
 fn alive() -> Option<Vec<u32>> {
     let mut pids = Vec::new();
     let mut listed = false;
-    for task in std::fs::read_dir("/proc/self/task").expect("/proc/self/task").flatten() {
+    for task in std::fs::read_dir("/proc/self/task")
+        .expect("/proc/self/task")
+        .flatten()
+    {
         if let Ok(children) = std::fs::read_to_string(task.path().join("children")) {
             listed = true;
-            pids.extend(children.split_whitespace().filter_map(|pid| pid.parse::<u32>().ok()));
+            pids.extend(
+                children
+                    .split_whitespace()
+                    .filter_map(|pid| pid.parse::<u32>().ok()),
+            );
         }
     }
     listed.then_some(pids)
@@ -52,7 +59,10 @@ fn no_child_process_is_started_by_the_four_tools_tl_08() {
         let reply = gateway.call(tool, json!({"project": "tiny"}));
         assert_eq!(reply.effects.len(), 1, "{tool}: {}", reply.body);
         assert!(
-            reply.result().get("isError").is_none_or(|flag| flag == false),
+            reply
+                .result()
+                .get("isError")
+                .is_none_or(|flag| flag == false),
             "{tool} succeeds, so it ran the whole pipeline: {}",
             reply.body
         );
@@ -65,18 +75,32 @@ fn no_child_process_is_started_by_the_four_tools_tl_08() {
     // Every selection and the check-only format are paths of the same calls.
     for (tool, arguments) in [
         ("lexlean_check", json!({"project": "tiny", "all": true})),
-        ("lexlean_snapshot", json!({"project": "tiny", "files": ["src/Tiny.lex.tex"]})),
-        ("lexlean_format", json!({"project": "tiny", "check_only": true})),
+        (
+            "lexlean_snapshot",
+            json!({"project": "tiny", "files": ["src/Tiny.lex.tex"]}),
+        ),
+        (
+            "lexlean_format",
+            json!({"project": "tiny", "check_only": true}),
+        ),
     ] {
         gateway.call(tool, arguments);
-        assert_eq!((waited_for(), alive()), before, "{tool} started a child process");
+        assert_eq!(
+            (waited_for(), alive()),
+            before,
+            "{tool} started a child process"
+        );
     }
 
     // The control: a child that is started and waited for moves the accounting, and a child
     // that is alive is listed (when the kernel lists children at all).
     let mut child = Command::new("true").spawn().expect("a child");
     child.wait().expect("the child ends");
-    assert_ne!(waited_for(), before.0, "the accounting sees a child that was waited for");
+    assert_ne!(
+        waited_for(),
+        before.0,
+        "the accounting sees a child that was waited for"
+    );
     if before.1.is_some() {
         let mut sleeper = Command::new("sleep").arg("30").spawn().expect("a child");
         let listed = alive().expect("children are listed");

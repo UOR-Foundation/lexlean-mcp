@@ -114,7 +114,10 @@ fn table(document: &str, heading: &str) -> Vec<Vec<String>> {
                 .split('|')
                 .map(|cell| cell.trim().to_string())
                 .collect();
-            if cells.iter().all(|c| c.chars().all(|ch| ch == '-' || ch == ' ')) {
+            if cells
+                .iter()
+                .all(|c| c.chars().all(|ch| ch == '-' || ch == ' '))
+            {
                 continue;
             }
             rows.push(cells);
@@ -160,7 +163,10 @@ fn the_four_tools_declare_their_schemas_tl_01() {
         );
     }
     for member in ["\"project\"", "\"files\"", "\"all\"", "\"check_only\""] {
-        assert!(source.contains(member), "the schemas have the member {member}");
+        assert!(
+            source.contains(member),
+            "the schemas have the member {member}"
+        );
     }
     assert!(
         source.contains("\"lexlean/command-result/1\""),
@@ -233,7 +239,11 @@ fn constant(source: &str, name: &str) -> usize {
 #[test]
 fn the_check_and_build_fixtures_are_the_registers_and_the_tool_is_run_beside_the_cli_tl_03() {
     let (f4, f7, total) = register_counts();
-    assert_eq!((f4, f7, total), (252, 1, 297), "the register is the one of FX-06");
+    assert_eq!(
+        (f4, f7, total),
+        (252, 1, 297),
+        "the register is the one of FX-06"
+    );
     let library = read("gateway/tool-tests/src/lib.rs");
     let added = library
         .lines()
@@ -254,7 +264,10 @@ fn the_check_and_build_fixtures_are_the_registers_and_the_tool_is_run_beside_the
         "the equality test runs the CLI and calls the tool"
     );
     for compared in ["exit_code", "structuredContent", "isError", "files_differ"] {
-        assert!(test.contains(compared), "the equality test compares {compared}");
+        assert!(
+            test.contains(compared),
+            "the equality test compares {compared}"
+        );
     }
     needs(
         "TL-03",
@@ -298,7 +311,10 @@ fn format_is_compared_with_fmt_tl_05() {
 
 #[test]
 fn every_example_is_built_and_compared_with_its_expected_tree_tl_06() {
-    needs("TL-06", &["every_example_builds_to_its_expected_tree_tl_06"]);
+    needs(
+        "TL-06",
+        &["every_example_builds_to_its_expected_tree_tl_06"],
+    );
     let test = read("gateway/tool-tests/tests/equality.rs");
     assert!(
         test.contains("expected/build"),
@@ -327,7 +343,11 @@ fn no_child_process_is_started_by_a_tool_tl_08() {
         &["no_child_process_is_started_by_the_four_tools_tl_08"],
     );
     let test = read("gateway/tool-tests/tests/q4.rs");
-    for needle in ["/proc/self/stat", "/proc/self/task", "Command::new(\"true\")"] {
+    for needle in [
+        "/proc/self/stat",
+        "/proc/self/task",
+        "Command::new(\"true\")",
+    ] {
         assert!(test.contains(needle), "the Q4 test uses {needle}");
     }
     assert_eq!(
@@ -341,7 +361,10 @@ fn no_child_process_is_started_by_a_tool_tl_08() {
 #[test]
 fn the_gateway_job_runs_the_ignored_tests_of_the_tools_and_counts_them_tl_03() {
     let ignored = ignored_in_tool_tests();
-    assert_eq!(ignored, 4, "TL-03 to TL-06 are the ignored tests of the tools");
+    assert_eq!(
+        ignored, 4,
+        "TL-03 to TL-06 are the ignored tests of the tools"
+    );
     for (name, reason) in tests_in("gateway/tool-tests") {
         if !reason.is_empty() {
             assert!(

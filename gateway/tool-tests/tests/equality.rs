@@ -90,22 +90,33 @@ fn differences(pair: &Pair, rename: Option<(&str, &str)>) -> Vec<String> {
     let mut out = Vec::new();
     let Pair { cli, reply, .. } = pair;
     if !cli.stderr.is_empty() {
-        out.push(format!("the CLI wrote to stderr: {}", String::from_utf8_lossy(&cli.stderr)));
+        out.push(format!(
+            "the CLI wrote to stderr: {}",
+            String::from_utf8_lossy(&cli.stderr)
+        ));
     }
     if reply.body.get("error").is_some() {
-        out.push(format!("the tool answered with a protocol error: {}", reply.body));
+        out.push(format!(
+            "the tool answered with a protocol error: {}",
+            reply.body
+        ));
         return out;
     }
     let result = &reply.body["result"];
     let mut expected = String::from_utf8_lossy(&cli.stdout).into_owned();
     if let Some((from, to)) = rename {
         let from = format!("\"command\":\"{from}\"");
-        assert!(expected.contains(&from), "the CLI result names its command: {expected}");
+        assert!(
+            expected.contains(&from),
+            "the CLI result names its command: {expected}"
+        );
         expected = expected.replacen(&from, &format!("\"command\":\"{to}\""), 1);
     }
     match result["content"][0]["text"].as_str() {
         Some(text) if text == expected => {}
-        other => out.push(format!("the text is {other:?}, the CLI printed {expected:?}")),
+        other => out.push(format!(
+            "the text is {other:?}, the CLI printed {expected:?}"
+        )),
     }
     let parsed: Value = serde_json::from_str(&expected).expect("the CLI printed JSON");
     if result["structuredContent"] != parsed {
@@ -115,11 +126,20 @@ fn differences(pair: &Pair, rename: Option<(&str, &str)>) -> Vec<String> {
         ));
     }
     if parsed["exit_code"] != json!(cli.status) {
-        out.push(format!("the CLI exited {} with exit_code {}", cli.status, parsed["exit_code"]));
+        out.push(format!(
+            "the CLI exited {} with exit_code {}",
+            cli.status, parsed["exit_code"]
+        ));
     }
-    let flagged = result.get("isError").and_then(Value::as_bool).unwrap_or(false);
+    let flagged = result
+        .get("isError")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     if flagged != (cli.status != 0) {
-        out.push(format!("isError is {flagged} for the exit status {}", cli.status));
+        out.push(format!(
+            "isError is {flagged} for the exit status {}",
+            cli.status
+        ));
     }
     out
 }
@@ -128,7 +148,11 @@ fn files_differ(pair: &Pair) -> Option<String> {
     if pair.cli_files == pair.tool_files {
         return None;
     }
-    let mut paths: Vec<&String> = pair.cli_files.keys().chain(pair.tool_files.keys()).collect();
+    let mut paths: Vec<&String> = pair
+        .cli_files
+        .keys()
+        .chain(pair.tool_files.keys())
+        .collect();
     paths.sort();
     paths.dedup();
     let differing: Vec<&str> = paths
@@ -137,7 +161,9 @@ fn files_differ(pair: &Pair) -> Option<String> {
         .map(|path| path.as_str())
         .take(5)
         .collect();
-    Some(format!("the files of the project differ afterwards: {differing:?}"))
+    Some(format!(
+        "the files of the project differ afterwards: {differing:?}"
+    ))
 }
 
 fn finish(label: &str, ran: usize, failures: &[String]) {
@@ -158,7 +184,11 @@ fn in_scope(sources: &Path) -> (Vec<Fixture>, Vec<Fixture>) {
     assert_eq!(f4.len(), F4_FIXTURES, "the check fixtures of F4 at the pin");
     assert_eq!(f7.len(), F7_FIXTURES, "the build fixtures of F7 at the pin");
     let rows = register();
-    let in_register = f4.iter().chain(&f7).filter(|f| rows.contains_key(&f.name)).count();
+    let in_register = f4
+        .iter()
+        .chain(&f7)
+        .filter(|f| rows.contains_key(&f.name))
+        .count();
     assert_eq!(
         in_register + NOT_IN_THE_REGISTER.len(),
         F4_FIXTURES + F7_FIXTURES,
@@ -197,7 +227,10 @@ fn tool_equals_cli_on_the_check_and_build_fixtures_tl_03() {
     let (f4, f7) = in_scope(&sources);
     let mut failures = Vec::new();
     let mut ran = 0;
-    for (fixtures, command, tool) in [(&f4, "check", "lexlean_check"), (&f7, "build", "lexlean_build")] {
+    for (fixtures, command, tool) in [
+        (&f4, "check", "lexlean_check"),
+        (&f7, "build", "lexlean_build"),
+    ] {
         for fixture in fixtures {
             let staged = stage_fixture(fixture);
             let pair = run_pair(
@@ -211,29 +244,51 @@ fn tool_equals_cli_on_the_check_and_build_fixtures_tl_03() {
             let mut found = differences(&pair, None);
             found.extend(files_differ(&pair));
             expected_exit(&mut found, &pair, fixture);
-            failures.extend(found.into_iter().map(|d| format!("{command} {}: {d}", fixture.name)));
+            failures.extend(
+                found
+                    .into_iter()
+                    .map(|d| format!("{command} {}: {d}", fixture.name)),
+            );
         }
     }
     // The build tool on the check fixtures: it refuses at the same stage as the CLI does.
     for fixture in &f4 {
         let staged = stage_fixture(fixture);
-        let pair = run_pair(&staged, "lexlean_build", project_arguments(&fixture.name), &["build"], &nothing);
+        let pair = run_pair(
+            &staged,
+            "lexlean_build",
+            project_arguments(&fixture.name),
+            &["build"],
+            &nothing,
+        );
         ran += 1;
         let mut found = differences(&pair, None);
         found.extend(files_differ(&pair));
-        failures.extend(found.into_iter().map(|d| format!("build {}: {d}", fixture.name)));
+        failures.extend(
+            found
+                .into_iter()
+                .map(|d| format!("build {}: {d}", fixture.name)),
+        );
     }
     // The fixtures whose atoms are outside the profile give LLL1004 on both sides (AC-08).
     for name in ["unknown-word", "unknown-symbol", "unknown-control"] {
         let fixture = f4.iter().find(|f| f.name == name).expect(name);
         let staged = stage_fixture(fixture);
-        let pair = run_pair(&staged, "lexlean_check", project_arguments(name), &["check"], &nothing);
+        let pair = run_pair(
+            &staged,
+            "lexlean_check",
+            project_arguments(name),
+            &["check"],
+            &nothing,
+        );
         let codes: Vec<&str> = pair.reply.body["result"]["structuredContent"]["diagnostics"]
             .as_array()
             .map(|all| all.iter().filter_map(|d| d["code"].as_str()).collect())
             .unwrap_or_default();
         if codes != ["LLL1004"] {
-            failures.push(format!("check {name}: the codes are {codes:?}, not LLL1004"));
+            failures.push(format!(
+                "check {name}: the codes are {codes:?}, not LLL1004"
+            ));
         }
     }
     finish("TL-03", ran, &failures);
@@ -252,7 +307,10 @@ fn snapshot_of_a_project_that_checks(name: &str, pair: &Pair) -> Vec<String> {
         return out;
     }
     let result = &pair.reply.body["result"];
-    if result.get("isError").and_then(Value::as_bool).unwrap_or(false)
+    if result
+        .get("isError")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
         || pair.reply.body.get("error").is_some()
     {
         out.push(format!(
@@ -277,7 +335,10 @@ fn snapshot_of_a_project_that_checks(name: &str, pair: &Pair) -> Vec<String> {
     {
         out.push(format!("snapshot {name}: spec is {}", snapshot["spec"]));
     }
-    match result["content"][0]["text"].as_str().map(serde_json::from_str::<Value>) {
+    match result["content"][0]["text"]
+        .as_str()
+        .map(serde_json::from_str::<Value>)
+    {
         Some(Ok(parsed)) if parsed == *snapshot => {}
         _ => out.push(format!(
             "snapshot {name}: the text block is not the structuredContent"
@@ -313,10 +374,20 @@ fn snapshot_agrees_with_check_on_the_fixtures_and_the_examples_tl_04() {
             found.extend(differences(&pair, Some(("check", "snapshot"))));
         }
         found.extend(files_differ(&pair));
-        failures.extend(found.into_iter().map(|d| format!("snapshot {}: {d}", fixture.name)));
+        failures.extend(
+            found
+                .into_iter()
+                .map(|d| format!("snapshot {}: {d}", fixture.name)),
+        );
     }
     for (name, staged) in examples(&sources) {
-        let pair = run_pair(&staged, "lexlean_snapshot", project_arguments(&name), &["check"], &nothing);
+        let pair = run_pair(
+            &staged,
+            "lexlean_snapshot",
+            project_arguments(&name),
+            &["check"],
+            &nothing,
+        );
         ran += 1;
         failures.extend(snapshot_of_a_project_that_checks(&name, &pair));
     }
@@ -362,9 +433,11 @@ fn format_agrees_with_fmt_on_the_fixtures_and_the_examples_tl_05() {
             ran += 1;
             let mut found = differences(&pair, None);
             found.extend(files_differ(&pair));
-            failures.extend(found.into_iter().map(|d| {
-                format!("format {} (check_only {check_only}): {d}", fixture.name)
-            }));
+            failures.extend(
+                found
+                    .into_iter()
+                    .map(|d| format!("format {} (check_only {check_only}): {d}", fixture.name)),
+            );
         }
     }
     let mut rewritten = 0;
@@ -386,9 +459,11 @@ fn format_agrees_with_fmt_on_the_fixtures_and_the_examples_tl_05() {
                 }
                 let mut found = differences(&pair, None);
                 found.extend(files_differ(&pair));
-                failures.extend(found.into_iter().map(|d| {
-                    format!("format {name} (check_only {check_only}, tidy {tidy}): {d}")
-                }));
+                failures.extend(
+                    found.into_iter().map(|d| {
+                        format!("format {name} (check_only {check_only}, tidy {tidy}): {d}")
+                    }),
+                );
             }
         }
     }
@@ -457,11 +532,21 @@ fn examples(sources: &Path) -> Vec<(String, Staged)> {
                 let list: Vec<String> = members.iter().map(|m| format!("\"{m}\"")).collect();
                 std::fs::write(
                     root.join("lexlean-workspace.toml"),
-                    format!("spec = \"lexlean/workspace/1\"\nmembers = [{}]\n", list.join(", ")),
+                    format!(
+                        "spec = \"lexlean/workspace/1\"\nmembers = [{}]\n",
+                        list.join(", ")
+                    ),
                 )
                 .expect("a workspace file");
             }
-            (name.clone(), Staged { root, name, _scratch: scratch })
+            (
+                name.clone(),
+                Staged {
+                    root,
+                    name,
+                    _scratch: scratch,
+                },
+            )
         })
         .collect()
 }
@@ -486,7 +571,13 @@ fn every_example_builds_to_its_expected_tree_tl_06() {
     let all = examples(&sources);
     assert!(all.len() >= 18, "the examples of LexLean: {}", all.len());
     for (name, staged) in &all {
-        let pair = run_pair(staged, "lexlean_build", project_arguments(name), &["build"], &nothing);
+        let pair = run_pair(
+            staged,
+            "lexlean_build",
+            project_arguments(name),
+            &["build"],
+            &nothing,
+        );
         let mut found = differences(&pair, None);
         found.extend(files_differ(&pair));
         let command_result = &pair.reply.body["result"]["structuredContent"];
@@ -498,10 +589,14 @@ fn every_example_builds_to_its_expected_tree_tl_06() {
                 if built.is_empty() {
                     found.push(format!("the tool published nothing at .lexlean/build/{id}"));
                 }
-                let missing: Vec<&String> =
-                    expected.keys().filter(|path| !built.contains_key(*path)).collect();
-                let extra: Vec<&String> =
-                    built.keys().filter(|path| !expected.contains_key(*path)).collect();
+                let missing: Vec<&String> = expected
+                    .keys()
+                    .filter(|path| !built.contains_key(*path))
+                    .collect();
+                let extra: Vec<&String> = built
+                    .keys()
+                    .filter(|path| !expected.contains_key(*path))
+                    .collect();
                 let wrong: Vec<&String> = expected
                     .iter()
                     .filter(|(path, bytes)| built.get(*path).is_some_and(|got| got != *bytes))

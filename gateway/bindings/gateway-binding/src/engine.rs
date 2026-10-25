@@ -175,8 +175,7 @@ fn make(
     let selection = match selection {
         Ok(selection) => selection,
         Err(message) => {
-            let error =
-                LexLeanError::from_diagnostic(Diagnostic::new(code!("LLC0002"), message));
+            let error = LexLeanError::from_diagnostic(Diagnostic::new(code!("LLC0002"), message));
             return answered(call, &error);
         }
     };
@@ -235,9 +234,11 @@ fn make(
                     ..Outcome::default()
                 };
                 if let Some(id) = set.build_id {
-                    outcome
-                        .artifacts
-                        .push(format!("{}/build/{}", build_root(directory)?, id.to_hex()));
+                    outcome.artifacts.push(format!(
+                        "{}/build/{}",
+                        build_root(directory)?,
+                        id.to_hex()
+                    ));
                 }
                 Ok(succeeded(call, &outcome))
             }

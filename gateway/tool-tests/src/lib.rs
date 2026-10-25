@@ -385,7 +385,9 @@ pub fn run_cli(directory: &Path, arguments: &[&str]) -> Cli {
 pub fn lexlean_sources() -> PathBuf {
     let path = std::env::var_os("LEXLEAN_SOURCES")
         .map(PathBuf::from)
-        .expect("LEXLEAN_SOURCES names the checkout of LexLean that gateway/lay-out-lexlean.sh lays out");
+        .expect(
+        "LEXLEAN_SOURCES names the checkout of LexLean that gateway/lay-out-lexlean.sh lays out",
+    );
     assert!(
         path.join("tests/negative").is_dir(),
         "{} holds no tests/negative",
@@ -449,8 +451,8 @@ pub fn fixtures(sources: &Path) -> Vec<Fixture> {
 /// The classes of the register: fixture name to `class`, read from
 /// `crates/negative-fixtures/register.toml`.
 pub fn register() -> BTreeMap<String, String> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../crates/negative-fixtures/register.toml");
+    let path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/negative-fixtures/register.toml");
     let text = std::fs::read_to_string(&path)
         .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
     let mut rows = BTreeMap::new();

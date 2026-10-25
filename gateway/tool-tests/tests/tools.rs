@@ -21,13 +21,14 @@ fn with_tiny() -> Gateway {
 }
 
 fn is_error(result: &Value) -> bool {
-    result.get("isError").and_then(Value::as_bool).unwrap_or(false)
+    result
+        .get("isError")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 fn text(result: &Value) -> &str {
-    result["content"][0]["text"]
-        .as_str()
-        .expect("a text block")
+    result["content"][0]["text"].as_str().expect("a text block")
 }
 
 // ---- TL-01 -----------------------------------------------------------------------------
@@ -98,7 +99,10 @@ fn tools_list_shows_the_four_tools_with_their_schemas_tl_01() {
                 "required": ["spec"],
             }),
         };
-        assert_eq!(tool["outputSchema"], expected_output, "{name}: outputSchema");
+        assert_eq!(
+            tool["outputSchema"], expected_output,
+            "{name}: outputSchema"
+        );
         assert!(
             tool["description"].as_str().is_some_and(|d| !d.is_empty()),
             "{name} is described"
@@ -130,7 +134,10 @@ fn assert_refused_by_the_schema(reply: &Reply, label: &str) {
         result.get("structuredContent").is_none(),
         "{label}: an invalid call has no command result"
     );
-    assert!(reply.effects.is_empty(), "{label}: a refused call asks for no effect");
+    assert!(
+        reply.effects.is_empty(),
+        "{label}: a refused call asks for no effect"
+    );
 }
 
 #[test]
@@ -160,7 +167,12 @@ fn a_call_that_breaks_a_schema_is_refused_before_the_engine_tl_01() {
             tool,
             json!({"project": "tiny", "files": ["src/a\nb.lex.tex"]}),
         );
-        assert_eq!(reply.error()["code"], INVALID_PARAMS, "{tool}: {}", reply.body);
+        assert_eq!(
+            reply.error()["code"],
+            INVALID_PARAMS,
+            "{tool}: {}",
+            reply.body
+        );
         assert!(reply.effects.is_empty(), "{tool}");
     }
     assert_refused_by_the_schema(
@@ -219,7 +231,10 @@ fn class_zero_is_a_result_without_is_error_tl_02() {
         assert_eq!(command_result["diagnostics"], json!([]), "{tool}");
         assert_eq!(command_result["modules"], json!(["Tiny"]), "{tool}");
         let block = text(result);
-        assert!(block.ends_with('\n'), "{tool}: the text is the CLI's file spelling");
+        assert!(
+            block.ends_with('\n'),
+            "{tool}: the text is the CLI's file spelling"
+        );
         assert_eq!(
             serde_json::from_str::<Value>(block).expect("the text is JSON"),
             *command_result,
@@ -269,7 +284,10 @@ fn classes_one_two_and_four_are_error_results_with_the_command_result_tl_02() {
 
         // Class 2: a selection that names no module of the project.
         let gateway = &mut with_tiny();
-        let selection = gateway.call(tool, json!({"project": "tiny", "files": ["src/Nope.lex.tex"]}));
+        let selection = gateway.call(
+            tool,
+            json!({"project": "tiny", "files": ["src/Nope.lex.tex"]}),
+        );
         assert!(is_error(selection.result()), "{tool}: {}", selection.body);
         assert_eq!(structured(&selection)["exit_code"], 2, "{tool}");
 
@@ -279,7 +297,8 @@ fn classes_one_two_and_four_are_error_results_with_the_command_result_tl_02() {
         assert!(is_error(limit.result()), "{tool}: {}", limit.body);
         assert_eq!(structured(&limit)["exit_code"], 4, "{tool}");
         assert_eq!(
-            structured(&limit)["diagnostics"][0]["code"], "LLS8002",
+            structured(&limit)["diagnostics"][0]["code"],
+            "LLS8002",
             "{tool}: {}",
             limit.body
         );
@@ -418,7 +437,11 @@ fn bytes_that_are_not_a_command_result_are_refused_by_the_core_tl_02() {
     let reply = gateway.call_with(&mut host, "lexlean_snapshot", json!({"project": "tiny"}));
     assert_eq!(reply.error()["code"], INTERNAL_ERROR, "{}", reply.body);
     // The same host with a result that is one: nothing is refused.
-    for (class, bytes) in [(0, command_result(0)), (1, command_result(1)), (4, command_result(4))] {
+    for (class, bytes) in [
+        (0, command_result(0)),
+        (1, command_result(1)),
+        (4, command_result(4)),
+    ] {
         let mut host = forge(&gateway, class, &bytes);
         let reply = gateway.call_with(&mut host, "lexlean_check", json!({"project": "tiny"}));
         assert_eq!(is_error(reply.result()), class != 0);
@@ -437,7 +460,9 @@ fn an_atom_outside_the_profile_gives_lll1004_with_its_span_tl_07() {
     assert!(is_error(result), "{result}");
     let command_result = structured(&reply);
     assert_eq!(command_result["exit_code"], 1);
-    let diagnostics = command_result["diagnostics"].as_array().expect("diagnostics");
+    let diagnostics = command_result["diagnostics"]
+        .as_array()
+        .expect("diagnostics");
     assert_eq!(diagnostics.len(), 1, "{command_result}");
     let diagnostic = &diagnostics[0];
     assert_eq!(diagnostic["code"], "LLL1004");
@@ -449,7 +474,13 @@ fn an_atom_outside_the_profile_gives_lll1004_with_its_span_tl_07() {
         .expect("the module");
     let start = source.find("banana").expect("the atom");
     let line = source[..start].matches('\n').count() + 1;
-    let column = source[..start].rsplit('\n').next().expect("a line").chars().count() + 1;
+    let column = source[..start]
+        .rsplit('\n')
+        .next()
+        .expect("a line")
+        .chars()
+        .count()
+        + 1;
     assert_eq!(
         diagnostic["primary"],
         json!({
