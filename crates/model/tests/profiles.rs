@@ -183,7 +183,8 @@ fn the_identity_is_the_framed_domain_files_reviews_and_toolchain_pf_01() {
 
     let identity_of = declaration(&source, "definition", "profileIdOf");
     assert!(
-        identity_of.contains("body: (Identity::profileId (profileFiles roots files) reviews toolchain)"),
+        identity_of
+            .contains("body: (Identity::profileId (profileFiles roots files) reviews toolchain)"),
         "the identity of a project is Identity.profileId over its profile files"
     );
 }
@@ -300,9 +301,15 @@ fn every_change_to_a_profile_file_changes_the_identity_pf_03() {
     // two digests are computed, on the smallest project, because SHA-256 in the kernel is costly
     theorems_exist(
         &source,
-        &["changedBytesOfConfigChangeTheDigest", "aRenamedFileChangesTheDigest"],
+        &[
+            "changedBytesOfConfigChangeTheDigest",
+            "aRenamedFileChangesTheDigest",
+        ],
     );
-    for theorem in ["changedBytesOfConfigChangeTheDigest", "aRenamedFileChangesTheDigest"] {
+    for theorem in [
+        "changedBytesOfConfigChangeTheDigest",
+        "aRenamedFileChangesTheDigest",
+    ] {
         assert!(
             declaration(&source, "theorem", theorem)
                 .contains("((otherId (idOf (tinyBase)) (idOf ("),
@@ -313,7 +320,11 @@ fn every_change_to_a_profile_file_changes_the_identity_pf_03() {
     let changed = file_list(&source, "tinyChanged");
     let renamed_tiny = file_list(&source, "tinyRenamed");
     assert_eq!(tiny.len(), 1);
-    assert_eq!((&tiny[0].0, &changed[0].0), (&tiny[0].0, &tiny[0].0), "bytes only");
+    assert_eq!(
+        (&tiny[0].0, &changed[0].0),
+        (&tiny[0].0, &tiny[0].0),
+        "bytes only"
+    );
     assert_ne!(tiny[0].1, changed[0].1);
     assert_ne!(tiny[0].0, renamed_tiny[0].0);
     assert_eq!(tiny[0].1, renamed_tiny[0].1);
@@ -333,7 +344,10 @@ fn a_source_file_is_not_a_profile_file_pf_04() {
             "aSourceFileLeavesThePreimageAlone",
         ],
     );
-    for name in ["aSourceFileNeverChangesTheId", "aDeeperSourceFileNeverChangesTheId"] {
+    for name in [
+        "aSourceFileNeverChangesTheId",
+        "aDeeperSourceFileNeverChangesTheId",
+    ] {
         let theorem = declaration(&source, "theorem", name);
         assert!(
             theorem.contains(
@@ -386,7 +400,9 @@ fn the_order_of_the_rows_does_not_matter_pf_05() {
     assert_eq!(orders.len(), 3, "three different orders");
     let with_source = file_list(&source, "order5");
     assert_eq!(with_source.len(), 5);
-    assert!(with_source.iter().any(|(path, _)| path == "src/Main.lex.tex"));
+    assert!(with_source
+        .iter()
+        .any(|(path, _)| path == "src/Main.lex.tex"));
     let duplicate = file_list(&source, "duplicatePath");
     let paths: BTreeSet<&String> = duplicate.iter().map(|(path, _)| path).collect();
     assert!(paths.len() < duplicate.len(), "a path is repeated");
@@ -444,7 +460,9 @@ fn a_package_of_another_language_is_refused_with_llc0103_pf_06() {
     let at = register
         .find("name = \"package-language-mismatch\"")
         .expect("the fixture is registered");
-    let row = &register[at..register[at..].find("[[fixture]]").map_or(register.len(), |n| at + n)];
+    let row = &register[at..register[at..]
+        .find("[[fixture]]")
+        .map_or(register.len(), |n| at + n)];
     assert!(row.contains("codes = [\"LLC0103\"]"), "{row}");
     assert!(read("crates/quality-map/lexlean/errors.toml").contains("LLC0103"));
 }
@@ -464,7 +482,9 @@ fn the_atlas_data_is_the_pinned_lexleans_pf_07() {
         authority.checksum,
         "the Atlas extracts differ from the pinned LexLean: a copy is edited here, or the authority moved"
     );
-    assert!(authority.citation.contains("97960679736e960e84a98f5c43981e1f2c70d6d7"));
+    assert!(authority
+        .citation
+        .contains("97960679736e960e84a98f5c43981e1f2c70d6d7"));
     assert_eq!(
         std::fs::read_to_string(root().join(".github/lexlean.rev"))
             .unwrap()
@@ -496,7 +516,10 @@ fn the_atlas_data_is_the_pinned_lexleans_pf_07() {
     assert_eq!(body(&source, "atlasLanguage"), "\"1.0\"");
 
     let entries = read("crates/model/tests/atlas/entries.tsv");
-    let rows: Vec<Vec<&str>> = entries.lines().map(|line| line.split('\t').collect()).collect();
+    let rows: Vec<Vec<&str>> = entries
+        .lines()
+        .map(|line| line.split('\t').collect())
+        .collect();
     assert_eq!(rows.len(), 293);
     assert_eq!(body(&source, "atlasEntryCount"), "293");
     let ids: BTreeSet<&str> = rows.iter().map(|row| row[0]).collect();
@@ -511,9 +534,15 @@ fn the_atlas_data_is_the_pinned_lexleans_pf_07() {
     let modules: Vec<&str> = modules_text.lines().collect();
     assert_eq!(modules.len(), 86);
     assert_eq!(body(&source, "atlasModuleCount"), "86");
-    assert_eq!(modules.iter().filter(|m| m.starts_with("Prelude.")).count(), 6);
     assert_eq!(
-        modules.iter().filter(|m| !m.starts_with("Prelude.")).count(),
+        modules.iter().filter(|m| m.starts_with("Prelude.")).count(),
+        6
+    );
+    assert_eq!(
+        modules
+            .iter()
+            .filter(|m| !m.starts_with("Prelude."))
+            .count(),
         80
     );
     assert!(modules.contains(&"Atlas"));
@@ -548,7 +577,10 @@ fn the_atlas_data_is_the_pinned_lexleans_pf_07() {
     let copy_ids: Vec<String> = rows.iter().map(|row| row[0].to_string()).collect();
     assert_eq!(model_ids, copy_ids, "the model's entry ids are the copy's");
     let copy_modules: Vec<String> = modules.iter().map(|m| m.to_string()).collect();
-    assert_eq!(model_modules, copy_modules, "the model's modules are the copy's");
+    assert_eq!(
+        model_modules, copy_modules,
+        "the model's modules are the copy's"
+    );
 }
 
 /// PF-08: an Atlas profile serves all 293 entries.
@@ -570,10 +602,13 @@ fn an_atlas_profile_serves_all_293_entries_pf_08() {
             "profilesModelHoldsTheorem",
         ],
     );
-    assert!(declaration(&source, "theorem", "anAtlasProfileServesAll293Entries")
-        .contains("((servedCount (atlasModules) (atlasEntries)) = 293)"));
-    assert!(declaration(&source, "theorem", "withoutTheAtlasModuleNoEntryIsServed")
-        .contains("= 0)"));
+    assert!(
+        declaration(&source, "theorem", "anAtlasProfileServesAll293Entries")
+            .contains("((servedCount (atlasModules) (atlasEntries)) = 293)")
+    );
+    assert!(
+        declaration(&source, "theorem", "withoutTheAtlasModuleNoEntryIsServed").contains("= 0)")
+    );
     assert_eq!(body(&source, "atlasModuleName"), "\"Atlas\"");
 
     // the owner values put the Atlas profile at language 1.0
@@ -598,7 +633,7 @@ fn every_law_has_a_recorded_planted_defect_pf_09() {
     let doc = read("PROFILES.md");
     let rows: Vec<Vec<String>> = doc
         .lines()
-        .filter(|line| line.starts_with("| P"))
+        .filter(|line| line.starts_with("| P") && !line.starts_with("| PF-"))
         .map(|line| {
             line.trim()
                 .trim_matches('|')

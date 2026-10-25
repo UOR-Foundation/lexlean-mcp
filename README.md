@@ -31,6 +31,13 @@ set, retention, the drift check, the rollout and rollback machine, and AC-14 to
 AC-17 as theorems over a record-resolution model. The store itself waits for
 verification and signing (#11); [STORE.md](STORE.md) says what is and is not met.
 
+The model-side slice of the profiles and vocabulary (#8) is checked too: PF-01
+to PF-09 state which files a profile identity covers, the language rule
+(`LLC0103`) and the Atlas profile (293 entries served by 86 modules, counts
+read from the pinned LexLean). Provisioning, the tools, the resource template
+and completion wait for the generated gateway; [PROFILES.md](PROFILES.md) says
+what is and is not met.
+
 - The product model is LexLean language 1.2 notation (`src/`), built with
   LexLean `release/v0.4` and locked in `lexlean.lock` (`lexlean/lock/2`).
   `lexlean verify` accepts it with an exact axiom policy on every declaration.
@@ -94,6 +101,7 @@ oracles of their own (UOR-Foundation/MCP#15).
 | `OwnerValues` | the values of #19 that no source determines, each bound to the proposal of [OWNER-VALUES.md](OWNER-VALUES.md): signing and `request-state-key` custody and rotation, `verify.width`, `verify.memory_kib`, `verify.concurrency`, `rate.tool_calls`, `rate.window_ms`, `draft.max_bytes`, `draft.max_files`, the two retentions, `cache.ttl_ms`, `listen.port`, the service level objectives S1 to S8 and the 17 profiles; the kernel-checked theorems bind the ranges, and `cargo test -p repo-model` (OV-01 to OV-03) holds the sources, the table, `lexlean.toml` and `Cargo.toml` to one statement |
 | `Features` | the features F1 to F13 and journeys J1 to J6 (#18) as `Foundation.Arch::Feature` and `Foundation.Arch::Journey` definitions with the interface calls and acceptance rows they name, and the kernel theorems that restate PrismPM's rules PP2014 to PP2018 over them (`featuresModelHolds`) |
 | `Store` | the store, persistence and lifecycle model of #13 (register `ST-`): the seven directories of `lexlean-mcp/store/1` with their wire names, the backup set (`verifications`, `keys`, the drafts references), retention as total functions of the bound owner values, the drift check as a total function with the decision order lock, ID, toolchain, the rollout, rollback, upgrade and retirement machine, and AC-14 to AC-17 as theorems over a record-resolution model that rest on `Identity`'s round trip of the profile preimage (`profileRT`) and claim nothing about SHA-256. Attestation signing stays abstract until #11. [STORE.md](STORE.md) holds the claims, what is not met and the planted defects |
+| `Profiles` | the model-side slice of #8 (register `PF-`): the profile file set outside the source roots, matched by whole path component, the profile ID over it through `Identity`, the language rule with `LLC0103`, and the Atlas profile data (293 entries, 86 modules) with the check that all of them are served (`profilesModelHolds`) |
 | `Foundation.Arch` | the architecture vocabulary, a byte-identical copy of `stdlib/src/Foundation/Arch.lex.tex` of PrismPM main at `d11ace6f` (FJ-09) |
 | `Foundation.Sec`, `Foundation.Qual` | the security and quality vocabularies (copies of the PrismPM stdlib modules, as in prism-code) |
 
@@ -118,6 +126,8 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   observability theorems, the command that rejects each and the restore.
 - [STORE.md](STORE.md) states what the store model claims and does not claim
   and the defects planted in its laws.
+- [PROFILES.md](PROFILES.md) states what the profiles model claims and does not
+  claim and the defects planted in its laws.
 - [CI.md](CI.md) describes the workflow that runs every gate that works without
   the SDK, and how to read its failures.
 
