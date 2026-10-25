@@ -32,6 +32,8 @@
 # model-side slice, whose rules prismpm check cannot yet run on the bound SDK image.
 # The observability model of issue #16 registers OB-01..OB-10: three rows that reproduce
 # LexLean, MCP and W3C facts and seven that are checked here.
+# The tool semantics of issue #10 (F4 to F7: check, snapshot, format and build agree with
+# the CLI) register TL-01..TL-09.
 
 spec = "template/1"
 
@@ -556,6 +558,60 @@ id = "GW-11"
 level = "build"
 suite = "gateway"
 statement = "The MCP modules laid out under gateway/mcp are those of the pin: every laid-out source file and lexicon file equals the file of UOR-Foundation/MCP at .github/mcp.rev byte for byte, and the lexicon package mcp.core has in gateway/lexlean.lock the tree hash that MCP's lexlean.lock at the pin records for it, which restates AC-03 for a gateway that cannot carry the fixture core's digest."
+
+[[id]]
+id = "TL-01"
+level = "build"
+suite = "tools"
+statement = "The tools of F4 to F7 declare one schema each: lexlean_check, lexlean_snapshot, lexlean_format and lexlean_build take project (a non-empty string), files (strings) and all (a boolean), lexlean_format also check_only, and no other member; each declares an outputSchema, the lexlean/command-result/1 object for check, format and build and an object with a spec for snapshot; tools/list through the production core shows exactly these, and a call whose arguments break the schema is refused by the core as an Invalid arguments error result before any effect is asked for, while a call the schema admits and the tool cannot make (all together with files, a file name with a line feed) is the protocol error invalid params, and neither is ever an answer of the Engine."
+
+[[id]]
+id = "TL-02"
+level = "build"
+suite = "tools"
+statement = "An answer of the Engine is a tool result and never a protocol error: class 0 gives a result without isError whose structuredContent is the canonical command result, classes 1, 2 and 4 give isError true with the command result of the failure, the text block is the same JSON, a host failure (project-refused, engine-unavailable) gives isError true with its failure name, and bytes that are not a command result or whose exit_code differs from the class are a typed internal refusal of the core."
+
+[[id]]
+id = "TL-03"
+level = "build"
+suite = "tools"
+statement = "AC-07: for every check fixture that issue #10 puts in F4 and for the build fixture of F7 in tests/negative of the LexLean commit of gateway/mcp/lexlean.rev, lexlean_check and lexlean_build give what lexlean --diagnostic-format json check and build give for the same project: the same exit code and class, the same diagnostics, the same bytes in the text block, and the same files in the project afterwards; the test runs the CLI and the tool, and the fixtures it runs are the F4 and F7 rows of the register plus the names the register lacks."
+
+[[id]]
+id = "TL-04"
+level = "build"
+suite = "tools"
+statement = "lexlean_snapshot on the same fixtures agrees with the CLI: a refused project gives the command result that lexlean check gives with command snapshot, an accepted one gives a semantic snapshot whose source_id and semantic_id are those lexlean check prints, and the bytes of the result are the canonical bytes of the Engine's snapshot."
+
+[[id]]
+id = "TL-05"
+level = "build"
+suite = "tools"
+statement = "lexlean_format agrees with lexlean fmt: on the same fixtures check_only true gives the result of lexlean fmt --check and writes nothing, and check_only false gives the result of lexlean fmt and leaves the project with the same files, byte for byte."
+
+[[id]]
+id = "TL-06"
+level = "build"
+suite = "tools"
+statement = "AC-04: each project of examples/ of the LexLean commit of gateway/mcp/lexlean.rev, with its configuration, lock, local packages and artifact sources, builds through lexlean_build to the tree of its expected/ directory byte for byte (the process-bound files by presence), and the build is the one lexlean build makes."
+
+[[id]]
+id = "TL-07"
+level = "build"
+suite = "tools"
+statement = "AC-08: a draft with an atom outside the profile gives, through lexlean_check, an isError result with the diagnostic LLL1004 and its span (path, byte range, line and column), the same as the CLI gives."
+
+[[id]]
+id = "TL-08"
+level = "build"
+suite = "tools"
+statement = "Q4: lexlean_check, lexlean_snapshot, lexlean_format and lexlean_build start no child process: the host process accounting (the waited-for children of /proc/self/stat and the live children of every thread) does not move across a call of each, in a test binary in which nothing else spawns, and the same instrument sees a child that a control spawns."
+
+[[id]]
+id = "TL-09"
+level = "build"
+suite = "tools"
+statement = "Each gate of the tools rejects its planted defect: a class mapped to the wrong exit code, a diagnostic dropped from a result, and a format whose bytes differ from the CLI's; TOOLS.md records the command, the diagnostic and the restore of each."
 
 [[id]]
 id = "GW-12"

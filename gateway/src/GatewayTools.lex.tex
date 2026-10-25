@@ -10,6 +10,8 @@
 \importmodule{Http}
 \importmodule{HostWire}
 \importmodule{Json}
+\importmodule{JsonEq}
+\importmodule{JsonRead}
 \importmodule{JsonText}
 \importmodule{Methods}
 \importmodule{Numeric}
@@ -162,12 +164,20 @@ definition{
 
 definition{
   name: selectionList,
-  parameters: [files : (List String)],
+  parameters: [all : Bool, files : (List String)],
   result: (List Nat),
   body: (match files
-    | List.nil => (prim append (Frame::u32List 0) (HostWire::textList "") : (List Nat))
+    | List.nil => (prim append (Frame::u32List (if all then 1 else 0)) (HostWire::textList "") : (List Nat))
     | List.cons head rest => (prim append (Frame::u32List 2) (HostWire::textList (prim join files "\n" : String)) : (List Nat))),
   axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: allWithFiles,
+  parameters: [all : Bool, files : (List String)],
+  result: Bool,
+  body: (if all then (match files | List.nil => false | List.cons head rest => true) else false),
   executable: true
 }
 
@@ -241,7 +251,7 @@ definition{
     | Option.none => (ctor Option.none [Plan])
     | Option.some home => (match (argFiles params)
       | Option.none => (ctor Option.none [Plan])
-      | Option.some files => (if (anyNewline files) then (ctor Option.none [Plan]) else (ctor Option.some [Plan] (record Plan {effect := effect, payload := (prim append (HostWire::textList home) (prim append (selectionList files) extra : (List Nat)) : (List Nat))}))))),
+      | Option.some files => (if (anyNewline files) then (ctor Option.none [Plan]) else (if (allWithFiles (argFlag params "all") files) then (ctor Option.none [Plan]) else (ctor Option.some [Plan] (record Plan {effect := effect, payload := (prim append (HostWire::textList home) (prim append (selectionList (argFlag params "all") files) extra : (List Nat)) : (List Nat))})))))),
   axioms: [Quot.sound, propext],
   executable: true
 }
@@ -368,12 +378,60 @@ definition{
 }
 
 definition{
-  name: engineReply,
-  parameters: [outcome : Bytes],
-  result: Methods::Progressed,
+  name: accepted,
+  parameters: [done : Methods::Progressed],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (ctor Result.ok [Methods::Progressed, Refusal::ProviderRefusal] done),
+  executable: true
+}
+
+definition{
+  name: refused,
+  parameters: [reason : String],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.internal reason)),
+  executable: true
+}
+
+definition{
+  name: exitCodeIs,
+  parameters: [document : Json::Json, class : Nat],
+  result: Bool,
+  body: (match (Json::asObject document)
+    | Option.none => false
+    | Option.some object => (match (Json::lookup "exit_code" object)
+      | Json::Lookup.absent => false
+      | Json::Lookup.present value => (match (JsonEq::compare value (ResultJson::natJson class))
+        | JsonEq::Same.yes => true
+        | JsonEq::Same.no => false
+        | JsonEq::Same.exhausted => false))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: isSnapshot,
+  parameters: [document : Json::Json],
+  result: Bool,
+  body: (match (Json::asObject document)
+    | Option.none => false
+    | Option.some object => (match (Json::lookup "spec" object)
+      | Json::Lookup.absent => false
+      | Json::Lookup.present value => (match (Json::asText value)
+        | Option.none => false
+        | Option.some spec => (if (prim equal spec "lexlean/command-result/1" : Bool) then false else true)))),
+  executable: true
+}
+
+definition{
+  name: engineAnswer,
+  parameters: [effect : Effects::Effect, outcome : Bytes],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
   body: (match (Frame::chunkAt outcome 8)
-    | Option.none => (malformed)
-    | Option.some chunk => (let class : Nat := (wordAt outcome 4); (reply (contentText (project chunk bytes)) (ctor Json::Json.object (member "class" (ResultJson::natJson class))) (if (class =? 0) then false else true)))),
+    | Option.none => (accepted (malformed))
+    | Option.some chunk => (match (JsonRead::readJson (project chunk bytes))
+      | Result.error refusal => (refused "the engine answered with bytes that are not JSON")
+      | Result.ok document => (let class : Nat := (wordAt outcome 4); (if (if (prim equal (nameOf effect) "engine.snapshot" : Bool) then (if (class =? 0) then (isSnapshot document) else (exitCodeIs document class)) else (exitCodeIs document class)) then (accepted (reply (contentText (project chunk bytes)) document (if (class =? 0) then false else true))) else (refused "the engine answered with a document that is neither the snapshot nor the command result of its class"))))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -413,18 +471,18 @@ definition{
 definition{
   name: render,
   parameters: [effect : Effects::Effect, outcome : Bytes],
-  result: Methods::Progressed,
-  body: (if ((wordAt outcome 0) =? 1) then (hostFailure effect (wordAt outcome 4)) else (match effect
-    | Effects::Effect.StoreGet => (foundReply outcome)
-    | Effects::Effect.StorePut => (putReply outcome)
-    | Effects::Effect.EngineCheck => (engineReply outcome)
-    | Effects::Effect.EngineSnapshot => (engineReply outcome)
-    | Effects::Effect.EngineFormat => (engineReply outcome)
-    | Effects::Effect.EngineBuild => (engineReply outcome)
-    | Effects::Effect.VerifyStart => (startReply outcome)
-    | Effects::Effect.VerifyControl => (controlReply outcome)
-    | Effects::Effect.LexiconRead => (foundReply outcome)
-    | Effects::Effect.AttestationLookup => (foundReply outcome))),
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (if ((wordAt outcome 0) =? 1) then (accepted (hostFailure effect (wordAt outcome 4))) else (match effect
+    | Effects::Effect.StoreGet => (accepted (foundReply outcome))
+    | Effects::Effect.StorePut => (accepted (putReply outcome))
+    | Effects::Effect.EngineCheck => (engineAnswer effect outcome)
+    | Effects::Effect.EngineSnapshot => (engineAnswer effect outcome)
+    | Effects::Effect.EngineFormat => (engineAnswer effect outcome)
+    | Effects::Effect.EngineBuild => (engineAnswer effect outcome)
+    | Effects::Effect.VerifyStart => (accepted (startReply outcome))
+    | Effects::Effect.VerifyControl => (accepted (controlReply outcome))
+    | Effects::Effect.LexiconRead => (accepted (foundReply outcome))
+    | Effects::Effect.AttestationLookup => (accepted (foundReply outcome)))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -438,23 +496,15 @@ definition{
 }
 
 definition{
-  name: refused,
-  parameters: [reason : String],
-  result: (Result Methods::Progressed Refusal::ProviderRefusal),
-  body: (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.internal reason)),
-  executable: true
-}
-
-definition{
   name: behave,
   parameters: [completed : (List HostEffect::Completed), params : Methods::CallToolParams],
   result: (Result Methods::Progressed Refusal::ProviderRefusal),
   body: (match (plan params)
-    | Option.none => (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments "a file name holds a line feed, or a draft is over draft.max_bytes"))
+    | Option.none => (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments "a file name holds a line feed, a draft is over draft.max_bytes, or all is true with files"))
     | Option.some chosen => (match completed
       | List.nil => (asking (tagOf (project chosen effect)) (project chosen payload))
       | List.cons entry rest => (match rest
-        | List.nil => (if ((project entry tag) =? (tagOf (project chosen effect))) then (ctor Result.ok [Methods::Progressed, Refusal::ProviderRefusal] (render (project chosen effect) (project entry outcome))) else (refused "the host performed another effect"))
+        | List.nil => (if ((project entry tag) =? (tagOf (project chosen effect))) then (render (project chosen effect) (project entry outcome)) else (refused "the host performed another effect"))
         | List.cons more again => (refused "the host performed more than one effect")))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
@@ -528,10 +578,71 @@ definition{
 }
 
 definition{
+  name: constProp,
+  parameters: [value : String],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("type", (textJson "string")) (member "const" (textJson value)))),
+  executable: true
+}
+
+definition{
+  name: diagnosticProp,
+  parameters: [],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("type", (textJson "object")) (cons ("properties", (ctor Json::Json.object (cons ("code", (kindProp "string")) (member "message" (kindProp "string"))))) (member "required" (requiredList (cons "code" (cons "message" (nil String))) (nil Json::Json)))))),
+  executable: true
+}
+
+definition{
+  name: diagnosticsProp,
+  parameters: [],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("type", (textJson "array")) (member "items" (diagnosticProp)))),
+  executable: true
+}
+
+definition{
+  name: engineProperties,
+  parameters: [],
+  result: (List (String * Json::Json)),
+  body: (prim append (projectProperties) (member "all" (kindProp "boolean")) : (List (String * Json::Json))),
+  executable: true
+}
+
+definition{
+  name: commandResultSchema,
+  parameters: [command : String],
+  result: Json::JsonObject,
+  body: (objectOf (cons ("spec", (constProp "lexlean/command-result/1")) (cons ("command", (constProp command)) (cons ("success", (kindProp "boolean")) (cons ("exit_code", (kindProp "integer")) (cons ("modules", (stringsProp)) (cons ("artifacts", (stringsProp)) (cons ("diagnostics", (diagnosticsProp)) (cons ("source_id", (kindProp "string")) (cons ("semantic_id", (kindProp "string")) (cons ("build_id", (kindProp "string")) (nil (String * Json::Json)))))))))))) (cons "spec" (cons "command" (cons "success" (cons "exit_code" (cons "modules" (cons "artifacts" (cons "diagnostics" (nil String))))))))),
+  executable: true
+}
+
+definition{
+  name: snapshotSchema,
+  parameters: [],
+  result: Json::JsonObject,
+  body: (record Json::JsonObject {members := (cons ("type", (textJson "object")) (cons ("properties", (ctor Json::Json.object (member "spec" (kindProp "string")))) (member "required" (requiredList (cons "spec" (nil String)) (nil Json::Json)))))}),
+  executable: true
+}
+
+definition{
+  name: engineTool,
+  parameters: [
+    name : String,
+    description : String,
+    schema : Json::JsonObject,
+    output : Json::JsonObject
+  ],
+  result: Content::Tool,
+  body: (record Content::Tool {name := name, title := (ctor Option.none [String]), icons := (ctor Option.none [(List Common::Icon)]), description := (ctor Option.some [String] description), inputSchema := schema, outputSchema := (ctor Option.some [Json::JsonObject] output), annotations := (ctor Option.none [Content::ToolAnnotations]), meta := (ctor Option.none [Json::JsonObject])}),
+  executable: true
+}
+
+definition{
   name: gatewayTools,
   parameters: [],
   result: (List Content::Tool),
-  body: (cons (effectTool "lexlean_draft_write" "Write a file of a draft in the store." (objectOf (cons ("path", (nonEmptyProp)) (member "content" (kindProp "string"))) (cons "path" (cons "content" (nil String))))) (cons (effectTool "lexlean_draft_read" "Read a file of a draft from the store." (objectOf (member "path" (nonEmptyProp)) (cons "path" (nil String)))) (cons (effectTool "lexlean_check" "Check a project with the LexLean engine." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_snapshot" "Take the semantic snapshot of a project with the LexLean engine." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_format" "Format a project with the LexLean engine, or check its formatting." (objectOf (prim append (projectProperties) (member "check_only" (kindProp "boolean")) : (List (String * Json::Json))) (cons "project" (nil String)))) (cons (effectTool "lexlean_build" "Build a project with the LexLean engine." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify" "Start the verification of a project and return its task." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify_control" "Read the state of a verification task, or cancel it." (objectOf (cons ("task", (nonEmptyProp)) (member "action" (choiceProp "status" "cancel"))) (cons "task" (cons "action" (nil String))))) (cons (effectTool "lexlean_lexicon_read" "Read an entry of the lexicon of a profile." (objectOf (cons ("profile", (nonEmptyProp)) (member "entry" (nonEmptyProp))) (cons "profile" (cons "entry" (nil String))))) (cons (effectTool "lexlean_attestation" "Look an attestation up by its ID or by the digest of its file." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (nil Content::Tool))))))))))),
+  body: (cons (effectTool "lexlean_draft_write" "Write a file of a draft in the store." (objectOf (cons ("path", (nonEmptyProp)) (member "content" (kindProp "string"))) (cons "path" (cons "content" (nil String))))) (cons (effectTool "lexlean_draft_read" "Read a file of a draft from the store." (objectOf (member "path" (nonEmptyProp)) (cons "path" (nil String)))) (cons (engineTool "lexlean_check" "Check a project with the LexLean engine: the result is what lexlean check prints with --diagnostic-format json, and a refused project is an error result that carries it." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "check")) (cons (engineTool "lexlean_snapshot" "Take the semantic snapshot of a project with the LexLean engine: the result is the snapshot, and a refused project is an error result with the command result of check." (objectOf (engineProperties) (cons "project" (nil String))) (snapshotSchema)) (cons (engineTool "lexlean_format" "Format a project with the LexLean engine as lexlean fmt does, or check its formatting with check_only." (objectOf (prim append (engineProperties) (member "check_only" (kindProp "boolean")) : (List (String * Json::Json))) (cons "project" (nil String))) (commandResultSchema "fmt")) (cons (engineTool "lexlean_build" "Build a project with the LexLean engine as lexlean build does." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "build")) (cons (effectTool "lexlean_verify" "Start the verification of a project and return its task." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify_control" "Read the state of a verification task, or cancel it." (objectOf (cons ("task", (nonEmptyProp)) (member "action" (choiceProp "status" "cancel"))) (cons "task" (cons "action" (nil String))))) (cons (effectTool "lexlean_lexicon_read" "Read an entry of the lexicon of a profile." (objectOf (cons ("profile", (nonEmptyProp)) (member "entry" (nonEmptyProp))) (cons "profile" (cons "entry" (nil String))))) (cons (effectTool "lexlean_attestation" "Look an attestation up by its ID or by the digest of its file." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (nil Content::Tool))))))))))),
   executable: true
 }
 

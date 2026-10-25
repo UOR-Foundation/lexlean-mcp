@@ -305,6 +305,9 @@ FIXTURE_FILES = [
     "lake-manifest.json",
     "src/Tiny.lex.tex",
 ]
+# A source the Engine refuses (class 1): the project of the vectors after this write is the one
+# whose command result a refused check and a refused snapshot carry (issue #10).
+REFUSED = "\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n"
 DIGEST = "5ee76e509683c39ef3347d2587071270720c04fd7e270b6f4b1538b4d96426cc"
 
 
@@ -336,6 +339,12 @@ def spec() -> list:
         ("engine.format", "tool-call", call, "lexlean_format",
          {"project": "tiny", "files": [], "check_only": True}),
         ("engine.build", "tool-call", call, "lexlean_build", {"project": "tiny", "files": []}),
+        ("store.put a source the engine refuses", "tool-call", call, "lexlean_draft_write",
+         {"path": "tiny/src/Tiny.lex.tex", "content": REFUSED}),
+        ("engine.check refuses the project", "tool-call", call, "lexlean_check",
+         {"project": "tiny", "files": []}),
+        ("engine.snapshot refuses the project", "tool-call", call, "lexlean_snapshot",
+         {"project": "tiny", "files": []}),
         ("verify.start refuses a project", "tool-call", call, "lexlean_verify",
          {"project": "absent", "files": []}),
         ("verify.control refuses a task", "tool-call", call, "lexlean_verify_control",

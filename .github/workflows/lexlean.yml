@@ -341,13 +341,23 @@ jobs:
       - name: 7g. the binding compiles, is formatted and passes clippy
         run: |
           . .github/lexlean-ci/lib.sh
-          gate "gateway cargo fmt" gateway_cargo fmt -p gateway-binding -p gateway-vectors -- --check &&
-            gate "gateway cargo clippy" gateway_cargo clippy -p gateway-binding -p gateway-vectors --all-targets --no-deps --locked --offline -- -D warnings
+          gate "gateway cargo fmt" gateway_cargo fmt -p gateway-binding -p gateway-vectors -p gateway-tool-tests -- --check &&
+            gate "gateway cargo clippy" gateway_cargo clippy -p gateway-binding -p gateway-vectors -p gateway-tool-tests --all-targets --no-deps --locked --offline -- -D warnings
       - name: 7h. the binding tests
         run: |
           . .github/lexlean-ci/lib.sh
           gate "gateway-binding tests" gateway_cargo test -p gateway-binding --locked --offline &&
-            gate "gateway-binding ignored tests" gateway_ignored_tests gateway-binding 1
+            gate "gateway-binding ignored tests" gateway_ignored_tests gateway-binding 1 &&
+            gate "gateway-tool-tests" gateway_cargo test -p gateway-tool-tests --locked --offline
+      - name: 7h2. each tool equals the lexlean CLI of the same commit (AC-07)
+        run: |
+          . .github/lexlean-ci/lib.sh
+          # The tests that run the tool and the CLI side by side read the fixture projects of
+          # LexLean at the pin (about 20 MB, not vendored); `lexlean` on PATH is the binary
+          # install_prismpm built at that pin.
+          gate "gateway/lay-out-lexlean.sh" gateway/lay-out-lexlean.sh "$RUNNER_TEMP/lexlean-at-the-pin" &&
+            export LEXLEAN_SOURCES="$RUNNER_TEMP/lexlean-at-the-pin" &&
+            gate "gateway-tool-tests ignored tests" gateway_ignored_tests gateway-tool-tests 4
       - name: 7i. the generated host source names no tool or method (Q6)
         run: |
           . .github/lexlean-ci/lib.sh

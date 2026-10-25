@@ -345,8 +345,18 @@ fn engine_check_checks_a_draft_project() {
     let (class, result) = check(&mut host, "tiny", 0, "").expect("check");
     assert_eq!(class, 0, "{result}");
     let document: serde_json::Value = serde_json::from_str(&result).expect("JSON");
-    assert_eq!(document["modules"]["Tiny"]["lean_module"], "Tiny.Tiny");
+    assert_eq!(document["spec"], "lexlean/command-result/1");
+    assert_eq!(document["command"], "check");
+    assert_eq!(document["success"], true);
+    assert_eq!(document["exit_code"], 0);
+    assert_eq!(document["modules"], serde_json::json!(["Tiny"]));
+    assert_eq!(document["diagnostics"], serde_json::json!([]));
     assert_eq!(document["source_id"].as_str().map(str::len), Some(64));
+    assert_eq!(document["semantic_id"].as_str().map(str::len), Some(64));
+    assert!(
+        result.ends_with('\n') && !result.contains(' '),
+        "the bytes are the canonical file spelling of the CLI: {result:?}"
+    );
 }
 
 #[test]
@@ -373,9 +383,15 @@ fn engine_check_answers_class_one_for_a_bad_draft() {
     let (class, result) = check(&mut host, "tiny", 0, "").expect("check");
     assert_eq!(class, 1, "{result}");
     let document: serde_json::Value = serde_json::from_str(&result).expect("JSON");
+    assert_eq!(document["success"], false);
+    assert_eq!(document["exit_code"], 1, "the class is the exit code");
     assert!(document["diagnostics"][0]["code"]
         .as_str()
         .is_some_and(|code| code.starts_with("LL")));
+    assert!(
+        document["diagnostics"][0]["primary"]["path"].is_string(),
+        "a diagnostic keeps its span: {result}"
+    );
 }
 
 #[test]
@@ -390,6 +406,14 @@ fn engine_check_answers_class_two_for_a_selection_that_is_not_one() {
     ] {
         let (class, result) = check(&mut host, "tiny", selection, files).expect("check");
         assert_eq!(class, 2, "{selection} {files:?}: {result}");
+        let document: serde_json::Value = serde_json::from_str(&result).expect("JSON");
+        assert_eq!(document["exit_code"], 2, "{selection} {files:?}: {result}");
+        assert!(
+            document["diagnostics"][0]["code"]
+                .as_str()
+                .is_some_and(|code| code.starts_with("LLC")),
+            "a selection error is a registered diagnostic: {result}"
+        );
     }
 }
 
@@ -439,6 +463,61 @@ fn engine_snapshot_returns_the_semantic_snapshot() {
     assert_eq!(done.class, 0);
     let document: serde_json::Value = serde_json::from_slice(&done.result).expect("JSON");
     assert!(document.is_object() && !document.as_object().expect("an object").is_empty());
+    assert!(document["spec"]
+        .as_str()
+        .is_some_and(|spec| spec.starts_with("lexlean/semantic-snapshot/")));
+}
+
+#[test]
+fn engine_snapshot_returns_the_canonical_bytes_of_the_snapshot() {
+    let (mut host, _directory) = with_tiny();
+    let done = host
+        .engine_snapshot(engine_snapshot::Request {
+            project: "tiny".into(),
+            selection: 0,
+            files: String::new(),
+        })
+        .expect("snapshot");
+    let config = host.config().store.join("drafts/tiny/lexlean.toml");
+    let engine = lexlean::Engine::load(camino::Utf8Path::from_path(&config).expect("UTF-8"))
+        .expect("the project loads");
+    let snapshot = engine
+        .snapshot(lexlean::CheckRequest {
+            selection: lexlean::Selection::Entrypoints,
+        })
+        .expect("the project checks");
+    assert_eq!(
+        done.result,
+        snapshot.canonical_bytes(),
+        "the result of E4 is the canonical bytes of the snapshot of the Engine"
+    );
+    assert!(done.result.ends_with(b"\n"));
+}
+
+#[test]
+fn engine_snapshot_refuses_a_bad_draft_with_the_command_result_of_check() {
+    let (mut host, _directory) = with_tiny();
+    put(
+        &mut host,
+        "tiny/src/Tiny.lex.tex",
+        b"\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n",
+    )
+    .expect("put");
+    let done = host
+        .engine_snapshot(engine_snapshot::Request {
+            project: "tiny".into(),
+            selection: 0,
+            files: String::new(),
+        })
+        .expect("snapshot");
+    assert_eq!(done.class, 1);
+    let snapshot: serde_json::Value = serde_json::from_slice(&done.result).expect("JSON");
+    let (class, checked) = check(&mut host, "tiny", 0, "").expect("check");
+    assert_eq!(class, 1);
+    let mut checked: serde_json::Value = serde_json::from_str(&checked).expect("JSON");
+    assert_eq!(checked["command"], "check");
+    checked["command"] = "snapshot".into();
+    assert_eq!(snapshot, checked, "a refused snapshot is a refused check");
 }
 
 #[test]
@@ -516,7 +595,9 @@ fn engine_format_checks_without_writing() {
     let (mut host, _directory) = with_tiny();
     let (class, document) = format(&mut host, "tiny", true).expect("format");
     assert_eq!(class, 0);
-    assert_eq!(document["canonical"]["Tiny"], true);
+    assert_eq!(document["command"], "fmt");
+    assert_eq!(document["modules"], serde_json::json!(["Tiny"]));
+    assert_eq!(document["exit_code"], 0);
     let drafts = host.config().store.join("drafts/tiny/src/Tiny.lex.tex");
     let mut untidy = std::fs::read_to_string(&drafts).expect("a file");
     untidy.push_str("\n\n\n");
@@ -524,6 +605,7 @@ fn engine_format_checks_without_writing() {
     // A module that is not canonical is a language error of a check: class 1 and the diagnostic.
     let (class, document) = format(&mut host, "tiny", true).expect("format");
     assert_eq!(class, 1, "{document}");
+    assert_eq!(document["exit_code"], 1);
     assert!(document["diagnostics"][0]["code"]
         .as_str()
         .is_some_and(|code| code.starts_with("LL")));
@@ -595,8 +677,15 @@ fn engine_build_publishes_a_build_of_the_project() {
     let (mut host, _directory) = with_tiny();
     let (class, document) = build(&mut host, "tiny").expect("build");
     assert_eq!(class, 0, "{document}");
+    assert_eq!(document["command"], "build");
+    assert_eq!(document["modules"], serde_json::json!(["Tiny"]));
     let id = document["build_id"].as_str().expect("a build id");
     assert_eq!(id.len(), 64);
+    assert_eq!(
+        document["artifacts"],
+        serde_json::json!([format!(".lexlean/build/{id}")]),
+        "the artifact is named by the build root, as the CLI names it"
+    );
     let published = host
         .config()
         .store
