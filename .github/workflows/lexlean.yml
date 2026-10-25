@@ -45,6 +45,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: The gate helper fails a step on any failed command
+        run: .github/lexlean-ci/test-gate.sh
       - name: Read the pinned LexLean revision
         id: pin
         run: |
