@@ -211,6 +211,17 @@ name = "gateway-host-api"
 version = "0.1.0"
 
 [[package]]
+name = "gateway-tool-tests"
+version = "0.1.0"
+dependencies = [
+ "gateway-binding",
+ "gateway-host",
+ "gateway-host-api",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "gateway-vectors"
 version = "0.1.0"
 dependencies = [
