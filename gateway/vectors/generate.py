@@ -25,6 +25,7 @@ usage:
   generate.py table              print the rows of the table of GATEWAY.md, "The effects"
 """
 
+import hashlib
 import json
 import pathlib
 import subprocess
@@ -45,14 +46,17 @@ MODEL = "Foundation.Server.V1.Model"
 # A kind is one of Flag, U32, U64, Text, Bytes. The first ten rows are src/Effects.lex.tex in
 # tag order; the last is the frame effect.
 DRAFT = 8_388_608
+# A draft is stored as its preimage (DRAFTS.md): the content, up to `draft.max_bytes`, and the framing of
+# the files, which gateway-binding's DRAFT_BLOB_HEADROOM bounds.
+BLOB = DRAFT + 1_048_576
 KEY = 1_024
 EFFECTS = [
     ("store.get", [("area", "U32"), ("key", "Text")],
      [("found", "Flag"), ("content", "Bytes")],
-     ["area-unknown", "key-refused", "unreadable"], 4 + 4 + KEY + 8, DRAFT + 4_096),
+     ["area-unknown", "key-refused", "unreadable"], 4 + 4 + KEY + 8, BLOB + 4_096),
     ("store.put", [("area", "U32"), ("key", "Text"), ("content", "Bytes")],
      [("length", "U64")],
-     ["area-unknown", "key-refused", "unwritable"], 4 + 4 + KEY + 4 + DRAFT + 8, 16),
+     ["area-unknown", "key-refused", "unwritable"], 4 + 4 + KEY + 4 + BLOB + 8, 16),
     ("engine.check", [("project", "Text"), ("selection", "U32"), ("files", "Text")],
      [("class", "U32"), ("result", "Bytes")],
      ["project-refused", "engine-unavailable"], 65_536, 4_194_304 + 64),
@@ -297,14 +301,21 @@ META = {
     "io.modelcontextprotocol/clientCapabilities": {},
 }
 
-FIXTURE_FILES = [
+# The files of the profile of the vectors: its bundle, which the host copies beside the files of a
+# draft, and its record (DRAFTS.md): the ID of the profile and its source roots.
+BUNDLE_FILES = [
     "lexlean.toml",
     "lexlean.lock",
     "lakefile.toml",
     "lean-toolchain",
     "lake-manifest.json",
-    "src/Tiny.lex.tex",
 ]
+SOURCE = "src/Tiny.lex.tex"
+# The ID of the profile is 32 opaque octets to the draft tools (Profiles.idOf is #8's), so the vectors
+# give their profile a fixed one.
+PROFILE_ID = hashlib.sha256(b"lexlean-mcp gateway vectors: tiny").digest()
+PROFILE_RECORD = PROFILE_ID.hex() + "\nsrc\n"
+BROKEN_RECORD = "not the id of a profile\nsrc\n"
 # A source the Engine refuses (class 1): the project of the vectors after this write is the one
 # whose command result a refused check and a refused snapshot carry (issue #10).
 REFUSED = "\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n"
@@ -315,6 +326,38 @@ def fixture(path: str) -> str:
     return (FIXTURE / path).read_text(encoding="ascii")
 
 
+def frame(head: str, payload: bytes) -> bytes:
+    """Identity.encFrame: the head with its length, the length of the payload in 8 octets, the payload."""
+    name = head.encode("ascii")
+    return len(name).to_bytes(4, "big") + name + len(payload).to_bytes(8, "big") + payload
+
+
+def draft_preimage(profile: bytes, rows: dict) -> bytes:
+    """Identity.encDraft over the rows sorted by path (the octets of the path decide)."""
+    out = frame("domain", b"lexlean-mcp-draft-v1") + frame("profile", profile)
+    out += len("sources".encode()).to_bytes(4, "big") + b"sources" + (2 * len(rows)).to_bytes(8, "big")
+    for path in sorted(rows, key=lambda p: p.encode("utf-8")):
+        out += frame("source", path.encode("utf-8")) + frame("source", rows[path].encode("utf-8"))
+    return out
+
+
+def draft_handle(profile: str, rows: dict) -> str:
+    """The handle of a draft: its profile name and the SHA-256 of its preimage."""
+    return f"{profile}/{hashlib.sha256(draft_preimage(PROFILE_ID, rows)).hexdigest()}"
+
+
+def provision(store: pathlib.Path) -> None:
+    """The profiles of the vectors: `tiny` (a bundle and a record) and `broken` (a record that is not one)."""
+    tiny = store / "profiles" / "tiny"
+    tiny.mkdir(parents=True)
+    for path in BUNDLE_FILES:
+        (tiny / path).write_text(fixture(path), encoding="ascii")
+    (tiny / "profile").write_text(PROFILE_RECORD, encoding="ascii")
+    broken = store / "profiles" / "broken"
+    broken.mkdir(parents=True)
+    (broken / "profile").write_text(BROKEN_RECORD, encoding="ascii")
+
+
 def spec() -> list:
     """The requests, in the order they run: (name, kind, method, tool, arguments).
 
@@ -322,29 +365,38 @@ def spec() -> list:
     (`tools-list`, `invalid-arguments`, `unknown-tool`, `explain`), or the call of a tool, which
     asks for the effect named in its name."""
     call = "tools/call"
+    tiny = {SOURCE: fixture(SOURCE)}
+    handle = draft_handle("tiny", tiny)
+    refused = draft_handle("tiny", {SOURCE: REFUSED})
     out = [
         ("the tools the gateway serves", "tools-list", "tools/list", None, None),
         ("a tool call without its arguments", "invalid-arguments", call, "lexlean_check", {}),
         ("a tool the gateway does not serve", "unknown-tool", call, "lexlean_unknown", {}),
-    ]
-    for path in FIXTURE_FILES:
-        out.append((f"store.put {path}", "tool-call", call, "lexlean_draft_write",
-                    {"path": f"tiny/{path}", "content": fixture(path)}))
-    out += [
-        ("store.get", "tool-call", call, "lexlean_draft_read", {"path": "tiny/src/Tiny.lex.tex"}),
-        ("store.put refuses a key", "tool-call", call, "lexlean_draft_write",
-         {"path": "../outside", "content": "x"}),
-        ("engine.check", "tool-call", call, "lexlean_check", {"project": "tiny", "files": []}),
-        ("engine.snapshot", "tool-call", call, "lexlean_snapshot", {"project": "tiny", "files": []}),
+        ("lexicon.read and store.put: a draft is written", "tool-call", call, "lexlean_draft_write",
+         {"profile": "tiny", "files": [{"path": SOURCE, "content": fixture(SOURCE)}]}),
+        ("store.get: the files of a draft", "tool-call", call, "lexlean_draft_read", {"draft": handle}),
+        ("store.get: a file of a draft", "tool-call", call, "lexlean_draft_read",
+         {"draft": handle, "path": SOURCE}),
+        ("store.get refuses a key", "tool-call", call, "lexlean_draft_read", {"draft": "../" + handle.split("/")[1]}),
+        ("lexicon.read refuses a profile", "tool-call", call, "lexlean_draft_write",
+         {"profile": "absent", "files": [{"path": SOURCE, "content": "x"}]}),
+        ("a path with .. is refused before store.put", "tool-call", call, "lexlean_draft_write",
+         {"profile": "tiny", "files": [{"path": "src/../Tiny.lex.tex", "content": "x"}]}),
+        ("a record that is not a profile record is refused", "tool-call", call, "lexlean_draft_write",
+         {"profile": "broken", "files": [{"path": SOURCE, "content": "x"}]}),
+        ("engine.check", "tool-call", call, "lexlean_check", {"project": handle, "files": []}),
+        ("engine.snapshot", "tool-call", call, "lexlean_snapshot", {"project": handle, "files": []}),
         ("engine.format", "tool-call", call, "lexlean_format",
-         {"project": "tiny", "files": [], "check_only": True}),
-        ("engine.build", "tool-call", call, "lexlean_build", {"project": "tiny", "files": []}),
+         {"project": handle, "files": [], "check_only": True}),
+        ("engine.build", "tool-call", call, "lexlean_build", {"project": handle, "files": []}),
         ("store.put a source the engine refuses", "tool-call", call, "lexlean_draft_write",
-         {"path": "tiny/src/Tiny.lex.tex", "content": REFUSED}),
+         {"profile": "tiny", "files": [{"path": SOURCE, "content": REFUSED}]}),
         ("engine.check refuses the project", "tool-call", call, "lexlean_check",
-         {"project": "tiny", "files": []}),
+         {"project": refused, "files": []}),
         ("engine.snapshot refuses the project", "tool-call", call, "lexlean_snapshot",
-         {"project": "tiny", "files": []}),
+         {"project": refused, "files": []}),
+        ("engine.check refuses a draft that is absent", "tool-call", call, "lexlean_check",
+         {"project": "tiny/" + "0" * 64, "files": []}),
         ("verify.start refuses a project", "tool-call", call, "lexlean_verify",
          {"project": "absent", "files": []}),
         ("verify.control refuses a task", "tool-call", call, "lexlean_verify_control",
@@ -432,6 +484,7 @@ def record_vectors(runner: str) -> list:
     requests = spec()
     built = [http_request(i, m, t, a) for i, (_, _, m, t, a) in enumerate(requests)]
     with tempfile.TemporaryDirectory() as store:
+        provision(pathlib.Path(store))
         environment = {"LEXLEAN_MCP_STORE": store, "PATH": "/usr/bin:/bin"}
         process = subprocess.run(
             [runner],
@@ -455,6 +508,13 @@ def record_vectors(runner: str) -> list:
             "http_response": http_response(response).hex(),
             "steps": answer["steps"],
         })
+    # The identity of a draft is computed here, independently of the core, to name the projects of the
+    # later requests: the core must have answered with the same handle.
+    written = json.loads(bytes.fromhex(vectors[3]["http_response"]).split(b"\r\n\r\n", 1)[1])
+    expected = draft_handle("tiny", {SOURCE: fixture(SOURCE)})
+    got = written["result"]["structuredContent"]["draft"]
+    if got != expected:
+        sys.exit(f"generate: the core named the draft {got}, the generator {expected}")
     return vectors
 
 

@@ -1,0 +1,829 @@
+\begin{lexlean}{Nfc}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{NfcTables}
+\title{LexLean MCP Unicode normalization}
+\begin{semanticmodule}
+definition{
+  name: reverseOnto,
+  parameters: [xs : (List Nat), done : (List Nat)],
+  result: (List Nat),
+  body: (match xs | List.nil => done | List.cons head rest => (reverseOnto rest (cons head done))),
+  executable: true,
+  recursive_argument: xs
+}
+
+definition{
+  name: sameScalars,
+  parameters: [xs : (List Nat), ys : (List Nat)],
+  result: Bool,
+  body: (match xs
+    | List.nil => (match ys | List.nil => true | List.cons y more => false)
+    | List.cons x rest => (match ys
+      | List.nil => false
+      | List.cons y more => (if (x =? y) then (sameScalars rest more) else false))),
+  executable: true,
+  recursive_argument: xs
+}
+
+definition{
+  name: byteAt,
+  parameters: [bytes : Bytes, position : Nat],
+  result: Nat,
+  body: (match (prim index bytes position : (Option UInt8))
+    | Option.some byte => (prim to_nat byte : Nat)
+    | Option.none => 0),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: octetAt,
+  parameters: [tables : (Bytes * Bytes), position : Nat],
+  result: Nat,
+  body: (if (position <? (NfcTables::lowLength)) then (byteAt (first tables) position) else (byteAt (second tables) (prim subtract position (NfcTables::lowLength) : Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: octetsOfBytes,
+  parameters: [bytes : Bytes],
+  result: (List Nat),
+  body: (first (prim iterate (fun [bytes] (state : ((List Nat) * Nat)) => ((cons (byteAt bytes (prim subtract (second state) 1 : Nat)) (first state)), (prim subtract (second state) 1 : Nat))) (prim length bytes : Nat) ((nil Nat), (prim length bytes : Nat)) : ((List Nat) * Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: decodeInto,
+  parameters: [octets : (List Nat), pending : Nat, needed : Nat, done : (List Nat)],
+  result: (List Nat),
+  body: (match octets
+    | List.nil => done
+    | List.cons octet rest => (if (needed =? 0) then (if (octet <? 128) then (decodeInto rest 0 0 (cons octet done)) else (if (octet <? 224) then (decodeInto rest (prim subtract octet 192 : Nat) 1 done) else (if (octet <? 240) then (decodeInto rest (prim subtract octet 224 : Nat) 2 done) else (decodeInto rest (prim subtract octet 240 : Nat) 3 done)))) else (let gathered : Nat := ((prim multiply pending 64 : Nat) + (prim subtract octet 128 : Nat)); (if (needed =? 1) then (decodeInto rest 0 0 (cons gathered done)) else (decodeInto rest gathered (prim subtract needed 1 : Nat) done))))),
+  executable: true,
+  recursive_argument: octets
+}
+
+definition{
+  name: scalarsOfOctets,
+  parameters: [octets : (List Nat)],
+  result: (List Nat),
+  body: (reverseOnto (decodeInto octets 0 0 (nil Nat)) (nil Nat)),
+  executable: true
+}
+
+definition{
+  name: isHangulSyllable,
+  parameters: [code : Nat],
+  result: Bool,
+  body: (if (code <? 44032) then false else (code <? 55204)),
+  executable: true
+}
+
+definition{
+  name: hangulParts,
+  parameters: [code : Nat],
+  result: (List Nat),
+  body: (let index : Nat := (prim subtract code 44032 : Nat); (let leading : Nat := (4352 + (prim quotient index 588 0 : Nat)); (let vowel : Nat := (4449 + (prim quotient (prim remainder index 588 0 : Nat) 28 0 : Nat)); (let trailing : Nat := (4519 + (prim remainder index 28 0 : Nat)); (if (trailing =? 4519) then (cons leading (cons vowel (nil Nat))) else (cons leading (cons vowel (cons trailing (nil Nat))))))))),
+  executable: true
+}
+
+definition{
+  name: readFrom,
+  parameters: [tables : (Bytes * Bytes), position : Nat, width : Nat, gathered : Nat],
+  result: Nat,
+  body: (match width
+    | Nat.zero => gathered
+    | Nat.succ previous => (readFrom tables (position + 1) previous ((prim multiply gathered 256 : Nat) + (octetAt tables position)))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: width
+}
+
+definition{
+  name: lastAtOrBelow,
+  parameters: [
+    fuel : Nat,
+    tables : (Bytes * Bytes),
+    base : Nat,
+    width : Nat,
+    keyWidth : Nat,
+    target : Nat,
+    low : Nat,
+    high : Nat
+  ],
+  result: Nat,
+  body: (match fuel
+    | Nat.zero => low
+    | Nat.succ previous => (if ((prim subtract high low : Nat) <? 2) then low else (let middle : Nat := (prim quotient (low + high) 2 0 : Nat); (if (target <? (readFrom tables (base + (prim multiply middle width : Nat)) keyWidth 0)) then (lastAtOrBelow previous tables base width keyWidth target low middle) else (lastAtOrBelow previous tables base width keyWidth target middle high))))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: fuel
+}
+
+definition{
+  name: sectionStart,
+  parameters: [tables : (Bytes * Bytes), section : Nat],
+  result: Nat,
+  body: (readFrom tables (prim multiply section 6 : Nat) 3 0),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: sectionCount,
+  parameters: [tables : (Bytes * Bytes), section : Nat],
+  result: Nat,
+  body: (readFrom tables ((prim multiply section 6 : Nat) + 3) 3 0),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: recordFor,
+  parameters: [
+    tables : (Bytes * Bytes),
+    base : Nat,
+    width : Nat,
+    count : Nat,
+    keyWidth : Nat,
+    target : Nat
+  ],
+  result: Nat,
+  body: (base + (prim multiply (lastAtOrBelow 16 tables base width keyWidth target 0 count) width : Nat)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: combiningClass,
+  parameters: [tables : (Bytes * Bytes), code : Nat],
+  result: Nat,
+  body: (if (code <? (NfcTables::fastBound)) then 0 else (let entry : Nat := (recordFor tables (sectionStart tables 0) 7 (sectionCount tables 0) 3 code); (if (code <? (readFrom tables entry 3 0)) then 0 else (if ((readFrom tables (entry + 3) 3 0) <? code) then 0 else (octetAt tables (entry + 6)))))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: excludedFromComposition,
+  parameters: [tables : (Bytes * Bytes), code : Nat],
+  result: Bool,
+  body: (if (code <? (NfcTables::fastBound)) then false else (let entry : Nat := (recordFor tables (sectionStart tables 1) 6 (sectionCount tables 1) 3 code); (if (code <? (readFrom tables entry 3 0)) then false else (if ((readFrom tables (entry + 3) 3 0) <? code) then false else true)))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: singleTarget,
+  parameters: [tables : (Bytes * Bytes), code : Nat],
+  result: Nat,
+  body: (if (code <? (NfcTables::fastBound)) then 0 else (let entry : Nat := (recordFor tables (sectionStart tables 2) 6 (sectionCount tables 2) 3 code); (if ((readFrom tables entry 3 0) =? code) then (readFrom tables (entry + 3) 3 0) else 0))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: splitParts,
+  parameters: [tables : (Bytes * Bytes), code : Nat],
+  result: (List Nat),
+  body: (if (code <? (NfcTables::decomposesFrom)) then (nil Nat) else (let entry : Nat := (recordFor tables (sectionStart tables 3) 9 (sectionCount tables 3) 3 code); (if ((readFrom tables entry 3 0) =? code) then (cons (readFrom tables (entry + 3) 3 0) (cons (readFrom tables (entry + 6) 3 0) (nil Nat))) else (nil Nat)))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: pairComposite,
+  parameters: [tables : (Bytes * Bytes), lead : Nat, follow : Nat],
+  result: Nat,
+  body: (if (follow <? (NfcTables::fastBound)) then 0 else (let key : Nat := ((prim multiply lead 16777216 : Nat) + follow); (let entry : Nat := (recordFor tables (sectionStart tables 4) 9 (sectionCount tables 4) 6 key); (if ((readFrom tables entry 6 0) =? key) then (readFrom tables (entry + 6) 3 0) else 0)))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: expandScalar,
+  parameters: [tables : (Bytes * Bytes), code : Nat],
+  result: (List Nat),
+  body: (if (isHangulSyllable code) then (hangulParts code) else (let target : Nat := (singleTarget tables code); (if (target =? 0) then (match (splitParts tables code)
+    | List.nil => (cons code (nil Nat))
+    | List.cons head rest => (cons head rest)) else (cons target (nil Nat))))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: expandInto,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat), done : (List Nat)],
+  result: (List Nat),
+  body: (match xs
+    | List.nil => done
+    | List.cons code rest => (expandInto tables rest (reverseOnto (expandScalar tables code) done))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: xs
+}
+
+definition{
+  name: expandOnce,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
+  result: (List Nat),
+  body: (reverseOnto (expandInto tables xs (nil Nat)) (nil Nat)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: expandSteps,
+  parameters: [tables : (Bytes * Bytes), steps : Nat, xs : (List Nat)],
+  result: (List Nat),
+  body: (match steps
+    | Nat.zero => xs
+    | Nat.succ previous => (expandSteps tables previous (expandOnce tables xs))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: steps
+}
+
+definition{
+  name: decompose,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
+  result: (List Nat),
+  body: (expandSteps tables (NfcTables::decompositionDepth) xs),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: reverseMarks,
+  parameters: [marks : (List (Nat * Nat)), done : (List (Nat * Nat))],
+  result: (List (Nat * Nat)),
+  body: (match marks
+    | List.nil => done
+    | List.cons mark rest => (reverseMarks rest (cons mark done))),
+  executable: true,
+  recursive_argument: marks
+}
+
+definition{
+  name: reverseMarkRuns,
+  parameters: [runs : (List (List (Nat * Nat))), done : (List (List (Nat * Nat)))],
+  result: (List (List (Nat * Nat))),
+  body: (match runs
+    | List.nil => done
+    | List.cons run rest => (reverseMarkRuns rest (cons run done))),
+  executable: true,
+  recursive_argument: runs
+}
+
+definition{
+  name: countMarks,
+  parameters: [marks : (List (Nat * Nat)), total : Nat],
+  result: Nat,
+  body: (match marks | List.nil => total | List.cons mark rest => (countMarks rest (total + 1))),
+  executable: true,
+  recursive_argument: marks
+}
+
+definition{
+  name: singletonMarkRuns,
+  parameters: [marks : (List (Nat * Nat)), done : (List (List (Nat * Nat)))],
+  result: (List (List (Nat * Nat))),
+  body: (match marks
+    | List.nil => done
+    | List.cons mark rest => (singletonMarkRuns rest (cons (cons mark (nil (Nat * Nat))) done))),
+  executable: true,
+  recursive_argument: marks
+}
+
+definition{
+  name: mergeMarksInto,
+  parameters: [
+    fuel : Nat,
+    left : (List (Nat * Nat)),
+    right : (List (Nat * Nat)),
+    acc : (List (Nat * Nat))
+  ],
+  result: (List (Nat * Nat)),
+  body: (match fuel
+    | Nat.zero => (reverseMarks acc left)
+    | Nat.succ previous => (match left
+      | List.nil => (reverseMarks acc right)
+      | List.cons x xs => (match right
+        | List.nil => (reverseMarks acc left)
+        | List.cons y ys => (if ((first y) <? (first x)) then (mergeMarksInto previous left ys (cons y acc)) else (mergeMarksInto previous xs right (cons x acc)))))),
+  executable: true,
+  recursive_argument: fuel
+}
+
+definition{
+  name: mergeMarkPairs,
+  parameters: [
+    fuel : Nat,
+    runs : (List (List (Nat * Nat))),
+    held : (List (List (Nat * Nat))),
+    done : (List (List (Nat * Nat)))
+  ],
+  result: (List (List (Nat * Nat))),
+  body: (match runs
+    | List.nil => (match held
+      | List.nil => (reverseMarkRuns done (nil (List (Nat * Nat))))
+      | List.cons waiting more => (reverseMarkRuns (cons waiting done) (nil (List (Nat * Nat)))))
+    | List.cons run rest => (match held
+      | List.nil => (mergeMarkPairs fuel rest (cons run (nil (List (Nat * Nat)))) done)
+      | List.cons waiting more => (mergeMarkPairs fuel rest (nil (List (Nat * Nat))) (cons (mergeMarksInto fuel waiting run (nil (Nat * Nat))) done)))),
+  executable: true,
+  recursive_argument: runs
+}
+
+definition{
+  name: sortMarkRuns,
+  parameters: [rounds : Nat, fuel : Nat, runs : (List (List (Nat * Nat)))],
+  result: (List (Nat * Nat)),
+  body: (match rounds
+    | Nat.zero => (match runs | List.nil => (nil (Nat * Nat)) | List.cons one rest => one)
+    | Nat.succ previous => (match runs
+      | List.nil => (nil (Nat * Nat))
+      | List.cons one rest => (match rest
+        | List.nil => one
+        | List.cons two more => (sortMarkRuns previous fuel (mergeMarkPairs fuel runs (nil (List (Nat * Nat))) (nil (List (Nat * Nat)))))))),
+  executable: true,
+  recursive_argument: rounds
+}
+
+definition{
+  name: sortMarks,
+  parameters: [latestFirst : (List (Nat * Nat))],
+  result: (List (Nat * Nat)),
+  body: (let count : Nat := (countMarks latestFirst 0); (sortMarkRuns (count + 1) (count + 1) (singletonMarkRuns latestFirst (nil (List (Nat * Nat)))))),
+  executable: true
+}
+
+definition{
+  name: pushCodes,
+  parameters: [marks : (List (Nat * Nat)), done : (List Nat)],
+  result: (List Nat),
+  body: (match marks
+    | List.nil => done
+    | List.cons mark rest => (pushCodes rest (cons (second mark) done))),
+  executable: true,
+  recursive_argument: marks
+}
+
+definition{
+  name: orderScan,
+  parameters: [
+    tables : (Bytes * Bytes),
+    xs : (List Nat),
+    run : (List (Nat * Nat)),
+    done : (List Nat)
+  ],
+  result: (List Nat),
+  body: (match xs
+    | List.nil => (pushCodes (sortMarks run) done)
+    | List.cons code rest => (let rank : Nat := (combiningClass tables code); (if (rank =? 0) then (orderScan tables rest (nil (Nat * Nat)) (cons code (pushCodes (sortMarks run) done))) else (orderScan tables rest (cons (rank, code) run) done)))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: xs
+}
+
+definition{
+  name: orderMarks,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
+  result: (List Nat),
+  body: (reverseOnto (orderScan tables xs (nil (Nat * Nat)) (nil Nat)) (nil Nat)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: composeHangul,
+  parameters: [lead : Nat, follow : Nat],
+  result: Nat,
+  body: (if (isHangulSyllable lead) then (if ((prim remainder (prim subtract lead 44032 : Nat) 28 0 : Nat) =? 0) then (if (follow <? 4520) then 0 else (if (follow <? 4547) then (lead + (prim subtract follow 4519 : Nat)) else 0)) else 0) else (if (lead <? 4352) then 0 else (if (lead <? 4371) then (if (follow <? 4449) then 0 else (if (follow <? 4470) then (44032 + (prim multiply ((prim multiply (prim subtract lead 4352 : Nat) 21 : Nat) + (prim subtract follow 4449 : Nat)) 28 : Nat)) else 0)) else 0))),
+  executable: true
+}
+
+definition{
+  name: composeWith,
+  parameters: [hangul : Nat, composite : Nat, excluded : Bool],
+  result: Nat,
+  body: (if (hangul =? 0) then (if (composite =? 0) then 0 else (if excluded then 0 else composite)) else hangul),
+  executable: true
+}
+
+definition{
+  name: composePair,
+  parameters: [tables : (Bytes * Bytes), lead : Nat, follow : Nat],
+  result: Nat,
+  body: (composeWith (composeHangul lead follow) (pairComposite tables lead follow) (excludedFromComposition tables (pairComposite tables lead follow))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: unlessBlocked,
+  parameters: [blocked : Bool, composite : Nat],
+  result: Nat,
+  body: (if blocked then 0 else composite),
+  executable: true
+}
+
+definition{
+  name: blockedBy,
+  parameters: [tables : (Bytes * Bytes), marks : (List Nat), rank : Nat],
+  result: Bool,
+  body: (match marks
+    | List.nil => false
+    | List.cons last more => (if ((combiningClass tables last) <? rank) then false else true)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: flush,
+  parameters: [starter : Nat, marks : (List Nat), done : (List Nat)],
+  result: (List Nat),
+  body: (reverseOnto (reverseOnto marks (nil Nat)) (cons starter done)),
+  executable: true
+}
+
+definition{
+  name: composeRun,
+  parameters: [
+    tables : (Bytes * Bytes),
+    xs : (List Nat),
+    hasStarter : Bool,
+    starter : Nat,
+    marks : (List Nat),
+    done : (List Nat)
+  ],
+  result: (List Nat),
+  body: (match xs
+    | List.nil => (if hasStarter then (reverseOnto (flush starter marks done) (nil Nat)) else (reverseOnto done (nil Nat)))
+    | List.cons code rest => (let rank : Nat := (combiningClass tables code); (if hasStarter then (let composite : Nat := (unlessBlocked (blockedBy tables marks rank) (composePair tables starter code)); (if (composite =? 0) then (if (rank =? 0) then (composeRun tables rest true code (nil Nat) (flush starter marks done)) else (composeRun tables rest true starter (cons code marks) done)) else (composeRun tables rest true composite marks done))) else (if (rank =? 0) then (composeRun tables rest true code (nil Nat) done) else (composeRun tables rest false 0 (nil Nat) (cons code done)))))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: xs
+}
+
+definition{
+  name: toNfd,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
+  result: (List Nat),
+  body: (orderMarks tables (decompose tables xs)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: toNfc,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
+  result: (List Nat),
+  body: (composeRun tables (toNfd tables xs) false 0 (nil Nat) (nil Nat)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: allBelow,
+  parameters: [bound : Nat, xs : (List Nat)],
+  result: Bool,
+  body: (match xs
+    | List.nil => true
+    | List.cons x rest => (if (x <? bound) then (allBelow bound rest) else false)),
+  executable: true,
+  recursive_argument: xs
+}
+
+definition{
+  name: isNfc,
+  parameters: [tables : (Bytes * Bytes), xs : (List Nat)],
+  result: Bool,
+  body: (if (allBelow (NfcTables::fastBound) xs) then true else (sameScalars xs (toNfc tables xs))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: verdictWord,
+  parameters: [holds : Bool],
+  result: (List Nat),
+  body: (if holds then (cons 1 (nil Nat)) else (cons 0 (nil Nat))),
+  executable: true
+}
+
+definition{
+  name: nfcRun,
+  parameters: [mode : Nat, low : Bytes, high : Bytes, input : Bytes],
+  result: (List Nat),
+  body: (let tables : (Bytes * Bytes) := (low, high); (let scalars : (List Nat) := (scalarsOfOctets (octetsOfBytes input)); (if (mode =? 0) then (verdictWord (isNfc tables scalars)) else (if (mode =? 1) then scalars else (if (mode =? 2) then (toNfd tables scalars) else (toNfc tables scalars)))))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow], targets: [rust-std]}
+}
+
+theorem{
+  name: decomposedLetterIsNotNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 101 (cons 769 (nil Nat)))) = false),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: precomposedLetterIsNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 233 (nil Nat))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: decomposedLetterComposes,
+  parameters: [],
+  statement: ((toNfc (NfcTables::sample) (cons 101 (cons 769 (nil Nat)))) = (cons 233 (nil Nat))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: precomposedLetterIsItsOwnNfc,
+  parameters: [],
+  statement: ((toNfc (NfcTables::sample) (cons 233 (nil Nat))) = (cons 233 (nil Nat))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: precomposedLetterDecomposes,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 233 (nil Nat))) = (cons 101 (cons 769 (nil Nat)))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: asciiIsNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 97 (cons 98 (cons 99 (nil Nat))))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: emptyIsNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (nil Nat)) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: hangulLvComposes,
+  parameters: [],
+  statement: ((toNfc (NfcTables::sample) (cons 4352 (cons 4449 (nil Nat)))) = (cons 44032 (nil Nat))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: hangulLvtComposes,
+  parameters: [],
+  statement: ((toNfc (NfcTables::sample) (cons 4352 (cons 4449 (cons 4520 (nil Nat))))) = (cons 44033 (nil Nat))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: hangulTrailingConsonantComposes,
+  parameters: [],
+  statement: ((toNfc (NfcTables::sample) (cons 44032 (cons 4520 (nil Nat)))) = (cons 44033 (nil Nat))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: hangulLvtDecomposes,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 44033 (nil Nat))) = (cons 4352 (cons 4449 (cons 4520 (nil Nat))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: hangulLvtIsNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 44033 (nil Nat))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: hangulJamoSequenceIsNotNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 4352 (cons 4449 (cons 4520 (nil Nat))))) = false),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: compositionExclusionIsNotNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 2392 (nil Nat))) = false),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: compositionExclusionStaysDecomposed,
+  parameters: [],
+  statement: ((toNfc (NfcTables::sample) (cons 2392 (nil Nat))) = (cons 2325 (cons 2364 (nil Nat)))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: compositionExclusionSequenceIsNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 2325 (cons 2364 (nil Nat)))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: singletonIsNotNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 8491 (nil Nat))) = false),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: singletonNormalizes,
+  parameters: [],
+  statement: ((toNfc (NfcTables::sample) (cons 8491 (nil Nat))) = (cons 197 (nil Nat))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: marksAreReordered,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 769 (cons 790 (nil Nat))))) = (cons 97 (cons 790 (cons 769 (nil Nat))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: marksOfEqualClassKeepTheirOrder,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 769 (cons 768 (nil Nat))))) = (cons 97 (cons 769 (cons 768 (nil Nat))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: marksOfEqualClassKeepTheirOrderWhenReversed,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 768 (cons 769 (nil Nat))))) = (cons 97 (cons 768 (cons 769 (nil Nat))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: anOutOfOrderMarkPassesEqualClassMarks,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 769 (cons 768 (cons 790 (nil Nat)))))) = (cons 97 (cons 790 (cons 769 (cons 768 (nil Nat)))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aRunOfMarksIsSortedByClassKeepingEqualClassOrder,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 837 (cons 769 (cons 790 (cons 768 (cons 787 (nil Nat)))))))) = (cons 97 (cons 790 (cons 769 (cons 768 (cons 787 (cons 837 (nil Nat)))))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: eachRunOfMarksIsOrderedOnItsOwn,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 97 (cons 769 (cons 790 (cons 98 (cons 769 (cons 790 (nil Nat)))))))) = (cons 97 (cons 790 (cons 769 (cons 98 (cons 790 (cons 769 (nil Nat)))))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: leadingMarksAreOrdered,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 769 (cons 790 (nil Nat)))) = (cons 790 (cons 769 (nil Nat)))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: equalClassMarksAreNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 120 (cons 769 (cons 768 (nil Nat))))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: equalClassMarksAreNfcWhenReversed,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 120 (cons 768 (cons 769 (nil Nat))))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: reorderedMarksCompose,
+  parameters: [],
+  statement: ((toNfc (NfcTables::sample) (cons 97 (cons 769 (cons 790 (nil Nat))))) = (cons 225 (cons 790 (nil Nat)))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: reorderedMarksAreNotNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 97 (cons 769 (cons 790 (nil Nat))))) = false),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: dotBelowComposesBeforeDotAbove,
+  parameters: [],
+  statement: ((toNfc (NfcTables::sample) (cons 68 (cons 775 (cons 803 (nil Nat))))) = (cons 7692 (cons 775 (nil Nat)))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: repeatedMarkIsNotBlocked,
+  parameters: [],
+  statement: ((toNfc (NfcTables::sample) (cons 97 (cons 769 (cons 769 (nil Nat))))) = (cons 225 (cons 769 (nil Nat)))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: deepDecompositionIsExpanded,
+  parameters: [],
+  statement: ((toNfd (NfcTables::sample) (cons 8066 (nil Nat))) = (cons 945 (cons 787 (cons 768 (cons 837 (nil Nat)))))),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: deepDecompositionIsNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (cons 8066 (nil Nat))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: utf8TwoOctets,
+  parameters: [],
+  statement: ((scalarsOfOctets (cons 195 (cons 169 (nil Nat)))) = (cons 233 (nil Nat))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: utf8ThreeOctets,
+  parameters: [],
+  statement: ((scalarsOfOctets (cons 226 (cons 130 (cons 172 (nil Nat))))) = (cons 8364 (nil Nat))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: utf8FourOctets,
+  parameters: [],
+  statement: ((scalarsOfOctets (cons 240 (cons 159 (cons 152 (cons 128 (nil Nat)))))) = (cons 128512 (nil Nat))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: decomposedOctetsAreNotNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (scalarsOfOctets (cons 101 (cons 204 (cons 129 (nil Nat)))))) = false),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: precomposedOctetsAreNfc,
+  parameters: [],
+  statement: ((isNfc (NfcTables::sample) (scalarsOfOctets (cons 195 (cons 169 (nil Nat))))) = true),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+\end{semanticmodule}
+\end{lexlean}

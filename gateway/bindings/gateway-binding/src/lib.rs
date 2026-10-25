@@ -14,12 +14,13 @@ mod attestation;
 mod config;
 mod engine;
 mod lexicon;
+pub mod materialize;
 mod project;
 mod rate;
 mod store;
 mod verifier;
 
-pub use config::{Config, DRAFT_MAX_BYTES, LOG_TAIL_BYTES, RATE_WINDOW};
+pub use config::{Config, DRAFT_BLOB_HEADROOM, DRAFT_MAX_BYTES, LOG_TAIL_BYTES, RATE_WINDOW};
 pub use engine::{Answer, Call, Unavailable};
 pub use verifier::{Job, Outcome, Report, Runner, State, Verifier};
 
@@ -79,9 +80,9 @@ impl Native {
         files: &str,
         call: Call,
     ) -> Result<engine::Answer, EngineRefusal> {
-        let directory =
-            project::resolve(&self.config.store, project).ok_or(EngineRefusal::Project)?;
-        engine::run(&directory, project::selection(selection, files), call)
+        let resolved = project::resolve(&self.config.store, project, self.config.blob_max_bytes)
+            .ok_or(EngineRefusal::Project)?;
+        engine::run(resolved.directory(), project::selection(selection, files), call)
             .map_err(|Unavailable| EngineRefusal::Engine)
     }
 }
@@ -101,7 +102,7 @@ impl Host for Native {
             &self.config.store,
             request.area,
             &request.key,
-            self.config.draft_max_bytes,
+            self.config.blob_max_bytes,
         );
         match found {
             Ok(content) => Ok(store_get::Completed {
@@ -123,7 +124,7 @@ impl Host for Native {
             request.area,
             &request.key,
             &request.content,
-            self.config.draft_max_bytes,
+            self.config.blob_max_bytes,
         );
         match length {
             Ok(length) => Ok(store_put::Completed { length }),
@@ -229,9 +230,14 @@ impl Host for Native {
         &mut self,
         request: verify_start::Request,
     ) -> Result<verify_start::Completed, HostError<verify_start::Failure>> {
-        let Some(directory) = project::resolve(&self.config.store, &request.project) else {
+        let Some(resolved) =
+            project::resolve(&self.config.store, &request.project, self.config.blob_max_bytes)
+        else {
             return Err(HostError::Failed(verify_start::Failure::ProjectRefused));
         };
+        // The verification outlives this call: its directory is kept, and the `builds` area is
+        // a cache that the lifecycle of the store drops.
+        let directory = resolved.keep();
         let selection = match project::selection(request.selection, &request.files) {
             Ok(selection) => selection,
             Err(_) => return Err(HostError::Failed(verify_start::Failure::ProjectRefused)),

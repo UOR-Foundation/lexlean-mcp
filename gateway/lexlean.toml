@@ -3,7 +3,7 @@ name = "lexlean-mcp-gateway"
 language = "1.2"
 module_prefix = "LexLeanMcpGateway"
 source_roots = ["mcp/src", "src"]
-entrypoints = ["src/Application.lex.tex", "src/Effects.lex.tex", "src/Gateway.lex.tex", "src/GatewayTools.lex.tex", "src/HostWire.lex.tex"]
+entrypoints = ["src/Application.lex.tex", "src/DraftAdmission.lex.tex", "src/Drafts.lex.tex", "src/Effects.lex.tex", "src/Gateway.lex.tex", "src/GatewayTools.lex.tex", "src/HostWire.lex.tex", "src/Nfc.lex.tex", "src/NfcTables.lex.tex"]
 build_root = ".lexlean"
 lockfile = "lexlean.lock"
 lean_workspace = "."
@@ -31,6 +31,18 @@ path = "language/mcp.core"
 package = "prism.arch"
 kind = "path"
 path = "language/prism.arch"
+
+[[artifact_source]]
+sha256 = "197657122ac6aad087a0992296e641d21fdd43eb757e93ac2077c48cc3fab6c1"
+path = "artifacts/nfc-tables-low.bin"
+
+[[artifact_source]]
+sha256 = "417850fac4d56ca68dcd43ae211f0de94218eb1a75ff42a12e1b865c5bd6a041"
+path = "artifacts/nfc-sample.bin"
+
+[[artifact_source]]
+sha256 = "56e7b260aa0e5a62f5dad2876032e70a4ce483b34ce4c37ec3af9b05a1ad42a8"
+path = "artifacts/nfc-tables-high.bin"
 
 [limits]
 max_file_bytes = 33554432

@@ -135,7 +135,7 @@ const NOFOLLOW: i32 = 0o100000;
 )))]
 const NOFOLLOW: i32 = 0;
 
-fn open_for_reading(path: &Path) -> std::io::Result<fs::File> {
+pub(crate) fn open_for_reading(path: &Path) -> std::io::Result<fs::File> {
     let mut options = fs::OpenOptions::new();
     options.read(true);
     #[cfg(unix)]

@@ -1,0 +1,687 @@
+\begin{lexlean}{Drafts}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{DraftAdmission}
+\importmodule{Frame}
+\importmodule{Http}
+\importmodule{HostWire}
+\importmodule{Json}
+\importmodule{JsonRead}
+\importmodule{JsonText}
+\importmodule{ResultJson}
+\importmodule{Sha256}
+\title{LexLean MCP drafts}
+\begin{semanticmodule}
+inductive{
+  name: Move,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Ask, fields: [Nat, Bytes]},
+    {name: Answer, fields: [String, Json::Json, Bool]},
+    {name: Invalid, fields: [String]}
+  ]
+}
+
+inductive{
+  name: Want,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Listing, fields: []},
+    {name: File, fields: [String]},
+    {name: Bad, fields: []}
+  ]
+}
+
+structure{
+  name: Record,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: profile, type: Bytes}, {name: roots, type: (List Bytes)}]
+}
+
+definition{name: draftArea, parameters: [], result: Nat, body: 1, executable: true}
+
+definition{name: lexiconTag, parameters: [], result: Nat, body: 8, executable: true}
+
+definition{name: storeGetTag, parameters: [], result: Nat, body: 0, executable: true}
+
+definition{name: storePutTag, parameters: [], result: Nat, body: 1, executable: true}
+
+definition{name: maxFiles, parameters: [], result: Nat, body: 256, executable: true}
+
+definition{name: maxBytes, parameters: [], result: Nat, body: 8388608, executable: true}
+
+definition{
+  name: domain,
+  parameters: [],
+  result: Bytes,
+  body: 0x6c65786c65616e2d6d63702d64726166742d7631,
+  executable: true
+}
+
+definition{
+  name: nibble,
+  parameters: [octet : Nat],
+  result: (Option Nat),
+  body: (if ((octet <? 48) || (57 <? octet)) then (if ((octet <? 97) || (102 <? octet)) then (ctor Option.none [Nat]) else (ctor Option.some [Nat] (prim subtract octet 87 : Nat))) else (ctor Option.some [Nat] (prim subtract octet 48 : Nat))),
+  executable: true
+}
+
+definition{
+  name: octetsFrom,
+  parameters: [digits : (List Nat), high : (Option Nat), built : (List Nat)],
+  result: (Option (List Nat)),
+  body: (match digits
+    | List.nil => (match high
+      | Option.none => (ctor Option.some [(List Nat)] (JsonRead::reverseOnto [Nat] built (nil Nat)))
+      | Option.some pending => (ctor Option.none [(List Nat)]))
+    | List.cons digit rest => (match (nibble digit)
+      | Option.none => (ctor Option.none [(List Nat)])
+      | Option.some value => (match high
+        | Option.none => (octetsFrom rest (ctor Option.some [Nat] value) built)
+        | Option.some upper => (octetsFrom rest (ctor Option.none [Nat]) (cons ((prim multiply upper 16 : Nat) + value) built))))),
+  executable: true,
+  recursive_argument: digits
+}
+
+definition{
+  name: octetsOfHex,
+  parameters: [digits : (List Nat)],
+  result: (Option (List Nat)),
+  body: (octetsFrom digits (ctor Option.none [Nat]) (nil Nat)),
+  executable: true
+}
+
+definition{
+  name: linesInto,
+  parameters: [bytes : (List Nat), current : (List Nat), done : (List (List Nat))],
+  result: (List (List Nat)),
+  body: (match bytes
+    | List.nil => (let finished : (List (List Nat)) := (match current
+      | List.nil => done
+      | List.cons octet more => (cons (JsonRead::reverseOnto [Nat] current (nil Nat)) done)); (JsonRead::reverseOnto [(List Nat)] finished (nil (List Nat))))
+    | List.cons head rest => (if (head =? 10) then (linesInto rest (nil Nat) (cons (JsonRead::reverseOnto [Nat] current (nil Nat)) done)) else (linesInto rest (cons head current) done))),
+  executable: true,
+  recursive_argument: bytes
+}
+
+definition{
+  name: linesOf,
+  parameters: [bytes : (List Nat)],
+  result: (List (List Nat)),
+  body: (linesInto bytes (nil Nat) (nil (List Nat))),
+  executable: true
+}
+
+definition{
+  name: rootOk,
+  parameters: [root : (List Nat)],
+  result: Bool,
+  body: (match (DraftAdmission::andThen (DraftAdmission::absoluteStage root) (DraftAdmission::componentsStage (DraftAdmission::splitSlash root)))
+    | DraftAdmission::Verdict.Admitted => true
+    | DraftAdmission::Verdict.Refused reason => false),
+  executable: true
+}
+
+definition{
+  name: rootsOk,
+  parameters: [lines : (List (List Nat))],
+  result: Bool,
+  body: (match lines
+    | List.nil => true
+    | List.cons line rest => (if (rootOk line) then (rootsOk rest) else false)),
+  executable: true,
+  recursive_argument: lines
+}
+
+definition{
+  name: rootBytesInto,
+  parameters: [lines : (List (List Nat)), built : (List Bytes)],
+  result: (List Bytes),
+  body: (match lines
+    | List.nil => (JsonRead::reverseOnto [Bytes] built (nil Bytes))
+    | List.cons line rest => (rootBytesInto rest (cons (JsonText::listToBytes (JsonText::emptyBytes) line) built))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: lines
+}
+
+definition{
+  name: recordOfLines,
+  parameters: [lead : (List Nat), roots : (List (List Nat))],
+  result: (Option Record),
+  body: (match (octetsOfHex lead)
+    | Option.none => (ctor Option.none [Record])
+    | Option.some octets => (match roots
+      | List.nil => (ctor Option.none [Record])
+      | List.cons root more => (if (rootsOk roots) then (ctor Option.some [Record] (record Record {profile := (JsonText::listToBytes (JsonText::emptyBytes) octets), roots := (rootBytesInto roots (nil Bytes))})) else (ctor Option.none [Record])))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: recordOf,
+  parameters: [content : Bytes],
+  result: (Option Record),
+  body: (match (linesOf (JsonText::bytesToList content))
+    | List.nil => (ctor Option.none [Record])
+    | List.cons lead rest => (if ((prim length lead : Nat) =? 64) then (recordOfLines lead rest) else (ctor Option.none [Record]))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: foundContent,
+  parameters: [outcome : Bytes],
+  result: (Option Bytes),
+  body: (match (Frame::chunkAt outcome 5)
+    | Option.none => (ctor Option.none [Bytes])
+    | Option.some chunk => (if ((JsonText::byteAt outcome 4) =? 1) then (ctor Option.some [Bytes] (project chunk bytes)) else (ctor Option.none [Bytes]))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: rowOf,
+  parameters: [item : Json::Json],
+  result: (Option (Bytes * Bytes)),
+  body: (match (Json::asObject item)
+    | Option.none => (ctor Option.none [(Bytes * Bytes)])
+    | Option.some object => (match (Json::lookup "path" object)
+      | Json::Lookup.absent => (ctor Option.none [(Bytes * Bytes)])
+      | Json::Lookup.present path => (match (Json::asText path)
+        | Option.none => (ctor Option.none [(Bytes * Bytes)])
+        | Option.some pathText => (match (Json::lookup "content" object)
+          | Json::Lookup.absent => (ctor Option.none [(Bytes * Bytes)])
+          | Json::Lookup.present content => (match (Json::asText content)
+            | Option.none => (ctor Option.none [(Bytes * Bytes)])
+            | Option.some contentText => (ctor Option.some [(Bytes * Bytes)] ((prim utf8_encode pathText : Bytes), (prim utf8_encode contentText : Bytes)))))))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: rowsOfItems,
+  parameters: [items : (List Json::Json), built : (List (Bytes * Bytes))],
+  result: (Option (List (Bytes * Bytes))),
+  body: (match items
+    | List.nil => (ctor Option.some [(List (Bytes * Bytes))] (JsonRead::reverseOnto [(Bytes * Bytes)] built (nil (Bytes * Bytes))))
+    | List.cons item rest => (match (rowOf item)
+      | Option.none => (ctor Option.none [(List (Bytes * Bytes))])
+      | Option.some row => (rowsOfItems rest (cons row built)))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: rowsOf,
+  parameters: [files : Json::Json],
+  result: (Option (List (Bytes * Bytes))),
+  body: (match (Json::asArray files)
+    | Option.none => (ctor Option.none [(List (Bytes * Bytes))])
+    | Option.some items => (rowsOfItems items (nil (Bytes * Bytes)))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: lessOctets,
+  parameters: [left : (List Nat), right : (List Nat)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => false | List.cons y ys => true)
+    | List.cons x xs => (match right
+      | List.nil => false
+      | List.cons y ys => (if (x <? y) then true else (if (y <? x) then false else (lessOctets xs ys))))),
+  executable: true,
+  recursive_argument: left
+}
+
+definition{
+  name: insertRow,
+  parameters: [
+    row : (Bytes * Bytes),
+    rows : (List (Bytes * Bytes)),
+    before : (List (Bytes * Bytes))
+  ],
+  result: (List (Bytes * Bytes)),
+  body: (match rows
+    | List.nil => (JsonRead::reverseOnto [(Bytes * Bytes)] before (cons row (nil (Bytes * Bytes))))
+    | List.cons other more => (if (lessOctets (JsonText::bytesToList (first row)) (JsonText::bytesToList (first other))) then (JsonRead::reverseOnto [(Bytes * Bytes)] before (cons row (cons other more))) else (insertRow row more (cons other before)))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: sortInto,
+  parameters: [rows : (List (Bytes * Bytes)), sorted : (List (Bytes * Bytes))],
+  result: (List (Bytes * Bytes)),
+  body: (match rows
+    | List.nil => sorted
+    | List.cons row rest => (sortInto rest (insertRow row sorted (nil (Bytes * Bytes))))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: sortRows,
+  parameters: [rows : (List (Bytes * Bytes))],
+  result: (List (Bytes * Bytes)),
+  body: (sortInto rows (nil (Bytes * Bytes))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: headFor,
+  parameters: [name : String],
+  result: Bytes,
+  body: (JsonText::listToBytes (JsonText::emptyBytes) (prim append (Frame::u32List (prim length (Http::asciiOf name) : Nat)) (Http::asciiOf name) : (List Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: wide,
+  parameters: [value : Nat],
+  result: Bytes,
+  body: (JsonText::listToBytes (JsonText::emptyBytes) (prim append (Frame::u32List (prim quotient value 4294967296 0 : Nat)) (Frame::u32List value) : (List Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: frameOf,
+  parameters: [name : String, payload : Bytes],
+  result: Bytes,
+  body: (prim append (headFor name) (prim append (wide (prim length payload : Nat)) payload : Bytes) : Bytes),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: rowFrames,
+  parameters: [rows : (List (Bytes * Bytes)), built : Bytes],
+  result: Bytes,
+  body: (match rows
+    | List.nil => built
+    | List.cons row rest => (rowFrames rest (prim append built (prim append (frameOf "source" (first row)) (frameOf "source" (second row)) : Bytes) : Bytes))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: preimage,
+  parameters: [profile : Bytes, rows : (List (Bytes * Bytes))],
+  result: Bytes,
+  body: (rowFrames (sortRows rows) (prim append (frameOf "domain" (domain)) (prim append (frameOf "profile" profile) (prim append (headFor "sources") (wide (prim multiply 2 (prim length rows : Nat) : Nat)) : Bytes) : Bytes) : Bytes)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: digestText,
+  parameters: [content : Bytes],
+  result: String,
+  body: (match (prim utf8_decode (Sha256::sha256Hex content) : (Option String))
+    | Option.none => ""
+    | Option.some text => text),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: handleOf,
+  parameters: [profile : String, ident : String],
+  result: String,
+  body: (prim join (cons profile (cons ident (nil String))) "/" : String),
+  executable: true
+}
+
+definition{
+  name: lexiconPayload,
+  parameters: [profile : String],
+  result: Bytes,
+  body: (JsonText::listToBytes (JsonText::emptyBytes) (prim append (HostWire::textList profile) (HostWire::textList "profile") : (List Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: getPayload,
+  parameters: [key : String],
+  result: Bytes,
+  body: (JsonText::listToBytes (JsonText::emptyBytes) (prim append (Frame::u32List (draftArea)) (HostWire::textList key) : (List Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: putPayload,
+  parameters: [key : String, content : Bytes],
+  result: Bytes,
+  body: (prim append (getPayload key) (prim append (JsonText::listToBytes (JsonText::emptyBytes) (Frame::u32List (prim length content : Nat))) content : Bytes) : Bytes),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: refusalName,
+  parameters: [reason : DraftAdmission::Refusal],
+  result: String,
+  body: (match reason
+    | DraftAdmission::Refusal.NotUtf8 => "NotUtf8"
+    | DraftAdmission::Refusal.NotNfc => "NotNfc"
+    | DraftAdmission::Refusal.AbsolutePath => "AbsolutePath"
+    | DraftAdmission::Refusal.EmptyComponent => "EmptyComponent"
+    | DraftAdmission::Refusal.DotComponent => "DotComponent"
+    | DraftAdmission::Refusal.DotDotComponent => "DotDotComponent"
+    | DraftAdmission::Refusal.OutsideRoots => "OutsideRoots"
+    | DraftAdmission::Refusal.NotLexTex => "NotLexTex"
+    | DraftAdmission::Refusal.TooManyFiles => "TooManyFiles"
+    | DraftAdmission::Refusal.TooManyBytes => "TooManyBytes"
+    | DraftAdmission::Refusal.DuplicatePath => "DuplicatePath"),
+  executable: true
+}
+
+definition{
+  name: refusal,
+  parameters: [name : String],
+  result: Move,
+  body: (ctor Move.Answer (prim join (cons "draft refused:" (cons name (nil String))) " " : String) (ctor Json::Json.object (cons ("refusal", (ctor Json::Json.text name)) (nil (String * Json::Json)))) true),
+  executable: true
+}
+
+definition{
+  name: written,
+  parameters: [profile : String, ident : String, files : Nat, bytes : Nat],
+  result: Move,
+  body: (ctor Move.Answer (prim join (cons "draft" (cons (handleOf profile ident) (nil String))) " " : String) (ctor Json::Json.object (cons ("draft", (ctor Json::Json.text (handleOf profile ident))) (cons ("id", (ctor Json::Json.text ident)) (cons ("profile", (ctor Json::Json.text profile)) (cons ("files", (ResultJson::natJson files)) (cons ("bytes", (ResultJson::natJson bytes)) (nil (String * Json::Json)))))))) false),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: write,
+  parameters: [
+    profile : String,
+    files : Json::Json,
+    lexicon : (Option Bytes),
+    stored : (Option Bytes)
+  ],
+  result: Move,
+  body: (match (rowsOf files)
+    | Option.none => (ctor Move.Invalid "files is not a list of objects that each have a text path and a text content")
+    | Option.some rows => (match lexicon
+      | Option.none => (ctor Move.Ask (lexiconTag) (lexiconPayload profile))
+      | Option.some outcome => (match (foundContent outcome)
+        | Option.none => (refusal "ProfileRecordMalformed")
+        | Option.some entry => (match (recordOf entry)
+          | Option.none => (refusal "ProfileRecordMalformed")
+          | Option.some parts => (match (DraftAdmission::admitDraft (maxFiles) (maxBytes) (project parts roots) rows)
+            | DraftAdmission::Verdict.Refused reason => (refusal (refusalName reason))
+            | DraftAdmission::Verdict.Admitted => (let blob : Bytes := (preimage (project parts profile) rows); (let ident : String := (digestText blob); (match stored
+              | Option.none => (ctor Move.Ask (storePutTag) (putPayload (handleOf profile ident) blob))
+              | Option.some done => (written profile ident (DraftAdmission::countRows rows) (DraftAdmission::totalBytes rows)))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: slashBefore,
+  parameters: [count : Nat, items : (List Nat)],
+  result: Bool,
+  body: (match count
+    | Nat.zero => false
+    | Nat.succ below => (match items
+      | List.nil => false
+      | List.cons head rest => (if (head =? 47) then true else (slashBefore below rest)))),
+  executable: true,
+  recursive_argument: count
+}
+
+definition{
+  name: dropOctets,
+  parameters: [count : Nat, items : (List Nat)],
+  result: (List Nat),
+  body: (match count
+    | Nat.zero => items
+    | Nat.succ below => (match items
+      | List.nil => (nil Nat)
+      | List.cons head rest => (dropOctets below rest))),
+  executable: true,
+  recursive_argument: count
+}
+
+definition{
+  name: idOfHandle,
+  parameters: [handle : String],
+  result: (Option String),
+  body: (let octets : (List Nat) := (Http::asciiOf handle); (let size : Nat := (prim length octets : Nat); (if (size <? 66) then (ctor Option.none [String]) else (let cut : Nat := (prim subtract size 65 : Nat); (match (dropOctets cut octets)
+    | List.nil => (ctor Option.none [String])
+    | List.cons slash digits => (if (if (slash =? 47) then (if (slashBefore cut octets) then false else true) else false) then (match (octetsOfHex digits)
+      | Option.none => (ctor Option.none [String])
+      | Option.some decoded => (match (prim utf8_decode (JsonText::listToBytes (JsonText::emptyBytes) digits) : (Option String))
+        | Option.none => (ctor Option.none [String])
+        | Option.some text => (ctor Option.some [String] text))) else (ctor Option.none [String]))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: wantOf,
+  parameters: [path : (Option Json::Json)],
+  result: Want,
+  body: (match path
+    | Option.none => (ctor Want.Listing)
+    | Option.some value => (match (Json::asText value)
+      | Option.none => (ctor Want.Bad)
+      | Option.some text => (ctor Want.File text))),
+  executable: true
+}
+
+definition{
+  name: wideAt,
+  parameters: [blob : Bytes, position : Nat],
+  result: (Option Nat),
+  body: (match (Frame::u32At blob position)
+    | Option.none => (ctor Option.none [Nat])
+    | Option.some high => (if (high =? 0) then (Frame::u32At blob (position + 4)) else (ctor Option.none [Nat]))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: headAt,
+  parameters: [blob : Bytes, position : Nat, head : Bytes],
+  result: Bool,
+  body: (match (prim slice blob position (prim length head : Nat) : (Option Bytes))
+    | Option.none => false
+    | Option.some found => (prim equal found head : Bool)),
+  executable: true
+}
+
+definition{
+  name: framed,
+  parameters: [blob : Bytes, position : Nat, name : String],
+  result: (Option Frame::Chunk),
+  body: (let head : Bytes := (headFor name); (let start : Nat := (position + (prim length head : Nat)); (if (headAt blob position head) then (match (wideAt blob start)
+    | Option.none => (ctor Option.none [Frame::Chunk])
+    | Option.some size => (match (prim slice blob (start + 8) size : (Option Bytes))
+      | Option.none => (ctor Option.none [Frame::Chunk])
+      | Option.some taken => (ctor Option.some [Frame::Chunk] (record Frame::Chunk {bytes := taken, next := ((start + 8) + size)})))) else (ctor Option.none [Frame::Chunk])))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: readRows,
+  parameters: [blob : Bytes, position : Nat, pairs : Nat, built : (List (Bytes * Bytes))],
+  result: (Option ((List (Bytes * Bytes)) * Nat)),
+  body: (match pairs
+    | Nat.zero => (ctor Option.some [((List (Bytes * Bytes)) * Nat)] ((JsonRead::reverseOnto [(Bytes * Bytes)] built (nil (Bytes * Bytes))), position))
+    | Nat.succ below => (match (framed blob position "source")
+      | Option.none => (ctor Option.none [((List (Bytes * Bytes)) * Nat)])
+      | Option.some path => (match (framed blob (project path next) "source")
+        | Option.none => (ctor Option.none [((List (Bytes * Bytes)) * Nat)])
+        | Option.some content => (readRows blob (project content next) below (cons ((project path bytes), (project content bytes)) built))))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: pairs
+}
+
+definition{
+  name: sourcesFrom,
+  parameters: [blob : Bytes, position : Nat],
+  result: (Option (List (Bytes * Bytes))),
+  body: (let head : Bytes := (headFor "sources"); (if (headAt blob position head) then (match (wideAt blob (position + (prim length head : Nat)))
+    | Option.none => (ctor Option.none [(List (Bytes * Bytes))])
+    | Option.some count => (if ((prim remainder count 2 0 : Nat) =? 0) then (match (readRows blob ((position + (prim length head : Nat)) + 8) (prim quotient count 2 0 : Nat) (nil (Bytes * Bytes)))
+      | Option.none => (ctor Option.none [(List (Bytes * Bytes))])
+      | Option.some reading => (if ((second reading) =? (prim length blob : Nat)) then (ctor Option.some [(List (Bytes * Bytes))] (first reading)) else (ctor Option.none [(List (Bytes * Bytes))]))) else (ctor Option.none [(List (Bytes * Bytes))]))) else (ctor Option.none [(List (Bytes * Bytes))]))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: decode,
+  parameters: [blob : Bytes],
+  result: (Option (List (Bytes * Bytes))),
+  body: (match (framed blob 0 "domain")
+    | Option.none => (ctor Option.none [(List (Bytes * Bytes))])
+    | Option.some named => (if (prim equal (project named bytes) (domain) : Bool) then (match (framed blob (project named next) "profile")
+      | Option.none => (ctor Option.none [(List (Bytes * Bytes))])
+      | Option.some owner => (if ((prim length (project owner bytes) : Nat) =? 32) then (sourcesFrom blob (project owner next)) else (ctor Option.none [(List (Bytes * Bytes))]))) else (ctor Option.none [(List (Bytes * Bytes))]))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: findRow,
+  parameters: [rows : (List (Bytes * Bytes)), target : Bytes],
+  result: (Option Bytes),
+  body: (match rows
+    | List.nil => (ctor Option.none [Bytes])
+    | List.cons row rest => (if (prim equal (first row) target : Bool) then (ctor Option.some [Bytes] (second row)) else (findRow rest target))),
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: entriesInto,
+  parameters: [rows : (List (Bytes * Bytes)), built : (List (String * Nat))],
+  result: (Option (List (String * Nat))),
+  body: (match rows
+    | List.nil => (ctor Option.some [(List (String * Nat))] (JsonRead::reverseOnto [(String * Nat)] built (nil (String * Nat))))
+    | List.cons row rest => (match (prim utf8_decode (first row) : (Option String))
+      | Option.none => (ctor Option.none [(List (String * Nat))])
+      | Option.some path => (entriesInto rest (cons (path, (prim length (second row) : Nat)) built)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: entriesOf,
+  parameters: [rows : (List (Bytes * Bytes))],
+  result: (Option (List (String * Nat))),
+  body: (entriesInto rows (nil (String * Nat))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: entriesJson,
+  parameters: [entries : (List (String * Nat)), built : (List Json::Json)],
+  result: (List Json::Json),
+  body: (match entries
+    | List.nil => (JsonRead::reverseOnto [Json::Json] built (nil Json::Json))
+    | List.cons entry rest => (entriesJson rest (cons (ctor Json::Json.object (cons ("path", (ctor Json::Json.text (first entry))) (cons ("bytes", (ResultJson::natJson (second entry))) (nil (String * Json::Json))))) built))),
+  executable: true,
+  recursive_argument: entries
+}
+
+definition{
+  name: entriesNames,
+  parameters: [entries : (List (String * Nat)), built : (List String)],
+  result: (List String),
+  body: (match entries
+    | List.nil => (JsonRead::reverseOnto [String] built (nil String))
+    | List.cons entry rest => (entriesNames rest (cons (first entry) built))),
+  executable: true,
+  recursive_argument: entries
+}
+
+definition{
+  name: listed,
+  parameters: [rows : (List (Bytes * Bytes))],
+  result: Move,
+  body: (match (entriesOf rows)
+    | Option.none => (refusal "DraftCorrupt")
+    | Option.some entries => (ctor Move.Answer (prim join (entriesNames entries (nil String)) "\n" : String) (ctor Json::Json.object (cons ("files", (ctor Json::Json.array (entriesJson entries (nil Json::Json)))) (cons ("bytes", (ResultJson::natJson (DraftAdmission::totalBytes rows))) (nil (String * Json::Json))))) false)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: fileOf,
+  parameters: [rows : (List (Bytes * Bytes)), path : String],
+  result: Move,
+  body: (match (findRow rows (prim utf8_encode path : Bytes))
+    | Option.none => (refusal "PathUnknown")
+    | Option.some content => (match (prim utf8_decode content : (Option String))
+      | Option.none => (refusal "DraftCorrupt")
+      | Option.some text => (ctor Move.Answer text (ctor Json::Json.object (cons ("path", (ctor Json::Json.text path)) (cons ("bytes", (ResultJson::natJson (prim length content : Nat))) (nil (String * Json::Json))))) false))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: readWith,
+  parameters: [ident : String, want : Want, outcome : Bytes],
+  result: Move,
+  body: (match (foundContent outcome)
+    | Option.none => (refusal "DraftUnknown")
+    | Option.some blob => (if (prim equal (digestText blob) ident : Bool) then (match (decode blob)
+      | Option.none => (refusal "DraftCorrupt")
+      | Option.some rows => (match want
+        | Want.Listing => (listed rows)
+        | Want.File path => (fileOf rows path)
+        | Want.Bad => (ctor Move.Invalid "path is not a string"))) else (refusal "DraftCorrupt"))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: readAt,
+  parameters: [draft : String, want : Want, stored : (Option Bytes)],
+  result: Move,
+  body: (match (idOfHandle draft)
+    | Option.none => (refusal "DraftUnknown")
+    | Option.some ident => (match stored
+      | Option.none => (ctor Move.Ask (storeGetTag) (getPayload draft))
+      | Option.some outcome => (readWith ident want outcome))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: read,
+  parameters: [draft : String, path : (Option Json::Json), stored : (Option Bytes)],
+  result: Move,
+  body: (match (wantOf path)
+    | Want.Bad => (ctor Move.Invalid "path is not a string")
+    | Want.Listing => (readAt draft (ctor Want.Listing) stored)
+    | Want.File text => (readAt draft (ctor Want.File text) stored)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+\end{semanticmodule}
+\end{lexlean}
