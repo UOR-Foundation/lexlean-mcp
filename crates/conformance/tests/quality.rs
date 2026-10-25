@@ -16,11 +16,16 @@ use repo_model::{Level, Model};
 mod common;
 use common::{root, workspace_test_names};
 
-/// The rows `QM-07` is expected to cite, by measure: Q2 (index 1) and Q8 (index 7).
-const CITED: [(u32, [&str; 3]); 2] = [
-    (1, ["QM-01", "QM-02", "QM-03"]),
-    (7, ["QM-04", "QM-05", "QM-06"]),
+/// The rows `QM-07` is expected to cite, by measure: Q2 (index 1) and Q8 (index 7). `TL-13` is
+/// the row of the tools suite that runs the clause of Q8 which waits for `lexlean_explain`.
+const CITED: [(u32, &[&str]); 2] = [
+    (1, &["QM-01", "QM-02", "QM-03"]),
+    (7, &["QM-04", "QM-05", "QM-06", "TL-13"]),
 ];
+
+/// The measures whose clause that waits for the tools is still in `pendingClauses`: Q2 only.
+/// Q8's running clause is executed by `TL-13`.
+const CLAUSE_PENDING: [u32; 1] = [1];
 
 /// The measures that stay pending, each naming what executes it.
 const PENDING: [u32; 6] = [0, 2, 3, 4, 5, 6];
@@ -106,9 +111,10 @@ fn violations(i: &Inputs) -> Vec<String> {
             out.push(format!("{id} is cited and is not in model/ids.toml"));
             continue;
         };
-        if cited_row.suite != "quality" {
+        let suite = if id == "TL-13" { "tools" } else { "quality" };
+        if cited_row.suite != suite {
             out.push(format!(
-                "{id} is cited and is not a row of the quality suite"
+                "{id} is cited and is not a row of the {suite} suite"
             ));
         }
         let suffix = format!("_{}", id.to_lowercase().replace('-', "_"));
@@ -130,7 +136,7 @@ fn violations(i: &Inputs) -> Vec<String> {
         ));
     }
 
-    // Q2 and Q8 are Executed, each naming its rows and its pending clause.
+    // Q2 and Q8 are Executed, each naming its rows; Q2 names its pending clause and Q8 has none.
     for (measure, ids) in CITED {
         match evidence_of(quality, measure) {
             None => out.push(format!("Quality has no evidence for measure {measure}")),
@@ -145,9 +151,15 @@ fn violations(i: &Inputs) -> Vec<String> {
                         ));
                     }
                 }
-                if !record.contains("pendingClauses") {
+                let points = record.contains("pendingClauses");
+                if CLAUSE_PENDING.contains(&measure) && !points {
                     out.push(format!(
                         "the Executed status of measure {measure} does not point at pendingClauses"
+                    ));
+                }
+                if !CLAUSE_PENDING.contains(&measure) && points {
+                    out.push(format!(
+                        "the Executed status of measure {measure} points at pendingClauses, and its running clause is executed"
                     ));
                 }
             }
@@ -173,15 +185,25 @@ fn violations(i: &Inputs) -> Vec<String> {
     for name in [
         "onlyApiMapAndExplainAreExecuted",
         "measuresPendingExceptQ2AndQ8",
-        "executedMeasuresKeepAPendingClause",
+        "onlyQ2KeepsAPendingClause",
     ] {
         if block(quality, "theorem", name).is_none() {
             out.push(format!("Quality has no theorem {name}"));
         }
     }
     match block(quality, "definition", "pendingClauses") {
-        Some(clauses) if clauses.contains("index := 1") && clauses.contains("index := 7") => {}
-        _ => out.push("pendingClauses does not record a clause of Q2 and of Q8".to_string()),
+        Some(clauses) => {
+            if !clauses.contains("index := 1") {
+                out.push("pendingClauses does not record the clause of Q2".to_string());
+            }
+            if clauses.contains("index := 7") {
+                out.push(
+                    "pendingClauses records a clause of Q8, whose running clause TL-13 executes"
+                        .to_string(),
+                );
+            }
+        }
+        None => out.push("pendingClauses does not record the clause of Q2".to_string()),
     }
 
     // The counts the model states are the counts the pinned files give.
@@ -269,6 +291,64 @@ fn the_check_rejects_a_pending_q2_a_missing_row_and_a_wrong_count_qm_07() {
         ..clone(&base)
     };
     assert!(reported(&planted, "the measure 7 is not Executed"));
+
+    // The running clause of Q8 left in pendingClauses once TL-13 executes it.
+    let at = base
+        .quality
+        .find("name: pendingClauses,")
+        .expect("pendingClauses");
+    let end = at
+        + base.quality[at..]
+            .find("(nil Named))")
+            .expect("the end of the list");
+    let left_pending = format!(
+        "{}{}{}",
+        &base.quality[..end],
+        "(cons (record Named {index := 7, name := \"Q8 running explain\", text := \"left pending\"}) (nil Named)))",
+        &base.quality[end + "(nil Named))".len()..]
+    );
+    let planted = Inputs {
+        quality: left_pending,
+        ..clone(&base)
+    };
+    assert!(reported(
+        &planted,
+        "pendingClauses records a clause of Q8, whose running clause TL-13 executes"
+    ));
+
+    // Q8 pointing at pendingClauses again, with the clause gone.
+    let at = base
+        .quality
+        .find("record MeasureEvidence {measure := 7,")
+        .expect("Q8");
+    let pointing = format!(
+        "{}{}",
+        &base.quality[..at],
+        base.quality[at..].replacen("QM-06", "QM-06; the running clause is in pendingClauses", 1)
+    );
+    let planted = Inputs {
+        quality: pointing,
+        ..clone(&base)
+    };
+    assert!(reported(
+        &planted,
+        "the Executed status of measure 7 points at pendingClauses"
+    ));
+
+    // TL-13 dropped from the statement of QM-07: the running clause of Q8 loses its row.
+    let mut model = base.model.clone();
+    for row in &mut model.ids.id {
+        if row.id == "QM-07" {
+            row.statement = row
+                .statement
+                .replace(" (Q8, whose running clause TL-13 executes)", " (Q8)");
+        }
+    }
+    let planted = Inputs {
+        model,
+        ..clone(&base)
+    };
+    assert!(reported(&planted, "QM-07 cites"));
 
     // A measure the register does not execute flipped to Executed.
     let at = base

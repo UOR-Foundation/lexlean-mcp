@@ -368,13 +368,13 @@ statement = "Every diagnostic code that the 297 negative fixtures of AC-07 retur
 id = "QM-07"
 level = "build"
 suite = "quality"
-statement = "The measures of Q2 and Q8 are Executed in src/Quality.lex.tex by QM-01, QM-02 and QM-03 (Q2) and by QM-04, QM-05 and QM-06 (Q8), whose tests pass; Q1 and Q3 to Q7 stay Pending, each naming the issue that executes it, the clause of each executed measure that waits for the tools stays in pendingClauses, and the counts the model states (9 functions, 86 codes) are those of the pinned files."
+statement = "The measures of Q2 and Q8 are Executed in src/Quality.lex.tex by QM-01, QM-02 and QM-03 (Q2) and by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes), whose tests pass; Q1 and Q3 to Q7 stay Pending, each naming the issue that executes it, the clause of Q2 that waits for the tools stays in pendingClauses and Q8 has no pending clause, and the counts the model states (9 functions, 86 codes) are those of the pinned files."
 
 [[id]]
 id = "QM-08"
 level = "build"
 suite = "quality"
-statement = "Each gate of Q2 and Q8 rejects its planted defect: a function removed from the map, a tool name misspelled, a function with no tool and no reason, a function both mapped and not exposed, a function added or re-signed upstream, a vendored byte altered or removed, a pin moved without a new import, a code returned that the registry lacks, a code with no statement, an entry removed from ERRORS.md or altered, an exit status that disagrees with its class, rows out of order, Q2 or Q8 flipped back to Pending, a measure flipped to Executed without rows, a cited row missing and a count that disagrees; QUALITY.md records the command, the diagnostic and the restore of each."
+statement = "Each gate of Q2 and Q8 rejects its planted defect: a function removed from the map, a tool name misspelled, a function with no tool and no reason, a function both mapped and not exposed, a function added or re-signed upstream, a vendored byte altered or removed, a pin moved without a new import, a code returned that the registry lacks, a code with no statement, an entry removed from ERRORS.md or altered, an exit status that disagrees with its class, rows out of order, Q2 or Q8 flipped back to Pending, the running clause of Q8 left in pendingClauses once TL-13 executes it, a measure flipped to Executed without rows, a cited row missing and a count that disagrees; QUALITY.md records the command, the diagnostic and the restore of each."
 
 [[id]]
 id = "FJ-01"

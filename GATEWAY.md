@@ -38,7 +38,11 @@ The gateway is compiled by the LexLean commit that MCP is checked with at the pi
 project's commit: `gateway/lexlean.lock` records the same `compiler_semantics` as MCP's
 `lexlean.lock`. The gateway job builds `lexlean` and the `lexlean` that `prismpm` vendors
 from that commit (`LEXLEAN_REV_FILE`), and the binding links the `lexlean` crate packaged
-from it. `gateway/mcp-identities.sh` holds the laid-out modules and the compiler to the pin
+from it. Its project allows a Lean child `child_timeout_ms = 1200000` (twenty minutes), the
+limit of MCP's own projects (MCP#42): a production build of the core exceeded 300000 on a
+shared runner. The limit is part of `project_config_sha256`, so `gateway/lexlean.lock` is made
+again with the compiler of `gateway/mcp/lexlean.rev` whenever it moves; the root project keeps
+`child_timeout_ms = 300000`, which OWNER-VALUES.md ties to the objective `slo.S4`. `gateway/mcp-identities.sh` holds the laid-out modules and the compiler to the pin
 (AC-03, part a): every file equals the file of MCP at `.github/mcp.rev`, the `mcp.core`
 lexicon has the tree hash MCP's lock records, and the two locks record one compiler.
 
