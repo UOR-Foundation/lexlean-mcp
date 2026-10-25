@@ -86,7 +86,12 @@ RESPONSE_MAXIMUM = 20_971_520
 BODY_MAXIMUM = 16_777_216
 EFFECT_BUDGET = 2
 PORT = 5395
-VERIFY_BUILD_TIMEOUT_SECONDS = 3600
+# The bound `prismpm verify` puts on `cargo build --release --locked --offline` of the staged
+# workspace (the binding, which links lexlean, the core of about 14 000 lines, the two host
+# packages and the vector runner), cold. Measured on this repository's 2-core, 7 GB development
+# machine, shared with other jobs: 238 s wall (398 s CPU) for that command on a fresh target
+# directory. The bound is that measure with a factor of about 7.5.
+VERIFY_BUILD_TIMEOUT_SECONDS = 1800
 
 DESCRIPTION = (
     "The gateway asks its host for the store, the four calls of the LexLean Engine, the "
