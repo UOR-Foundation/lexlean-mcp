@@ -55,7 +55,15 @@ The job log cannot always be downloaded. Each step runs its command through
 - on failure, writes the last 40 lines of the command's output as one
   `::error::` annotation titled `<gate> failed (exit N)`;
 - on success, writes a `::notice::` with the gate's duration and its last line,
-  so a gate that executed nothing cannot look like one that passed.
+  so a gate that executed nothing cannot look like one that passed;
+- runs the command with errexit on, so a failing command inside a helper
+  function fails the gate, and restores the step's errexit afterwards, so a
+  failed gate in a step of several gates fails the step. Before this, `gate`
+  captured `set +o` inside a command substitution, where errexit is never set,
+  so the first gate of a step turned errexit off for the rest of it, and each
+  helper ran with errexit off. `.github/lexlean-ci/test-gate.sh` holds the six
+  cases, and the `prepare` job runs it before any gate is trusted. Planted
+  against the old `gate`, four of the six cases fail.
 
 Read them with
 
