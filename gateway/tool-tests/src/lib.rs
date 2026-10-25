@@ -54,6 +54,10 @@ pub const EXAMPLES_OFF_THE_EXPECTED_TREE: &[&str] = &[
 /// (`RESULT_MAXIMUM` of the binding): `lexlean_snapshot` answers them with class 4 (TOOLS.md).
 pub const SNAPSHOTS_OVER_THE_LIMIT: &[&str] = &["uor-atlas"];
 
+/// The codes the diagnostic registry (`model/errors.toml`) of the pinned LexLean commit holds:
+/// the codes `lexlean_explain` explains, the count asserted by the test beside the CLI.
+pub const REGISTERED_CODES: usize = 86;
+
 /// The fixtures that run `check` and that issue #10 puts in F4: the register's 252 and the
 /// names it lacks.
 pub const F4_FIXTURES: usize = 253;
@@ -72,6 +76,17 @@ fn chunk(value: &[u8]) -> Vec<u8> {
 
 /// The request frame the adapter hands the core for a `POST /mcp` with these members.
 fn frame(method: &str, tool: Option<&str>, id: u64, params: Value) -> Vec<u8> {
+    frame_with(method, tool, id, params, &[])
+}
+
+/// [`frame`] with more header fields, in the order given, before `Content-Length`.
+fn frame_with(
+    method: &str,
+    tool: Option<&str>,
+    id: u64,
+    params: Value,
+    more: &[(&str, &str)],
+) -> Vec<u8> {
     let body = serde_json::to_vec(&json!({
         "jsonrpc": "2.0",
         "id": id,
@@ -88,6 +103,9 @@ fn frame(method: &str, tool: Option<&str>, id: u64, params: Value) -> Vec<u8> {
     ];
     if let Some(tool) = tool {
         fields.push(("Mcp-Name", tool.into()));
+    }
+    for (name, value) in more {
+        fields.push((name, (*value).to_string()));
     }
     fields.push(("Content-Length", body.len().to_string()));
     let mut out = chunk(b"POST");
@@ -215,6 +233,42 @@ pub fn list_frame(id: u64) -> Vec<u8> {
     frame("tools/list", None, id, json!({"_meta": meta()}))
 }
 
+/// A request for `tools/list` as a frame that carries one `Origin` field: what the adapter
+/// would hand the core for a browser's request.
+pub fn list_frame_with_origin(id: u64, origin: &str) -> Vec<u8> {
+    frame_with(
+        "tools/list",
+        None,
+        id,
+        json!({"_meta": meta()}),
+        &[("Origin", origin)],
+    )
+}
+
+/// The bytes of an HTTP `POST /mcp` for `tools/list` as a client sends it to the served
+/// adapter, with the `Origin` fields given (none, one, or several).
+pub fn list_http_request(id: u64, origins: &[&str]) -> Vec<u8> {
+    let body = serde_json::to_vec(&json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "tools/list",
+        "params": {"_meta": meta()},
+    }))
+    .expect("JSON");
+    let mut head = String::from(
+        "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\n\
+         Accept: application/json, text/event-stream\r\nMCP-Protocol-Version: 2026-07-28\r\n\
+         Mcp-Method: tools/list\r\n",
+    );
+    for origin in origins {
+        head.push_str(&format!("Origin: {origin}\r\n"));
+    }
+    head.push_str(&format!("Content-Length: {}\r\n\r\n", body.len()));
+    let mut out = head.into_bytes();
+    out.extend(body);
+    out
+}
+
 /// Run `work` on a thread with the stack the core needs and return what it returns.
 pub fn on_big_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
     std::thread::scope(|scope| {
@@ -283,6 +337,12 @@ impl Gateway {
         let request = call_frame(tool, Some(arguments), self.next);
         let host = &mut self.host;
         on_big_stack(|| exchange(host, &request))
+    }
+
+    /// A request frame of the caller's own making, answered by the core with the real host.
+    pub fn answer_frame(&mut self, request: &[u8]) -> Reply {
+        let host = &mut self.host;
+        on_big_stack(|| exchange(host, request))
     }
 
     /// `tools/call` with no `arguments` member at all.

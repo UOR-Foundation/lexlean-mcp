@@ -73,3 +73,9 @@ Feature: Generated gateway
     Given gateway/waiting.json, the gateway job of .github/workflows/lexlean.yml and GATEWAY-CONFORMANCE.md
     When the waiting list, the job steps and the record are read, and the verdict of the MCP oracle is run over the list
     Then the job serves the gateway and runs MCP's oracle at the pin with the list, every entry names an issue or a pull request, a stale entry and an unlisted failure are rejected, and the ignored tests run with a count check
+
+  @GW-13 @build
+  Scenario: The adapter refuses a foreign Origin by itself, independently of the core's own check: over a real socket the generated served adapter answers each origin of a pinned foreign corpus with 403 and the body OriginForbidden, which is the adapter's word and not the core's, and the core is never called; a request with an allowed origin reaches the core; the declaration's origins are exactly http and https over localhost, 127.0.0.1 and [::1] with any port; and GATEWAY.md records the planted widened allow-list, the failing command and the diagnostic.
+    Given the generated served adapter of gateway-host, the real core wrapped in a call counter, and the origins of the declaration
+    When each foreign origin of the corpus, an allowed origin and the declared list are put to the adapter over a real socket
+    Then each foreign origin is answered 403 OriginForbidden without a call of the core, the allowed one reaches the core, and the declared list is exactly the six loopback origins

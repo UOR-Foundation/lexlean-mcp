@@ -118,7 +118,9 @@ rendering. `prismpm verify` replays every vector three ways (a script of the rec
 outcomes, the real binding through `gateway-host run`, and the served program over a socket)
 and requires the same bytes each time.
 
-Three vectors ask for no effect (`tools-list`, `invalid-arguments`, `unknown-tool`); the
+Five vectors ask for no effect (`tools-list`, `invalid-arguments`, `unknown-tool`, and two
+`explain` calls, one of a registered code and one of a code with a quotation mark and a reverse
+solidus that the registry lacks, whose answers are compiled into the core: TOOLS.md); the
 others call a tool, in an order that matters (the store is shared): the six files of the
 project `tiny`, a read of one, the four Engine calls on it, and a refusal of each of
 `store.put`, `verify.start`, `verify.control`, `lexicon.read` and `attestation.lookup`.
@@ -126,6 +128,34 @@ project `tiny`, a read of one, the four Engine calls on it, and a refusal of eac
 fresh process, so a task started by one is gone before the next. Their success paths are the
 binding's tests (`verify_start_*`, `verify_control_*`), including a real verification and a
 real cancellation.
+
+## The adapter's refusal of a foreign `Origin`
+
+The `Origin` of a request is judged twice. The generated adapter judges it first, in
+`serve::read_request`, before the request is framed: a request with no `Origin` is not a
+browser's and is not judged; one `Origin` is allowed only when it is `scheme://host[:port]` over
+`http` or `https` with a host and port that the declaration's `origins` name (a declared port of 0
+is any port), compared without regard to case; anything else (a foreign host, `null`, an empty
+value, a path, a query, userinfo, a port that is not a number, or a second `Origin` field) is
+answered `403` with the body `OriginForbidden`, the code of PrismPM's closed `ServingRefusal`,
+and the core is not called. The core judges it again when it is called (`Forbidden: invalid
+Origin`, a JSON-RPC error).
+
+MCP's server suite cannot see the adapter's list: when it sends a foreign `Host` and `Origin`,
+whichever check runs first refuses, and both answer `403` (GATEWAY-CONFORMANCE.md). A served vector
+cannot hold it either: PrismPM's model gives every `ServedVector` a frame vector, the frame the
+adapter hands the core, and a request the adapter refuses has no frame. So `GW-13`
+(`gateway/tool-tests/tests/origin.rs`, an ordinary test of the gateway job) runs the adapter
+itself, `serve::run` of the generated `gateway-host` with the real host and the real core behind
+a call counter, over a real loopback socket:
+
+| Test | What it observes |
+| --- | --- |
+| `a_foreign_origin_is_refused_by_the_adapter_and_never_reaches_the_core_gw_13` | 25 origins (a foreign host, a host that only starts or ends with a loopback name, other schemes, userinfo, a path, a bad port, `null`, the empty value) are each answered `403` with the body `OriginForbidden`, which is the adapter's word and not the core's, and the counter says the core was called 0 times |
+| `two_origin_fields_are_refused_by_the_adapter_gw_13` | two `Origin` fields, both allowed, are refused the same way |
+| `an_allowed_origin_and_no_origin_reach_the_core_gw_13` | ten allowed spellings (the three loopback names over both schemes, ports, case) and a request with no `Origin` reach the core once and are answered `200` with the tool list, so a `403` above cannot be some other failure |
+| `the_core_refuses_a_foreign_origin_in_its_own_words_gw_13` | the same kind of origin handed to the core as a frame is refused by the core too, with `Forbidden: invalid Origin`: two checks, two voices |
+| `the_declared_origins_are_the_six_loopback_origins_with_any_port_gw_13` | `surface::ORIGINS`, the allow-list of the declaration as the build renders it, is exactly `http` and `https` over `localhost`, `127.0.0.1` and `[::1]`, any port, so a widening to an origin the corpus does not name fails too |
 
 ## Planted defects
 
@@ -146,6 +176,8 @@ script that is not committed.
 | a hand-edited core: a comment inserted in the committed `generated/lexlean_mcp_gateway_core/src/lib.rs` | `diff -r gateway/lexlean_mcp_gateway_core gateway/generated/lexlean_mcp_gateway_core` (the comparison `gateway_build` runs after `prismpm build`) | exit status 1: `diff -r .../src/lib.rs`, the first differing line is the inserted comment | `git checkout gateway/generated/lexlean_mcp_gateway_core/src/lib.rs`: the two directories are equal |
 | a tampered vector: the last byte of the first served response changed in `exchanges.json` | `python3 -I gateway/vectors/generate.py check` | exit status 1: `Application.lex.tex is not the rendering of exchanges.json` | `git checkout gateway/vectors/exchanges.json`: `the declaration is the rendering of the vectors` |
 | the served port differs from the owner value: `listenPort` set to 5396 in `src/OwnerValues.lex.tex` | `cargo test -p repo-model --test gateway the_served_port` | `the gateway serves on the owner value listen.port` (left 5395, right 5396) | `git checkout src/OwnerValues.lex.tex`: the test passes again |
+| a widened allow-list of origins: `evil.example.com` among the hosts of `surface::ORIGINS` in the laid-out `gateway/gateway-host/src/surface.rs` (the constant `prismpm build` writes from the `ServingOrigin` values of the declaration) | `cargo test -p gateway-tool-tests --test origin` (gateway workspace, offline, the registry's `CARGO_HOME`) | `GW-13` fails twice: `a_foreign_origin_is_refused_by_the_adapter_and_never_reaches_the_core_gw_13` finds, for `http://evil.example.com`, that the answer is the core's (`Forbidden: invalid Origin`, not the adapter's `OriginForbidden`), so the core was reached; `the_declared_origins_are_the_six_loopback_origins_with_any_port_gw_13` finds seven origins where six are declared (3 passed, 2 failed); the core's own refusal, `the_core_refuses_a_foreign_origin_in_its_own_words_gw_13`, still passes: a widened adapter is not seen by any vector or by the core | `cp` of the saved `surface.rs` (equal to the build's again by `diff -r`) |
+| the same widening in the declaration: `"evil.example.com"` among the hosts of the origins in `gateway/vectors/generate.py`, the application rendered again | `cargo test -p repo-model --test gateway the_adapter_refuses` | `GW-13` fails: `the declaration's origins are http and https over the three loopback names`; `generate.py check` passes (the rendering is consistent with the widened list), so only this test and the origin tests above reject it | `git checkout gateway/vectors/generate.py gateway/src/Application.lex.tex` |
 
 ## Building and verifying
 

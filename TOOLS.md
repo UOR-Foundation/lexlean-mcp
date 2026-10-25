@@ -1,11 +1,11 @@
 # The engine tools
 
 Issue #10 asks that `lexlean_check`, `lexlean_snapshot`, `lexlean_format` and `lexlean_build`
-(F4 to F7) agree with the `lexlean` CLI. This file says what each tool returns, how an
-answer of the Engine becomes an MCP result, and how the claim "the tool equals the CLI" is
-tested. The rows are `TL-01` to `TL-09` (suite `tools`); the tests are
-`cargo test -p repo-model --test tools` (the register half) and, in the gateway workspace,
-`cargo test -p gateway-tool-tests` (the behaviour half). The effects are those of
+(F4 to F7) and `lexlean_explain` (F11) agree with the `lexlean` CLI. This file says what each
+tool returns, how an answer of the Engine becomes an MCP result, and how the claim "the tool
+equals the CLI" is tested. The rows are `TL-01` to `TL-09` (F4 to F7) and `TL-10` to `TL-14`
+(F11), suite `tools`; the tests are `cargo test -p repo-model --test tools` (the register half)
+and, in the gateway workspace, `cargo test -p gateway-tool-tests` (the behaviour half). The effects are those of
 `src/Effects.lex.tex` and are not changed: `engine.check`, `engine.snapshot`,
 `engine.format` and `engine.build` are E3 to E6, and the set stays E1 to E10.
 
@@ -102,6 +102,61 @@ tool's tree equals the CLI's for every one of the 18. AC-04 as the issue words i
 examples build to their `expected/build`") is therefore not shown at this pin for 12 examples
 (PR body, "Not met").
 
+## `lexlean_explain` (F11)
+
+`lexlean explain <CODE>` (SPEC 23.4) opens no project: it renders the row of `model/errors.toml`
+that the binary embeds (`cli::explain_text`), or refuses a code the registry lacks. That is a
+function of the code, so the tool is one too and the host is asked for nothing: the set of
+effects stays `E1` to `E10` of `src/Effects.lex.tex`, and `TL-10` observes that a call performs
+none. The entries are compiled into the core instead:
+
+| Part | What it is |
+| --- | --- |
+| `gateway/src/Explain.lex.tex` | the entry of each registered code, as `explain_text` renders it, in groups of eight rows and a lookup `Explain.entry : String -> Option String` |
+| `gateway/explain/generate.py` | renders the module from `model/errors.toml` of the LexLean commit of `gateway/mcp/lexlean.rev` (`render`, `check`, `codes`); the module has no author but this script (R1) |
+| `GatewayTools.explainDocument` | builds the command result as a JSON value with the members in the CLI's order (UTF-8 byte order of the keys) |
+| `GatewayTools.explainReply` | writes it with MCP's `JsonWrite.writeJson`, appends the final line feed, and returns it as text and `structuredContent` |
+
+MCP's writer escapes a string with the rules of LexLean's canonical JSON (the quotation mark, the
+reverse solidus, `\b \t \n \f \r`, `\u00xx` for the other controls, everything else raw
+UTF-8), so a code the registry lacks is quoted in the refusal as the CLI quotes it.
+
+| The code | The tool returns | The CLI |
+| --- | --- | --- |
+| registered | no `isError`; the command result with `command: "explain"`, `exit_code: 0` and the `explanation`; the text block is the CLI's standard output | exit 0 |
+| any other string, the empty one included | `isError: true`; the command result with one `LLC0001` diagnostic, ``` `CODE` is not a registered diagnostic code ```, `exit_code: 2`; the same bytes as text | exit 2 |
+
+The core writes every `tools/call` result through MCP's output sanitizer (`Sanitize.sanitizeJson`,
+applied by `ResultJson`), which replaces with U+FFFD each control character but the tab, the line
+feed and the carriage return, the delete character, each character of the C1 range, and the
+bidirectional embedding, override and isolate characters (U+202A to U+202E, U+2066 to U+2069). It
+touches no byte of the explanation of a registered code and none of the refusal of a code without
+such a character; it does change the refusal of a code that holds one, in `structuredContent`
+(where the character is a character) and in the text where the CLI prints it raw (the delete
+character and the C1 range: the writer escapes the others as `\u00xx`, so the text keeps the
+escape). So for such a code the tool returns the CLI's refusal with U+FFFD for the character. This
+is the pinned core's rule for every tool, not a choice of `lexlean_explain`; `TL-12` states it as
+`core_sanitized` and requires the difference on exactly the strings that hold such a character.
+
+The match is exact and case-sensitive, as the CLI's is. A code that begins with `-` is an option
+to the CLI's parser (it answers `LLC0001`, "unexpected argument", which is a parser error and not
+a lookup); the tool equals `lexlean explain -- CODE`, and the test runs the CLI that way. The input
+schema is closed: `code` (a string) is required, and a call that breaks it is refused by the core as
+`Invalid arguments`, with no effect, like the other tools.
+
+`TL-12` (`gateway/tool-tests/tests/explain.rs`, ignored, run by the gateway job) reads the codes
+from `model/errors.toml` of the checkout of LexLean at the pin (86, asserted) and, for each, and
+for a corpus of strings the registry lacks (the empty string, case and spacing variants, the
+backquote, the quotation mark, the reverse solidus, controls, DEL, accents, `§`, CJK, an emoji,
+dashes, a path, and for every code its lower-case form, the code and a space, and the code
+without its last character), runs `lexlean --diagnostic-format json explain` in a directory with no
+project and calls the tool, and requires the same text bytes, `structuredContent` equal to the
+parsed standard output (both after `core_sanitized`, which changes the 12 strings of the corpus
+that hold a character of the sanitizer and no registered code), `isError` equal to `exit_code != 0`, the exit status, an empty standard
+error and no effect. `TL-13` (in `equality.rs`) collects the codes in the results of
+`lexlean_check` and `lexlean_build` on the fixtures of `TL-03`, requires them to be the codes the
+fixtures expect, and resolves each through the tool: Q8's running clause.
+
 ## Q4: no child process
 
 `TL-08` is the instrument that shows that no tool starts a child process: the process's
@@ -120,3 +175,20 @@ was applied to the working tree, the command ran, and the file was restored with
 | a class mapped to the wrong exit code: `class_number` in `gateway/bindings/gateway-binding/src/engine.rs` answers `2` for `ErrorClass::SecurityOrLimit` (class 4), while the command result keeps exit code 4 | `cargo test -p gateway-tool-tests --test tools` (gateway workspace, offline, the registry's `CARGO_HOME`) | `TL-02` fails: `classes_one_two_and_four_are_error_results_with_the_command_result_tl_02` panics with `a protocol error where a result was expected: {"error":{"code":-32603,"message":"Internal error"}}`, because the core refuses a result whose `exit_code` is not its class (7 passed, 1 failed) | `git checkout gateway/bindings/gateway-binding/src/engine.rs` |
 | a dropped diagnostic: `answered` in the same file gives the command result `error.diagnostics.get(1..)`, the diagnostics but the first | the same command | `TL-07` and `TL-02` fail: `an_atom_outside_the_profile_gives_lll1004_with_its_span_tl_07` finds `"diagnostics":[]` with `"exit_code":1`, and `classes_one_two_and_four_...tl_02` finds the same for a bad source (6 passed, 2 failed); the tests that run the CLI beside the tool (`TL-03`) compare every diagnostic, and were not run with this defect | `git checkout gateway/bindings/gateway-binding/src/engine.rs` |
 | a format result whose bytes differ from the CLI's: `command_result` in the same file drops the last byte (the line feed) of the result of `Call::Format` | the same command | `TL-02` fails: `class_zero_is_a_result_without_is_error_tl_02` panics with `lexlean_format: the text is the CLI's file spelling` (7 passed, 1 failed); `TL-05` compares the bytes of `fmt` and `fmt --check` with the tool's, and was not run with this defect | `git checkout gateway/bindings/gateway-binding/src/engine.rs` |
+
+## Planted defects of lexlean_explain
+
+Each defect was applied on the development machine, the command ran, and the file was restored
+(`git checkout` for a tracked file; for the laid-out core, `cp -r gateway/generated/lexlean_mcp_gateway_core
+gateway/lexlean_mcp_gateway_core`, after which `diff -r` of the two directories is empty). A change to the
+laid-out core is the change that `prismpm build` would write for the same change of the source (the
+core is Rust that `prismpm build` generates, and the string literals and the arms of `Explain.entry` are
+in it as written); the build itself is the job's gate and was not repeated for each defect. The unplanted
+tree passes every command below.
+
+| Defect | Command | Diagnostic | Restore |
+| --- | --- | --- | --- |
+| a wrong byte in one explanation: `Exit code: 1.` becomes `Exit code: 2.` in the entry of `LLL1004` of `gateway/src/Explain.lex.tex` | `LEXLEAN_SOURCES=<LexLean at the pin> python3 -I gateway/explain/generate.py check` | exit status 1: `gateway/src/Explain.lex.tex is not the rendering of the registry` | `git checkout gateway/src/Explain.lex.tex`: `the module is the rendering of the registry` |
+| the same wrong byte in the laid-out core (the entry of `LLL1004` in `gateway/lexlean_mcp_gateway_core/src/lib.rs`) | `cargo test -p gateway-tool-tests --test explain -- --ignored` (gateway workspace, offline, the registry's `CARGO_HOME`, `LEXLEAN_CLI` and `LEXLEAN_SOURCES` set) | `TL-12` fails: `2 of 392 strings differ from the CLI`; for `"LLL1004"` the text and `structuredContent` end `Exit code: 2.` where the CLI printed `Exit code: 1.` (the other 391 strings are equal); `diff -r gateway/lexlean_mcp_gateway_core gateway/generated/lexlean_mcp_gateway_core` also exits 1 | restore the core from `gateway/generated`: `TL-12` passes |
+| an unknown code answered as a registered one: the last arm of `Explain.entry` answers `Option.some ""` instead of `Option.none`, which in the laid-out core is `Some(Str::lit(""))` where `None::<Str>` was | `cargo test -p gateway-tool-tests --test explain -- --include-ignored` | `TL-10` fails: `lexlean_explain_asks_the_host_for_no_effect_tl_10` panics on `assert!(is_error(result))` for `LLX9999`, whose result is `"explanation":""` with `"success":true`; `TL-12` fails for every string the registry lacks (`"LLX9999": isError is false for the exit status 2`); the other two `TL-10` tests pass | restore the core from `gateway/generated`: four tests pass |
+| a wrong escape: the digit of a `\u00xx` escape is written in upper case (`hexDigit` of `JsonWrite` adds 55 where it adds 87), so a code with a control character is quoted as `\u001F` where the CLI writes `\u001f` | `gateway/mcp-identities.sh`, and `cargo test -p gateway-tool-tests --test explain -- --include-ignored` with the same change in the laid-out core | `mcp-identities: the laid-out MCP files differ from the pin 39a7d8e413004f031ba941dc8d88808090d51570`, exit status 1 (a `diff -r` names `src/JsonWrite.lex.tex`, line 86); `TL-12` fails for `"\u{1f}"`: the text holds the message `\u001F` where the CLI has `\u001f` (the three `TL-10` tests pass: only the corpus of `TL-12` has a code with a control character that needs a letter) | `cp` of the saved `gateway/mcp/src/JsonWrite.lex.tex` (laid out again by `gateway/lay-out-mcp.sh`); the core restored from `gateway/generated` |

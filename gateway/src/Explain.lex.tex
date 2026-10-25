@@ -1,0 +1,136 @@
+\begin{lexlean}{Explain}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\title{LexLean MCP diagnostic explanations}
+\begin{semanticmodule}
+definition{
+  name: group00,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLB6001", "## `LLB6001` --- Lean lowering has no defined form\n\nLean lowering has no defined form.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLB6002", "## `LLB6002` --- LaTeX lowering or renderer-token coverage failure\n\nLaTeX lowering or renderer-token coverage failure.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLB6003", "## `LLB6003` --- Artifact hash, schema, or atomic publication failure\n\nArtifact hash, schema, or atomic publication failure.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLB6004", "## `LLB6004` --- PDF-provider protocol failure\n\nPDF-provider protocol failure.\n\nClass: `environment`. Exit code: 3.\n") (cons ("LLB6005", "## `LLB6005` --- Target realization program or Rust package invalid or unrenderable\n\nA production-realization target program is malformed, violates the calculus's static rules, or cannot be rendered faithfully to the Rust profile, or a Rust package manifest is malformed or misstates its crate name, version, sources, exports, or the interface of the program it packages.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLB6006", "## `LLB6006` --- GNAF request malformed\n\nA GNAF request is not a closed `lexlean/gnaf-request/1` document, its reference program or a system its universe realizes is not a valid target program, its reference returns no value on a domain argument, its grammar repeats a threshold or misdeclares a plan's preparation, or its stated universe identity is not the one its components determine.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLB6007", "## `LLB6007` --- GNAF certificate malformed\n\nA GNAF certificate is not a closed `lexlean/gnaf-certificate/1` document, or a certificate fixture states an identity other than its certificate's.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLC0001", "## `LLC0001` --- Invalid command-line usage\n\nInvalid command-line usage.\n\nClass: `cli-configuration`. Exit code: 2.\n") (nil (String * String)))))))))),
+  executable: true
+}
+
+definition{
+  name: group01,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLC0002", "## `LLC0002` --- Mutually exclusive or empty selection\n\nMutually exclusive or empty selection.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0101", "## `LLC0101` --- Invalid or unknown project configuration field\n\nInvalid or unknown project configuration field.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0102", "## `LLC0102` --- Missing, stale, or noncanonical lock file\n\nMissing, stale, or noncanonical lock file.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0103", "## `LLC0103` --- Unsupported schema or language version\n\nUnsupported schema or language version.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0104", "## `LLC0104` --- Duplicate module or case-folded path collision\n\nDuplicate module or case-folded path collision.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0105", "## `LLC0105` --- Source package is not the package the lock pins\n\nA source package's version, source, module prefix, manifest digest, tree digest, or declared packages differ from the lock's row, naming the package and both digests.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0106", "## `LLC0106` --- Source package undeclared or declared with two sources\n\nThe lock pins a source package the project does not declare, or one identifier names two sources in the closure.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0107", "## `LLC0107` --- Module prefix claimed by two sources\n\nA module prefix is claimed by the project and a source package, or by two source packages, equal or one beneath the other, or an import names a module both the project and a package provide.\n\nClass: `cli-configuration`. Exit code: 2.\n") (nil (String * String)))))))))),
+  executable: true
+}
+
+definition{
+  name: group02,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLC0108", "## `LLC0108` --- Source package outside the workspace rule\n\nA project that declares a source package is outside any workspace or is not a member of it, a package is not a member of the workspace, or the workspace file or a package is malformed.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0201", "## `LLC0201` --- Production request malformed\n\nA production request is not a closed `lexlean/production-request/1` document: an unknown or missing field, another spec, roots, targets, or evidence that are empty, unsorted, or repeated, a root, package, or path that is not of its form, or a package name used twice for one target.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0202", "## `LLC0202` --- Requested root is not a production root\n\nA production request names a root that is not a linked production root of the project's entrypoint closure.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0203", "## `LLC0203` --- Unknown or mismatched production target\n\nA production request names a target that is not registered, that its root does not declare, or whose descriptor digest is not the registered target's.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLC0204", "## `LLC0204` --- Stale production expectation\n\nThe source ID, semantic ID, or lock digest a production request pins differs from the project's, or the project changed while it was being exported.\n\nClass: `cli-configuration`. Exit code: 2.\n") (cons ("LLF5001", "## `LLF5001` --- Invalid definition form, self head, or recursion\n\nInvalid definition form, self head, or recursion.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLF5002", "## `LLF5002` --- Invalid proof step for the current goal\n\nInvalid proof step for the current goal.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLF5003", "## `LLF5003` --- Missing, duplicate, or malformed proof branch\n\nMissing, duplicate, or malformed proof branch.\n\nClass: `language`. Exit code: 1.\n") (nil (String * String)))))))))),
+  executable: true
+}
+
+definition{
+  name: group03,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLF5004", "## `LLF5004` --- Proof does not close all goals\n\nProof does not close all goals.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLF5005", "## `LLF5005` --- Forbidden proof form or proof hole\n\nForbidden proof form or proof hole.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLI9001", "## `LLI9001` --- Internal invariant failure\n\nInternal invariant failure.\n\nClass: `internal`. Exit code: 70.\n") (cons ("LLL1001", "## `LLL1001` --- Invalid UTF-8, forbidden scalar, or line-ending form\n\nInvalid UTF-8, forbidden scalar, or line-ending form.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLL1002", "## `LLL1002` --- Forbidden comment, raw percent, tab, or TeX escape\n\nForbidden comment, raw percent, tab, or TeX escape.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLL1003", "## `LLL1003` --- Non-NFC or noncanonical source requiring formatting\n\nNon-NFC or noncanonical source requiring formatting.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLL1004", "## `LLL1004` --- Unknown non-whitespace primitive atom\n\nUnknown non-whitespace primitive atom.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLL1005", "## `LLL1005` --- Source token-coverage gap or overlap\n\nSource token-coverage gap or overlap.\n\nClass: `language`. Exit code: 1.\n") (nil (String * String)))))))))),
+  executable: true
+}
+
+definition{
+  name: group04,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLL1006", "## `LLL1006` --- Token-lattice construction failure\n\nToken-lattice construction failure.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLP2001", "## `LLP2001` --- No grammar parse\n\nNo grammar parse.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLP2002", "## `LLP2002` --- More than one distinct linked interpretation\n\nMore than one distinct linked interpretation.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLP2003", "## `LLP2003` --- Invalid structural order or component cardinality\n\nInvalid structural order or component cardinality.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLP2004", "## `LLP2004` --- Invalid math precedence, associativity, or grouping\n\nInvalid math precedence, associativity, or grouping.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLR3001", "## `LLR3001` --- Missing package, version, source, or digest mismatch\n\nMissing package, version, source, or digest mismatch.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLR3002", "## `LLR3002` --- Duplicate package, entry, form, or qualified ID\n\nDuplicate package, entry, form, or qualified ID.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLR3003", "## `LLR3003` --- Import, denotation, module, or definition cycle\n\nImport, denotation, module, or definition cycle.\n\nClass: `language`. Exit code: 1.\n") (nil (String * String)))))))))),
+  executable: true
+}
+
+definition{
+  name: group05,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLR3004", "## `LLR3004` --- Invalid LSE, LRE, frame, form, or renderer token\n\nInvalid LSE, LRE, frame, form, or renderer token.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLR3005", "## `LLR3005` --- Unavailable or invalid document/external reference\n\nUnavailable or invalid document/external reference.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLR3006", "## `LLR3006` --- Unsafe canonical form or raw renderer output\n\nUnsafe canonical form or raw renderer output.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLR3007", "## `LLR3007` --- Model artifact unavailable or its digest or length mismatched\n\nModel artifact unavailable or its digest or length mismatched.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLR3008", "## `LLR3008` --- Model artifact bytes violate the declared schema, type, or role\n\nModel artifact bytes violate the declared schema, type, or role.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLR3009", "## `LLR3009` --- Import of a module of a source package the importing scope does not declare\n\nA module imports a module of a source package that the project, or the package the module belongs to, does not declare.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLS8001", "## `LLS8001` --- Path escape, symlink, special file, or filesystem identity conflict\n\nPath escape, symlink, special file, or filesystem identity conflict.\n\nClass: `security-limit`. Exit code: 4.\n") (cons ("LLS8002", "## `LLS8002` --- Explicit resource limit exceeded\n\nAn explicit project resource limit, or the declared capacity of an evaluator such as the GNAF host's (§17.15), is exceeded.\n\nClass: `security-limit`. Exit code: 4.\n") (nil (String * String)))))))))),
+  executable: true
+}
+
+definition{
+  name: group06,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLS8003", "## `LLS8003` --- Network operation attempted outside permitted lock acquisition\n\nNetwork operation attempted outside permitted lock acquisition.\n\nClass: `security-limit`. Exit code: 4.\n") (cons ("LLS8004", "## `LLS8004` --- Child environment, executable, hash, or shell-policy violation\n\nChild environment, executable, hash, or shell-policy violation.\n\nClass: `security-limit`. Exit code: 4.\n") (cons ("LLT4001", "## `LLT4001` --- Arity, binder, category, or conservative type mismatch\n\nArity, binder, category, or conservative type mismatch.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4002", "## `LLT4002` --- Unresolved overloaded entry\n\nUnresolved overloaded entry.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4003", "## `LLT4003` --- External-interface probe mismatch\n\nExternal-interface probe mismatch.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4004", "## `LLT4004` --- Document-entry signature mismatch\n\nDocument-entry signature mismatch.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4005", "## `LLT4005` --- Production root not eligible for a declared target\n\nProduction root not eligible for a declared target.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4006", "## `LLT4006` --- Model contract, realization, or artifact interface mismatch\n\nModel contract, realization, or artifact interface mismatch.\n\nClass: `language`. Exit code: 1.\n") (nil (String * String)))))))))),
+  executable: true
+}
+
+definition{
+  name: group07,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLT4007", "## `LLT4007` --- Invalid model composition or entry obligation\n\nInvalid model composition or entry obligation.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4008", "## `LLT4008` --- Unvalidated model runtime boundary\n\nUnvalidated model runtime boundary.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4009", "## `LLT4009` --- Model evidence not established\n\nModel evidence not established.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4010", "## `LLT4010` --- Reasoning interface or obligation mismatch\n\nReasoning interface or obligation mismatch.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4011", "## `LLT4011` --- Unbounded reasoning or missing termination evidence\n\nUnbounded reasoning or missing termination evidence.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4012", "## `LLT4012` --- Unvalidated reasoning runtime boundary\n\nUnvalidated reasoning runtime boundary.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4013", "## `LLT4013` --- Tooling module malformed or out of context\n\nA tooling module is not canonical JSON of the closed schema lexlean/tooling-module/1, has a member the schema does not close, nests deeper than the decoder allows, or is not in a language-1.2 project the compiler embeds.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4014", "## `LLT4014` --- Tooling authority registry invalid\n\nA tooling module pins an authority other than the compiler's Lean release, or its registry of types, calls, and plumbing is not closed: a name declared twice, a signature or field naming an unregistered constant or an unbound variable, a type whose parameters, constructors, index requirements, or abbreviation are inconsistent, a plumbing row that is empty, unsorted, or repeats a constant, or a source pin that is not a toolchain path with a SHA-256.\n\nClass: `language`. Exit code: 1.\n") (nil (String * String)))))))))),
+  executable: true
+}
+
+definition{
+  name: group08,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLT4015", "## `LLT4015` --- Tooling term ill-typed or unlicensed\n\nA tooling term is not well typed: a call with the wrong type arguments or arguments, a match that is not exhaustive at its scrutinee's index, or a binder that shadows another; a function recurses without a licence (partial, or its contiguous mutual group); a command, invocation, or evaluation does not match its grammar; or a traversal does not recurse into every field of its recursive family.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLT4016", "## `LLT4016` --- Unbounded or unspecified text generation\n\nA text declaration does not state the bound it must: a context window with capacity 0, or a text generator with max_tokens 0.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLV7001", "## `LLV7001` --- Lean/Lake/leanchecker version or executable mismatch\n\nLean/Lake/leanchecker version or executable mismatch.\n\nClass: `environment`. Exit code: 3.\n") (cons ("LLV7002", "## `LLV7002` --- Generated Lean elaboration or compilation failure\n\nGenerated Lean elaboration or compilation failure.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLV7003", "## `LLV7003` --- `leanchecker` replay failure\n\n`leanchecker` replay failure.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLV7004", "## `LLV7004` --- Missing, malformed, or unexpected axiom-audit output\n\nMissing, malformed, or unexpected axiom-audit output.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLV7005", "## `LLV7005` --- Axiom policy violation\n\nAxiom policy violation.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLV7006", "## `LLV7006` --- Lean warning or unexpected successful-process output\n\nLean warning or unexpected successful-process output.\n\nClass: `language`. Exit code: 1.\n") (nil (String * String)))))))))),
+  executable: true
+}
+
+definition{
+  name: group09,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLV7007", "## `LLV7007` --- Lake workspace lock or dependency availability mismatch\n\nLake workspace lock or dependency availability mismatch.\n\nClass: `environment`. Exit code: 3.\n") (cons ("LLV7008", "## `LLV7008` --- Non-UTF-8 path or argument in the environment\n\nA host path, working directory, or command-line argument is not valid UTF-8; non-UTF-8 project paths are outside language 1.0 (§8.3).\n\nClass: `environment`. Exit code: 3.\n") (cons ("LLV7009", "## `LLV7009` --- Git acquisition environment failure\n\nDuring `lock --allow-network`, the git executable could not be resolved or run, or the exact configured commit could not be fetched or checked out from the HTTPS remote.\n\nClass: `environment`. Exit code: 3.\n") (cons ("LLV7010", "## `LLV7010` --- Host filesystem or platform failure\n\nA host filesystem or platform operation under the project (creating, writing, renaming, or locking a file) failed for a reason outside the project's control.\n\nClass: `environment`. Exit code: 3.\n") (cons ("LLV7011", "## `LLV7011` --- Named-root extraction rejected\n\nLean's compiler front end could not extract a production root's computational closure, or the extracted closure names an unknown root, an opaque, unsafe, partial, or noncomputable dependency, an unresolved or unsupported constant, an unsupported compiler form, or disagrees with the production-eligibility closure.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLV7012", "## `LLV7012` --- Lean compiler-front-end authority drift\n\nThe pinned Lean compiler-front-end interface no longer matches its registry: a signature probe or the pinned extraction adapter fails to elaborate, or the running Lean reports another version or source commit.\n\nClass: `environment`. Exit code: 3.\n") (cons ("LLV7013", "## `LLV7013` --- Certificate A rejected\n\nA production root's preservation certificate does not compile silently under the pinned Lean, its leanchecker replay fails, or its root theorem depends on axioms other than exactly Classical.choice, Quot.sound, and propext.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLV7014", "## `LLV7014` --- Preservation environment drift\n\nThe shipped preservation library or calculus modules fail their token audit, do not compile silently under the pinned Lean, or a library declaration depends on axioms other than those its registry row states.\n\nClass: `environment`. Exit code: 3.\n") (nil (String * String)))))))))),
+  executable: true
+}
+
+definition{
+  name: group10,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("LLV7015", "## `LLV7015` --- Certificate B rejected\n\nA production root's rendering in one of its targets admits no derivation of the correspondence with its lowered program, its certificate does not compile silently under the pinned Lean, its leanchecker replay fails, or its simulation theorem depends on axioms other than exactly Classical.choice, Quot.sound, and propext.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLV7016", "## `LLV7016` --- Certificate E rejected\n\nThe composition of a production root's certificates A and B for one of its targets does not compile silently under the pinned Lean, its leanchecker replay fails, or its end-to-end theorem depends on axioms other than exactly Classical.choice, Quot.sound, and propext.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLV7017", "## `LLV7017` --- Invalid verification resource profile\n\nThe operational verification process width the environment selects is not a decimal integer from 1 to 64.\n\nClass: `environment`. Exit code: 3.\n") (cons ("LLV7018", "## `LLV7018` --- Child start refused after the host ended the live children\n\nA child process could not be started because the host ended the live children of this process through `lexlean::verify::end_live_children` and has not re-enabled starting children.\n\nClass: `environment`. Exit code: 3.\n") (cons ("LLV7101", "## `LLV7101` --- Certificate evidence does not certify the root\n\nCertificate evidence a production request supplies is not the certificate whose identity it pins, earns a refused verdict for its request, or is for a request whose reference program is not the root's lowered program.\n\nClass: `language`. Exit code: 1.\n") (cons ("LLV7102", "## `LLV7102` --- Production artifact replay rejected\n\nA production bundle does not replay: its result identity, a file digest, a binding between the result, the attestation, the preservation record, and its packages, a re-rendered package, a target descriptor, the producing compiler's semantics, or a recomputed certificate verdict disagrees with what the bundle states, or the bundle holds a file it does not state.\n\nClass: `language`. Exit code: 1.\n") (nil (String * String)))))))),
+  executable: true
+}
+
+definition{
+  name: find,
+  parameters: [code : String, rows : (List (String * String))],
+  result: (Option String),
+  body: (match rows
+    | List.nil => (ctor Option.none [String])
+    | List.cons head rest => (if (prim equal code (first head) : Bool) then (ctor Option.some [String] (second head)) else (find code rest))),
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: entry,
+  parameters: [code : String],
+  result: (Option String),
+  body: (match (find code (group00))
+    | Option.some found => (ctor Option.some [String] found)
+    | Option.none => (match (find code (group01))
+      | Option.some found => (ctor Option.some [String] found)
+      | Option.none => (match (find code (group02))
+        | Option.some found => (ctor Option.some [String] found)
+        | Option.none => (match (find code (group03))
+          | Option.some found => (ctor Option.some [String] found)
+          | Option.none => (match (find code (group04))
+            | Option.some found => (ctor Option.some [String] found)
+            | Option.none => (match (find code (group05))
+              | Option.some found => (ctor Option.some [String] found)
+              | Option.none => (match (find code (group06))
+                | Option.some found => (ctor Option.some [String] found)
+                | Option.none => (match (find code (group07))
+                  | Option.some found => (ctor Option.some [String] found)
+                  | Option.none => (match (find code (group08))
+                    | Option.some found => (ctor Option.some [String] found)
+                    | Option.none => (match (find code (group09))
+                      | Option.some found => (ctor Option.some [String] found)
+                      | Option.none => (match (find code (group10))
+                        | Option.some found => (ctor Option.some [String] found)
+                        | Option.none => (ctor Option.none [String])))))))))))),
+  executable: true
+}
+\end{semanticmodule}
+\end{lexlean}

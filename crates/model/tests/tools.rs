@@ -1,5 +1,5 @@
 //! TL-01 to TL-09: the tools of F4 to F7 (issue #10), check, snapshot, format and build, agree
-//! with the CLI.
+//! with the CLI. TL-10 to TL-14: so does `lexlean_explain` (F11).
 //!
 //! The behavior is tested where the core and the host run: `gateway/tool-tests` calls each tool
 //! through the production core with the real host, beside the `lexlean` binary of the same
@@ -362,8 +362,8 @@ fn no_child_process_is_started_by_a_tool_tl_08() {
 fn the_gateway_job_runs_the_ignored_tests_of_the_tools_and_counts_them_tl_03() {
     let ignored = ignored_in_tool_tests();
     assert_eq!(
-        ignored, 4,
-        "TL-03 to TL-06 are the ignored tests of the tools"
+        ignored, 6,
+        "TL-03 to TL-06, TL-12 and TL-13 are the ignored tests of the tools"
     );
     for (name, reason) in tests_in("gateway/tool-tests") {
         if !reason.is_empty() {
@@ -407,6 +407,190 @@ fn the_planted_defects_of_the_tools_are_recorded_tl_09() {
         .collect::<Vec<_>>()
         .join(" ");
     for kind in ["exit code", "diagnostic", "format"] {
+        assert!(planted.contains(kind), "a planted defect is about: {kind}");
+    }
+}
+
+// ---- F11: lexlean_explain ---------------------------------------------------------------
+
+/// The text of the module `Explain` and of the generator that renders it.
+fn explanations() -> String {
+    read("gateway/src/Explain.lex.tex")
+}
+
+/// TL-10: the tool is declared, answers from the core, and asks the host for nothing.
+#[test]
+fn lexlean_explain_is_a_pure_function_of_the_code_tl_10() {
+    let tools = tight(&read("gateway/src/GatewayTools.lex.tex"));
+    assert!(
+        tools.contains("\"lexlean_explain\""),
+        "the tool layer names lexlean_explain"
+    );
+    assert!(
+        tools.contains("Explain::entry"),
+        "the tool layer answers from the compiled explanations"
+    );
+    // No effect carries a code: the set is the model's E1 to E10, and none is about explain.
+    let effects = read("src/Effects.lex.tex");
+    assert!(
+        !effects.to_lowercase().contains("explain"),
+        "src/Effects.lex.tex declares no effect for an explanation"
+    );
+    assert_eq!(
+        effects,
+        read("gateway/src/Effects.lex.tex"),
+        "the gateway's declaration of the effects is the model's, byte for byte"
+    );
+    // The plan of the tool layer, the function that maps a tool to its effect, has no case for it.
+    let plan = tools
+        .split("name: plan,")
+        .nth(1)
+        .and_then(|rest| rest.split("name: nth,").next())
+        .expect("the plan of the tool layer");
+    assert!(
+        !plan.contains("lexlean_explain"),
+        "lexlean_explain has no effect to plan"
+    );
+    // Two recorded vectors show it: a registered code and one the registry lacks ask for no effect.
+    let vectors = read("gateway/vectors/exchanges.json");
+    assert_eq!(
+        vectors.matches("\"kind\": \"explain\"").count(),
+        2,
+        "the vectors hold an explanation of a registered code and of an unregistered one"
+    );
+    needs(
+        "TL-10",
+        &[
+            "lexlean_explain_is_listed_with_its_schemas_tl_10",
+            "lexlean_explain_asks_the_host_for_no_effect_tl_10",
+            "a_call_to_lexlean_explain_that_breaks_the_schema_is_refused_tl_10",
+        ],
+    );
+}
+
+/// TL-11: the explanations are the rendering of the registry, and nothing else.
+#[test]
+fn the_explanations_are_the_rendering_of_the_registry_tl_11() {
+    let module = explanations();
+    let entries: Vec<&str> = module
+        .lines()
+        .flat_map(|line| line.split("(cons (\"LL").skip(1))
+        .collect();
+    assert!(
+        entries.len() >= 80,
+        "the module holds the entries of the registry: {}",
+        entries.len()
+    );
+    let mut previous = String::new();
+    for entry in &entries {
+        let code = format!("LL{}", &entry[..5]);
+        assert!(
+            code.len() == 7 && code[3..].chars().all(|c| c.is_ascii_digit()),
+            "{code}: a code"
+        );
+        assert!(
+            code > previous,
+            "{code}: sorted and unique, after {previous}"
+        );
+        previous = code.clone();
+        assert!(
+            entry.contains(&format!("## `{code}` --- ")),
+            "{code}: the entry begins with its heading"
+        );
+        assert!(
+            entry.contains("\\n\\nClass: `") && entry.contains(". Exit code: "),
+            "{code}: the entry ends with its class and exit code"
+        );
+    }
+    // The generator is the only author of the module; the tool layer has no entry of its own.
+    let generator = read("gateway/explain/generate.py");
+    assert!(
+        generator.contains("model\" / \"errors.toml\"") && generator.contains("def entry("),
+        "the generator reads the registry of LexLean and renders each row"
+    );
+    let tools = read("gateway/src/GatewayTools.lex.tex");
+    assert!(
+        !tools.contains("## `"),
+        "the tool layer holds no explanation text"
+    );
+    // The gateway job renders the module again from the registry at the pin and compares.
+    let workflow = workflow();
+    assert!(
+        workflow.contains("gateway/explain/generate.py check"),
+        "the gateway job fails when the committed module is not the rendering of the registry"
+    );
+    let script = read("gateway/lay-out-lexlean.sh");
+    assert!(
+        script.contains("model/errors.toml"),
+        "the layout of LexLean at the pin holds the registry"
+    );
+    assert!(
+        read("gateway/lexlean.toml").contains("mcp/src"),
+        "the gateway is compiled from its own sources and MCP's"
+    );
+    assert!(
+        read("gateway/language/lexleanmcp.titles/entries/lexlean-mcp-diagnostic-explanations.toml")
+            .contains("module = \"Explain\""),
+        "the module has its title in the lexicon"
+    );
+}
+
+/// TL-12: the tool is held to the CLI for every code of the registry and for strings it lacks.
+#[test]
+fn lexlean_explain_is_compared_with_the_cli_tl_12() {
+    needs(
+        "TL-12",
+        &["tool_equals_cli_on_every_registered_code_and_on_unregistered_strings_tl_12"],
+    );
+    let test = read("gateway/tool-tests/tests/explain.rs");
+    for compared in [
+        "model/errors.toml",
+        "\"explain\", \"--\"",
+        "structuredContent",
+        "isError",
+        "exit_code",
+        "REGISTERED_CODES",
+    ] {
+        assert!(test.contains(compared), "the explain test uses {compared}");
+    }
+    assert!(
+        read("gateway/tool-tests/src/lib.rs").contains("pub const REGISTERED_CODES: usize = 86;"),
+        "the count of the registry at the pin is asserted"
+    );
+}
+
+/// TL-13: the codes of the results of the tools resolve through the running tool.
+#[test]
+fn the_codes_of_the_results_resolve_through_lexlean_explain_tl_13() {
+    needs(
+        "TL-13",
+        &["every_code_in_a_tool_result_resolves_through_explain_tl_13"],
+    );
+    let test = read("gateway/tool-tests/tests/equality.rs");
+    assert!(
+        test.contains("\"lexlean_explain\"") && test.contains("run_cli(nowhere.path()"),
+        "the Q8 test calls the tool and the CLI for each code"
+    );
+}
+
+/// TL-14: the planted defects of lexlean_explain are recorded.
+#[test]
+fn the_planted_defects_of_lexlean_explain_are_recorded_tl_14() {
+    let document = read("TOOLS.md");
+    let defects = table(&document, "Planted defects of lexlean_explain");
+    assert!(defects.len() >= 3, "three defects or more are recorded");
+    for cells in &defects {
+        assert!(
+            cells.len() >= 4 && cells.iter().all(|cell| !cell.is_empty()),
+            "a defect names its change, command, diagnostic and restore: {cells:?}"
+        );
+    }
+    let planted: String = defects
+        .iter()
+        .map(|cells| cells[0].to_lowercase())
+        .collect::<Vec<_>>()
+        .join(" ");
+    for kind in ["byte", "registered", "escape"] {
         assert!(planted.contains(kind), "a planted defect is about: {kind}");
     }
 }
