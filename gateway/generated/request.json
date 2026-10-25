@@ -1,0 +1,1 @@
+{"spec":"lexlean/production-request/1","roots":[{"root":"LexLeanMcpGateway.Gateway.gatewayRun","package":{"name":"lexlean_mcp_gateway_core","version":"0.1.0"},"targets":[{"id":"rust-std","digest":"25e8eba5c28e98c5787c168bb517113e55de605e8e3cd7a517efd914dbc8b73c"}]}]}

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-gateway"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Gateway"
+component = "gatewayRun"
+
+[[form]]
+id = "lexlean-mcp-gateway"
+channel = "text"
+surface = "LexLean MCP gateway"
+canonical_source = true
+features = ["sentence-case", "singular"]

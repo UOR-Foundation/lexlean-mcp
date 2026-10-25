@@ -1,0 +1,6 @@
+name = "LexLeanMcpGateway"
+version = "0.1.0"
+defaultTargets = ["LexLeanMcpGateway"]
+
+[[lean_lib]]
+name = "LexLeanMcpGateway"

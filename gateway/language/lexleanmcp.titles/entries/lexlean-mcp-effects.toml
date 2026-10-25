@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-effects"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Effects"
+component = "effectsHold"
+
+[[form]]
+id = "lexlean-mcp-effects"
+channel = "text"
+surface = "LexLean MCP host effects"
+canonical_source = true
+features = ["sentence-case", "singular"]

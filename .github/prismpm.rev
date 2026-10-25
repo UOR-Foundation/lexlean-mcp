@@ -1,0 +1,12 @@
+# The PrismPM revision `prismpm build` and `prismpm verify` of the gateway are made by
+# in .github/workflows/lexlean.yml, and the only place it is written (AGENTS.md R1), like
+# .github/lexlean.rev. The workflow builds `prismpm` at this commit with `vendor/lexlean`
+# replaced by the LexLean of .github/lexlean.rev, so one pin drives both tools, as in
+# UOR-Foundation/MCP#37 (.github/lexlean-ci/lib.sh, `install_prismpm`).
+#
+# Development imports upstream commits; a release pins only upstream releases. This pin
+# moves to the PrismPM SDK release that contains PrismPM#216 before lexlean-mcp v0.1.0.
+#
+# Currently: UOR-Foundation/PrismPM#342 at its head, the verification of a server
+# application (slice 3 of #216) and the replay of its release (slice 4), stacked on #339 and #246.
+rev = 706fb746100c1d220841d93820a035d07beb5323
