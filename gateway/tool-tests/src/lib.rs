@@ -50,6 +50,10 @@ pub const EXAMPLES_OFF_THE_EXPECTED_TREE: &[&str] = &[
     "recursive-data",
 ];
 
+/// The projects whose semantic snapshot is larger than the 4 MiB an engine effect may return
+/// (`RESULT_MAXIMUM` of the binding): `lexlean_snapshot` answers them with class 4 (TOOLS.md).
+pub const SNAPSHOTS_OVER_THE_LIMIT: &[&str] = &["uor-atlas"];
+
 /// The fixtures that run `check` and that issue #10 puts in F4: the register's 252 and the
 /// names it lacks.
 pub const F4_FIXTURES: usize = 253;
@@ -133,7 +137,7 @@ impl Reply {
 
 fn read_response(frame: &[u8]) -> (u32, Value) {
     let mut at = 0;
-    let mut word = |at: &mut usize| {
+    let word = |at: &mut usize| {
         let value = u32::from_be_bytes(frame[*at..*at + 4].try_into().expect("a word"));
         *at += 4;
         value

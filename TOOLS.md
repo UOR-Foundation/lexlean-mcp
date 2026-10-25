@@ -28,8 +28,11 @@ them and returns them twice: as the text of the result, and as its `structuredCo
 `all` selects every module, and neither selects the entrypoints, as the CLI's default does.
 `all` together with a non-empty `files` is invalid arguments, as the CLI's flags are
 exclusive. The input schemas are closed (`additionalProperties: false`) and `project` is
-required; a call that breaks a schema is a protocol error (JSON-RPC `-32602`), not a tool
-result.
+required. A call that breaks a schema is refused by the core before the tool runs, as an
+error result the model can read (`isError: true`, the text `Invalid arguments: ...`, no
+`structuredContent`) and no effect is asked for; a call the schema admits and the tool cannot
+make (`all` with `files`, a file name with a line feed) is the protocol error `-32602`. Neither
+is an answer of the Engine.
 
 ## From the answer of the Engine to the result of the tool
 
@@ -43,7 +46,9 @@ result.
 
 A refusal of the project is the answer the tool exists to give, so it is a tool result the
 model can read and act on (`isError`), never a protocol error. A protocol error is for a
-call that is not a call.
+call that is not a call. A result over 4 MiB (the bound of an engine result, GATEWAY.md,
+"The bounds") is the answer of class 4, `LLS8002`, that says so; the one case in the
+tests is the snapshot of `uor-atlas`, 59 MB, whose `check` and `build` results are small.
 
 ## Snapshot
 
@@ -79,9 +84,23 @@ LexLean commit MCP names (`gateway/mcp/lexlean.rev`, SM-37 `0b0c95d96`), whose
 `tests/negative` has 298. The extra fixture, `induction-nested-type`, is not in the
 register (`NOT_IN_THE_REGISTER` in `gateway/tool-tests/src/lib.rs`, with the counts asserted
 by `TL-03`), and the expected files of the register are not compared byte for byte at the
-second pin, because 290 trees differ there (the `compiler_semantics` of the lock and 12
-certificate files). The comparison that matters is the one the tests make: the tool against
-the CLI of the same commit, on the same project.
+second pin, because 290 trees differ there. The comparison that matters is the one the
+tests make: the tool against the CLI of the same commit, on the same project.
+
+The locks of the fixtures and of the examples at that commit record a compiler-semantics
+identity (`30c58...` for language 1.2) that is not the one of the compiler built from the
+same commit (`81a5f...`, the one `gateway/lexlean.lock` records), so `lexlean check` on a
+fixture as committed answers `LLC0102` and exit code 2 where the fixture expects 1 or 4.
+The tests therefore write the lock that `lexlean lock` makes into the staged copy of a
+project (both sides get the same bytes), when it differs from the committed one in nothing
+but that identity and the fixture is not about a lock itself; they then require the CLI to
+give the fixture's `expected_exit` and the diagnostic codes of its `expected/`, and the tool
+to equal the CLI. For the examples the same relock is done, and the trees they publish still
+differ from `expected/build` in 12 of 18 (the identities are in the manifest and the maps):
+`EXAMPLES_OFF_THE_EXPECTED_TREE` names them, the test fails when the list changes, and the
+tool's tree equals the CLI's for every one of the 18. AC-04 as the issue words it ("the
+examples build to their `expected/build`") is therefore not shown at this pin for 12 examples
+(PR body, "Not met").
 
 ## Q4: no child process
 

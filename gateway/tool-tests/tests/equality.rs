@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 use gateway_tool_tests::{
     copy_tree, fixtures_of, lexlean_sources, register, run_cli, tree, Cli, Fixture, Gateway, Reply,
     EXAMPLES_OFF_THE_EXPECTED_TREE, F4_FIXTURES, F7_FIXTURES, NOT_IN_THE_REGISTER,
+    SNAPSHOTS_OVER_THE_LIMIT,
 };
 use serde_json::{json, Value};
 
@@ -412,33 +413,17 @@ fn snapshot_agrees_with_check_on_the_fixtures_and_the_examples_tl_04() {
     let sources = lexlean_sources();
     let (f4, f7) = in_scope(&sources);
     let mut failures = Vec::new();
+    let mut over_the_limit = Vec::new();
     let mut ran = 0;
-    for fixture in f4.iter().chain(&f7) {
-        let staged = stage_fixture(fixture);
+    let mut subjects: Vec<(String, Staged)> = f4
+        .iter()
+        .chain(&f7)
+        .map(|fixture| (fixture.name.clone(), stage_fixture(fixture)))
+        .collect();
+    subjects.extend(examples(&sources));
+    for (name, staged) in subjects {
         // The CLI has no snapshot command: the Engine runs the pipeline of `check` (SPEC 24.1),
         // so a refused snapshot is the result of `check`, naming its own command.
-        let pair = run_pair(
-            &staged,
-            "lexlean_snapshot",
-            project_arguments(&fixture.name),
-            &["check"],
-            &nothing,
-        );
-        ran += 1;
-        let mut found = Vec::new();
-        if pair.cli.status == 0 {
-            found.push("a negative fixture passes check".to_string());
-        } else {
-            found.extend(differences(&pair, Some(("check", "snapshot"))));
-        }
-        found.extend(files_differ(&pair));
-        failures.extend(
-            found
-                .into_iter()
-                .map(|d| format!("snapshot {}: {d}", fixture.name)),
-        );
-    }
-    for (name, staged) in examples(&sources) {
         let pair = run_pair(
             &staged,
             "lexlean_snapshot",
@@ -447,8 +432,29 @@ fn snapshot_agrees_with_check_on_the_fixtures_and_the_examples_tl_04() {
             &nothing,
         );
         ran += 1;
-        failures.extend(snapshot_of_a_project_that_checks(&name, &pair));
+        let mut found = Vec::new();
+        if pair.cli.status != 0 {
+            found.extend(differences(&pair, Some(("check", "snapshot"))));
+            found.extend(files_differ(&pair));
+        } else if pair.reply.body["result"]["structuredContent"]["diagnostics"][0]["message"]
+            .as_str()
+            .is_some_and(|message| message.starts_with("the result is "))
+        {
+            // The snapshot is larger than the 4 MiB an engine effect may return: class 4.
+            over_the_limit.push(name.clone());
+            if pair.reply.body["result"]["structuredContent"]["exit_code"] != json!(4) {
+                found.push("the refusal of a snapshot over the limit is not class 4".to_string());
+            }
+        } else {
+            found.extend(snapshot_of_a_project_that_checks(&name, &pair));
+        }
+        failures.extend(found.into_iter().map(|d| format!("snapshot {name}: {d}")));
     }
+    eprintln!("TL-04: snapshots over the limit of the effect: {over_the_limit:?}");
+    assert_eq!(
+        over_the_limit, SNAPSHOTS_OVER_THE_LIMIT,
+        "the projects whose snapshot is over the 4 MiB of an engine result"
+    );
     finish("TL-04", ran, &failures);
 }
 
