@@ -563,7 +563,7 @@ statement = "The MCP modules laid out under gateway/mcp are those of the pin: ev
 id = "TL-01"
 level = "build"
 suite = "tools"
-statement = "The tools of F4 to F7 declare one schema each: lexlean_check, lexlean_snapshot, lexlean_format and lexlean_build take project (a non-empty string), files (strings) and all (a boolean), lexlean_format also check_only, and no other member; each declares an outputSchema, the lexlean/command-result/1 object for check, format and build and an object with a spec for snapshot; tools/list through the production core shows exactly these, and a call whose arguments break the schema, or that sets all together with files, is a protocol error and never a tool result."
+statement = "The tools of F4 to F7 declare one schema each: lexlean_check, lexlean_snapshot, lexlean_format and lexlean_build take project (a non-empty string), files (strings) and all (a boolean), lexlean_format also check_only, and no other member; each declares an outputSchema, the lexlean/command-result/1 object for check, format and build and an object with a spec for snapshot; tools/list through the production core shows exactly these, and a call whose arguments break the schema is refused by the core as an Invalid arguments error result before any effect is asked for, while a call the schema admits and the tool cannot make (all together with files, a file name with a line feed) is the protocol error invalid params, and neither is ever an answer of the Engine."
 
 [[id]]
 id = "TL-02"

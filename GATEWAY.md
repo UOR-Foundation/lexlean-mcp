@@ -65,7 +65,11 @@ The first ten rows are `src/Effects.lex.tex` (GW-01 holds the names to the model
 order to the table). `rate.calls` is the eleventh and is not the core's: EFFECTS.md, "The
 frame effect". A `class` is `0` for a result, `1` for a language error of the draft, `2`
 for a configuration or selection error and `4` for a limit; an environment or internal
-error of the Engine is not a class, it is the failure `engine-unavailable`. A `state` is
+error of the Engine is not a class, it is the failure `engine-unavailable`. A `class` is
+the exit code of the CLI, and the `result` of `engine.check`, `engine.format` and
+`engine.build` is the bytes the CLI prints with `--diagnostic-format json` (TOOLS.md); that of
+`engine.snapshot` is the canonical snapshot, or, for a project that does not check, the same
+refusal under the command name `snapshot`. A `state` is
 `0` queued, `1` running, `2` verified, `3` failed, `4` cancelled. An `area` is the position
 of a directory in the store (`profiles`, `drafts`, `builds`, `verifications`, `index`,
 `exports`, `keys`); a key is segments of `[A-Za-z0-9._-]` not starting with `.`, joined by

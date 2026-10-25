@@ -174,7 +174,7 @@ fn the_four_tools_declare_their_schemas_tl_01() {
         "TL-01",
         &[
             "tools_list_shows_the_four_tools_with_their_schemas_tl_01",
-            "a_call_that_breaks_a_schema_is_a_protocol_error_tl_01",
+            "a_call_that_breaks_a_schema_is_refused_before_the_engine_tl_01",
             "all_together_with_files_is_invalid_arguments_tl_01",
         ],
     );

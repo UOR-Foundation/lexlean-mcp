@@ -53,13 +53,20 @@ fn command_result_schema(command: &str) -> Value {
     json!({
         "type": "object",
         "properties": {
-            "spec": {"const": "lexlean/command-result/1"},
-            "command": {"const": command},
+            "spec": {"type": "string", "const": "lexlean/command-result/1"},
+            "command": {"type": "string", "const": command},
             "success": {"type": "boolean"},
             "exit_code": {"type": "integer"},
             "modules": {"type": "array", "items": {"type": "string"}},
             "artifacts": {"type": "array", "items": {"type": "string"}},
-            "diagnostics": {"type": "array", "items": {"type": "object"}},
+            "diagnostics": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {"code": {"type": "string"}, "message": {"type": "string"}},
+                    "required": ["code", "message"],
+                },
+            },
             "source_id": {"type": "string"},
             "semantic_id": {"type": "string"},
             "build_id": {"type": "string"},
@@ -108,8 +115,26 @@ fn tools_list_shows_the_four_tools_with_their_schemas_tl_01() {
     );
 }
 
+/// A call that breaks the input schema is refused by the core before the tool runs, as an
+/// error result the model can read (`Invalid arguments: ...`, MCP's tool execution error),
+/// and no effect is asked for.
+fn assert_refused_by_the_schema(reply: &Reply, label: &str) {
+    let result = reply.result();
+    assert!(is_error(result), "{label}: {}", reply.body);
+    assert!(
+        text(result).starts_with("Invalid arguments:"),
+        "{label}: {}",
+        reply.body
+    );
+    assert!(
+        result.get("structuredContent").is_none(),
+        "{label}: an invalid call has no command result"
+    );
+    assert!(reply.effects.is_empty(), "{label}: a refused call asks for no effect");
+}
+
 #[test]
-fn a_call_that_breaks_a_schema_is_a_protocol_error_tl_01() {
+fn a_call_that_breaks_a_schema_is_refused_before_the_engine_tl_01() {
     let mut gateway = with_tiny();
     for tool in TOOLS {
         let broken = [
@@ -120,30 +145,31 @@ fn a_call_that_breaks_a_schema_is_a_protocol_error_tl_01() {
             json!({"project": "tiny", "files": [1]}),
             json!({"project": "tiny", "all": "yes"}),
             json!({"project": "tiny", "unknown": true}),
-            json!({"project": "tiny", "files": ["src/a\nb.lex.tex"]}),
         ];
         for arguments in broken {
             let reply = gateway.call(tool, arguments.clone());
-            assert_eq!(
-                reply.error()["code"],
-                INVALID_PARAMS,
-                "{tool} {arguments}: {}",
-                reply.body
-            );
-            assert!(
-                reply.effects.is_empty(),
-                "{tool} {arguments}: a refused call asks for no effect"
-            );
+            assert_refused_by_the_schema(&reply, &format!("{tool} {arguments}"));
         }
-        let reply = gateway.call_without_arguments(tool);
-        assert_eq!(reply.error()["code"], INVALID_PARAMS, "{tool} without arguments");
-        assert!(reply.effects.is_empty());
+        assert_refused_by_the_schema(
+            &gateway.call_without_arguments(tool),
+            &format!("{tool} without arguments"),
+        );
+        // A call the schema admits and the tool cannot make is a protocol error: a file name
+        // with a line feed cannot be sent to the host.
+        let reply = gateway.call(
+            tool,
+            json!({"project": "tiny", "files": ["src/a\nb.lex.tex"]}),
+        );
+        assert_eq!(reply.error()["code"], INVALID_PARAMS, "{tool}: {}", reply.body);
+        assert!(reply.effects.is_empty(), "{tool}");
     }
-    let reply = gateway.call(
-        "lexlean_format",
-        json!({"project": "tiny", "check_only": "yes"}),
+    assert_refused_by_the_schema(
+        &gateway.call(
+            "lexlean_format",
+            json!({"project": "tiny", "check_only": "yes"}),
+        ),
+        "lexlean_format with check_only a string",
     );
-    assert_eq!(reply.error()["code"], INVALID_PARAMS);
 }
 
 #[test]
@@ -212,26 +238,6 @@ fn class_zero_is_a_result_without_is_error_tl_02() {
     );
 }
 
-/// Replace one `key = value` line of the `[limits]` of the draft `tiny`.
-fn set_limit(gateway: &Gateway, key: &str, value: u64) {
-    let file = gateway.draft("tiny").join("lexlean.toml");
-    let text = std::fs::read_to_string(&file).expect("a config");
-    let mut changed = false;
-    let lines: Vec<String> = text
-        .lines()
-        .map(|line| {
-            if line.starts_with(&format!("{key} = ")) {
-                changed = true;
-                format!("{key} = {value}")
-            } else {
-                line.to_string()
-            }
-        })
-        .collect();
-    assert!(changed, "the config has {key}");
-    std::fs::write(file, lines.join("\n") + "\n").expect("a config");
-}
-
 #[test]
 fn classes_one_two_and_four_are_error_results_with_the_command_result_tl_02() {
     for tool in TOOLS {
@@ -267,9 +273,9 @@ fn classes_one_two_and_four_are_error_results_with_the_command_result_tl_02() {
         assert!(is_error(selection.result()), "{tool}: {}", selection.body);
         assert_eq!(structured(&selection)["exit_code"], 2, "{tool}");
 
-        // Class 4: a limit of the project that the module exceeds.
-        set_limit(gateway, "max_file_bytes", 16);
-        let limit = gateway.call(tool, json!({"project": "tiny"}));
+        // Class 4: a limit of the project that the module exceeds (its lock is current).
+        gateway.install("limited", &fixture("over-limit"));
+        let limit = gateway.call(tool, json!({"project": "limited"}));
         assert!(is_error(limit.result()), "{tool}: {}", limit.body);
         assert_eq!(structured(&limit)["exit_code"], 4, "{tool}");
         assert_eq!(
@@ -407,6 +413,10 @@ fn bytes_that_are_not_a_command_result_are_refused_by_the_core_tl_02() {
             assert_eq!(reply.status, 500, "{tool}, {label}");
         }
     }
+    // A success of the snapshot is a snapshot, and a command result is not one.
+    let mut host = forge(&gateway, 0, &command_result(0));
+    let reply = gateway.call_with(&mut host, "lexlean_snapshot", json!({"project": "tiny"}));
+    assert_eq!(reply.error()["code"], INTERNAL_ERROR, "{}", reply.body);
     // The same host with a result that is one: nothing is refused.
     for (class, bytes) in [(0, command_result(0)), (1, command_result(1)), (4, command_result(4))] {
         let mut host = forge(&gateway, class, &bytes);
