@@ -37,6 +37,8 @@
 # The tool semantics of issue #10 (F4 to F7: check, snapshot, format and build agree with
 # the CLI) register TL-01..TL-09. lexlean_explain (F11, issue #10) registers TL-10..TL-14, and the
 # adapter's own refusal of a foreign Origin (issue #45) registers GW-13.
+# The draft tools of issue #9 (F3: identity, admission, storage, reading and materialization of drafts)
+# register DR-01..DR-11.
 
 spec = "template/1"
 
@@ -711,3 +713,69 @@ id = "GW-13"
 level = "build"
 suite = "gateway"
 statement = "The adapter refuses a foreign Origin by itself, independently of the core's own check: over a real socket the generated served adapter answers each origin of a pinned foreign corpus with 403 and the body OriginForbidden, which is the adapter's word and not the core's, and the core is never called; a request with an allowed origin reaches the core; the declaration's origins are exactly http and https over localhost, 127.0.0.1 and [::1] with any port; and GATEWAY.md records the planted widened allow-list, the failing command and the diagnostic."
+
+[[id]]
+id = "DR-01"
+level = "build"
+suite = "drafts"
+statement = "The draft identity of the core is Identity.draftId: the SHA-256 of the framed preimage of the domain lexlean-mcp-draft-v1, the 32 octets of the profile ID and the (path, bytes) rows sorted by path; the core's encoder reproduces the model's draftPreimageVector and draftIdVector byte for byte, and the rows of a draft in any order give the same identity."
+
+[[id]]
+id = "DR-02"
+level = "build"
+suite = "drafts"
+statement = "The identity of a draft depends on its profile and on every path and byte: the same files under two profile IDs, a file whose bytes differ by one and a renamed file each give another identity, and the handle of a draft is its profile name and its identity, so a draft written twice is the same key of the drafts area."
+
+[[id]]
+id = "DR-03"
+level = "build"
+suite = "drafts"
+statement = "Path admission in lexlean_draft_write is the exported admission: a path with a .. component, a path that is not .lex.tex, a path that is not NFC, an absolute, empty, dot or empty-component path and a path outside the source roots are each refused with the constructor of Refusal named for it, before store.put and before any Engine call, and the only effect the call asks for is the lexicon.read of the profile record."
+
+[[id]]
+id = "DR-04"
+level = "build"
+suite = "drafts"
+statement = "A draft is within draft.max_files 256 and draft.max_bytes 8388608 and has no repeated path: a draft at both limits is written, and one file more, one byte more and a repeated path are refused with TooManyFiles, TooManyBytes and DuplicatePath."
+
+[[id]]
+id = "DR-05"
+level = "build"
+suite = "drafts"
+statement = "lexlean_draft_write stores the preimage as the one key <profile>/<identity> of the drafts area, and lexlean_draft_read returns the text of a file of the draft, or the paths and sizes of its files, after checking that the SHA-256 of the stored bytes is the identity of the handle: an unknown draft or a handle that is not <profile>/<64 lower case hexadecimal digits>, a path the draft lacks and a stored draft whose bytes changed or are not a preimage are refused with DraftUnknown, PathUnknown and DraftCorrupt."
+
+[[id]]
+id = "DR-06"
+level = "build"
+suite = "drafts"
+statement = "The profile record is read by the first effect of a write: it holds the 64 lower case hexadecimal digits of the profile ID and one source root to a line; an unknown profile is the host failure profile-unknown, and a profile without a record, or a record that is short, long, not lower case hexadecimal, without a root or with a root that is not a relative path of whole components, is refused as ProfileRecordMalformed, with no store.put."
+
+[[id]]
+id = "DR-07"
+level = "build"
+suite = "drafts"
+statement = "Materialization copies: an Engine tool whose project is the handle of a draft runs on a directory of the builds area that holds the files of the profile bundle and of the draft as regular files of their own and links nothing, the result equals the result of the same tool on a directory project holding the same files, and a handle whose draft or profile is absent is the host failure project-refused."
+
+[[id]]
+id = "DR-08"
+level = "build"
+suite = "drafts"
+statement = "A profile bundle that contains a symbolic link is refused, wherever the link lies (a file, a directory, a dangling link, below a subdirectory) and whatever it points at, as the host failure project-refused, before the Engine is called, and no byte is read through the link."
+
+[[id]]
+id = "DR-09"
+level = "build"
+suite = "drafts"
+statement = "The draft tools are the two the host can serve within E1 to E10: lexlean_draft_write asks lexicon.read and then store.put, lexlean_draft_read asks store.get, both have closed input schemas, the set of effects is the model's ten, and the core declares no tool for the four functions of lexlean::sdk that no effect reaches."
+
+[[id]]
+id = "DR-10"
+level = "build"
+suite = "drafts"
+statement = "Every refusal of the draft tools is typed and has a negative test: ten constructors of Admission.Refusal, ProfileRecordMalformed, DraftUnknown, PathUnknown and DraftCorrupt are each the refusal of one test, the eleventh constructor NotUtf8 is reached only by octets that the JSON reader refuses before any tool runs, which a test shows (the constructor itself is DL-03's), and the host failures profile-unknown, key-refused and project-refused are each the failure of one."
+
+[[id]]
+id = "DR-11"
+level = "build"
+suite = "drafts"
+statement = "Each gate of the draft tools rejects its planted defect: a .. path admitted, a symbolic link followed in a profile bundle and a draft identity that ignores the profile; DRAFTS.md records the command, the diagnostic and the restore of each."
