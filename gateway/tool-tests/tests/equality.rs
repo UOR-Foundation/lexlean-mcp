@@ -701,3 +701,68 @@ fn every_example_builds_to_its_expected_tree_tl_06() {
     );
     finish("TL-06", all.len(), &failures);
 }
+
+// ---- TL-13 -----------------------------------------------------------------------------
+
+/// Q8, the running clause: every diagnostic code that a tool answers on the fixtures of F4 and
+/// F7 resolves through the running `lexlean_explain` to the entry `lexlean explain` prints.
+#[test]
+#[ignore = "needs the lexlean binary and a checkout of LexLean at the pin: the gateway job of .github/workflows/lexlean.yml runs it with --ignored and requires the count"]
+fn every_code_in_a_tool_result_resolves_through_explain_tl_13() {
+    let sources = lexlean_sources();
+    let (f4, f7) = in_scope(&sources);
+    let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut expected: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for (fixtures, tool) in [(&f4, "lexlean_check"), (&f7, "lexlean_build")] {
+        for fixture in fixtures {
+            let staged = stage_fixture(fixture);
+            let mut gateway = Gateway::new();
+            copy_tree(&staged.root, &gateway.drafts());
+            let reply = gateway.call(tool, project_arguments(&fixture.name));
+            let diagnostics = reply.body["result"]["structuredContent"]["diagnostics"]
+                .as_array()
+                .unwrap_or_else(|| panic!("{}: a command result: {}", fixture.name, reply.body));
+            for diagnostic in diagnostics {
+                seen.insert(diagnostic["code"].as_str().expect("a code").to_string());
+            }
+            expected.extend(fixture.expected_codes.iter().cloned());
+        }
+    }
+    assert!(!seen.is_empty(), "the fixtures return diagnostics");
+    assert_eq!(
+        seen, expected,
+        "the codes in the results of the tools are the codes the fixtures expect"
+    );
+    let nowhere = tempfile::tempdir().expect("a directory with no project");
+    let mut gateway = Gateway::new();
+    let mut failures = Vec::new();
+    for code in &seen {
+        let cli = run_cli(nowhere.path(), &["explain", code]);
+        let reply = gateway.call("lexlean_explain", json!({"code": code}));
+        let result = &reply.body["result"];
+        let printed = String::from_utf8_lossy(&cli.stdout).into_owned();
+        if cli.status != 0
+            || result.get("isError").is_some()
+            || result["content"][0]["text"].as_str() != Some(printed.as_str())
+            || !result["structuredContent"]["explanation"]
+                .as_str()
+                .is_some_and(|entry| entry.starts_with(&format!("## `{code}` --- ")))
+        {
+            failures.push(format!(
+                "{code}: {} against the CLI's {printed}",
+                reply.body
+            ));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} of {} codes do not resolve through lexlean_explain as they do through the CLI:\n{}",
+        failures.len(),
+        seen.len(),
+        failures.join("\n")
+    );
+    eprintln!(
+        "TL-13: {} distinct codes in the results of the tools, every one resolved",
+        seen.len()
+    );
+}

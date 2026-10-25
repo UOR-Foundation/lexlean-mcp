@@ -900,3 +900,63 @@ fn the_served_port_is_the_owner_value_listen_port_gw_03() {
         "the gateway serves on the owner value listen.port"
     );
 }
+
+/// GW-13: the adapter's own refusal of a foreign `Origin` is observed, independently of the
+/// core's, by tests that run the served adapter; the list they hold is the declaration's.
+#[test]
+fn the_adapter_refuses_a_foreign_origin_by_itself_gw_13() {
+    let names = test_names("gateway/tool-tests");
+    for test in [
+        "a_foreign_origin_is_refused_by_the_adapter_and_never_reaches_the_core_gw_13",
+        "an_allowed_origin_and_no_origin_reach_the_core_gw_13",
+        "the_core_refuses_a_foreign_origin_in_its_own_words_gw_13",
+        "the_declared_origins_are_the_six_loopback_origins_with_any_port_gw_13",
+    ] {
+        assert!(
+            names.contains(test),
+            "gateway/tool-tests has the test {test}: {names:?}"
+        );
+    }
+    let test = read("gateway/tool-tests/tests/origin.rs");
+    for needle in [
+        "serve::run",
+        "surface::ORIGINS",
+        "OriginForbidden",
+        "403",
+        "Forbidden: invalid Origin",
+        "CALLS",
+    ] {
+        assert!(test.contains(needle), "the origin test uses {needle}");
+    }
+    // The pinned list of the test is the declaration's source: six origins, any port.
+    let generator = read("gateway/vectors/generate.py");
+    let declared = tight(&generator);
+    assert!(
+        declared.contains(
+            "for scheme in (\"http\", \"https\") for host in (\"localhost\", \"127.0.0.1\", \"[::1]\")"
+        ),
+        "the declaration's origins are http and https over the three loopback names"
+    );
+    // The defect that motivated the row is recorded where the other planted defects are.
+    let document = read("GATEWAY.md");
+    let defects = table(&document, "Planted defects");
+    let planted: String = defects
+        .iter()
+        .map(|c| c[0].to_lowercase())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        planted.contains("origin"),
+        "a planted defect widens the allow-list of origins"
+    );
+    // The test runs with the others of its crate in the gateway job.
+    let workflow = format!(
+        "{}\n{}",
+        read(".github/workflows/lexlean.yml"),
+        read(".github/lexlean-ci/lib.sh")
+    );
+    assert!(
+        workflow.contains("gateway-tool-tests --locked --offline"),
+        "the gateway job runs the tests of gateway-tool-tests"
+    );
+}
