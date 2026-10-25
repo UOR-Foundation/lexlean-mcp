@@ -9,6 +9,11 @@ and, in the gateway workspace, `cargo test -p gateway-tool-tests` (the behaviour
 `src/Effects.lex.tex` and are not changed: `engine.check`, `engine.snapshot`,
 `engine.format` and `engine.build` are E3 to E6, and the set stays E1 to E10.
 
+The `project` of an Engine tool is a directory project of the `drafts` area, or, since the draft
+tools of #9, the handle `<profile>/<id>` of a draft that `lexlean_draft_write` returned: the host
+materializes the profile bundle and the draft as copies and runs the Engine on them (DRAFTS.md,
+`DR-07`). The result is the result of the same tool on a directory holding the same files.
+
 ## What a tool returns
 
 The binding builds the `result` of an effect with the function that the CLI builds its

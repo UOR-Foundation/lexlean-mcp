@@ -13,6 +13,7 @@ the declaration by `cargo test -p repo-model --test gateway`.
 | --- | --- |
 | `gateway/src/Effects.lex.tex` | the declaration half, byte for byte (`src/Effects.lex.tex`); the single source of the ten effects |
 | `gateway/src/Gateway.lex.tex`, `GatewayTools.lex.tex`, `HostWire.lex.tex` | the tool layer and the production root `LexLeanMcpGateway.Gateway.gatewayRun` |
+| `gateway/src/Drafts.lex.tex`, `DraftAdmission.lex.tex`, `Nfc.lex.tex`, `NfcTables.lex.tex`, `gateway/artifacts` | the draft tools (DRAFTS.md): `Drafts` is the identity, the profile record, the storage and the reading; the other three are `src/Admission.lex.tex` (module name and title aside), `src/Nfc.lex.tex`, `src/NfcTables.lex.tex` and the tables they embed, byte for byte, so that the core admits a path with the exported admission (DR-03) |
 | `gateway/src/Application.lex.tex` | the server application: the eleven effects, the limits, the serving surface and the vectors; rendered by `gateway/vectors/generate.py` |
 | `gateway/mcp/src`, `gateway/language/mcp.core` | the protocol core of UOR-Foundation/MCP at `.github/mcp.rev`, laid out by `gateway/lay-out-mcp.sh`; not committed |
 | `gateway/bindings/gateway-binding` | the binding crate: `Native` implements the generated `Host` trait, and nothing else |
@@ -83,7 +84,7 @@ of a directory in the store (`profiles`, `drafts`, `builds`, `verifications`, `i
 
 | Value | Where it comes from |
 | --- | --- |
-| `store.put` request up to 8 MiB of content, `store.get` result up to 8 MiB | `draft.max_bytes` (OWNER-VALUES.md); the tool layer refuses a larger draft before it asks for an effect |
+| `store.put` request up to 9 MiB of content, `store.get` result up to 9 MiB | `draft.max_bytes` 8 MiB of file content (OWNER-VALUES.md) and 1 MiB of headroom for the framing of the preimage (`DRAFT_BLOB_HEADROOM`: 256 files of 36 octets of framing, their paths, which `draft.max_bytes` does not count, and the three heads); the tool layer refuses a larger draft before it asks for an effect (DRAFTS.md) |
 | the Engine's result up to 4 MiB | the binding answers class `4` with a diagnostic rather than a result over it |
 | a status carries the last 64 KiB of a log | `verify.control` result |
 | `requestMaximum` and `responseMaximum` 20 MiB, `bodyMaximum` 16 MiB | a draft of 8 MiB escaped in JSON is at most 16 MiB |
@@ -97,7 +98,10 @@ is the generated driver's business, and what a tool does with the answer is the 
 store is a directory of seven areas (`LEXLEAN_MCP_STORE`, else `$XDG_DATA_HOME` or
 `~/.local/share`, below `lexlean-mcp/store`): no key leaves its area, no path is a symbolic
 link, reads do not follow one, and a write is a temporary file renamed over its target.
-A project is a directory of `drafts/` with a `lexlean.toml`. The verifier is a thread that
+A project is a directory of `drafts/` with a `lexlean.toml`, or the handle `<profile>/<id>` of a
+draft written by `lexlean_draft_write`: the host copies the profile bundle and the files of the
+draft into a directory of its own below `builds/` (`materialize.rs`, DRAFTS.md), runs the Engine
+on it and removes it, and a bundle that holds a symbolic link is `project-refused`. The verifier is a thread that
 runs `Engine::verify` (one at a time, the others queued) and writes the attestation record
 of a success to `verifications/` and its digest index to `index/`; it is cancelled with
 `lexlean::verify::end_live_children`. The rate counter counts the counted requests of the
@@ -199,6 +203,12 @@ CI.md describes the job that runs this, and the release step that removes the re
 
 ## Not claimed
 
+- `lexlean_draft_assemble`, and the structured read of a draft, are not tools of this core. They
+  would call four functions of `lexlean::sdk` (draft assembly and structured form reading) that
+  none of the ten effects reaches: `engine.*` runs a command on a project, and `store.*` moves
+  bytes. A tool for them needs a `view` or `form` field on `engine.check` and `engine.snapshot`,
+  or an eleventh effect, and the set of effects is closed (GW-05); that is the lead's decision
+  (DRAFTS.md, "Not met").
 - The tools do what their names say only as far as the vectors show: the semantics of each
   tool, its schema and its errors belong to #8 to #12. This file claims that the tools reach
   the host through the ten effects, and that the host does what the effects declare.

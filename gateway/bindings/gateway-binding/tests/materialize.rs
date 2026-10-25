@@ -83,11 +83,7 @@ fn store() -> Store {
     };
     let bundle = store.bundle();
     std::fs::create_dir_all(bundle.join("language/sub")).expect("a bundle");
-    std::fs::write(
-        bundle.join(RECORD),
-        format!("{}\nsrc\n", hex(&PROFILE_ID)),
-    )
-    .expect("a record");
+    std::fs::write(bundle.join(RECORD), format!("{}\nsrc\n", hex(&PROFILE_ID))).expect("a record");
     std::fs::write(bundle.join("lexlean.toml"), b"[package]\n").expect("a file");
     std::fs::write(bundle.join("language/sub/entry.toml"), b"entry\n").expect("a file");
     store
@@ -126,7 +122,10 @@ fn a_handle_is_a_profile_name_and_64_lower_case_digits_dr_07() {
 
 #[test]
 fn the_preimage_is_decoded_to_its_profile_and_rows_dr_07() {
-    let blob = preimage(&PROFILE_ID, &[("src/A.lex.tex", b"a"), ("src/B.lex.tex", b"")]);
+    let blob = preimage(
+        &PROFILE_ID,
+        &[("src/A.lex.tex", b"a"), ("src/B.lex.tex", b"")],
+    );
     let (profile, rows) = decode(&blob).expect("a preimage");
     assert_eq!(profile, PROFILE_ID);
     assert_eq!(
@@ -146,7 +145,10 @@ fn the_preimage_is_decoded_to_its_profile_and_rows_dr_07() {
 #[test]
 fn the_bundle_and_the_draft_are_copied_into_a_directory_of_their_own_dr_07() {
     let store = store();
-    let id = store.draft(&[("src/Main.lex.tex", b"main\n"), ("src/deep/Two.lex.tex", b"two\n")]);
+    let id = store.draft(&[
+        ("src/Main.lex.tex", b"main\n"),
+        ("src/deep/Two.lex.tex", b"two\n"),
+    ]);
     let project = materialize(&store.root(), PROFILE, &id, LIMIT).expect("a project");
     assert!(project.starts_with(store.builds()));
     let mut found = Vec::new();
@@ -220,7 +222,14 @@ fn bytes_that_are_not_a_preimage_are_a_refused_draft_dr_07() {
 #[test]
 fn a_draft_with_a_path_that_leaves_the_project_is_refused_dr_07() {
     let store = store();
-    for path in ["../x.lex.tex", "/x.lex.tex", "a//b.lex.tex", "./x.lex.tex", "x.txt", ""] {
+    for path in [
+        "../x.lex.tex",
+        "/x.lex.tex",
+        "a//b.lex.tex",
+        "./x.lex.tex",
+        "x.txt",
+        "",
+    ] {
         let id = store.draft(&[(path, b"x")]);
         assert_eq!(
             materialize(&store.root(), PROFILE, &id, LIMIT),

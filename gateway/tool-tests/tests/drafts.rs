@@ -81,7 +81,10 @@ fn stored_drafts(gateway: &Gateway) -> Vec<String> {
         return found;
     };
     for profile in profiles.flatten() {
-        for draft in std::fs::read_dir(profile.path()).expect("a profile").flatten() {
+        for draft in std::fs::read_dir(profile.path())
+            .expect("a profile")
+            .flatten()
+        {
             found.push(format!(
                 "{}/{}",
                 profile.file_name().to_string_lossy(),
@@ -243,7 +246,10 @@ fn assert_refused_before_the_store(path: &str, refusal: &str) {
         "{path}: nothing is stored"
     );
     assert!(
-        reply.effects.iter().all(|effect| !effect.starts_with("engine.")),
+        reply
+            .effects
+            .iter()
+            .all(|effect| !effect.starts_with("engine.")),
         "{path}: no Engine call"
     );
 }
@@ -283,7 +289,12 @@ fn a_path_the_form_of_which_admission_refuses_is_refused_before_the_store_dr_03(
 #[test]
 fn a_path_that_is_admitted_is_stored_with_the_lexicon_read_and_the_put_dr_03() {
     let mut gateway = with_profile();
-    for path in ["src/A.lex.tex", "src/a/b/c.lex.tex", "src/..a.lex.tex", "src/.lex.tex.lex.tex"] {
+    for path in [
+        "src/A.lex.tex",
+        "src/a/b/c.lex.tex",
+        "src/..a.lex.tex",
+        "src/.lex.tex.lex.tex",
+    ] {
         let reply = write(&mut gateway, "tiny", &[(path, "x")]);
         assert!(!reply.is_error(), "{path}: {}", reply.body);
         assert_eq!(reply.effects, ["lexicon.read", "store.put"], "{path}");
@@ -332,7 +343,11 @@ fn the_bytes_of_a_draft_are_counted_over_all_its_files_dr_04() {
     let reply = write(
         &mut gateway,
         "tiny",
-        &[("src/A.lex.tex", &half), ("src/B.lex.tex", &half), ("src/C.lex.tex", "c")],
+        &[
+            ("src/A.lex.tex", &half),
+            ("src/B.lex.tex", &half),
+            ("src/C.lex.tex", "c"),
+        ],
     );
     assert_refusal(&reply, "TooManyBytes", &["lexicon.read"]);
 }
@@ -343,7 +358,11 @@ fn a_repeated_path_is_refused_dr_04() {
     let reply = write(
         &mut gateway,
         "tiny",
-        &[("src/A.lex.tex", "x"), ("src/B.lex.tex", "y"), ("src/A.lex.tex", "z")],
+        &[
+            ("src/A.lex.tex", "x"),
+            ("src/B.lex.tex", "y"),
+            ("src/A.lex.tex", "z"),
+        ],
     );
     assert_refusal(&reply, "DuplicatePath", &["lexicon.read"]);
 }
@@ -353,9 +372,17 @@ fn a_repeated_path_is_refused_dr_04() {
 #[test]
 fn a_draft_is_the_one_key_of_its_profile_and_its_content_is_the_preimage_dr_05() {
     let mut gateway = with_profile();
-    let reply = write(&mut gateway, "tiny", &[("src/A.lex.tex", "alpha"), ("src/B.lex.tex", "beta")]);
+    let reply = write(
+        &mut gateway,
+        "tiny",
+        &[("src/A.lex.tex", "alpha"), ("src/B.lex.tex", "beta")],
+    );
     let draft = handle(&reply);
-    assert_eq!(stored_drafts(&gateway), [draft.clone()], "one key, nothing else");
+    assert_eq!(
+        stored_drafts(&gateway),
+        [draft.clone()],
+        "one key, nothing else"
+    );
     let stored = std::fs::read(gateway.drafts().join(&draft)).expect("the stored draft");
     assert_eq!(draft, format!("tiny/{}", sha256(&stored)));
     assert!(
@@ -370,12 +397,18 @@ fn the_text_and_the_listing_of_a_draft_are_read_back_dr_05() {
     let draft = handle(&write(
         &mut gateway,
         "tiny",
-        &[("src/B.lex.tex", "beta \u{e9}\n"), ("src/A.lex.tex", "alpha")],
+        &[
+            ("src/B.lex.tex", "beta \u{e9}\n"),
+            ("src/A.lex.tex", "alpha"),
+        ],
     ));
     let file = read(&mut gateway, &draft, Some("src/B.lex.tex"));
     assert!(!file.is_error(), "{}", file.body);
     assert_eq!(file.text(), "beta \u{e9}\n");
-    assert_eq!(file.structured(), &json!({"path": "src/B.lex.tex", "bytes": 8}));
+    assert_eq!(
+        file.structured(),
+        &json!({"path": "src/B.lex.tex", "bytes": 8})
+    );
     assert_eq!(file.effects, ["store.get"]);
     let listing = read(&mut gateway, &draft, None);
     assert!(!listing.is_error(), "{}", listing.body);
@@ -479,7 +512,10 @@ fn a_record_that_is_not_a_profile_record_is_refused_without_a_put_dr_06() {
         gateway.provision("tiny", &record);
         let reply = write(&mut gateway, "tiny", &[("src/A.lex.tex", "x")]);
         assert_refusal(&reply, "ProfileRecordMalformed", &["lexicon.read"]);
-        assert!(stored_drafts(&gateway).is_empty(), "{record:?}: nothing stored");
+        assert!(
+            stored_drafts(&gateway).is_empty(),
+            "{record:?}: nothing stored"
+        );
     }
 }
 
@@ -620,7 +656,10 @@ fn assert_a_link_is_refused(label: &str, place: &str, target: &Path, make_direct
     std::os::unix::fs::symlink(target, &link).expect("a link");
     let reply = gateway.call("lexlean_check", json!({"project": draft, "files": []}));
     assert_failure(&reply, "project-refused", &["engine.check"]);
-    assert!(builds(&gateway).is_empty(), "{label}: nothing is left behind");
+    assert!(
+        builds(&gateway).is_empty(),
+        "{label}: nothing is left behind"
+    );
     let verify = gateway.call("lexlean_verify", json!({"project": draft, "files": []}));
     assert_failure(&verify, "project-refused", &["verify.start"]);
 }
@@ -644,7 +683,12 @@ fn a_profile_bundle_with_a_link_to_a_directory_is_project_refused_dr_08() {
 
 #[test]
 fn a_profile_bundle_with_a_dangling_link_is_project_refused_dr_08() {
-    assert_a_link_is_refused("dangling", "dangling.toml", Path::new("/nonexistent/target"), false);
+    assert_a_link_is_refused(
+        "dangling",
+        "dangling.toml",
+        Path::new("/nonexistent/target"),
+        false,
+    );
 }
 
 #[test]
@@ -682,18 +726,33 @@ fn the_two_draft_tools_are_listed_with_closed_schemas_and_no_assemble_dr_09() {
     let mut gateway = Gateway::new();
     let reply = gateway.list();
     let tools = reply.result()["tools"].as_array().expect("tools").clone();
-    let names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().expect("a name")).collect();
+    let names: Vec<&str> = tools
+        .iter()
+        .map(|t| t["name"].as_str().expect("a name"))
+        .collect();
     assert!(names.contains(&"lexlean_draft_write"), "{names:?}");
     assert!(names.contains(&"lexlean_draft_read"), "{names:?}");
     assert!(
         !names.iter().any(|name| name.contains("assemble")),
         "the four functions of lexlean::sdk that no effect reaches have no tool: {names:?}"
     );
-    let tool = |name: &str| tools.iter().find(|t| t["name"] == name).expect("a tool").clone();
+    let tool = |name: &str| {
+        tools
+            .iter()
+            .find(|t| t["name"] == name)
+            .expect("a tool")
+            .clone()
+    };
     let written = tool("lexlean_draft_write");
     assert_eq!(written["inputSchema"]["additionalProperties"], false);
-    assert_eq!(written["inputSchema"]["required"], json!(["profile", "files"]));
-    assert_eq!(written["inputSchema"]["properties"]["files"]["type"], "array");
+    assert_eq!(
+        written["inputSchema"]["required"],
+        json!(["profile", "files"])
+    );
+    assert_eq!(
+        written["inputSchema"]["properties"]["files"]["type"],
+        "array"
+    );
     let item = &written["inputSchema"]["properties"]["files"]["items"];
     assert_eq!(item["additionalProperties"], false);
     assert_eq!(item["required"], json!(["path", "content"]));
@@ -722,15 +781,30 @@ fn a_call_that_breaks_a_schema_of_the_draft_tools_asks_for_no_effect_dr_09() {
         ("lexlean_draft_write", json!({})),
         ("lexlean_draft_write", json!({"profile": "tiny"})),
         ("lexlean_draft_write", json!({"files": []})),
-        ("lexlean_draft_write", json!({"profile": "tiny", "files": "src"})),
-        ("lexlean_draft_write", json!({"profile": "tiny", "files": [{"path": "src/A.lex.tex"}]})),
-        ("lexlean_draft_write", json!({"profile": "tiny", "files": [{"path": 1, "content": ""}]})),
-        ("lexlean_draft_write", json!({"profile": "tiny", "files": [], "extra": 1})),
+        (
+            "lexlean_draft_write",
+            json!({"profile": "tiny", "files": "src"}),
+        ),
+        (
+            "lexlean_draft_write",
+            json!({"profile": "tiny", "files": [{"path": "src/A.lex.tex"}]}),
+        ),
+        (
+            "lexlean_draft_write",
+            json!({"profile": "tiny", "files": [{"path": 1, "content": ""}]}),
+        ),
+        (
+            "lexlean_draft_write",
+            json!({"profile": "tiny", "files": [], "extra": 1}),
+        ),
         ("lexlean_draft_write", json!({"profile": "", "files": []})),
         ("lexlean_draft_read", json!({})),
         ("lexlean_draft_read", json!({"draft": 3})),
         ("lexlean_draft_read", json!({"draft": "tiny/x", "path": ""})),
-        ("lexlean_draft_read", json!({"draft": "tiny/x", "extra": true})),
+        (
+            "lexlean_draft_read",
+            json!({"draft": "tiny/x", "extra": true}),
+        ),
     ];
     for (tool, arguments) in calls {
         let reply = gateway.call(tool, arguments.clone());
@@ -834,7 +908,11 @@ fn too_many_bytes_is_a_typed_refusal_dr_10() {
 #[test]
 fn duplicate_path_is_a_typed_refusal_dr_10() {
     let mut gateway = with_profile();
-    let reply = write(&mut gateway, "tiny", &[("src/A.lex.tex", "x"), ("src/A.lex.tex", "y")]);
+    let reply = write(
+        &mut gateway,
+        "tiny",
+        &[("src/A.lex.tex", "x"), ("src/A.lex.tex", "y")],
+    );
     assert_refusal(&reply, "DuplicatePath", &["lexicon.read"]);
 }
 
@@ -852,7 +930,13 @@ fn draft_unknown_is_a_typed_refusal_dr_10() {
     let reply = read(&mut gateway, &format!("tiny/{}", "0".repeat(64)), None);
     assert_refusal(&reply, "DraftUnknown", &["store.get"]);
     // A handle that is not a handle names no draft, and asks for no effect.
-    for draft in ["tiny", "tiny/abc", "/", "tiny/ZZ", &format!("tiny/{}", "A".repeat(64))] {
+    for draft in [
+        "tiny",
+        "tiny/abc",
+        "/",
+        "tiny/ZZ",
+        &format!("tiny/{}", "A".repeat(64)),
+    ] {
         let reply = read(&mut gateway, draft, None);
         assert_refusal(&reply, "DraftUnknown", &[]);
     }
@@ -875,7 +959,11 @@ fn draft_corrupt_is_a_typed_refusal_dr_10() {
     let last = bytes.len() - 1;
     bytes[last] ^= 1;
     std::fs::write(&path, &bytes).expect("a draft");
-    assert_refusal(&read(&mut gateway, &draft, None), "DraftCorrupt", &["store.get"]);
+    assert_refusal(
+        &read(&mut gateway, &draft, None),
+        "DraftCorrupt",
+        &["store.get"],
+    );
     assert_refusal(
         &read(&mut gateway, &draft, Some("src/A.lex.tex")),
         "DraftCorrupt",

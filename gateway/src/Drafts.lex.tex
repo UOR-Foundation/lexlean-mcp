@@ -144,7 +144,6 @@ definition{
   body: (match lines
     | List.nil => (JsonRead::reverseOnto [Bytes] built (nil Bytes))
     | List.cons line rest => (rootBytesInto rest (cons (JsonText::listToBytes (JsonText::emptyBytes) line) built))),
-  axioms: [Quot.sound, propext],
   executable: true,
   recursive_argument: lines
 }
@@ -158,7 +157,6 @@ definition{
     | Option.some octets => (match roots
       | List.nil => (ctor Option.none [Record])
       | List.cons root more => (if (rootsOk roots) then (ctor Option.some [Record] (record Record {profile := (JsonText::listToBytes (JsonText::emptyBytes) octets), roots := (rootBytesInto roots (nil Bytes))})) else (ctor Option.none [Record])))),
-  axioms: [Quot.sound, propext],
   executable: true
 }
 
@@ -199,7 +197,6 @@ definition{
           | Json::Lookup.present content => (match (Json::asText content)
             | Option.none => (ctor Option.none [(Bytes * Bytes)])
             | Option.some contentText => (ctor Option.some [(Bytes * Bytes)] ((prim utf8_encode pathText : Bytes), (prim utf8_encode contentText : Bytes)))))))),
-  axioms: [Quot.sound, propext],
   executable: true
 }
 
@@ -212,7 +209,6 @@ definition{
     | List.cons item rest => (match (rowOf item)
       | Option.none => (ctor Option.none [(List (Bytes * Bytes))])
       | Option.some row => (rowsOfItems rest (cons row built)))),
-  axioms: [Quot.sound, propext],
   executable: true,
   recursive_argument: items
 }
@@ -224,7 +220,6 @@ definition{
   body: (match (Json::asArray files)
     | Option.none => (ctor Option.none [(List (Bytes * Bytes))])
     | Option.some items => (rowsOfItems items (nil (Bytes * Bytes)))),
-  axioms: [Quot.sound, propext],
   executable: true
 }
 
@@ -292,7 +287,6 @@ definition{
   parameters: [value : Nat],
   result: Bytes,
   body: (JsonText::listToBytes (JsonText::emptyBytes) (prim append (Frame::u32List (prim quotient value 4294967296 0 : Nat)) (Frame::u32List value) : (List Nat))),
-  axioms: [Quot.sound, propext],
   executable: true
 }
 
@@ -342,6 +336,7 @@ definition{
   parameters: [profile : String, ident : String],
   result: String,
   body: (prim join (cons profile (cons ident (nil String))) "/" : String),
+  axioms: [propext],
   executable: true
 }
 
@@ -396,6 +391,7 @@ definition{
   parameters: [name : String],
   result: Move,
   body: (ctor Move.Answer (prim join (cons "draft refused:" (cons name (nil String))) " " : String) (ctor Json::Json.object (cons ("refusal", (ctor Json::Json.text name)) (nil (String * Json::Json)))) true),
+  axioms: [propext],
   executable: true
 }
 
@@ -404,7 +400,7 @@ definition{
   parameters: [profile : String, ident : String, files : Nat, bytes : Nat],
   result: Move,
   body: (ctor Move.Answer (prim join (cons "draft" (cons (handleOf profile ident) (nil String))) " " : String) (ctor Json::Json.object (cons ("draft", (ctor Json::Json.text (handleOf profile ident))) (cons ("id", (ctor Json::Json.text ident)) (cons ("profile", (ctor Json::Json.text profile)) (cons ("files", (ResultJson::natJson files)) (cons ("bytes", (ResultJson::natJson bytes)) (nil (String * Json::Json)))))))) false),
-  axioms: [Quot.sound, propext],
+  axioms: [propext],
   executable: true
 }
 

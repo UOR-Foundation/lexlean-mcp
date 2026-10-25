@@ -82,8 +82,12 @@ impl Native {
     ) -> Result<engine::Answer, EngineRefusal> {
         let resolved = project::resolve(&self.config.store, project, self.config.blob_max_bytes)
             .ok_or(EngineRefusal::Project)?;
-        engine::run(resolved.directory(), project::selection(selection, files), call)
-            .map_err(|Unavailable| EngineRefusal::Engine)
+        engine::run(
+            resolved.directory(),
+            project::selection(selection, files),
+            call,
+        )
+        .map_err(|Unavailable| EngineRefusal::Engine)
     }
 }
 
@@ -230,9 +234,11 @@ impl Host for Native {
         &mut self,
         request: verify_start::Request,
     ) -> Result<verify_start::Completed, HostError<verify_start::Failure>> {
-        let Some(resolved) =
-            project::resolve(&self.config.store, &request.project, self.config.blob_max_bytes)
-        else {
+        let Some(resolved) = project::resolve(
+            &self.config.store,
+            &request.project,
+            self.config.blob_max_bytes,
+        ) else {
             return Err(HostError::Failed(verify_start::Failure::ProjectRefused));
         };
         // The verification outlives this call: its directory is kept, and the `builds` area is

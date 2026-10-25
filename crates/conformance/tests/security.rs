@@ -17,7 +17,9 @@ use common::{root, workspace_test_names};
 
 /// The rows `SM-01` is expected to cite. The statement is the source; this list
 /// makes a dropped citation a failure rather than a smaller claim.
-const CITED: [&str; 6] = ["NF-09", "NF-12", "DL-01", "DL-02", "DL-03", "DL-04"];
+const CITED: [&str; 7] = [
+    "NF-09", "NF-12", "DL-01", "DL-02", "DL-03", "DL-04", "DR-08",
+];
 
 /// The start of the measurement of R5, the risk of index 4, in `Security`.
 const R5_MEASUREMENT: &str = "record Measurement {risk := 4,";
@@ -48,8 +50,14 @@ fn cited_ids(statement: &str) -> BTreeSet<String> {
 /// The text of the declaration `kind{ name: <name>, ...` up to its closing brace.
 fn block<'a>(source: &'a str, kind: &str, name: &str) -> Option<&'a str> {
     let head = format!("{kind}{{\n  name: {name},");
+    if let Some(start) = source.find(&head) {
+        let end = source[start..].find("\n}\n")? + start;
+        return Some(&source[start..end]);
+    }
+    // The formatter writes a declaration that fits on one line on one line.
+    let head = format!("{kind}{{name: {name},");
     let start = source.find(&head)?;
-    let end = source[start..].find("\n}\n")? + start;
+    let end = source[start..].find("}\n")? + start;
     Some(&source[start..end])
 }
 
@@ -77,8 +85,11 @@ fn violations(
             "SM-01 cites {cited:?}, and the expected evidence is {expected:?}"
         ));
     }
-    if !row.statement.contains("Pending on #9") {
-        out.push("SM-01 does not state that the symlink clause stays Pending on #9".to_string());
+    if !row
+        .statement
+        .contains("symlink clause of K5 is executed by DR-08")
+    {
+        out.push("SM-01 does not state that DR-08 executes the symlink clause of K5".to_string());
     }
 
     for id in &expected {
@@ -118,19 +129,22 @@ fn violations(
             if !record.contains("admittedPathHasNoDotDot") {
                 out.push("the Executed status of R5 does not name its theorem".to_string());
             }
-            if !record.contains("pendingClauses") {
-                out.push("the Executed status of R5 does not point at pendingClauses".to_string());
+            if !record.contains("DR-08") {
+                out.push("the Executed status of R5 does not name DR-08".to_string());
+            }
+            if record.contains("pendingClauses") {
+                out.push("the Executed status of R5 points at pendingClauses".to_string());
             }
         }
     }
 
-    // The theorem the status names exists, and the symlink clause is recorded.
+    // The theorem the status names exists, and no clause is pending.
     if block(admission, "theorem", "admittedPathHasNoDotDot").is_none() {
         out.push("Admission has no theorem admittedPathHasNoDotDot".to_string());
     }
     for name in [
         "onlyPathEscapeIsExecuted",
-        "symlinkClauseOfR5IsPending",
+        "noClauseIsPending",
         "measurementsPendingExceptR5",
     ] {
         if block(security, "theorem", name).is_none() {
@@ -138,8 +152,12 @@ fn violations(
         }
     }
     match block(security, "definition", "pendingClauses") {
-        Some(clauses) if clauses.contains("index := 4") && clauses.contains("(#9)") => {}
-        _ => out.push("pendingClauses does not record the symlink clause of R5 on #9".to_string()),
+        Some(clauses) if clauses.contains("record Named") => out.push(
+            "pendingClauses records a clause, and DR-08 executes the symlink clause of K5"
+                .to_string(),
+        ),
+        Some(_) => {}
+        None => out.push("Security has no definition pendingClauses".to_string()),
     }
     out
 }
@@ -209,13 +227,28 @@ fn the_check_rejects_a_pending_r5_and_a_missing_row_sm_01() {
         "{found:?}"
     );
 
-    // The symlink clause dropped from the model.
-    let without_clause = security.replace("name: pendingClauses,", "name: droppedClauses,");
-    let found = violations(&model, &tests, &without_clause, &admission);
+    // The symlink clause put back into pendingClauses.
+    let with_clause = security.replace(
+        "name: pendingClauses, parameters: [], result: (List Named), body: (nil Named)",
+        "name: pendingClauses, parameters: [], result: (List Named), body: (cons (record Named {index := 4, name := \"K5 symlink refusal\", text := \"materialization refuses symlinks in a profile bundle\"}) (nil Named))",
+    );
+    assert_ne!(with_clause, security, "the plant applies");
+    let found = violations(&model, &tests, &with_clause, &admission);
     assert!(
         found
             .iter()
-            .any(|v| v.contains("pendingClauses does not record")),
+            .any(|v| v.contains("pendingClauses records a clause")),
+        "{found:?}"
+    );
+
+    // DR-08 removed from the register.
+    let mut without_symlink_row = model.clone();
+    without_symlink_row.ids.id.retain(|r| r.id != "DR-08");
+    let found = violations(&without_symlink_row, &tests, &security, &admission);
+    assert!(
+        found
+            .iter()
+            .any(|v| v.contains("DR-08") && v.contains("not in model/ids.toml")),
         "{found:?}"
     );
 

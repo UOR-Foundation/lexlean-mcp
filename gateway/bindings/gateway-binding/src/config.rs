@@ -29,7 +29,6 @@ pub struct Config {
     pub rate_window: Duration,
 }
 
-
 impl Config {
     /// A configuration whose store is `store` and whose bounds are the owner values.
     pub fn at(store: impl Into<PathBuf>) -> Config {

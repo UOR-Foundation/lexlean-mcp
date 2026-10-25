@@ -167,18 +167,15 @@ fn copy_file(source: &Path, target: &Path) -> Result<(), Refused> {
         if count == 0 {
             return output.flush().map_err(|_| Refused::Io);
         }
-        output.write_all(&buffer[..count]).map_err(|_| Refused::Io)?;
+        output
+            .write_all(&buffer[..count])
+            .map_err(|_| Refused::Io)?;
     }
 }
 
 /// Materialize the draft `<profile>/<id>` of the store at `root` as a directory of the `builds`
 /// area, and return it. `limit` is the most bytes a draft may have.
-pub fn materialize(
-    root: &Path,
-    profile: &str,
-    id: &str,
-    limit: usize,
-) -> Result<PathBuf, Refused> {
+pub fn materialize(root: &Path, profile: &str, id: &str, limit: usize) -> Result<PathBuf, Refused> {
     let blob = store::read(root, 1, &format!("{profile}/{id}"), limit)
         .map_err(|_| Refused::Draft)?
         .ok_or(Refused::Draft)?;
