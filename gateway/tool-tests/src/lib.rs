@@ -33,6 +33,23 @@ pub const TOOLS: [&str; 4] = [
 /// `gateway/mcp/lexlean.rev` has these names besides its 297.
 pub const NOT_IN_THE_REGISTER: [&str; 1] = ["induction-nested-type"];
 
+/// The examples whose `expected/build` the CLI at the pin does not reproduce (measured with the
+/// CLI itself, TOOLS.md): the tool gives the same tree as the CLI for them too.
+pub const EXAMPLES_OFF_THE_EXPECTED_TREE: &[&str] = &[
+    "collections",
+    "fold-laws",
+    "helpdesk",
+    "higher-order",
+    "language-1.2",
+    "models",
+    "nested-induction",
+    "production",
+    "production-coverage",
+    "reasoning",
+    "recursion",
+    "recursive-data",
+];
+
 /// The fixtures that run `check` and that issue #10 puts in F4: the register's 252 and the
 /// names it lacks.
 pub const F4_FIXTURES: usize = 253;
@@ -374,7 +391,12 @@ pub fn run_cli(directory: &Path, arguments: &[&str]) -> Cli {
         .output()
         .unwrap_or_else(|error| panic!("{}: {error}", cli_path().display()));
     Cli {
-        status: output.status.code().expect("the CLI exited"),
+        // A process that a signal ended has no exit code: it is reported as the negated signal.
+        status: output
+            .status
+            .code()
+            .or_else(|| std::os::unix::process::ExitStatusExt::signal(&output.status).map(|s| -s))
+            .expect("the CLI exited or was signalled"),
         stdout: output.stdout,
         stderr: output.stderr,
     }
@@ -409,6 +431,8 @@ pub struct Fixture {
     pub expected_exit: i32,
     /// The `project/` directory.
     pub project: PathBuf,
+    /// The codes of `expected/diagnostics.json`, in order.
+    pub expected_codes: Vec<String>,
 }
 
 /// The value of `key = value` in a `case.toml`.
@@ -417,6 +441,22 @@ fn case_value(case: &str, key: &str) -> Option<String> {
         .filter_map(|line| line.split_once('='))
         .find(|(name, _)| name.trim() == key)
         .map(|(_, value)| value.trim().to_string())
+}
+
+/// The `code` of each diagnostic of `expected/diagnostics.json`.
+fn expected_codes(directory: &Path) -> Vec<String> {
+    let text =
+        std::fs::read_to_string(directory.join("expected/diagnostics.json")).unwrap_or_default();
+    serde_json::from_str::<serde_json::Value>(&text)
+        .ok()
+        .and_then(|value| {
+            value.as_array().map(|all| {
+                all.iter()
+                    .filter_map(|d| d["code"].as_str().map(str::to_string))
+                    .collect()
+            })
+        })
+        .unwrap_or_default()
 }
 
 /// Every fixture of `tests/negative` that has one command and a `project/`, in name order.
@@ -442,6 +482,7 @@ pub fn fixtures(sources: &Path) -> Vec<Fixture> {
                     .and_then(|value| value.parse().ok())
                     .unwrap_or(-1),
                 project: directory.join("project"),
+                expected_codes: expected_codes(&directory),
                 name,
             }
         })
@@ -460,8 +501,10 @@ pub fn register() -> BTreeMap<String, String> {
     for line in text.lines() {
         if let Some(value) = line.strip_prefix("name = ") {
             name = Some(value.trim_matches('"').to_string());
-        } else if let (Some(value), Some(key)) = (line.strip_prefix("class = "), name.take()) {
-            rows.insert(key, value.trim_matches('"').to_string());
+        } else if let Some(value) = line.strip_prefix("class = ") {
+            if let Some(key) = name.take() {
+                rows.insert(key, value.trim_matches('"').to_string());
+            }
         }
     }
     rows

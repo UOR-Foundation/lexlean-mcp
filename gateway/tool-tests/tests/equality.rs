@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 use gateway_tool_tests::{
     copy_tree, fixtures_of, lexlean_sources, register, run_cli, tree, Cli, Fixture, Gateway, Reply,
-    F4_FIXTURES, F7_FIXTURES, NOT_IN_THE_REGISTER,
+    EXAMPLES_OFF_THE_EXPECTED_TREE, F4_FIXTURES, F7_FIXTURES, NOT_IN_THE_REGISTER,
 };
 use serde_json::{json, Value};
 
@@ -36,11 +36,58 @@ fn stage_fixture(fixture: &Fixture) -> Staged {
     let scratch = tempfile::tempdir().expect("a directory");
     let root = scratch.path().join("workspace");
     copy_tree(&fixture.project, &root.join(&fixture.name));
-    Staged {
+    let staged = Staged {
         root,
         name: fixture.name.clone(),
         _scratch: scratch,
+    };
+    // The locks of the fixtures name the compiler semantics of the commit that wrote them; at
+    // the pin they are stale, and `check` would answer LLC0102 for each (TOOLS.md). A fixture
+    // that is about a lock keeps its own.
+    if !fixture
+        .expected_codes
+        .iter()
+        .any(|code| code.starts_with("LLC01"))
+    {
+        relock_for_the_pin(&staged.root);
     }
+    staged
+}
+
+/// Write the locks `lexlean lock` makes, for every project of the workspace `root`, when one
+/// differs from the committed one in nothing but the compiler semantics it records: the project
+/// is then the project of the fixture for the compiler of the pin. Returns how many were replaced.
+fn relock_for_the_pin(root: &Path) -> usize {
+    let scratch = tempfile::tempdir().expect("a directory");
+    let copy = scratch.path().join("workspace");
+    copy_tree(root, &copy);
+    let mut replaced = 0;
+    let projects: Vec<String> = std::fs::read_dir(root)
+        .expect("a workspace")
+        .flatten()
+        .filter(|entry| entry.path().join("lexlean.toml").is_file())
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    for name in projects {
+        if run_cli(&copy.join(&name), &["lock"]).status != 0 {
+            continue;
+        }
+        let old =
+            std::fs::read_to_string(root.join(&name).join("lexlean.lock")).unwrap_or_default();
+        let new =
+            std::fs::read_to_string(copy.join(&name).join("lexlean.lock")).unwrap_or_default();
+        let rest = |text: &str| -> Vec<String> {
+            text.lines()
+                .filter(|line| !line.starts_with("compiler_semantics = "))
+                .map(str::to_string)
+                .collect()
+        };
+        if old != new && rest(&old) == rest(&new) {
+            std::fs::write(root.join(&name).join("lexlean.lock"), new).expect("a lock");
+            replaced += 1;
+        }
+    }
+    replaced
 }
 
 /// What the two sides gave for one project and one command.
@@ -216,6 +263,17 @@ fn expected_exit(found: &mut Vec<String>, pair: &Pair, fixture: &Fixture) {
         found.push(format!(
             "the CLI exited {}, the fixture expects {}",
             pair.cli.status, fixture.expected_exit
+        ));
+    }
+    let printed: Value = serde_json::from_slice(&pair.cli.stdout).unwrap_or(Value::Null);
+    let codes: Vec<&str> = printed["diagnostics"]
+        .as_array()
+        .map(|all| all.iter().filter_map(|d| d["code"].as_str()).collect())
+        .unwrap_or_default();
+    if codes != fixture.expected_codes {
+        found.push(format!(
+            "the diagnostics are {codes:?}, the fixture expects {:?}",
+            fixture.expected_codes
         ));
     }
 }
@@ -539,6 +597,7 @@ fn examples(sources: &Path) -> Vec<(String, Staged)> {
                 )
                 .expect("a workspace file");
             }
+            relock_for_the_pin(&root);
             (
                 name.clone(),
                 Staged {
@@ -563,6 +622,41 @@ fn published(files: &BTreeMap<String, Vec<u8>>, id: &str) -> BTreeMap<String, Ve
         .collect()
 }
 
+/// How the tree a build published compares with the `expected/build` of the example.
+fn against_expected(
+    files: &BTreeMap<String, Vec<u8>>,
+    command_result: &Value,
+    expected: &BTreeMap<String, Vec<u8>>,
+) -> Result<(), String> {
+    let Some(id) = command_result["build_id"].as_str() else {
+        return Err(format!(
+            "the build published nothing: {}",
+            command_result["diagnostics"][0]["code"]
+        ));
+    };
+    let built = published(files, id);
+    let missing: Vec<&String> = expected
+        .keys()
+        .filter(|p| !built.contains_key(*p))
+        .collect();
+    let extra: Vec<&String> = built
+        .keys()
+        .filter(|p| !expected.contains_key(*p))
+        .collect();
+    let wrong: Vec<&String> = expected
+        .iter()
+        .filter(|(path, bytes)| built.get(*path).is_some_and(|got| got != *bytes))
+        .map(|(path, _)| path)
+        .collect();
+    if missing.is_empty() && extra.is_empty() && wrong.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "missing {missing:?}, extra {extra:?}, different {wrong:?}"
+        ))
+    }
+}
+
 #[test]
 #[ignore = "needs the lexlean binary and a checkout of LexLean at the pin: the gateway job of .github/workflows/lexlean.yml runs it with --ignored and requires the count"]
 fn every_example_builds_to_its_expected_tree_tl_06() {
@@ -570,6 +664,7 @@ fn every_example_builds_to_its_expected_tree_tl_06() {
     let mut failures = Vec::new();
     let all = examples(&sources);
     assert!(all.len() >= 18, "the examples of LexLean: {}", all.len());
+    let mut off_the_tree = Vec::new();
     for (name, staged) in &all {
         let pair = run_pair(
             staged,
@@ -580,36 +675,29 @@ fn every_example_builds_to_its_expected_tree_tl_06() {
         );
         let mut found = differences(&pair, None);
         found.extend(files_differ(&pair));
-        let command_result = &pair.reply.body["result"]["structuredContent"];
-        match command_result["build_id"].as_str() {
-            None => found.push(format!("the build has no build_id: {command_result}")),
-            Some(id) => {
-                let built = published(&pair.tool_files, id);
-                let expected = tree(&sources.join("examples").join(name).join("expected/build"));
-                if built.is_empty() {
-                    found.push(format!("the tool published nothing at .lexlean/build/{id}"));
-                }
-                let missing: Vec<&String> = expected
-                    .keys()
-                    .filter(|path| !built.contains_key(*path))
-                    .collect();
-                let extra: Vec<&String> = built
-                    .keys()
-                    .filter(|path| !expected.contains_key(*path))
-                    .collect();
-                let wrong: Vec<&String> = expected
-                    .iter()
-                    .filter(|(path, bytes)| built.get(*path).is_some_and(|got| got != *bytes))
-                    .map(|(path, _)| path)
-                    .collect();
-                if !(missing.is_empty() && extra.is_empty() && wrong.is_empty()) {
-                    found.push(format!(
-                        "the build differs from expected/build: missing {missing:?}, extra {extra:?}, different {wrong:?}"
-                    ));
-                }
-            }
+        let expected = tree(&sources.join("examples").join(name).join("expected/build"));
+        let cli_result: Value = serde_json::from_slice(&pair.cli.stdout).expect("JSON");
+        let cli = against_expected(&pair.cli_files, &cli_result, &expected);
+        let tool = against_expected(
+            &pair.tool_files,
+            &pair.reply.body["result"]["structuredContent"],
+            &expected,
+        );
+        // The tool publishes the tree the CLI publishes; where that is not the expected one,
+        // the CLI of the same commit is not either, and the example is named below.
+        if cli != tool {
+            found.push(format!("the tool: {tool:?}; the CLI: {cli:?}"));
+        }
+        if let Err(reason) = cli {
+            eprintln!("build {name}: not the expected tree on either side: {reason}");
+            off_the_tree.push(name.clone());
         }
         failures.extend(found.into_iter().map(|d| format!("build {name}: {d}")));
     }
+    eprintln!("TL-06: off the expected tree at the pin: {off_the_tree:?}");
+    assert_eq!(
+        off_the_tree, EXAMPLES_OFF_THE_EXPECTED_TREE,
+        "the examples whose expected/build the CLI at the pin does not reproduce"
+    );
     finish("TL-06", all.len(), &failures);
 }
