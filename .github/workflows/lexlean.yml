@@ -356,7 +356,35 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "gateway/vectors/generate.py check" python3 -I gateway/vectors/generate.py check
-      - name: 7k. prismpm verify, in the locked SDK image
+      - name: 7k. gateway-host, the served program, is built in the gateway workspace
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "cargo build --release -p gateway-host" gateway_conformance_build
+      - name: 7l. node, MCP at the pin and the pinned conformance suite (AC-03 b)
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "node version" check_node &&
+            gate "install MCP's conformance suite" gateway_conformance_install
+      - name: 7m. the tests that need node and the suite, run with --ignored and a count check
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway conformance tests (cargo test -- --ignored)" gateway_conformance_ignored
+      - name: 7n. MCP's server suite over the served gateway; the failing scenarios are gateway/waiting.json
+        id: suite
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "server suite" gateway_conformance_suite
+      - name: 7o. MCP's schema oracle over the recorded transcript
+        if: always() && steps.suite.outcome != 'skipped'
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "schema oracle" gateway_conformance_schema
+      - name: 7p. the per-scenario table
+        if: always() && steps.suite.outcome != 'skipped'
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "scenario table" gateway_conformance_summary
+      - name: 7q. prismpm verify, in the locked SDK image
         run: |
           . .github/lexlean-ci/lib.sh
           gate "prismpm verify in the locked SDK image" gateway_verify

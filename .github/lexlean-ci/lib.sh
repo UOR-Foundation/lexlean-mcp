@@ -479,3 +479,154 @@ gateway_verify() {
     --env LEXLEAN_MCP_STORE="$store" \
     "$image" "$PRISMPM_ROOT/bin/prismpm" verify
 }
+
+# ---- the conformance run of the gateway (AC-03 b, GW-12) -----------------------------
+# The gateway is held to the server suite that UOR-Foundation/MCP pins, with MCP's own
+# oracle: the checkout of MCP at .github/mcp.rev (the commit gateway/lay-out-mcp.sh lays the
+# sources out from) supplies conformance/oracle and the specification schema, and nothing of
+# it is copied here. The verdict is the oracle's: the job passes only when the failing
+# scenarios are exactly the ones gateway/waiting.json names.
+
+# The directory the conformance run keeps its checkout, the suite and its reports in.
+gateway_conformance_dir() {
+  printf '%s\n' "${GATEWAY_CONFORMANCE_DIR:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}/gateway-conformance}"
+}
+
+# gateway_conformance_checkout: the MCP checkout at the pin, fetched once and refused
+# unless its HEAD is the commit .github/mcp.rev names. Prints its path.
+gateway_conformance_checkout() {
+  local dir rev head
+  dir=$(gateway_conformance_dir)/mcp
+  rev=$(sed -n 's/^rev = \([0-9a-f]\{40\}\)$/\1/p' .github/mcp.rev)
+  if [[ -z $rev ]]; then
+    echo ".github/mcp.rev has no 40-digit rev" >&2
+    return 1
+  fi
+  if [[ ! -d $dir/.git ]]; then
+    fetch_rev https://github.com/UOR-Foundation/MCP "$rev" "$dir" >&2
+  fi
+  head=$(git -C "$dir" rev-parse HEAD)
+  if [[ $head != "$rev" ]]; then
+    echo "the MCP checkout $dir is at $head, the pin is $rev" >&2
+    return 1
+  fi
+  for oracle in server-suite.mjs schema-oracle.mjs verdict.mjs recorder.mjs fetch-suite.sh; do
+    test -f "$dir/conformance/oracle/$oracle" || { echo "MCP at $rev has no conformance/oracle/$oracle" >&2; return 1; }
+  done
+  printf '%s\n' "$dir"
+}
+
+# gateway_conformance_install: the checkout and the pinned suite, installed by MCP's own
+# fetch-suite.sh (the exact commit, `npm ci`). MCP_CONFORMANCE_SUITE_ROOT and
+# GATEWAY_MCP_CHECKOUT name them for later steps.
+gateway_conformance_install() {
+  local mcp suite
+  mcp=$(gateway_conformance_checkout)
+  suite=$(gateway_conformance_dir)/suite
+  if [[ ! -f $suite/dist/index.js ]]; then
+    rm -rf "$suite"
+    bash "$mcp/conformance/oracle/fetch-suite.sh" "$suite"
+  fi
+  {
+    echo "MCP_CONFORMANCE_SUITE_ROOT=$suite"
+    echo "GATEWAY_MCP_CHECKOUT=$mcp"
+  } >>"${GITHUB_ENV:-/dev/null}"
+}
+
+# gateway_conformance_build: the served program. `gateway-host` is the generated host of
+# `prismpm build` (gateway/lay-out.sh) linked with the binding, built in the gateway
+# workspace against the registry.
+gateway_conformance_build() {
+  gateway_cargo build --release --locked --offline -p gateway-host
+  test -x gateway/target/release/gateway-host
+}
+
+# gateway_conformance_suite: MCP's server-suite.mjs over the served gateway, with the
+# gateway's waiting list. Exit 1 while the failing scenarios are not exactly the list; the
+# last lines name the scenarios and the issue each waits on.
+gateway_conformance_suite() {
+  local mcp out
+  mcp=$(gateway_conformance_checkout)
+  out=$(gateway_conformance_dir)/out
+  mkdir -p "$out"
+  node "$mcp/conformance/oracle/server-suite.mjs" \
+    --suite-root "${MCP_CONFORMANCE_SUITE_ROOT:?the installed suite (gateway_conformance_install)}" \
+    --out "$out" --waiting gateway/waiting.json \
+    "$PWD/gateway/target/release/gateway-host" serve
+}
+
+# gateway_conformance_schema: every message of the recorded transcript against the
+# 2026-07-28 schema MCP vendors at the pin.
+gateway_conformance_schema() {
+  local mcp schema
+  mcp=$(gateway_conformance_checkout)
+  schema=$(ls "$mcp"/crates/lifecycle-oracle/suite/mcp-spec-*/schema/2026-07-28/schema.json)
+  node "$mcp/conformance/oracle/schema-oracle.mjs" \
+    --suite-root "${MCP_CONFORMANCE_SUITE_ROOT:?the installed suite (gateway_conformance_install)}" \
+    "$schema" "$(gateway_conformance_dir)/out/transcript.json"
+}
+
+# gateway_conformance_summary: the per-scenario table of the run, to the step summary and
+# the log. A waiting scenario is a failure here, as in the oracle's report.
+gateway_conformance_summary() {
+  local report
+  report="$(gateway_conformance_dir)/out/report.json"
+  test -f "$report" || { echo "no report: the suite did not run" >&2; return 1; }
+  node -e '
+    const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    const lines = ["| kind | scenario | status | checks passed | other |", "|---|---|---|---|---|"];
+    for (const s of r.scenarios) lines.push(`| ${s.kind} | ${s.scenario} | ${s.status} | ${s.passed}/${s.checks} | ${Object.entries(s.other).map(([k, v]) => k + " " + v).join(", ")} |`);
+    lines.push("", `required ${r.required.passing}/${r.required.scenarios} pass, not scored ${r.not_scored.passing}/${r.not_scored.scenarios} pass`);
+    lines.push("", `${r.failing.length} scenarios FAIL (valid: ${r.valid}); the job gate, failing = gateway/waiting.json exactly: ${r.matches_waiting}. Waiting scenarios are failures, never passes.`);
+    for (const [label, names] of [["failing and not named in waiting.json", r.unexplained], ["named as waiting but not failing", r.stale_waiting], ["skipped by the suite, not passing", r.skipped_by_the_suite]]) if (names.length) lines.push("", `${label}: ${names.join(", ")}`);
+    for (const [label, names] of Object.entries(r.waits)) lines.push("", `${label}: ${names.join(", ")}`);
+    console.log(lines.join("\n"));
+  ' "$report" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
+}
+
+# gateway_conformance_ignored: the tests of crates/model/tests/gateway_conformance.rs that
+# need node and the installed suite. The workspace gate (`cargo test --workspace`, and
+# `just vv` in the locked SDK image, which has neither) ignores them; this runs exactly
+# those with --ignored and is green only when as many passed as the source ignores, so a run
+# that selected none or skipped some is not green (the pattern of MCP's run_oracle_tests).
+gateway_conformance_ignored() {
+  local file=crates/model/tests/gateway_conformance.rs log expected passed status=0
+  : "${MCP_CONFORMANCE_SUITE_ROOT:?the installed suite (gateway_conformance_install)}"
+  : "${GATEWAY_MCP_CHECKOUT:?the MCP checkout at the pin (gateway_conformance_install)}"
+  expected=$(grep -c '^#\[ignore' "$file" || true)
+  if ((expected == 0)); then
+    echo "$file ignores no test; the oracle tests are not where the job expects them" >&2
+    return 1
+  fi
+  log=$(mktemp)
+  cargo test --locked -p repo-model --test gateway_conformance -- --ignored >"$log" 2>&1 || status=$?
+  cat "$log"
+  if ((status != 0)); then
+    rm -f "$log"
+    return "$status"
+  fi
+  passed=$(sed -n 's/^test result: ok\. \([0-9][0-9]*\) passed; 0 failed.*/\1/p' "$log")
+  rm -f "$log"
+  if [[ $passed != "$expected" ]]; then
+    echo "${passed:-0} passed of the ignored tests, expected $expected" >&2
+    return 1
+  fi
+  echo "the $expected ignored gateway conformance tests ran and passed"
+}
+
+# check_node: the node on the runner satisfies the engines of the pinned conformance suite
+# (^20.19.0 || >=22.12.0), which also runs MCP's oracle scripts.
+check_node() {
+  local version major minor
+  version=$(node --version)
+  version=${version#v}
+  major=${version%%.*}
+  minor=${version#*.}
+  minor=${minor%%.*}
+  echo "node $version"
+  if ((major > 22 || (major == 22 && minor >= 12) || (major == 20 && minor >= 19))); then
+    return 0
+  fi
+  echo "node $version does not satisfy ^20.19.0 || >=22.12.0" >&2
+  return 1
+}

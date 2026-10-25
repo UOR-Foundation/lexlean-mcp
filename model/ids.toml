@@ -556,3 +556,9 @@ id = "GW-11"
 level = "build"
 suite = "gateway"
 statement = "The MCP modules laid out under gateway/mcp are those of the pin: every laid-out source file and lexicon file equals the file of UOR-Foundation/MCP at .github/mcp.rev byte for byte, and the lexicon package mcp.core has in gateway/lexlean.lock the tree hash that MCP's lexlean.lock at the pin records for it, which restates AC-03 for a gateway that cannot carry the fixture core's digest."
+
+[[id]]
+id = "GW-12"
+level = "build"
+suite = "gateway"
+statement = "The gateway passes the pinned server conformance suite of UOR-Foundation/MCP with its own exact waiting list (AC-03 part b): the gateway job serves the built gateway-host on loopback and runs the server-suite.mjs and the schema-oracle.mjs of the MCP checkout at .github/mcp.rev (reused, never copied) over it, against the suite commit that MCP pins; gateway/waiting.json names every scenario that does not pass, each with the lexlean-mcp issue or pull request that would deliver it, and the job passes only when the failing scenarios equal that list (an unlisted failure, a stale entry and an entry without an issue each fail it); the lifecycle, transport, header, DNS-rebinding, caching and schema scenarios are not listed and must pass, and no fixture tool is added to the catalogue; GATEWAY-CONFORMANCE.md records the run per scenario with the reason for every waiting entry and the planted defects; a test that needs node or the installed suite is ignored in the workspace gate and the job runs it with --ignored and a count check (the pattern of MCP CF-08)."
