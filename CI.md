@@ -14,7 +14,7 @@ acceptance boundary (`VERIFICATION.md`); until the SDK binding lands it fails at
 | `cargo / fmt clippy audits deny test` | `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --locked -- -D warnings`; `cargo check --workspace --all-features --all-targets --locked`; `cargo xtask check-model`, `audit-limits`, `audit-deferral` and `audit-dependency-updates`; `cargo deny --all-features check`; `cargo test --workspace --locked --no-fail-fast` |
 | `lexlean / verify` | `lexlean fmt --check`, `lexlean lock --check`, `lexlean check`, `lexlean verify` |
 | `lexlean / export <crate>` | one job per `crates/*/generated/request.json`, found by `find` and never listed: `lexlean production build --request <it>` in a clean `.lexlean/production`, then every exported `rust-std` package is compared with `diff -r` against the package committed beside the request, in both directions (a committed package the request no longer exports, or an export nobody committed, fails by name) |
-| `gateway / prismpm build and verify` | builds the gateway of #7 against the registry that `gateway/registry.sh` assembles from the pins: the MCP sources at `.github/mcp.rev` (`gateway/lay-out-mcp.sh`) and their byte equality to the pin (`gateway/mcp-identities.sh`, AC-03 a); the `prism.arch` lexicon of PrismPM at `.github/prismpm.rev`, laid out whole (`gateway/lay-out-sdk.sh`, not committed), and the two whole-file copies of PrismPM's standard library (`sdk_copies_agree`); `lexlean lock --check` and `check`, and every module that is not a copy canonical; the registry; `prismpm build`, whose exported core must equal `gateway/generated/lexlean_mcp_gateway_core` (`diff -r`); `cargo fmt`, `clippy` and the tests of the binding, with its ignored tests run by count; the generated host source free of tool and method names (Q6); `gateway/vectors/generate.py check`; and `prismpm verify` |
+| `gateway / prismpm build and verify` | builds the gateway of #7 against the registry that `gateway/registry.sh` assembles from the pins: the MCP sources at `.github/mcp.rev` (`gateway/lay-out-mcp.sh`) and their byte equality to the pin (`gateway/mcp-identities.sh`, AC-03 a); the `prism.arch` lexicon of PrismPM at `.github/prismpm.rev`, laid out whole (`gateway/lay-out-sdk.sh`, not committed), and the two whole-file copies of PrismPM's standard library (`sdk_copies_agree`); `lexlean lock --check` and `check`, and every module that is not a copy canonical; the registry; `prismpm build`, whose exported core must equal `gateway/generated/lexlean_mcp_gateway_core` (`diff -r`); `cargo fmt`, `clippy` and the tests of the binding, with its ignored tests run by count; the generated host source free of tool and method names (Q6); `gateway/vectors/generate.py check`; `gateway-host` built and served under MCP's server suite and schema oracle, whose failing scenarios must be exactly `gateway/waiting.json` (GATEWAY-CONFORMANCE.md, `GW-12`); and `prismpm verify` |
 | `prepare / compiler and toolchains` | builds `lexlean`, installs the Lean toolchain, checks that the compiler is the one `lexlean.lock` was made with, and publishes the job matrix |
 
 ## Not run here
@@ -78,13 +78,27 @@ generated members.
 
 `prismpm verify` takes its executables (`lake`, `lean`, `rustc`, `rustfmt`, `cargo`, `timeout`) from the
 signed inventory of the SDK it runs in, and stops with PP5008 on a bare runner, whose toolchain is
-not the pinned one (no pin is patched or relaxed). So step 7k runs it inside the image that
+not the pinned one (no pin is patched or relaxed). So step 7q runs it inside the image that
 `prismpm.lock` selects (`sdk_image`), as `bootstrap` runs `just vv`: the `prismpm` that
 `install_prismpm` built (PrismPM at `.github/prismpm.rev`, LexLean at MCP's pin) is mounted
 read-only and called by its path, which is not on the image's PATH, and the workspace is mounted at
 its own path, so the registry's directory source resolves inside the container. `prismpm build` and
 the rest of the job stay on the runner. PrismPM#342's stack leaves the pins of `tools.lock` and
 `verification.rs` as they are (no hunk of the stack touches an executable digest).
+
+### The conformance steps (AC-03 b)
+
+Steps 7k to 7p serve the built `gateway-host` and run MCP's own oracle over it
+(GATEWAY-CONFORMANCE.md has the table and the planted defects). The oracle is not copied:
+`gateway_conformance_checkout` fetches UOR-Foundation/MCP at `.github/mcp.rev`, refuses any
+other HEAD, and `server-suite.mjs`, `schema-oracle.mjs` and MCP's `fetch-suite.sh` run from
+that checkout, against the suite commit MCP pins. The job passes only when the failing
+scenarios are exactly `gateway/waiting.json`; the oracle's diagnostic names an unlisted
+failure, a stale entry or an entry without an issue, and the last 40 lines of it reach the
+annotation. Node and the suite exist only in this job: the two tests of
+`crates/model/tests/gateway_conformance.rs` that need them are `#[ignore]`d for the workspace
+gate (the SDK image has neither) and step 7m runs them with `-- --ignored`, requiring that as
+many passed as the source ignores (the pattern of MCP's CF-08).
 
 ### The release step
 
