@@ -884,3 +884,19 @@ fn the_laid_out_mcp_modules_are_those_of_the_pin_gw_11() {
         "the registry packages the lexlean MCP names, not the root project's"
     );
 }
+
+#[test]
+fn the_served_port_is_the_owner_value_listen_port_gw_03() {
+    // PrismPM's application source admits only closed literals (PP2013), so the
+    // port is written twice: here it is held to the owner value it stands for.
+    let owner = tight(&read("src/OwnerValues.lex.tex"));
+    let listen_port = number_after(
+        &owner,
+        "name: listenPort, parameters: [], result: Nat, body:",
+    );
+    let served = number_after(&application(), "address := \"127.0.0.1\", port :=");
+    assert_eq!(
+        served, listen_port,
+        "the gateway serves on the owner value listen.port"
+    );
+}

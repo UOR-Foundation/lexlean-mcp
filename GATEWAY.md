@@ -141,6 +141,7 @@ script that is not committed.
 | a tool name in adapter source: the comment `// lexlean_check` in the binding's `src/store.rs` | `cargo test -p repo-model --test gateway` | GW-06 fails: `adapter source names a tool or a method` with `store.rs` and `lexlean_check` | `git checkout gateway/bindings/gateway-binding/src/store.rs` |
 | a hand-edited core: a comment inserted in the committed `generated/lexlean_mcp_gateway_core/src/lib.rs` | `diff -r gateway/lexlean_mcp_gateway_core gateway/generated/lexlean_mcp_gateway_core` (the comparison `gateway_build` runs after `prismpm build`) | exit status 1: `diff -r .../src/lib.rs`, the first differing line is the inserted comment | `git checkout gateway/generated/lexlean_mcp_gateway_core/src/lib.rs`: the two directories are equal |
 | a tampered vector: the last byte of the first served response changed in `exchanges.json` | `python3 -I gateway/vectors/generate.py check` | exit status 1: `Application.lex.tex is not the rendering of exchanges.json` | `git checkout gateway/vectors/exchanges.json`: `the declaration is the rendering of the vectors` |
+| the served port differs from the owner value: `listenPort` set to 5396 in `src/OwnerValues.lex.tex` | `cargo test -p repo-model --test gateway the_served_port` | `the gateway serves on the owner value listen.port` (left 5395, right 5396) | `git checkout src/OwnerValues.lex.tex`: the test passes again |
 
 ## Building and verifying
 
