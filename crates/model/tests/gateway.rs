@@ -371,7 +371,12 @@ fn walk(directory: &Path, files: &mut Vec<PathBuf>) {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            if path.file_name().is_some_and(|name| name == "target") {
+            // Build output and the local registry are not the repository's sources.
+            if path.file_name().is_some_and(|name| {
+                ["target", ".prism", ".lexlean", "registry"]
+                    .iter()
+                    .any(|skipped| name == *skipped)
+            }) {
                 continue;
             }
             walk(&path, files);

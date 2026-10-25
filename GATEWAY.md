@@ -118,6 +118,25 @@ fresh process, so a task started by one is gone before the next. Their success p
 binding's tests (`verify_start_*`, `verify_control_*`), including a real verification and a
 real cancellation.
 
+## Planted defects
+
+A gate is evidence only after a planted defect shows it can fail (AGENTS.md). Each defect was
+applied to the committed files on the development machine, the command ran, and the files were
+restored (`git checkout`); the unplanted tree passes the same commands. `prismpm verify` itself
+was not run there (it stops with PP5008 outside the PrismPM SDK: the `timeout` of coreutils
+9.1-1 is pinned by digest, CI.md), so the replay of the vectors through the host was run with
+the host the job builds, over the same three transports (`exchange`, `run`, `serve`), by a
+script that is not committed.
+
+| Defect | Command | Diagnostic | Restore |
+| --- | --- | --- | --- |
+| an undeclared effect: a twelfth effect, `rogue.effect`, in the host protocol of the application | `python3 -I gateway/vectors/generate.py render` then `cargo test -p repo-model --test gateway` | GW-01 and GW-02 fail: `the host protocol declares the ten effects and the frame effect` (left 12, right 11) and `a row per effect` (left 11, right 12) | `git checkout gateway/src/Application.lex.tex gateway/vectors/generate.py`: the gateway tests pass again |
+| a missing vector: the steps of the vector that reaches `store.get` emptied in `exchanges.json`, the application rendered again | `cargo test -p repo-model --test gateway`, and `prismpm build` in `gateway/` | GW-04 fails: `the transcripts request exactly the ten effects` (`store.get` is missing from the left set); `prismpm build` stops after 9 s with `PP2013: every host effect the core may request must be requested by a step of some acceptance transcript` | `git checkout gateway/vectors/exchanges.json gateway/src/Application.lex.tex` |
+| a wrong effect result: `store.get` answers `found: content.is_none()` | `cargo test -p gateway-binding --locked --offline` (CARGO_HOME of the registry), and the replay of the recorded vectors through `gateway-host run` and `gateway-host serve` | the binding tests `store_get_returns_what_store_put_wrote` and `store_get_reports_a_missing_key_as_not_found` fail (51 passed, 2 failed); vector 9 (`store.get`) differs from its recorded response through `run` and through `serve`, the other eighteen are equal | `git checkout gateway/bindings/gateway-binding/src/lib.rs` |
+| a tool name in adapter source: the comment `// lexlean_check` in the binding's `src/store.rs` | `cargo test -p repo-model --test gateway` | GW-06 fails: `adapter source names a tool or a method` with `store.rs` and `lexlean_check` | `git checkout gateway/bindings/gateway-binding/src/store.rs` |
+| a hand-edited core: a comment inserted in the committed `generated/lexlean_mcp_gateway_core/src/lib.rs` | `diff -r gateway/lexlean_mcp_gateway_core gateway/generated/lexlean_mcp_gateway_core` (the comparison `gateway_build` runs after `prismpm build`) | exit status 1: `diff -r .../src/lib.rs`, the first differing line is the inserted comment | `git checkout gateway/generated/lexlean_mcp_gateway_core/src/lib.rs`: the two directories are equal |
+| a tampered vector: the last byte of the first served response changed in `exchanges.json` | `python3 -I gateway/vectors/generate.py check` | exit status 1: `Application.lex.tex is not the rendering of exchanges.json` | `git checkout gateway/vectors/exchanges.json`: `the declaration is the rendering of the vectors` |
+
 ## Building and verifying
 
 ```sh
