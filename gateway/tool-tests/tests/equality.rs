@@ -26,12 +26,6 @@ struct Staged {
     _scratch: tempfile::TempDir,
 }
 
-impl Staged {
-    fn project(&self) -> PathBuf {
-        self.root.join(&self.name)
-    }
-}
-
 /// A fixture, staged: its `project/` as the one member.
 fn stage_fixture(fixture: &Fixture) -> Staged {
     let scratch = tempfile::tempdir().expect("a directory");
