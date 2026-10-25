@@ -67,3 +67,9 @@ Feature: Generated gateway
     Given gateway/mcp-identities.sh, the two lexlean.lock files and the MCP tree at the pin
     When the laid-out files and the lock entry of mcp.core are compared with the pin
     Then every file is equal and the tree hashes of mcp.core are equal
+
+  @GW-12 @build
+  Scenario: The gateway passes the pinned server conformance suite of UOR-Foundation/MCP with its own exact waiting list (AC-03 part b): the gateway job serves the built gateway-host on loopback and runs the server-suite.mjs and the schema-oracle.mjs of the MCP checkout at .github/mcp.rev (reused, never copied) over it, against the suite commit that MCP pins; gateway/waiting.json names every scenario that does not pass, each with the lexlean-mcp issue or pull request that would deliver it, and the job passes only when the failing scenarios equal that list (an unlisted failure, a stale entry and an entry without an issue each fail it); the lifecycle, transport, header, DNS-rebinding, caching and schema scenarios are not listed and must pass, and no fixture tool is added to the catalogue; GATEWAY-CONFORMANCE.md records the run per scenario with the reason for every waiting entry and the planted defects; a test that needs node or the installed suite is ignored in the workspace gate and the job runs it with --ignored and a count check (the pattern of MCP CF-08).
+    Given gateway/waiting.json, the gateway job of .github/workflows/lexlean.yml and GATEWAY-CONFORMANCE.md
+    When the waiting list, the job steps and the record are read, and the verdict of the MCP oracle is run over the list
+    Then the job serves the gateway and runs MCP's oracle at the pin with the list, every entry names an issue or a pull request, a stale entry and an unlisted failure are rejected, and the ignored tests run with a count check
