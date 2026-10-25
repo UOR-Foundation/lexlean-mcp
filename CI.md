@@ -74,14 +74,17 @@ committed.
 committed. Run them after `prismpm build` and `gateway/lay-out.sh`: the lock names the
 generated members.
 
-### The executables `prismpm verify` pins
+### `prismpm verify` runs in the locked SDK image
 
-`prismpm verify` runs only with the executables PrismPM's `tools.lock` names, by digest, and stops
-with PP5008 otherwise: the elan proxy (`lake`, `lean`) of elan v4.2.3, the rustup proxy
-(`rustc`, `rustfmt`) and the `timeout` of Debian's coreutils 9.1-1. The gateway job therefore
-sets `ELAN_VERSION` and `ELAN_SHA256` for itself to elan v4.2.3 (the other jobs keep v4.2.4), and
-`install_pinned_timeout` (`.github/lexlean-ci/lib.sh`) takes `timeout` out of the Debian package
-and checks its digest before the verify step. The runner's rustup (1.28.2) is the pinned proxy.
+`prismpm verify` takes its executables (`lake`, `lean`, `rustc`, `rustfmt`, `cargo`, `timeout`) from the
+signed inventory of the SDK it runs in, and stops with PP5008 on a bare runner, whose toolchain is
+not the pinned one (no pin is patched or relaxed). So step 7k runs it inside the image that
+`prismpm.lock` selects (`sdk_image`), as `bootstrap` runs `just vv`: the `prismpm` that
+`install_prismpm` built (PrismPM at `.github/prismpm.rev`, LexLean at MCP's pin) is mounted
+read-only and called by its path, which is not on the image's PATH, and the workspace is mounted at
+its own path, so the registry's directory source resolves inside the container. `prismpm build` and
+the rest of the job stay on the runner. PrismPM#342's stack leaves the pins of `tools.lock` and
+`verification.rs` as they are (no hunk of the stack touches an executable digest).
 
 ### The release step
 
