@@ -6,7 +6,6 @@
 \importmodule{OwnerValues}
 \title{LexLean MCP profiles and vocabulary}
 \begin{semanticmodule}
-
 definition{name: separator, parameters: [], result: Nat, body: 47}
 
 definition{
@@ -45,7 +44,12 @@ definition{
 
 definition{
   name: profileIdOf,
-  parameters: [roots : (List Bytes), files : (List (Bytes * Bytes)), reviews : (List Bytes), toolchain : Bytes],
+  parameters: [
+    roots : (List Bytes),
+    files : (List (Bytes * Bytes)),
+    reviews : (List Bytes),
+    toolchain : Bytes
+  ],
   result: Identity::Outcome,
   body: (Identity::profileId (profileFiles roots files) reviews toolchain),
   axioms: [Quot.sound, propext]
@@ -412,7 +416,9 @@ definition{
   name: refusedWith,
   parameters: [expected : String, check : PackageCheck],
   result: Bool,
-  body: (match check | PackageCheck.Admitted => false | PackageCheck.Refused code => (prim equal expected code : Bool))
+  body: (match check
+    | PackageCheck.Admitted => false
+    | PackageCheck.Refused code => (prim equal expected code : Bool))
 }
 
 definition{
@@ -457,7 +463,9 @@ definition{
   name: joinTexts,
   parameters: [left : (List String), right : (List String)],
   result: (List String),
-  body: (match left | List.nil => right | List.cons head rest => (cons head (joinTexts rest right))),
+  body: (match left
+    | List.nil => right
+    | List.cons head rest => (cons head (joinTexts rest right))),
   recursive_argument: left
 }
 
@@ -465,7 +473,9 @@ definition{
   name: joinEntries,
   parameters: [left : (List LexiconEntry), right : (List LexiconEntry)],
   result: (List LexiconEntry),
-  body: (match left | List.nil => right | List.cons head rest => (cons head (joinEntries rest right))),
+  body: (match left
+    | List.nil => right
+    | List.cons head rest => (cons head (joinEntries rest right))),
   recursive_argument: left
 }
 
