@@ -287,6 +287,7 @@ fn tool_equals_cli_on_every_registered_code_and_on_unregistered_strings_tl_12() 
     let mut registered = 0;
     let mut refused = 0;
     let mut changed: Vec<String> = Vec::new();
+    let mut differing = 0;
     let strings: Vec<(String, bool)> = codes
         .iter()
         .map(|code| (code.clone(), true))
@@ -347,12 +348,12 @@ fn tool_equals_cli_on_every_registered_code_and_on_unregistered_strings_tl_12() 
         } else {
             refused += 1;
         }
+        differing += usize::from(!found.is_empty());
         failures.extend(found.into_iter().map(|d| format!("{code:?}: {d}")));
     }
     assert!(
         failures.is_empty(),
-        "{} of {} runs differ from the CLI:\n{}",
-        failures.len(),
+        "{differing} of {} strings differ from the CLI:\n{}",
         strings.len(),
         failures.join("\n")
     );
