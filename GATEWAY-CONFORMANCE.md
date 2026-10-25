@@ -55,7 +55,7 @@ oracle's, decided from the per-scenario checks of the frozen requirements
 
 ## The run, per scenario
 
-Run of the gateway of this commit (`gateway-host serve`, the core of `gateway/generated`), spec
+Run of the gateway of this commit (`gateway-host serve`, the core of `gateway/generated`) through MCP's oracle at the pin 39a7d8e (the squash merge of MCP#40; its oracle and the run before it, at 59bfc29, gave the same table), spec
 2026-07-28, 106 HTTP exchanges. Required: 8 of 37 pass. Not scored: 1 of 13 passes, 1 is skipped by
 the suite. 40 scenarios fail and are exactly the list of `gateway/waiting.json`. The schema oracle
 validated every JSON-RPC message of the transcript: 211 messages, 88 refused probes, 1 transport
@@ -173,14 +173,14 @@ change was reverted. "Green" is the exit status of `server-suite.mjs`, which is 
 | planted: stale. A scenario that passes is listed as waiting | `gateway/waiting.json` with `tools-list` added | `server-suite.mjs --waiting <it>`: exit 1 | `named as waiting but not failing (1): tools-list`, then `the failing scenarios are not the ones .../waiting.json names` |
 | planted: unlisted. A failing scenario is not listed | `gateway/waiting.json` without `caching` | exit 1 | `FAILING and not named in waiting.json (1): caching`, then the suite's check messages (`caching: sep-2549-prompts-list-caching-hints: prompts/list returned JSON-RPC error -32601: Method not found`, ...) |
 | planted: unnamed. An entry names neither an issue nor a pull request | `caching` with only a reason | exit 1 | `named as waiting without an issue or a pull request (1): caching` |
-| planted: served (not caught). An extra origin the suite does not probe | the `origins` of the declaration (`gateway/vectors/generate.py`, rendered into `gateway/src/Application.lex.tex`) with `evil.example` added; `prismpm build`, `gateway-host` rebuilt | exit 0, scenarios unchanged | the suite probes one foreign host, `evil.example.com`, so a wider allow-list that does not contain it passes. The origin allow-list is the declaration's, and this suite does not hold it beyond that one probe |
-| planted: served. The origin allow-list admits the host the suite probes | as above with `evil.example.com` | SERVED_RUN | SERVED_DIAGNOSTIC |
+| planted: served (not caught). The adapter's origin allow-list admits a foreign host | the `origins` of the declaration (`gateway/vectors/generate.py`, rendered into `gateway/src/Application.lex.tex`) with `evil.example`, then with `evil.example.com` (the host the suite probes) added; `prismpm build`, `gateway-host` rebuilt | exit 0, the scenarios unchanged | not caught, and by design of the core: the core refuses the foreign `Origin` itself (`curl` with `Host` and `Origin` of `evil.example.com` against the rebuilt host: `403`, `{"jsonrpc":"2.0","error":{"code":-32000,"message":"Forbidden: invalid Origin"}}`), so the adapter's list is a second check that this suite cannot see. The declaration's `origins` are held by the declaration and the replay of the vectors, not by this suite |
+| planted: served. The `tools/list` answer carries a tool whose name is not a valid tool name | `gateway/src/GatewayTools.lex.tex`: the catalogue entry `lexlean_check` renamed `lexlean check`; `prismpm build`, `gateway-host` rebuilt | `server-suite.mjs --waiting gateway/waiting.json`: exit 1 | `FAILING and not named in waiting.json (3): tools-list, server-sse-multiple-streams, http-header-validation`, then `tools-list: tools-list: Failed: Internal error` |
 | the same tests as automation | `cargo test -p repo-model --test gateway_conformance -- --ignored` (step 7m) | the verdict of MCP's `verdict.mjs`, run over synthetic results derived from the real list | the stale, delivered, unlisted and unnamed cases are each refused, and the exact case is accepted |
 
-An earlier defect of the same family, a core that no longer equals the committed export, is
-rejected before the suite runs, by step 7f (`gateway/generated` against the laid-out core); the
-declaration's `origins` are part of what that comparison reads, so the served defect above is
-first rejected there in the job, and by the suite when step 7f is passed over.
+A change to the core or to the declaration is rejected earlier in the job, by step 7f: the core
+that `prismpm build` exports no longer equals `gateway/generated/lexlean_mcp_gateway_core`
+(`diff -r`, observed for each of the three plants above). The suite is the gate for what the job
+cannot read from the sources: the bytes the running gateway serves.
 
 ## Not claimed
 
