@@ -40,16 +40,22 @@ annotate() {
 # When it passes, emit a notice of its last line and its duration, so a run that
 # executed nothing cannot look like a run that passed. COMMAND runs in a
 # subshell, so it passes anything to later steps through $GITHUB_PATH or
-# $GITHUB_OUTPUT.
+# $GITHUB_OUTPUT. COMMAND runs with errexit on, so a failing command inside a
+# helper function fails the gate, and the caller's errexit is restored after it,
+# so a failed gate in a step of several gates fails the step
+# (.github/lexlean-ci/test-gate.sh).
 gate() {
-  local label=$1 log status restore started=$SECONDS
+  local label=$1 log status had_errexit=0 started=$SECONDS
   shift
   log=$(mktemp "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/gate.XXXXXX")
-  restore=$(set +o)
+  [[ $- == *e* ]] && had_errexit=1
   set +e
-  "$@" 2>&1 | tee "$log"
+  (
+    set -e
+    "$@"
+  ) 2>&1 | tee "$log"
   status=${PIPESTATUS[0]}
-  eval "$restore"
+  ((had_errexit)) && set -e
   if ((status != 0)); then
     annotate error "$label failed (exit $status)" "$GATE_TAIL_LINES" "$log"
   else
