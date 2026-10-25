@@ -40,16 +40,22 @@ annotate() {
 # When it passes, emit a notice of its last line and its duration, so a run that
 # executed nothing cannot look like a run that passed. COMMAND runs in a
 # subshell, so it passes anything to later steps through $GITHUB_PATH or
-# $GITHUB_OUTPUT.
+# $GITHUB_OUTPUT. COMMAND runs with errexit on, so a failing command inside a
+# helper function fails the gate, and the caller's errexit is restored after it,
+# so a failed gate in a step of several gates fails the step
+# (.github/lexlean-ci/test-gate.sh).
 gate() {
-  local label=$1 log status restore started=$SECONDS
+  local label=$1 log status had_errexit=0 started=$SECONDS
   shift
   log=$(mktemp "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/gate.XXXXXX")
-  restore=$(set +o)
+  [[ $- == *e* ]] && had_errexit=1
   set +e
-  "$@" 2>&1 | tee "$log"
+  (
+    set -e
+    "$@"
+  ) 2>&1 | tee "$log"
   status=${PIPESTATUS[0]}
-  eval "$restore"
+  ((had_errexit)) && set -e
   if ((status != 0)); then
     annotate error "$label failed (exit $status)" "$GATE_TAIL_LINES" "$log"
   else
@@ -59,9 +65,11 @@ gate() {
   return "$status"
 }
 
-# lexlean_rev: the revision .github/lexlean.rev names, or an error.
+# lexlean_rev: the revision .github/lexlean.rev names, or an error. The gateway job sets
+# LEXLEAN_REV_FILE to gateway/mcp/lexlean.rev: the gateway is compiled by the LexLean commit
+# that MCP names at .github/mcp.rev (AC-03 a), not by the root project's.
 lexlean_rev() {
-  local file=.github/lexlean.rev matches
+  local file=${LEXLEAN_REV_FILE:-.github/lexlean.rev} matches
   matches=$(grep -c '^rev = ' "$file") || true
   if [[ $matches != 1 ]]; then
     echo "$file must hold exactly one 'rev = ' line, found $matches" >&2
@@ -235,4 +243,390 @@ export_matches() {
     fi
   done <<<"$exported"
   return "$status"
+}
+
+# prismpm_rev: the revision .github/prismpm.rev names, or an error.
+prismpm_rev() {
+  local file=.github/prismpm.rev matches rev
+  matches=$(grep -c '^rev = ' "$file") || true
+  if [[ $matches != 1 ]]; then
+    echo "$file must hold exactly one 'rev = ' line, found $matches" >&2
+    return 1
+  fi
+  rev=$(sed -n 's/^rev = \([0-9a-f]\{40\}\)$/\1/p' "$file")
+  if [[ -z $rev ]]; then
+    echo "$file: rev must be a 40-digit lowercase commit hash" >&2
+    return 1
+  fi
+  printf '%s\n' "$rev"
+}
+
+# The root the workflow caches the SDK binary in.
+PRISMPM_ROOT=${PRISMPM_ROOT:-$HOME/.prismpm-bin}
+
+# output_prismpm_pin: the pinned PrismPM revision as the step output `rev` and the
+# LexLean revision it is built with as `lexlean`, the key of the cache that holds the
+# binary built from them.
+output_prismpm_pin() {
+  local rev lexlean
+  rev=$(prismpm_rev)
+  lexlean=$(lexlean_rev)
+  echo "rev=$rev" >>"${GITHUB_OUTPUT:?}"
+  echo "lexlean=$lexlean" >>"${GITHUB_OUTPUT:?}"
+}
+
+# fetch_rev URL REV DEST: the tree of exactly commit REV of URL in DEST.
+fetch_rev() {
+  local url=$1 rev=$2 dest=$3
+  git init -q "$dest"
+  git -C "$dest" remote add origin "$url"
+  git -C "$dest" fetch -q --depth 1 origin "$rev"
+  git -C "$dest" checkout -q FETCH_HEAD
+  test "$(git -C "$dest" rev-parse HEAD)" = "$rev"
+}
+
+# prismpm_installed_at REV LEXLEAN: the record `install_prismpm` wrote says
+# $PRISMPM_ROOT was built from exactly these two revisions, so a cache restored for
+# another key cannot pass.
+prismpm_installed_at() {
+  test -x "$PRISMPM_ROOT/bin/prismpm" &&
+    test "$(cat "$PRISMPM_ROOT/pins" 2>/dev/null)" == "$(printf 'prismpm %s\nlexlean %s' "$1" "$2")"
+}
+
+# install_prismpm: `prismpm` at the pinned PrismPM revision, built with the LexLean
+# revision of .github/lexlean.rev in place of the LexLean it vendors, unless
+# $PRISMPM_ROOT already holds exactly that pair. One pin drives both tools (R1): the
+# compiler that certifies the core is the compiler lexlean.lock was made with.
+#
+# Nothing in PrismPM changes. The build is a copy of the PrismPM tree at the revision
+# whose vendor/lexlean is the package `cargo package` makes of the LexLean tree at
+# the revision, so Cargo.lock is the one PrismPM committed (--locked). The profile is
+# debug: PrismPM's release profile (thin LTO, one codegen unit) is killed for memory
+# on the 7 GB runners and on the machines this was developed on, and `prismpm build`
+# spends its time in the LexLean checker, which the profile of the binary does not
+# change.
+install_prismpm() {
+  local rev lexlean scratch
+  rev=$(prismpm_rev)
+  lexlean=$(lexlean_rev)
+  if ! prismpm_installed_at "$rev" "$lexlean"; then
+    rm -rf "$PRISMPM_ROOT"
+    scratch=$(mktemp -d)
+    fetch_rev https://github.com/UOR-Foundation/LexLean "$lexlean" "$scratch/lexlean"
+    fetch_rev https://github.com/UOR-Foundation/PrismPM "$rev" "$scratch/prismpm"
+    (cd "$scratch/lexlean" && cargo package -p lexlean --no-verify --allow-dirty)
+    tar -xzf "$scratch"/lexlean/target/package/lexlean-*.crate -C "$scratch"
+    rm -rf "$scratch/prismpm/vendor/lexlean"
+    mv "$scratch"/lexlean-*/ "$scratch/prismpm/vendor/lexlean"
+    (cd "$scratch/prismpm" && cargo install --path crates/prismpm --locked --debug --root "$PRISMPM_ROOT")
+    printf 'prismpm %s\nlexlean %s' "$rev" "$lexlean" >"$PRISMPM_ROOT/pins"
+    rm -rf "$scratch"
+  fi
+  prismpm_installed_at "$rev" "$lexlean"
+  echo "$PRISMPM_ROOT/bin" >>"${GITHUB_PATH:-/dev/null}"
+  "$PRISMPM_ROOT/bin/prismpm" --version
+}
+
+# sdk_copies_agree: the files the gateway copies from the PrismPM standard library and
+# lexicon, `Foundation.Bytes` and `Foundation.Server.V1.Model`, are byte for byte the ones at
+# the pinned revision, and so is the whole `prism.arch` lexicon package that
+# gateway/lay-out-sdk.sh laid out from it (no subset is kept).
+sdk_copies_agree() {
+  local rev scratch status=0 file
+  rev=$(prismpm_rev)
+  scratch=$(mktemp -d)
+  git -C "$scratch" init -q
+  git -C "$scratch" remote add origin https://github.com/UOR-Foundation/PrismPM
+  git -C "$scratch" sparse-checkout set stdlib/src/Foundation language/prism.arch
+  git -C "$scratch" fetch -q --depth 1 --filter=blob:none origin "$rev"
+  git -C "$scratch" checkout -q FETCH_HEAD
+  for file in gateway/src/Foundation/Bytes.lex.tex gateway/src/Foundation/Server/V1/Model.lex.tex; do
+    if cmp -s "$file" "$scratch/stdlib/src/${file#gateway/src/}"; then
+      echo "$file equals the standard library's"
+    else
+      echo "$file differs from stdlib/src/${file#gateway/src/} at $rev" >&2
+      status=1
+    fi
+  done
+  if diff -rq gateway/language/prism.arch "$scratch/language/prism.arch"; then
+    echo "gateway/language/prism.arch equals the SDK's"
+  else
+    echo "gateway/language/prism.arch differs from the SDK's at $rev" >&2
+    status=1
+  fi
+  rm -rf "$scratch"
+  return "$status"
+}
+
+# gateway_registry: assemble the local registry of the gateway workspace from the pins
+# (gateway/registry.sh) and publish the CARGO_HOME that replaces crates-io with it as the
+# step output `cargo_home`.
+gateway_registry() {
+  local log
+  log=$(mktemp "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/registry.XXXXXX")
+  bash gateway/registry.sh | tee "$log"
+  echo "cargo_home=$PWD/gateway/registry/cargo-home" >>"${GITHUB_OUTPUT:-/dev/null}"
+  rm -f "$log"
+}
+
+# ---- the gateway job -----------------------------------------------------------------
+# gateway/ is its own Cargo workspace, built against the registry that gateway/registry.sh
+# assembles from the pins (CI.md, "The gateway job"). Every function below runs from the
+# root of the repository and leaves it there.
+
+# The CARGO_HOME of the gateway workspace: a directory source in place of crates-io.
+gateway_cargo_home() {
+  printf '%s\n' "$PWD/gateway/registry/cargo-home"
+}
+
+# gateway_lexlean ARGS...: `lexlean` in the gateway project.
+gateway_lexlean() {
+  (cd gateway && lexlean --color never "$@")
+}
+
+# gateway_fmt_check: every module of gateway/src that is the repository's own is canonical.
+# `lexlean fmt --check` checks the whole closure, and the copies of PrismPM's standard
+# library under gateway/src/Foundation are PrismPM's bytes (sdk_copies_agree holds them to
+# the pin), which its formatter writes a little differently from the pinned LexLean's. So
+# the project is formatted in a scratch copy and each module that is not a copy is compared.
+gateway_fmt_check() {
+  local scratch status=0 file
+  scratch=$(mktemp -d)
+  cp -r gateway/. "$scratch/"
+  rm -rf "$scratch/registry" "$scratch/.lexlean" "$scratch/.prism"
+  (cd "$scratch" && lexlean --color never fmt)
+  while IFS= read -r file; do
+    if cmp -s "gateway/$file" "$scratch/$file"; then
+      echo "gateway/$file is canonical"
+    else
+      echo "gateway/$file is not canonical; run lexlean fmt in gateway/ and restore src/Foundation" >&2
+      status=1
+    fi
+  done < <(cd gateway && find src -name '*.lex.tex' -not -path 'src/Foundation/*' | sort)
+  rm -rf "$scratch"
+  return "$status"
+}
+
+# gateway_cargo ARGS...: `cargo` in the gateway workspace, offline, against the registry.
+gateway_cargo() {
+  (cd gateway && CARGO_HOME=$(cd .. && gateway_cargo_home) cargo "$@")
+}
+
+# gateway_build: `prismpm build` in the gateway project, then lay the generated packages out
+# and require the core to be the committed export, byte for byte, in both directions.
+gateway_build() {
+  local output id
+  output=$(cd gateway && prismpm build) || { printf '%s\n' "$output"; return 1; }
+  printf '%s\n' "$output"
+  id=$(printf '%s\n' "$output" | sed -n 's/^build published: \([0-9a-f]\{64\}\)$/\1/p')
+  if [[ -z $id ]]; then
+    echo "prismpm build did not print 'build published: <id>'" >&2
+    return 1
+  fi
+  gateway/lay-out.sh "gateway/.prism/build/$id"
+  if diff -r gateway/lexlean_mcp_gateway_core gateway/generated/lexlean_mcp_gateway_core; then
+    echo "gateway/generated/lexlean_mcp_gateway_core is the export of the sources"
+  else
+    echo "gateway/generated/lexlean_mcp_gateway_core differs from the export of the sources" >&2
+    return 1
+  fi
+}
+
+# gateway_ignored_tests PACKAGE EXPECTED: run the ignored tests of PACKAGE and require that
+# exactly EXPECTED of them ran and passed (an ignored test that is filtered out proves nothing).
+gateway_ignored_tests() {
+  local package=$1 expected=$2 log
+  log=$(mktemp)
+  gateway_cargo test -p "$package" --locked --offline -- --ignored 2>&1 | tee "$log"
+  local passed
+  passed=$(sed -n 's/^test result: ok\. \([0-9]*\) passed.*/\1/p' "$log" | paste -sd+ | bc)
+  rm -f "$log"
+  if [[ ${passed:-0} != "$expected" ]]; then
+    echo "$package: $passed ignored tests passed, expected $expected" >&2
+    return 1
+  fi
+}
+
+# gateway_verify: `prismpm verify` in the gateway project, on a store that starts empty.
+# gateway_verify: `prismpm verify` of the gateway, run inside the locked SDK image (the
+# `sdk_image` digest of prismpm.lock), as bootstrap.yml runs `just vv`. `prismpm verify` takes
+# its executables (lake, lean, rustc, rustfmt, cargo, timeout) from the SDK's signed inventory
+# when it runs there, and stops with PP5008 on a bare runner, whose toolchain is not the pinned
+# one. The binary that runs is the one install_prismpm built (PrismPM at .github/prismpm.rev with
+# LexLean at MCP's pin), mounted read-only and called by its path, which is not on the SDK's
+# PATH; the workspace is mounted at the same path, so the registry's directory source
+# (gateway/registry/cargo-home/config.toml) resolves inside the container.
+gateway_verify() {
+  local image store work
+  image=$(sed -n 's/.*"sdk_image":"\([^"]*\)".*/\1/p' prismpm.lock)
+  if [[ ! $image =~ ^[a-z0-9.-]+(:[0-9]{1,5})?/[a-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]]; then
+    echo "prismpm.lock does not select an immutable SDK image" >&2
+    return 64
+  fi
+  store=$(mktemp -d)
+  work=$(mktemp -d)
+  docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    --volume "$PWD:$PWD" \
+    --volume "$PRISMPM_ROOT:$PRISMPM_ROOT:ro" \
+    --volume "$store:$store" \
+    --volume "$work:$work" \
+    --workdir "$PWD/gateway" \
+    --env HOME="$work" \
+    --env TMPDIR="$work" \
+    --env CARGO_HOME="$PWD/gateway/registry/cargo-home" \
+    --env CARGO_NET_OFFLINE=true \
+    --env LEXLEAN_MCP_STORE="$store" \
+    "$image" "$PRISMPM_ROOT/bin/prismpm" verify
+}
+
+# ---- the conformance run of the gateway (AC-03 b, GW-12) -----------------------------
+# The gateway is held to the server suite that UOR-Foundation/MCP pins, with MCP's own
+# oracle: the checkout of MCP at .github/mcp.rev (the commit gateway/lay-out-mcp.sh lays the
+# sources out from) supplies conformance/oracle and the specification schema, and nothing of
+# it is copied here. The verdict is the oracle's: the job passes only when the failing
+# scenarios are exactly the ones gateway/waiting.json names.
+
+# The directory the conformance run keeps its checkout, the suite and its reports in.
+gateway_conformance_dir() {
+  printf '%s\n' "${GATEWAY_CONFORMANCE_DIR:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}/gateway-conformance}"
+}
+
+# gateway_conformance_checkout: the MCP checkout at the pin, fetched once and refused
+# unless its HEAD is the commit .github/mcp.rev names. Prints its path.
+gateway_conformance_checkout() {
+  local dir rev head
+  dir=$(gateway_conformance_dir)/mcp
+  rev=$(sed -n 's/^rev = \([0-9a-f]\{40\}\)$/\1/p' .github/mcp.rev)
+  if [[ -z $rev ]]; then
+    echo ".github/mcp.rev has no 40-digit rev" >&2
+    return 1
+  fi
+  if [[ ! -d $dir/.git ]]; then
+    fetch_rev https://github.com/UOR-Foundation/MCP "$rev" "$dir" >&2
+  fi
+  head=$(git -C "$dir" rev-parse HEAD)
+  if [[ $head != "$rev" ]]; then
+    echo "the MCP checkout $dir is at $head, the pin is $rev" >&2
+    return 1
+  fi
+  for oracle in server-suite.mjs schema-oracle.mjs verdict.mjs recorder.mjs fetch-suite.sh; do
+    test -f "$dir/conformance/oracle/$oracle" || { echo "MCP at $rev has no conformance/oracle/$oracle" >&2; return 1; }
+  done
+  printf '%s\n' "$dir"
+}
+
+# gateway_conformance_install: the checkout and the pinned suite, installed by MCP's own
+# fetch-suite.sh (the exact commit, `npm ci`). MCP_CONFORMANCE_SUITE_ROOT and
+# GATEWAY_MCP_CHECKOUT name them for later steps.
+gateway_conformance_install() {
+  local mcp suite
+  mcp=$(gateway_conformance_checkout)
+  suite=$(gateway_conformance_dir)/suite
+  if [[ ! -f $suite/dist/index.js ]]; then
+    rm -rf "$suite"
+    bash "$mcp/conformance/oracle/fetch-suite.sh" "$suite"
+  fi
+  {
+    echo "MCP_CONFORMANCE_SUITE_ROOT=$suite"
+    echo "GATEWAY_MCP_CHECKOUT=$mcp"
+  } >>"${GITHUB_ENV:-/dev/null}"
+}
+
+# gateway_conformance_build: the served program. `gateway-host` is the generated host of
+# `prismpm build` (gateway/lay-out.sh) linked with the binding, built in the gateway
+# workspace against the registry.
+gateway_conformance_build() {
+  gateway_cargo build --release --locked --offline -p gateway-host
+  test -x gateway/target/release/gateway-host
+}
+
+# gateway_conformance_suite: MCP's server-suite.mjs over the served gateway, with the
+# gateway's waiting list. Exit 1 while the failing scenarios are not exactly the list; the
+# last lines name the scenarios and the issue each waits on.
+gateway_conformance_suite() {
+  local mcp out
+  mcp=$(gateway_conformance_checkout)
+  out=$(gateway_conformance_dir)/out
+  mkdir -p "$out"
+  node "$mcp/conformance/oracle/server-suite.mjs" \
+    --suite-root "${MCP_CONFORMANCE_SUITE_ROOT:?the installed suite (gateway_conformance_install)}" \
+    --out "$out" --waiting gateway/waiting.json \
+    "$PWD/gateway/target/release/gateway-host" serve
+}
+
+# gateway_conformance_schema: every message of the recorded transcript against the
+# 2026-07-28 schema MCP vendors at the pin.
+gateway_conformance_schema() {
+  local mcp schema
+  mcp=$(gateway_conformance_checkout)
+  schema=$(ls "$mcp"/crates/lifecycle-oracle/suite/mcp-spec-*/schema/2026-07-28/schema.json)
+  node "$mcp/conformance/oracle/schema-oracle.mjs" \
+    --suite-root "${MCP_CONFORMANCE_SUITE_ROOT:?the installed suite (gateway_conformance_install)}" \
+    "$schema" "$(gateway_conformance_dir)/out/transcript.json"
+}
+
+# gateway_conformance_summary: the per-scenario table of the run, to the step summary and
+# the log. A waiting scenario is a failure here, as in the oracle's report.
+gateway_conformance_summary() {
+  local report
+  report="$(gateway_conformance_dir)/out/report.json"
+  test -f "$report" || { echo "no report: the suite did not run" >&2; return 1; }
+  node -e '
+    const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    const lines = ["| kind | scenario | status | checks passed | other |", "|---|---|---|---|---|"];
+    for (const s of r.scenarios) lines.push(`| ${s.kind} | ${s.scenario} | ${s.status} | ${s.passed}/${s.checks} | ${Object.entries(s.other).map(([k, v]) => k + " " + v).join(", ")} |`);
+    lines.push("", `required ${r.required.passing}/${r.required.scenarios} pass, not scored ${r.not_scored.passing}/${r.not_scored.scenarios} pass`);
+    lines.push("", `${r.failing.length} scenarios FAIL (valid: ${r.valid}); the job gate, failing = gateway/waiting.json exactly: ${r.matches_waiting}. Waiting scenarios are failures, never passes.`);
+    for (const [label, names] of [["failing and not named in waiting.json", r.unexplained], ["named as waiting but not failing", r.stale_waiting], ["skipped by the suite, not passing", r.skipped_by_the_suite]]) if (names.length) lines.push("", `${label}: ${names.join(", ")}`);
+    for (const [label, names] of Object.entries(r.waits)) lines.push("", `${label}: ${names.join(", ")}`);
+    console.log(lines.join("\n"));
+  ' "$report" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
+}
+
+# gateway_conformance_ignored: the tests of crates/model/tests/gateway_conformance.rs that
+# need node and the installed suite. The workspace gate (`cargo test --workspace`, and
+# `just vv` in the locked SDK image, which has neither) ignores them; this runs exactly
+# those with --ignored and is green only when as many passed as the source ignores, so a run
+# that selected none or skipped some is not green (the pattern of MCP's run_oracle_tests).
+gateway_conformance_ignored() {
+  local file=crates/model/tests/gateway_conformance.rs log expected passed status=0
+  : "${MCP_CONFORMANCE_SUITE_ROOT:?the installed suite (gateway_conformance_install)}"
+  : "${GATEWAY_MCP_CHECKOUT:?the MCP checkout at the pin (gateway_conformance_install)}"
+  expected=$(grep -c '^#\[ignore' "$file" || true)
+  if ((expected == 0)); then
+    echo "$file ignores no test; the oracle tests are not where the job expects them" >&2
+    return 1
+  fi
+  log=$(mktemp)
+  cargo test --locked -p repo-model --test gateway_conformance -- --ignored >"$log" 2>&1 || status=$?
+  cat "$log"
+  if ((status != 0)); then
+    rm -f "$log"
+    return "$status"
+  fi
+  passed=$(sed -n 's/^test result: ok\. \([0-9][0-9]*\) passed; 0 failed.*/\1/p' "$log")
+  rm -f "$log"
+  if [[ $passed != "$expected" ]]; then
+    echo "${passed:-0} passed of the ignored tests, expected $expected" >&2
+    return 1
+  fi
+  echo "the $expected ignored gateway conformance tests ran and passed"
+}
+
+# check_node: the node on the runner satisfies the engines of the pinned conformance suite
+# (^20.19.0 || >=22.12.0), which also runs MCP's oracle scripts.
+check_node() {
+  local version major minor
+  version=$(node --version)
+  version=${version#v}
+  major=${version%%.*}
+  minor=${version#*.}
+  minor=${minor%%.*}
+  echo "node $version"
+  if ((major > 22 || (major == 22 && minor >= 12) || (major == 20 && minor >= 19))); then
+    return 0
+  fi
+  echo "node $version does not satisfy ^20.19.0 || >=22.12.0" >&2
+  return 1
 }

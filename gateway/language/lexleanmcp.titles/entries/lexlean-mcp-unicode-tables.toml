@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-unicode-tables"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "NfcTables"
+component = "combiningClass"
+
+[[form]]
+id = "lexlean-mcp-unicode-tables"
+channel = "text"
+surface = "LexLean MCP Unicode tables"
+canonical_source = true
+features = ["sentence-case", "singular"]

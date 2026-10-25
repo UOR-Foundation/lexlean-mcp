@@ -45,6 +45,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: The gate helper fails a step on any failed command
+        run: .github/lexlean-ci/test-gate.sh
       - name: Read the pinned LexLean revision
         id: pin
         run: |
@@ -239,3 +241,150 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "export of $REQUEST" export_matches "$REQUEST"
+
+  gateway:
+    name: gateway / prismpm build and verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - name: Check out the exact event revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The MCP sources at the pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/lay-out-mcp.sh" gateway/lay-out-mcp.sh
+      - name: The PrismPM lexicon at the pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/lay-out-sdk.sh" gateway/lay-out-sdk.sh
+      - name: The gateway is compiled by the LexLean commit MCP names at the pin
+        run: echo "LEXLEAN_REV_FILE=gateway/mcp/lexlean.rev" >>"$GITHUB_ENV"
+      - name: Read the pinned LexLean revision
+        id: pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "read the LexLean pin" output_pin
+      - name: Read the pinned PrismPM revision
+        id: sdk
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "read the PrismPM pin" output_prismpm_pin
+      - name: Install the pinned Rust toolchain
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install Rust" install_rust
+      - name: Restore lexlean built at the pinned revision
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.lexlean-bin
+          key: lexlean-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.rev }}
+      - name: Install lexlean at the pinned revision
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install lexlean" install_lexlean
+      - name: Restore prismpm built at the pinned revisions
+        id: prismpm-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.prismpm-bin
+          key: prismpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.sdk.outputs.rev }}-${{ steps.sdk.outputs.lexlean }}
+      - name: Install prismpm at the pinned revisions
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install prismpm" install_prismpm
+      - name: Save prismpm built at the pinned revisions
+        if: steps.prismpm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.prismpm-bin
+          key: prismpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.sdk.outputs.rev }}-${{ steps.sdk.outputs.lexlean }}
+      - name: Restore the Lean toolchain
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.elan/toolchains
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ env.ELAN_VERSION }}-${{ hashFiles('lean-toolchain') }}
+      - name: Install elan
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install elan" install_elan
+      - name: Install the Lean toolchain
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install Lean" install_lean
+      - name: 7a. AC-03 (a) the laid-out modules and the compiler are the pin's
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/mcp-identities.sh" gateway/mcp-identities.sh
+      - name: 7c. the laid-out lexicon and the copies of the PrismPM standard library
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "the SDK copies agree" sdk_copies_agree
+      - name: 7d. lexlean fmt --check, lock --check, check, verify
+        run: |
+          . .github/lexlean-ci/lib.sh
+          # `gate` leaves errexit off, so the gates of a step are chained.
+          gate "gateway modules are canonical" gateway_fmt_check &&
+            gate "gateway lexlean lock --check" gateway_lexlean lock --check &&
+            gate "gateway lexlean check" gateway_lexlean check &&
+            gate "gateway lexlean verify" gateway_lexlean verify
+      - name: 7e. the registry from the pins
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/registry.sh" gateway/registry.sh
+      - name: 7f. prismpm build, then the core is the committed export
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "prismpm build" gateway_build
+      - name: 7g. the binding compiles, is formatted and passes clippy
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway cargo fmt" gateway_cargo fmt -p gateway-binding -p gateway-vectors -- --check &&
+            gate "gateway cargo clippy" gateway_cargo clippy -p gateway-binding -p gateway-vectors --all-targets --no-deps --locked --offline -- -D warnings
+      - name: 7h. the binding tests
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway-binding tests" gateway_cargo test -p gateway-binding --locked --offline &&
+            gate "gateway-binding ignored tests" gateway_ignored_tests gateway-binding 1
+      - name: 7i. the generated host source names no tool or method (Q6)
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "repo-model gateway, ignored" cargo test -p repo-model --test gateway --locked -- --ignored
+      - name: 7j. the declaration is the rendering of the vectors
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/vectors/generate.py check" python3 -I gateway/vectors/generate.py check
+      - name: 7k. gateway-host, the served program, is built in the gateway workspace
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "cargo build --release -p gateway-host" gateway_conformance_build
+      - name: 7l. node, MCP at the pin and the pinned conformance suite (AC-03 b)
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "node version" check_node &&
+            gate "install MCP's conformance suite" gateway_conformance_install
+      - name: 7m. the tests that need node and the suite, run with --ignored and a count check
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway conformance tests (cargo test -- --ignored)" gateway_conformance_ignored
+      - name: 7n. MCP's server suite over the served gateway; the failing scenarios are gateway/waiting.json
+        id: suite
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "server suite" gateway_conformance_suite
+      - name: 7o. MCP's schema oracle over the recorded transcript
+        if: always() && steps.suite.outcome != 'skipped'
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "schema oracle" gateway_conformance_schema
+      - name: 7p. the per-scenario table
+        if: always() && steps.suite.outcome != 'skipped'
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "scenario table" gateway_conformance_summary
+      - name: 7q. prismpm verify, in the locked SDK image
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "prismpm verify in the locked SDK image" gateway_verify

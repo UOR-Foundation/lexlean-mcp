@@ -1,0 +1,170 @@
+{
+  "spec": "2026-07-28",
+  "waiting": {
+    "caching": {
+      "issue": 45,
+      "reason": "4 of 8 checks pass (the tools/list caching hints); the other three call prompts/list, resources/list and resources/templates/list, which the gateway answers with Method not found because it declares neither the prompts nor the resources capability; #8 adds resources/templates/list, nothing offers prompts, and the resources-read check needs a listed resource (decision recorded in #45: declaring empty capabilities to pass was not done)"
+    },
+    "completion-complete": {
+      "issue": 45,
+      "reason": "the scenario completes an argument of the fixture prompt `test_prompt_with_arguments` (ref/prompt); the gateway declares no completions capability and offers no prompts, and #8's completion of the `profile` and `package` arguments of its resource template is another ref, so it does not make this scenario pass (decision recorded in #45)"
+    },
+    "http-custom-header-server-validation": {
+      "issue": 45,
+      "reason": "the scenario needs a tool whose input schema carries an x-mcp-header annotation; none of the gateway's ten tools has one, and the annotation is optional (Tool.inputSchema: \"Property schemas may carry an `x-mcp-header` annotation\"); annotating a real argument is a product decision recorded in #45"
+    },
+    "input-required-result-basic-elicitation": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_input_required_result_elicitation`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45); no tool of this product asks the client for input, and InputRequiredResult is sent only \"to indicate that additional input is needed before the request can be completed\""
+    },
+    "input-required-result-basic-list-roots": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_input_required_result_list_roots`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45); no tool of this product asks the client for input, and InputRequiredResult is sent only \"to indicate that additional input is needed before the request can be completed\""
+    },
+    "input-required-result-basic-sampling": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_input_required_result_sampling`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45); no tool of this product asks the client for input, and InputRequiredResult is sent only \"to indicate that additional input is needed before the request can be completed\""
+    },
+    "input-required-result-capability-check": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_input_required_result_capabilities`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45); no tool of this product asks the client for input, and InputRequiredResult is sent only \"to indicate that additional input is needed before the request can be completed\""
+    },
+    "input-required-result-multi-round": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_input_required_result_multi_round`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45); no tool of this product asks the client for input, and InputRequiredResult is sent only \"to indicate that additional input is needed before the request can be completed\""
+    },
+    "input-required-result-multiple-input-requests": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_input_required_result_multiple_inputs`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45); no tool of this product asks the client for input, and InputRequiredResult is sent only \"to indicate that additional input is needed before the request can be completed\""
+    },
+    "input-required-result-non-tool-request": {
+      "issue": 45,
+      "reason": "the scenario asks for the fixture prompt `test_input_required_result_prompt` with prompts/get; the gateway offers no prompts (ServerCapabilities.prompts: \"Present if the server offers any prompt templates.\") and answers Method not found (decision recorded in #45)"
+    },
+    "input-required-result-request-state": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_input_required_result_request_state`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45); no tool of this product asks the client for input, and InputRequiredResult is sent only \"to indicate that additional input is needed before the request can be completed\""
+    },
+    "input-required-result-result-type": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_input_required_result_elicitation`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45); no tool of this product asks the client for input, and InputRequiredResult is sent only \"to indicate that additional input is needed before the request can be completed\""
+    },
+    "input-required-result-tampered-state": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_input_required_result_tampered_state`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45); no tool of this product asks the client for input, and InputRequiredResult is sent only \"to indicate that additional input is needed before the request can be completed\""
+    },
+    "json-schema-2020-12": {
+      "issue": 45,
+      "reason": "the scenario looks for the fixture tool `json_schema_2020_12_tool` in tools/list, which the gateway's catalogue does not have (decision recorded in #45); the schemas of the gateway's own tools are held to the specification schema by the schema oracle"
+    },
+    "prompts-get-embedded-resource": {
+      "issue": 45,
+      "reason": "the scenario lists or gets the fixture's prompts; no issue of this product offers prompt templates, so the gateway does not declare the prompts capability (\"Present if the server offers any prompt templates.\") and answers Method not found (decision recorded in #45)"
+    },
+    "prompts-get-simple": {
+      "issue": 45,
+      "reason": "the scenario lists or gets the fixture's prompts; no issue of this product offers prompt templates, so the gateway does not declare the prompts capability (\"Present if the server offers any prompt templates.\") and answers Method not found (decision recorded in #45)"
+    },
+    "prompts-get-with-args": {
+      "issue": 45,
+      "reason": "the scenario lists or gets the fixture's prompts; no issue of this product offers prompt templates, so the gateway does not declare the prompts capability (\"Present if the server offers any prompt templates.\") and answers Method not found (decision recorded in #45)"
+    },
+    "prompts-get-with-image": {
+      "issue": 45,
+      "reason": "the scenario lists or gets the fixture's prompts; no issue of this product offers prompt templates, so the gateway does not declare the prompts capability (\"Present if the server offers any prompt templates.\") and answers Method not found (decision recorded in #45)"
+    },
+    "prompts-list": {
+      "issue": 45,
+      "reason": "the scenario lists or gets the fixture's prompts; no issue of this product offers prompt templates, so the gateway does not declare the prompts capability (\"Present if the server offers any prompt templates.\") and answers Method not found (decision recorded in #45)"
+    },
+    "resources-list": {
+      "issue": 45,
+      "reason": "the scenario reads the fixture's resources; the gateway offers no resources today, and the resource template that #8 adds is lexlean://profiles/{profile}/lexicon/{package}@{version}, not the fixture's, so #8 does not make this scenario pass (ServerCapabilities.resources: \"Present if the server offers any resources to read.\"; decision recorded in #45)"
+    },
+    "resources-read-binary": {
+      "issue": 45,
+      "reason": "the scenario reads the fixture resource `test://static-binary`; the gateway offers no resources today, and the resource template that #8 adds is lexlean://profiles/{profile}/lexicon/{package}@{version}, not the fixture's, so #8 does not make this scenario pass (ServerCapabilities.resources: \"Present if the server offers any resources to read.\"; decision recorded in #45)"
+    },
+    "resources-read-text": {
+      "issue": 45,
+      "reason": "the scenario reads the fixture resource `test://static-text`; the gateway offers no resources today, and the resource template that #8 adds is lexlean://profiles/{profile}/lexicon/{package}@{version}, not the fixture's, so #8 does not make this scenario pass (ServerCapabilities.resources: \"Present if the server offers any resources to read.\"; decision recorded in #45)"
+    },
+    "resources-templates-read": {
+      "issue": 45,
+      "reason": "the scenario reads the fixture template `test://template/{id}/data`; the gateway offers no resources today, and the resource template that #8 adds is lexlean://profiles/{profile}/lexicon/{package}@{version}, not the fixture's, so #8 does not make this scenario pass (ServerCapabilities.resources: \"Present if the server offers any resources to read.\"; decision recorded in #45)"
+    },
+    "server-stateless": {
+      "issue": 45,
+      "reason": "21 of 30 checks pass and 5 are skipped by the suite (no listChanged or subscribe capability is advertised, so the subscriptions/listen checks do not apply); the four failing checks call the fixture's diagnostic tools `test_missing_capability`, `test_streaming_elicitation` and `test_logging_tool`, which the gateway's catalogue does not have (decision recorded in #45)"
+    },
+    "tasks-capability-negotiation": {
+      "issue": 11,
+      "reason": "the tasks extension (the tasks/get, tasks/update and tasks/cancel methods and the io.modelcontextprotocol/tasks entry of ServerCapabilities.extensions, \"Optional MCP extensions that the server supports\") is delivered to the gateway by #11 with UOR-Foundation/MCP#12 (MCP PR 32), which is not in the pinned MCP; the scenario also calls fixture tools of the suite (`slow_compute`, `greet`, `confirm_delete`, `failing_job`, `test_tool_with_task`) that the catalogue will not have, so #11 can turn only some of its checks into passes and the entry stays until the scenario passes (decision recorded in #45)"
+    },
+    "tasks-dispatch-and-envelope": {
+      "issue": 11,
+      "reason": "the tasks extension (the tasks/get, tasks/update and tasks/cancel methods and the io.modelcontextprotocol/tasks entry of ServerCapabilities.extensions, \"Optional MCP extensions that the server supports\") is delivered to the gateway by #11 with UOR-Foundation/MCP#12 (MCP PR 32), which is not in the pinned MCP; the scenario also calls fixture tools of the suite (`slow_compute`, `greet`, `confirm_delete`, `failing_job`, `test_tool_with_task`) that the catalogue will not have, so #11 can turn only some of its checks into passes and the entry stays until the scenario passes (decision recorded in #45)"
+    },
+    "tasks-lifecycle": {
+      "issue": 11,
+      "reason": "the tasks extension (the tasks/get, tasks/update and tasks/cancel methods and the io.modelcontextprotocol/tasks entry of ServerCapabilities.extensions, \"Optional MCP extensions that the server supports\") is delivered to the gateway by #11 with UOR-Foundation/MCP#12 (MCP PR 32), which is not in the pinned MCP; the scenario also calls fixture tools of the suite (`slow_compute`, `greet`, `confirm_delete`, `failing_job`, `test_tool_with_task`) that the catalogue will not have, so #11 can turn only some of its checks into passes and the entry stays until the scenario passes (decision recorded in #45)"
+    },
+    "tasks-mrtr-composition": {
+      "issue": 11,
+      "reason": "the tasks extension (the tasks/get, tasks/update and tasks/cancel methods and the io.modelcontextprotocol/tasks entry of ServerCapabilities.extensions, \"Optional MCP extensions that the server supports\") is delivered to the gateway by #11 with UOR-Foundation/MCP#12 (MCP PR 32), which is not in the pinned MCP; the scenario also calls fixture tools of the suite (`slow_compute`, `greet`, `confirm_delete`, `failing_job`, `test_tool_with_task`) that the catalogue will not have, so #11 can turn only some of its checks into passes and the entry stays until the scenario passes (decision recorded in #45)"
+    },
+    "tasks-mrtr-input": {
+      "issue": 11,
+      "reason": "the tasks extension (the tasks/get, tasks/update and tasks/cancel methods and the io.modelcontextprotocol/tasks entry of ServerCapabilities.extensions, \"Optional MCP extensions that the server supports\") is delivered to the gateway by #11 with UOR-Foundation/MCP#12 (MCP PR 32), which is not in the pinned MCP; the scenario also calls fixture tools of the suite (`slow_compute`, `greet`, `confirm_delete`, `failing_job`, `test_tool_with_task`) that the catalogue will not have, so #11 can turn only some of its checks into passes and the entry stays until the scenario passes (decision recorded in #45)"
+    },
+    "tasks-request-headers": {
+      "issue": 11,
+      "reason": "the tasks extension (the tasks/get, tasks/update and tasks/cancel methods and the io.modelcontextprotocol/tasks entry of ServerCapabilities.extensions, \"Optional MCP extensions that the server supports\") is delivered to the gateway by #11 with UOR-Foundation/MCP#12 (MCP PR 32), which is not in the pinned MCP; the scenario also calls fixture tools of the suite (`slow_compute`, `greet`, `confirm_delete`, `failing_job`, `test_tool_with_task`) that the catalogue will not have, so #11 can turn only some of its checks into passes and the entry stays until the scenario passes (decision recorded in #45)"
+    },
+    "tasks-request-state-removal": {
+      "issue": 11,
+      "reason": "the tasks extension (the tasks/get, tasks/update and tasks/cancel methods and the io.modelcontextprotocol/tasks entry of ServerCapabilities.extensions, \"Optional MCP extensions that the server supports\") is delivered to the gateway by #11 with UOR-Foundation/MCP#12 (MCP PR 32), which is not in the pinned MCP; the scenario also calls fixture tools of the suite (`slow_compute`, `greet`, `confirm_delete`, `failing_job`, `test_tool_with_task`) that the catalogue will not have, so #11 can turn only some of its checks into passes and the entry stays until the scenario passes (decision recorded in #45)"
+    },
+    "tasks-required-task-error": {
+      "issue": 11,
+      "reason": "the tasks extension (the tasks/get, tasks/update and tasks/cancel methods and the io.modelcontextprotocol/tasks entry of ServerCapabilities.extensions, \"Optional MCP extensions that the server supports\") is delivered to the gateway by #11 with UOR-Foundation/MCP#12 (MCP PR 32), which is not in the pinned MCP; the scenario also calls fixture tools of the suite (`slow_compute`, `greet`, `confirm_delete`, `failing_job`, `test_tool_with_task`) that the catalogue will not have, so #11 can turn only some of its checks into passes and the entry stays until the scenario passes (decision recorded in #45)"
+    },
+    "tasks-wire-fields": {
+      "issue": 11,
+      "reason": "the tasks extension (the tasks/get, tasks/update and tasks/cancel methods and the io.modelcontextprotocol/tasks entry of ServerCapabilities.extensions, \"Optional MCP extensions that the server supports\") is delivered to the gateway by #11 with UOR-Foundation/MCP#12 (MCP PR 32), which is not in the pinned MCP; the scenario also calls fixture tools of the suite (`slow_compute`, `greet`, `confirm_delete`, `failing_job`, `test_tool_with_task`) that the catalogue will not have, so #11 can turn only some of its checks into passes and the entry stays until the scenario passes (decision recorded in #45)"
+    },
+    "tools-call-audio": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_audio_content`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45)"
+    },
+    "tools-call-embedded-resource": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_embedded_resource`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45)"
+    },
+    "tools-call-error": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_error_handling`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45)"
+    },
+    "tools-call-image": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_image_content`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45)"
+    },
+    "tools-call-mixed-content": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_multiple_content_types`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45)"
+    },
+    "tools-call-simple-text": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_simple_text`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45)"
+    },
+    "tools-call-with-progress": {
+      "issue": 45,
+      "reason": "the scenario calls the suite's fixture tool `test_tool_with_progress`, which the gateway's catalogue does not have (its ten tools are lexlean-mcp's, one per host effect); the product does not add fixture tools to pass a suite and the call is answered with the typed refusal unknown tool (decision recorded in #45)"
+    }
+  },
+  "suite_skipped": {
+    "tasks-status-notifications": {
+      "reason": "the suite skips it at this pin whatever the server does: it sends no request and reports one SKIPPED check, pending a subscriptions/listen rewrite (src/scenarios/server/tasks/notifications.ts); it is not counted as passing"
+    }
+  }
+}

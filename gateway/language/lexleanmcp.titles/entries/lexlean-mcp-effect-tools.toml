@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-effect-tools"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "GatewayTools"
+component = "gatewayTools"
+
+[[form]]
+id = "lexlean-mcp-effect-tools"
+channel = "text"
+surface = "LexLean MCP effect tools"
+canonical_source = true
+features = ["sentence-case", "singular"]

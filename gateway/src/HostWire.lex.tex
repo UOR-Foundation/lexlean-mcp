@@ -1,0 +1,34 @@
+\begin{lexlean}{HostWire}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Frame}
+\importmodule{Http}
+\title{LexLean MCP host wire}
+\begin{semanticmodule}
+definition{
+  name: chunkList,
+  parameters: [bytes : (List Nat)],
+  result: (List Nat),
+  body: (prim append (Frame::u32List (prim length bytes : Nat)) bytes : (List Nat)),
+  executable: true
+}
+
+definition{
+  name: textList,
+  parameters: [text : String],
+  result: (List Nat),
+  body: (chunkList (Http::asciiOf text)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: flagList,
+  parameters: [flag : Bool],
+  result: (List Nat),
+  body: (if flag then (cons 1 (nil Nat)) else (cons 0 (nil Nat))),
+  executable: true
+}
+\end{semanticmodule}
+\end{lexlean}
