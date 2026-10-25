@@ -17,10 +17,12 @@ the evidence is, what it does not show, and the defects planted in its gates.
 | Q8 | every diagnostic code in a result resolves through F11 | **Executed** | QM-04 to QM-06 |
 
 `measuresPendingExceptQ2AndQ8` pins the pending list, `onlyApiMapAndExplainAreExecuted`
-pins the executed one, and `executedMeasuresKeepAPendingClause` requires every executed
-measure to record in `pendingClauses` the clause that still waits for the tools.
-`QM-07` ties the statuses to the register: the rows each status cites are read from
-the statement of `QM-07`, and each must be registered with a test.
+pins the executed one, and `onlyQ2KeepsAPendingClause` pins the list of clauses that still
+wait for the tools: Q2's, and no other. `qualityValid` requires that the measure of each
+clause in `pendingClauses` is an executed one. `QM-07` ties the statuses to the register: the
+rows each status cites are read from the statement of `QM-07`, and each must be registered
+with a test; for Q8 they are `QM-04` to `QM-06` and `TL-13`, the row of the tools suite that
+runs its last clause.
 
 ## Q2: the API-to-tool map
 
@@ -100,12 +102,15 @@ run as `lexlean explain <CODE>` for each of the 86 codes: its output equals the 
 `LLC0001`. No test of this repository runs the binary.
 
 **What it does not show.** That a code in the result of a running tool resolves
-through the running `lexlean_explain` (F11) is not shown by this evidence. `TL-13`
+through the running `lexlean_explain` (F11) is not shown by `QM-04` to `QM-06`. `TL-13`
 (`gateway/tool-tests/tests/equality.rs`, TOOLS.md) executes it where the tool is built:
 every code in the results of `lexlean_check` and `lexlean_build` on the fixtures of
-`TL-03` is resolved through the running tool to the entry the CLI prints. That test is
-a register row of the issue-10 change; the quality model (`pendingClauses`, the measure
-rows of `src/Quality.lex.tex`) is not edited by it and still lists the clause. It also does not show that the registry is closed over what the
+`TL-03` is resolved through the running tool to the entry the CLI prints. The quality
+model says the same: the clause of Q8 is not in `pendingClauses`, the evidence of Q8
+names `TL-13`, and `QM-07` requires both. `TL-13` runs in the gateway job (its test is
+`#[ignore]`d for the workspace gate, which has neither the `lexlean` binary nor the
+sources of LexLean), so `cargo test --workspace` checks that the row and its test exist
+and the gateway job observes the resolution. The measure does not show that the registry is closed over what the
 compiler can emit: that is LexLean's own gate (`validate-model` rejects an unregistered code in use
 and an unused registered one, SPEC 26.1), cited here and not re-run. The fixtures
 return only some of the 86 codes; the others are explained but not observed in a
@@ -116,7 +121,7 @@ result.
 Q1 (CLI equality as a run), Q3 (fault tolerance), Q4 (no child processes), Q5 (the MCP
 oracles), Q6 (modularity) and Q7 (the same `build_id` on both platforms) stay
 `Pending`: each needs the tools or the deployed service, and each says in the model
-which issue executes it. For Q2 the runtime half is not met, as above; for Q8 it is executed by `TL-13` and is still listed as pending by the quality model. Issue
+which issue executes it. For Q2 the runtime half is not met, as above; for Q8 the running clause is executed by `TL-13` and the quality model no longer lists it as pending. Issue
 #15 stays open.
 
 ## Planted defects
@@ -136,6 +141,10 @@ that the check runs on every `cargo test`.
 | the count of codes in the model changed from 86 to 85 | `cargo test -p repo-conformance --test quality` | `the model counts Some(85) diagnostic codes and the registry holds 86` |
 | Q2 flipped back to `Pending` | same | `the measure 1 is not Executed`; `exactly two measures must be Executed` |
 | `QM-03` removed from the register | same | `QM-03 is cited and is not in model/ids.toml` |
+| the running clause of Q8 put back into `pendingClauses` (`index := 7`) | `cargo test -p repo-conformance --test quality` | `pendingClauses records a clause of Q8, whose running clause TL-13 executes` |
+| the clause of Q8 put back into `pendingClauses` (`index := 7`) | `lexlean verify src/Quality.lex.tex` | `LLV7002`: `Tactic `decide` proved that the proposition namedIndexes pendingClauses = [1] is false` at `src/Quality.lex.tex:678`, the theorem `onlyQ2KeepsAPendingClause` |
+| the evidence of Q8 pointing at `pendingClauses` again | `cargo test -p repo-conformance --test quality` | `the Executed status of measure 7 points at pendingClauses, and its running clause is executed` |
+| `TL-13` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
 | `CONFORMANCE.md` edited by hand | `cargo run -p xtask -- check-model` | `CONFORMANCE.md is stale: it disagrees with model/ids.toml` |
 
 The planted-in-memory set is wider: a function with neither tool nor reason, a function

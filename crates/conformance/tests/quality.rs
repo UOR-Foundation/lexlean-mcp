@@ -113,7 +113,9 @@ fn violations(i: &Inputs) -> Vec<String> {
         };
         let suite = if id == "TL-13" { "tools" } else { "quality" };
         if cited_row.suite != suite {
-            out.push(format!("{id} is cited and is not a row of the {suite} suite"));
+            out.push(format!(
+                "{id} is cited and is not a row of the {suite} suite"
+            ));
         }
         let suffix = format!("_{}", id.to_lowercase().replace('-', "_"));
         if !tests.iter().any(|t| t.ends_with(&suffix)) {
@@ -295,7 +297,10 @@ fn the_check_rejects_a_pending_q2_a_missing_row_and_a_wrong_count_qm_07() {
         .quality
         .find("name: pendingClauses,")
         .expect("pendingClauses");
-    let end = at + base.quality[at..].find("(nil Named))").expect("the end of the list");
+    let end = at
+        + base.quality[at..]
+            .find("(nil Named))")
+            .expect("the end of the list");
     let left_pending = format!(
         "{}{}{}",
         &base.quality[..end],
@@ -329,6 +334,21 @@ fn the_check_rejects_a_pending_q2_a_missing_row_and_a_wrong_count_qm_07() {
         &planted,
         "the Executed status of measure 7 points at pendingClauses"
     ));
+
+    // TL-13 dropped from the statement of QM-07: the running clause of Q8 loses its row.
+    let mut model = base.model.clone();
+    for row in &mut model.ids.id {
+        if row.id == "QM-07" {
+            row.statement = row
+                .statement
+                .replace(" (Q8, whose running clause TL-13 executes)", " (Q8)");
+        }
+    }
+    let planted = Inputs {
+        model,
+        ..clone(&base)
+    };
+    assert!(reported(&planted, "QM-07 cites"));
 
     // A measure the register does not execute flipped to Executed.
     let at = base
