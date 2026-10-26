@@ -24,7 +24,7 @@
 # reproduce the negative fixtures of the pinned LexLean and six that are checked here.
 # The owner-set values of issue #19 register OV-01..OV-03.
 # The closed host effect set of issue #7 (E1 to E10, its codec and its negative
-# theorem) registers EF-01..EF-08. The generated half of issue #7 (the gateway, its
+# theorem) registers EF-01..EF-08; its closed view and form fields (E1 and E2, issue #9) register EF-09. The generated half of issue #7 (the gateway, its
 # binding and its acceptance vectors) registers GW-01..GW-09.
 # The executable measures of Q2 and Q8 of issue #15 register QM-01 to QM-08: two rows that
 # reproduce the pinned LexLean (its public API and its diagnostic registry) and six that are checked here.
@@ -36,9 +36,9 @@
 # Atlas profile) registers PF-01..PF-09: one row that reproduces the pinned LexLean and eight that are checked here.
 # The tool semantics of issue #10 (F4 to F7: check, snapshot, format and build agree with
 # the CLI) register TL-01..TL-09. lexlean_explain (F11, issue #10) registers TL-10..TL-14, and the
-# adapter's own refusal of a foreign Origin (issue #45) registers GW-13.
+# adapter's own refusal of a foreign Origin (issue #45) registers GW-13. The running clause of Q2 registers TL-15.
 # The draft tools of issue #9 (F3: identity, admission, storage, reading and materialization of drafts)
-# register DR-01..DR-11.
+# register DR-01..DR-11; lexlean_draft_assemble and the structured read of lexlean_draft_read register DR-12..DR-16.
 
 spec = "template/1"
 
@@ -277,6 +277,12 @@ suite = "effects"
 statement = "Each gate of the effect set rejects its planted defect: an eleventh effect, a duplicated id, a decode that accepts an unknown wire, an effect name containing a tool name and a mismapped Engine call; EFFECTS.md records the command, the diagnostic and the restore of each."
 
 [[id]]
+id = "EF-09"
+level = "build"
+suite = "effects"
+statement = "E1 store.get and E2 store.put carry fields that the model closes: a View of store.get (Stored 0, Data 1, Spans 2), a Form of store.put (Plain 0, Assemble 1, Rewrite 2) and a Class in their answers (Accepted 0, Refused 1, Absent 2); each decoder is total and proved sound for every number, a number past the last constructor is the typed refusal UnknownView, UnknownForm or UnknownClass, and the set of effects stays the ten of EF-01 with no effect added."
+
+[[id]]
 id = "ST-01"
 level = "build"
 suite = "store"
@@ -370,13 +376,13 @@ statement = "Every diagnostic code that the 297 negative fixtures of AC-07 retur
 id = "QM-07"
 level = "build"
 suite = "quality"
-statement = "The measures of Q2 and Q8 are Executed in src/Quality.lex.tex by QM-01, QM-02 and QM-03 (Q2) and by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes), whose tests pass; Q1 and Q3 to Q7 stay Pending, each naming the issue that executes it, the clause of Q2 that waits for the tools stays in pendingClauses and Q8 has no pending clause, and the counts the model states (9 functions, 86 codes) are those of the pinned files."
+statement = "The measures of Q2 and Q8 are Executed in src/Quality.lex.tex by QM-01, QM-02 and QM-03 (Q2, whose running clause TL-15 executes) and by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes), whose tests pass; Q1 and Q3 to Q7 stay Pending, each naming the issue that executes it, pendingClauses is empty because no clause of Q2 or of Q8 waits for the tools, and the counts the model states (9 functions, 86 codes) are those of the pinned files."
 
 [[id]]
 id = "QM-08"
 level = "build"
 suite = "quality"
-statement = "Each gate of Q2 and Q8 rejects its planted defect: a function removed from the map, a tool name misspelled, a function with no tool and no reason, a function both mapped and not exposed, a function added or re-signed upstream, a vendored byte altered or removed, a pin moved without a new import, a code returned that the registry lacks, a code with no statement, an entry removed from ERRORS.md or altered, an exit status that disagrees with its class, rows out of order, Q2 or Q8 flipped back to Pending, the running clause of Q8 left in pendingClauses once TL-13 executes it, a measure flipped to Executed without rows, a cited row missing and a count that disagrees; QUALITY.md records the command, the diagnostic and the restore of each."
+statement = "Each gate of Q2 and Q8 rejects its planted defect: a function removed from the map, a tool name misspelled, a function with no tool and no reason, a function both mapped and not exposed, a function added or re-signed upstream, a vendored byte altered or removed, a pin moved without a new import, a code returned that the registry lacks, a code with no statement, an entry removed from ERRORS.md or altered, an exit status that disagrees with its class, rows out of order, Q2 or Q8 flipped back to Pending, the running clause of Q8 left in pendingClauses once TL-13 executes it, the clause of Q2 left in pendingClauses once TL-15 executes it, a measure flipped to Executed without rows, a cited row missing and a count that disagrees; QUALITY.md records the command, the diagnostic and the restore of each."
 
 [[id]]
 id = "FJ-01"
@@ -556,13 +562,13 @@ statement = "Each law of the profile model rejects its planted defect: a root th
 id = "GW-01"
 level = "build"
 suite = "gateway"
-statement = "The gateway declares the ten effects of src/Effects.lex.tex, in order, followed by one frame effect: the host protocol of gateway/src/Application.lex.tex lists the names E1 to E10 that Effects.lex.tex declares at the tags 0 to 9 and then rate.calls at the tag 10, which no core can request, and a test holds the first ten equal to the model and names the eleventh."
+statement = "The gateway declares the ten effects of src/Effects.lex.tex, in order, followed by one frame effect: the host protocol of gateway/src/Application.lex.tex lists the names E1 to E10 that Effects.lex.tex declares at the tags 0 to 9 and then rate.calls at the tag 10, which no core can request, a test holds the first ten equal to the model and names the eleventh, and the declared request of store.get ends with the U32 field view and that of store.put with the U32 field form, the closed fields of EF-09, on the effects they extend and on no other."
 
 [[id]]
 id = "GW-02"
 level = "build"
 suite = "gateway"
-statement = "Each effect of the gateway has a typed request, a typed result and a closed list of failures in PrismPM's field kinds, as GATEWAY.md tabulates them: an engine error travels in the result's class and result fields, a host fault is one of the declared failures, and no field or failure is declared that the table does not name."
+statement = "Each effect of the gateway has a typed request, a typed result and a closed list of failures in PrismPM's field kinds, as GATEWAY.md tabulates them: an engine error travels in the result's class and result fields, the refusal of a module by lexlean::sdk travels in the class and the content or rendered field of store.get and store.put, a host fault is one of the declared failures (store.get adds view-unknown and store.put adds form-unknown), and no field or failure is declared that the table does not name."
 
 [[id]]
 id = "GW-03"
@@ -580,7 +586,7 @@ statement = "Every effect is exercised by an acceptance vector of the gateway: t
 id = "GW-05"
 level = "build"
 suite = "gateway"
-statement = "No effect outside E1 to E10 can be encoded by the core: the model's decoder refuses the tag of the frame effect and every other tag past the set, the generated tables mark exactly the tags 0 to 9 as the core's (the Request sum decodes eleven tags and refuses every other with an undeclared effect), and negative tests of the binding crate assert the tag 10 is not the core's and the first and the largest tag past the eleven are refused."
+statement = "No effect outside E1 to E10 can be encoded by the core, and no value outside their closed fields: the model's decoder refuses the tag of the frame effect and every other tag past the set, the generated tables mark exactly the tags 0 to 9 as the core's (the Request sum decodes eleven tags and refuses every other with an undeclared effect), and negative tests of the binding crate assert the tag 10 is not the core's, the first and the largest tag past the eleven are refused, and a view of store.get or a form of store.put outside the model's sets is the typed failure view-unknown or form-unknown, reads and stores nothing and does not reach lexlean::sdk."
 
 [[id]]
 id = "GW-06"
@@ -709,6 +715,12 @@ suite = "tools"
 statement = "Each gate of lexlean_explain rejects its planted defect: a wrong byte in an explanation, an unregistered code answered as registered, and an unknown code quoted with an escape that differs from the CLI's; TOOLS.md records the command, the diagnostic and the restore of each."
 
 [[id]]
+id = "TL-15"
+level = "build"
+suite = "tools"
+statement = "Q2, the running clause: each of the nine in-scope functions of crates/quality-map/map.toml is reached by a tool that tools/list of the production core shows and that runs, lexlean_check, lexlean_snapshot, lexlean_format, lexlean_build and lexlean_verify for the Engine calls, and lexlean_draft_assemble and lexlean_draft_read for sdk::assemble, sdk::write_module, sdk::read_module and sdk::declaration_spans, whose results equal what those functions give on the same text."
+
+[[id]]
 id = "GW-13"
 level = "build"
 suite = "gateway"
@@ -766,7 +778,7 @@ statement = "A profile bundle that contains a symbolic link is refused, wherever
 id = "DR-09"
 level = "build"
 suite = "drafts"
-statement = "The draft tools are the two the host can serve within E1 to E10: lexlean_draft_write asks lexicon.read and then store.put, lexlean_draft_read asks store.get, both have closed input schemas, the set of effects is the model's ten, and the core declares no tool for the four functions of lexlean::sdk that no effect reaches."
+statement = "The draft tools are three, all within E1 to E10: lexlean_draft_write asks lexicon.read and then store.put, lexlean_draft_read asks one store.get, and lexlean_draft_assemble asks lexicon.read, a store.get of the base draft when it names one, a store.put whose form renders the module and a store.put of the draft; each has a closed input schema, the set of effects is the model's ten, and the exchange budget of the gateway is the four that assemble needs."
 
 [[id]]
 id = "DR-10"
@@ -779,3 +791,33 @@ id = "DR-11"
 level = "build"
 suite = "drafts"
 statement = "Each gate of the draft tools rejects its planted defect: a .. path admitted, a symbolic link followed in a profile bundle and a draft identity that ignores the profile; DRAFTS.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "DR-12"
+level = "build"
+suite = "drafts"
+statement = "lexlean_draft_read with the view data answers the module of a file of the draft as sdk::read_module reads it, and with the view spans the byte ranges of its declarations as sdk::declaration_spans gives them (null for a module written as data), each through one store.get whose view is 1 or 2 and whose path is the file; the text of the result is the JSON that the sdk function gave for the stored text of the file, and without a view the file is read as text through the view 0."
+
+[[id]]
+id = "DR-13"
+level = "build"
+suite = "drafts"
+statement = "lexlean_draft_assemble makes a new draft whose file at the path holds exactly the bytes that sdk::assemble returns for the header, the kind and the data given (a semantic, tooling or core module), or exactly the bytes that sdk::write_module returns for the text of that file in the base draft and the data given, rendered by the host through the form 1 or 2 of store.put; the other files of the base are kept, the draft is named by its identity over the bytes stored, and the Engine checks it."
+
+[[id]]
+id = "DR-14"
+level = "build"
+suite = "drafts"
+statement = "A prose document is stored and read as text and never reaches the sdk: lexlean_draft_write stores any .lex.tex text with the form 0, lexlean_draft_read without a view returns its bytes through a store.get of the view 0, a kind other than semantic, tooling and core is refused by the schema of lexlean_draft_assemble, and asking a prose document for the view data or spans is the typed refusal ModuleRefused."
+
+[[id]]
+id = "DR-15"
+level = "build"
+suite = "drafts"
+statement = "An unknown value of a closed field is a typed refusal with a negative test: a view of store.get outside 0 to 2 is the host failure view-unknown and a form of store.put outside 0 to 2 is form-unknown, each reads or stores nothing and does not reach the sdk, and a class outside 0 to 2 in an answer is the malformed outcome of the core; the refusal of a module by the sdk is ModuleRefused with its message, a rewrite of a path that the base lacks is PathUnknown, a base of another profile than the one named is ProfileMismatch, and each has a negative test."
+
+[[id]]
+id = "DR-16"
+level = "build"
+suite = "drafts"
+statement = "Each gate of the assemble work rejects its planted defect: an unknown view admitted, an assembled module whose bytes differ from those of sdk::write_module and a prose document sent through the sdk; DRAFTS.md records the command, the diagnostic and the restore of each."

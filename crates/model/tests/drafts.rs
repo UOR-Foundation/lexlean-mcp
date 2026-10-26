@@ -1,4 +1,4 @@
-//! DR-01 to DR-11: the draft tools of F3 (issue #9).
+//! DR-01 to DR-16: the draft tools of F3 (issue #9).
 //!
 //! The behavior is tested where the core and the host run: `gateway/tool-tests` calls
 //! `lexlean_draft_write`, `lexlean_draft_read` and an Engine tool on a draft through the
@@ -354,32 +354,158 @@ fn a_symbolic_link_in_a_bundle_is_refused_dr_08() {
     );
 }
 
-/// DR-09: the draft tools are the two that E1 to E10 reach.
+/// DR-09: the draft tools are the three that E1 to E10 reach.
 #[test]
-fn the_draft_tools_are_the_two_the_ten_effects_reach_dr_09() {
+fn the_draft_tools_are_three_and_the_ten_effects_reach_them_dr_09() {
     let source = tools();
-    assert!(source.contains("\"lexlean_draft_write\""));
-    assert!(source.contains("\"lexlean_draft_read\""));
-    assert!(
-        !source.contains("lexlean_draft_assemble"),
-        "no tool is declared for the functions of lexlean::sdk that no effect reaches"
-    );
+    for tool in [
+        "lexlean_draft_write",
+        "lexlean_draft_read",
+        "lexlean_draft_assemble",
+    ] {
+        assert!(
+            source.contains(&format!("\"{tool}\"")),
+            "the core declares {tool}"
+        );
+    }
     let effects = tight(&read("gateway/src/Effects.lex.tex"));
     assert!(
-        !effects.contains("draft"),
+        !effects.contains("draft") && !effects.contains("assemble"),
         "the set of effects is the model's ten: no effect is added for drafts"
+    );
+    assert_eq!(
+        effects,
+        tight(&read("src/Effects.lex.tex")),
+        "the gateway copy of the effects is the model's, byte for byte"
     );
     let gateway = read("GATEWAY.md");
     assert!(
         gateway.contains("lexlean_draft_assemble"),
-        "GATEWAY.md records why the assemble tool is not declared"
+        "GATEWAY.md records the assemble tool"
+    );
+    assert!(
+        !gateway.contains("lexlean_draft_assemble` is not declared"),
+        "GATEWAY.md no longer says the assemble tool is not declared"
+    );
+    let application = tight(&read("gateway/src/Application.lex.tex"));
+    assert!(
+        application.contains("effectBudget := (4 : UInt32)"),
+        "the exchange budget is the four effects of an assemble with a base draft"
     );
     needs(
         "DR-09",
         &[
-            "the_two_draft_tools_are_listed_with_closed_schemas_and_no_assemble_dr_09",
+            "the_three_draft_tools_are_listed_with_closed_schemas_dr_09",
             "the_effects_of_the_draft_tools_are_the_ones_stated_dr_09",
             "a_call_that_breaks_a_schema_of_the_draft_tools_asks_for_no_effect_dr_09",
+        ],
+    );
+}
+
+/// DR-12: the structured read is a view of `store.get`, not an effect of its own.
+#[test]
+fn the_structured_read_is_a_view_of_store_get_dr_12() {
+    let core = drafts();
+    for needle in ["viewTag", "View.Data", "View.Spans", "View.Stored"] {
+        assert!(core.contains(needle), "the core names {needle}");
+    }
+    let doc = read("DRAFTS.md");
+    for needle in ["`view`", "sdk::read_module", "sdk::declaration_spans"] {
+        assert!(doc.contains(needle), "DRAFTS.md states {needle}");
+    }
+    needs(
+        "DR-12",
+        &[
+            "the_view_data_is_what_read_module_gives_dr_12",
+            "the_view_spans_are_what_declaration_spans_gives_dr_12",
+            "a_module_written_as_data_has_null_spans_dr_12",
+            "a_read_without_a_view_asks_the_view_0_and_returns_the_bytes_dr_12",
+            "a_structured_read_asks_one_store_get_with_the_path_and_the_view_dr_12",
+        ],
+    );
+}
+
+/// DR-13: the assemble tool renders by the form of `store.put` and stores the bytes it returns.
+#[test]
+fn assemble_renders_by_the_form_of_store_put_dr_13() {
+    let core = drafts();
+    for needle in ["Form.Assemble", "Form.Rewrite", "formTag"] {
+        assert!(core.contains(needle), "the core names {needle}");
+    }
+    let doc = read("DRAFTS.md");
+    for needle in ["sdk::assemble", "sdk::write_module", "`form`"] {
+        assert!(doc.contains(needle), "DRAFTS.md states {needle}");
+    }
+    needs(
+        "DR-13",
+        &[
+            "an_assembled_module_is_what_sdk_assemble_returns_dr_13",
+            "a_tooling_and_a_core_module_are_assembled_too_dr_13",
+            "a_rewritten_module_is_what_sdk_write_module_returns_dr_13",
+            "the_other_files_of_the_base_are_kept_dr_13",
+            "the_assembled_draft_is_named_by_its_identity_over_the_stored_bytes_dr_13",
+            "the_engine_checks_an_assembled_draft_dr_13",
+            "the_effects_of_an_assemble_are_the_four_stated_dr_13",
+        ],
+    );
+}
+
+/// DR-14: a prose document is text and never goes through the sdk.
+#[test]
+fn a_prose_document_never_reaches_the_sdk_dr_14() {
+    let tools = tools();
+    assert!(
+        tools.contains("\"semantic\"")
+            && tools.contains("\"tooling\"")
+            && tools.contains("\"core\""),
+        "the schema of assemble names the three kinds of module"
+    );
+    assert!(
+        !tools.contains("\"prose\""),
+        "the schema of assemble offers no kind for a prose document"
+    );
+    needs(
+        "DR-14",
+        &[
+            "a_prose_document_is_stored_and_read_as_text_dr_14",
+            "a_prose_document_asked_for_the_view_data_is_module_refused_dr_14",
+            "the_kind_prose_is_refused_by_the_schema_of_assemble_dr_14",
+        ],
+    );
+}
+
+/// DR-15: an unknown value of a closed field is a typed refusal with a negative test.
+#[test]
+fn the_closed_fields_have_typed_refusals_with_negative_tests_dr_15() {
+    let core = drafts();
+    for refusal in [
+        "ModuleRefused",
+        "PathUnknown",
+        "ProfileMismatch",
+        "OutcomeMalformed",
+    ] {
+        assert!(
+            core.contains(refusal),
+            "the core names the refusal {refusal}"
+        );
+    }
+    let tools = tools();
+    for failure in ["view-unknown", "form-unknown"] {
+        assert!(
+            tools.contains(failure),
+            "the tool layer names the failure {failure}"
+        );
+    }
+    needs(
+        "DR-15",
+        &[
+            "an_unknown_view_is_a_typed_failure_dr_15",
+            "an_unknown_form_is_a_typed_failure_dr_15",
+            "a_view_or_a_form_of_the_model_is_never_refused_dr_15",
+            "a_class_outside_the_closed_set_is_a_malformed_outcome_dr_15",
+            "module_refused_is_a_typed_refusal_dr_15",
+            "path_unknown_for_a_rewrite_is_a_typed_refusal_dr_15",
+            "profile_mismatch_is_a_typed_refusal_dr_15",
         ],
     );
 }
@@ -476,6 +602,50 @@ fn every_gate_has_a_recorded_planted_defect_dr_11() {
         .collect::<Vec<_>>()
         .join(" ");
     for needle in ["`..`", "symbolic link", "ignores the profile"] {
+        assert!(
+            defects.contains(needle),
+            "a planted defect is named {needle}: {defects}"
+        );
+    }
+}
+
+/// DR-16: each gate of the assemble work rejects its planted defect, recorded in `DRAFTS.md`.
+#[test]
+fn the_assemble_gates_have_recorded_planted_defects_dr_16() {
+    let document = read("DRAFTS.md");
+    let rows: Vec<Vec<String>> = document
+        .lines()
+        .filter(|line| line.starts_with("| D") && !line.starts_with("| Defect"))
+        .map(|line| {
+            line.trim()
+                .trim_matches('|')
+                .split('|')
+                .map(|cell| cell.trim().to_string())
+                .collect()
+        })
+        .collect();
+    assert!(rows.len() >= 7, "the four of DR-11 and the three of DR-16");
+    for row in &rows {
+        assert_eq!(row.len(), 5, "a row has five cells: {row:?}");
+        for cell in row {
+            assert!(!cell.is_empty(), "an empty cell in {row:?}");
+        }
+        assert!(
+            row[2].contains("cargo test") || row[2].contains("lexlean"),
+            "the command of {} is one that runs here: {row:?}",
+            row[0]
+        );
+    }
+    let defects: String = rows
+        .iter()
+        .map(|row| row[1].to_lowercase())
+        .collect::<Vec<_>>()
+        .join(" ");
+    for needle in [
+        "unknown view admitted",
+        "differ from `sdk::write_module`",
+        "prose document sent through the sdk",
+    ] {
         assert!(
             defects.contains(needle),
             "a planted defect is named {needle}: {defects}"

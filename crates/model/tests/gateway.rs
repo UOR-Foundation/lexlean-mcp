@@ -232,6 +232,35 @@ fn the_gateway_declares_the_ten_effects_in_order_gw_01() {
         tabled, declared,
         "GATEWAY.md tabulates the same effects in the same order"
     );
+    // The closed fields of EF-09: `view` ends the request of store.get, `form` that of store.put,
+    // each a U32 that the model's View and Form decode, and no other effect declares either.
+    let effects = declared_effects(&application());
+    for effect in &effects {
+        let views = effect.request.iter().filter(|(n, _)| n == "view").count();
+        let forms = effect.request.iter().filter(|(n, _)| n == "form").count();
+        let (want_view, want_form) = (
+            usize::from(effect.name == "store.get"),
+            usize::from(effect.name == "store.put"),
+        );
+        assert_eq!(views, want_view, "{}: the field view", effect.name);
+        assert_eq!(forms, want_form, "{}: the field form", effect.name);
+    }
+    let last = |name: &str| {
+        effects
+            .iter()
+            .find(|effect| effect.name == name)
+            .and_then(|effect| effect.request.last().cloned())
+    };
+    assert_eq!(
+        last("store.get"),
+        Some(("view".to_string(), "U32".to_string())),
+        "store.get ends with view"
+    );
+    assert_eq!(
+        last("store.put"),
+        Some(("form".to_string(), "U32".to_string())),
+        "store.put ends with form"
+    );
 }
 
 /// The frame effect: the adapter, not the core, asks for it.
@@ -273,6 +302,59 @@ fn each_effect_has_typed_fields_and_closed_failures_gw_02() {
         );
         assert!(effect.request_maximum >= 1 && effect.result_maximum >= 1);
     }
+    // The closed fields: the answers carry the class of EF-09, and the two effects fail on a value
+    // outside the model's sets.
+    let named = |name: &str| declared.iter().find(|e| e.name == name).expect("an effect");
+    let get = named("store.get");
+    let put = named("store.put");
+    let pair = |n: &str, k: &str| (n.to_string(), k.to_string());
+    assert_eq!(
+        get.request,
+        vec![
+            pair("area", "U32"),
+            pair("key", "Text"),
+            pair("path", "Text"),
+            pair("view", "U32")
+        ]
+    );
+    assert_eq!(
+        get.result,
+        vec![
+            pair("found", "Flag"),
+            pair("content", "Bytes"),
+            pair("class", "U32")
+        ]
+    );
+    assert_eq!(
+        put.request,
+        vec![
+            pair("area", "U32"),
+            pair("key", "Text"),
+            pair("content", "Bytes"),
+            pair("form", "U32")
+        ]
+    );
+    assert_eq!(
+        put.result,
+        vec![
+            pair("length", "U64"),
+            pair("class", "U32"),
+            pair("rendered", "Bytes")
+        ]
+    );
+    assert_eq!(
+        get.failures,
+        ["area-unknown", "key-refused", "unreadable", "view-unknown"]
+    );
+    assert_eq!(
+        put.failures,
+        ["area-unknown", "key-refused", "unwritable", "form-unknown"]
+    );
+    assert_eq!(
+        declared_effects(&application()).len(),
+        11,
+        "the closed fields add no effect"
+    );
     // The bounds follow the owner values: a draft is at most draft.max_bytes.
     let put = declared
         .iter()
@@ -453,6 +535,8 @@ fn no_effect_outside_e1_to_e10_can_be_encoded_gw_05() {
         "the_largest_tag_is_undeclared",
         "the_decoder_has_one_variant_per_effect",
         "the_frame_effect_is_not_the_cores",
+        "an_unknown_view_is_a_typed_failure_gw_05",
+        "an_unknown_form_is_a_typed_failure_gw_05",
     ] {
         assert!(
             names.contains(required),

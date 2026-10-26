@@ -13,6 +13,7 @@ gateway-binding = { path = "../bindings/gateway-binding" }
 serde_json = "1"
 tempfile = "3"
 sha2 = "0.10"
+lexlean = "0.3.0"
 
 [lints.rust]
 missing_docs = "deny"

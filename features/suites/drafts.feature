@@ -51,7 +51,7 @@ Feature: The draft tools
     Then each call is project-refused, the Engine is not called, and the target of the link is not read
 
   @DR-09 @build
-  Scenario: The draft tools are the two the host can serve within E1 to E10: lexlean_draft_write asks lexicon.read and then store.put, lexlean_draft_read asks store.get, both have closed input schemas, the set of effects is the model's ten, and the core declares no tool for the four functions of lexlean::sdk that no effect reaches.
+  Scenario: The draft tools are three, all within E1 to E10: lexlean_draft_write asks lexicon.read and then store.put, lexlean_draft_read asks one store.get, and lexlean_draft_assemble asks lexicon.read, a store.get of the base draft when it names one, a store.put whose form renders the module and a store.put of the draft; each has a closed input schema, the set of effects is the model's ten, and the exchange budget of the gateway is the four that assemble needs.
     Given the tool list of the gateway and the effects of each call
     When tools/list is read and each draft tool is called
     Then the draft tools are lexlean_draft_write and lexlean_draft_read with closed schemas, their effects are the ones stated, and the core has no lexlean_draft_assemble
@@ -65,5 +65,35 @@ Feature: The draft tools
   @DR-11 @build
   Scenario: Each gate of the draft tools rejects its planted defect: a .. path admitted, a symbolic link followed in a profile bundle and a draft identity that ignores the profile; DRAFTS.md records the command, the diagnostic and the restore of each.
     Given DRAFTS.md and the planted defects of the draft tools
+    When the defects are read
+    Then each names a command, a diagnostic and a restore, and the three kinds the statement names are among them
+
+  @DR-12 @build
+  Scenario: lexlean_draft_read with the view data answers the module of a file of the draft as sdk::read_module reads it, and with the view spans the byte ranges of its declarations as sdk::declaration_spans gives them (null for a module written as data), each through one store.get whose view is 1 or 2 and whose path is the file; the text of the result is the JSON that the sdk function gave for the stored text of the file, and without a view the file is read as text through the view 0.
+    Given a draft that holds a module written in the notation and one written as data
+    When lexlean_draft_read is called with the view data and with the view spans, and with no view
+    Then the results equal sdk::read_module and sdk::declaration_spans on the same text and the plain read returns the bytes
+
+  @DR-13 @build
+  Scenario: lexlean_draft_assemble makes a new draft whose file at the path holds exactly the bytes that sdk::assemble returns for the header, the kind and the data given (a semantic, tooling or core module), or exactly the bytes that sdk::write_module returns for the text of that file in the base draft and the data given, rendered by the host through the form 1 or 2 of store.put; the other files of the base are kept, the draft is named by its identity over the bytes stored, and the Engine checks it.
+    Given a profile, a base draft and the data of a semantic, a tooling and a core module
+    When lexlean_draft_assemble is called with a header and with the data alone
+    Then the file holds the bytes of sdk::assemble or of sdk::write_module, the other files are kept, and the Engine checks the draft
+
+  @DR-14 @build
+  Scenario: A prose document is stored and read as text and never reaches the sdk: lexlean_draft_write stores any .lex.tex text with the form 0, lexlean_draft_read without a view returns its bytes through a store.get of the view 0, a kind other than semantic, tooling and core is refused by the schema of lexlean_draft_assemble, and asking a prose document for the view data or spans is the typed refusal ModuleRefused.
+    Given a draft that holds a prose document
+    When it is written, read with no view, asked for the view data, and assembled with the kind prose
+    Then the bytes are the document, the view data is ModuleRefused, the kind is refused by the schema, and the sdk is not reached
+
+  @DR-15 @build
+  Scenario: An unknown value of a closed field is a typed refusal with a negative test: a view of store.get outside 0 to 2 is the host failure view-unknown and a form of store.put outside 0 to 2 is form-unknown, each reads or stores nothing and does not reach the sdk, and a class outside 0 to 2 in an answer is the malformed outcome of the core; the refusal of a module by the sdk is ModuleRefused with its message, a rewrite of a path that the base lacks is PathUnknown, a base of another profile than the one named is ProfileMismatch, and each has a negative test.
+    Given the closed fields of store.get and store.put and the draft tools
+    When a view, a form and a class outside their sets, a module the sdk refuses, a rewrite of an absent path and a base of another profile are each provoked
+    Then each is its typed refusal or host failure and nothing is read or stored where the statement says so
+
+  @DR-16 @build
+  Scenario: Each gate of the assemble work rejects its planted defect: an unknown view admitted, an assembled module whose bytes differ from those of sdk::write_module and a prose document sent through the sdk; DRAFTS.md records the command, the diagnostic and the restore of each.
+    Given DRAFTS.md and the planted defects of the assemble work
     When the defects are read
     Then each names a command, a diagnostic and a restore, and the three kinds the statement names are among them
