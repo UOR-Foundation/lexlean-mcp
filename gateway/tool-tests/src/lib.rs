@@ -285,6 +285,14 @@ pub fn call_frame_raw(tool: &str, arguments: &[u8], id: u64) -> Vec<u8> {
     frame_of_body("tools/call", Some(tool), body, &[])
 }
 
+/// A request for any method with these parameters, as a frame. `name` is the `Mcp-Name` field
+/// the method needs (the URI of `resources/read`, the name of `tools/call`), or `None`.
+pub fn method_frame(method: &str, name: Option<&str>, params: Value, id: u64) -> Vec<u8> {
+    let mut params = params;
+    params["_meta"] = meta();
+    frame(method, name, id, params)
+}
+
 /// A request for `tools/list`, as a frame.
 pub fn list_frame(id: u64) -> Vec<u8> {
     frame("tools/list", None, id, json!({"_meta": meta()}))
@@ -420,6 +428,27 @@ impl Gateway {
         let request = call_frame(tool, Some(arguments), self.next);
         let host = &mut self.host;
         on_big_stack(|| exchange(host, &request))
+    }
+
+    /// Any method of the protocol with these parameters: `name` is the `Mcp-Name` field the
+    /// method needs, the URI of `resources/read` for one.
+    pub fn rpc(&mut self, method: &str, name: Option<&str>, params: Value) -> Reply {
+        self.next += 1;
+        let request = method_frame(method, name, params, self.next);
+        let host = &mut self.host;
+        on_big_stack(|| exchange(host, &request))
+    }
+
+    /// Provision the project `from` as the profile `name`, as the operator's `install` does, with
+    /// the review records in the files given. The profile ID it returns is the host's.
+    pub fn install_profile(
+        &self,
+        name: &str,
+        from: &Path,
+        reviews: &[&Path],
+    ) -> gateway_binding::provision::Installed {
+        gateway_binding::provision::install(&self.store, name, from, reviews)
+            .unwrap_or_else(|refused| panic!("installing {name}: {}", refused.code()))
     }
 
     /// `tools/call` of `tool` whose `arguments` are the bytes given.
