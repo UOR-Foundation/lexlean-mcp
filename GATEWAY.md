@@ -13,7 +13,7 @@ the declaration by `cargo test -p repo-model --test gateway`.
 | --- | --- |
 | `gateway/src/Effects.lex.tex` | the declaration half, byte for byte (`src/Effects.lex.tex`); the single source of the ten effects |
 | `gateway/src/Gateway.lex.tex`, `GatewayTools.lex.tex`, `HostWire.lex.tex` | the tool layer and the production root `LexLeanMcpGateway.Gateway.gatewayRun` |
-| `gateway/src/Drafts.lex.tex`, `DraftAdmission.lex.tex`, `Nfc.lex.tex`, `NfcTables.lex.tex`, `gateway/artifacts` | the draft tools (DRAFTS.md): `Drafts` is the identity, the profile record, the storage and the reading; the other three are `src/Admission.lex.tex` (module name and title aside), `src/Nfc.lex.tex`, `src/NfcTables.lex.tex` and the tables they embed, byte for byte, so that the core admits a path with the exported admission (DR-03) |
+| `gateway/src/Drafts.lex.tex`, `DraftAdmission.lex.tex`, `Nfc.lex.tex`, `NfcTables.lex.tex`, `gateway/artifacts` | the draft tools (DRAFTS.md): `Drafts` is the identity, the profile record, the storage, the reading (as text, as data and as spans) and the assembly of a module; the other three are `src/Admission.lex.tex` (module name and title aside), `src/Nfc.lex.tex`, `src/NfcTables.lex.tex` and the tables they embed, byte for byte, so that the core admits a path with the exported admission (DR-03) |
 | `gateway/src/Application.lex.tex` | the server application: the eleven effects, the limits, the serving surface and the vectors; rendered by `gateway/vectors/generate.py` |
 | `gateway/mcp/src`, `gateway/language/mcp.core` | the protocol core of UOR-Foundation/MCP at `.github/mcp.rev`, laid out by `gateway/lay-out-mcp.sh`; not committed |
 | `gateway/bindings/gateway-binding` | the binding crate: `Native` implements the generated `Host` trait, and nothing else |
@@ -54,8 +54,8 @@ the kinds are `Flag`, `U32`, `U64`, `Text` and `Bytes`; a failure is a declared 
 
 | Effect | Request | Result | Failures |
 | --- | --- | --- | --- |
-| `store.get` | `area:U32`, `key:Text` | `found:Flag`, `content:Bytes` | `area-unknown`, `key-refused`, `unreadable` |
-| `store.put` | `area:U32`, `key:Text`, `content:Bytes` | `length:U64` | `area-unknown`, `key-refused`, `unwritable` |
+| `store.get` | `area:U32`, `key:Text`, `path:Text`, `view:U32` | `found:Flag`, `content:Bytes`, `class:U32` | `area-unknown`, `key-refused`, `unreadable`, `view-unknown` |
+| `store.put` | `area:U32`, `key:Text`, `content:Bytes`, `form:U32` | `length:U64`, `class:U32`, `rendered:Bytes` | `area-unknown`, `key-refused`, `unwritable`, `form-unknown` |
 | `engine.check` | `project:Text`, `selection:U32`, `files:Text` | `class:U32`, `result:Bytes` | `project-refused`, `engine-unavailable` |
 | `engine.snapshot` | `project:Text`, `selection:U32`, `files:Text` | `class:U32`, `result:Bytes` | `project-refused`, `engine-unavailable` |
 | `engine.format` | `project:Text`, `selection:U32`, `files:Text`, `check_only:Flag` | `class:U32`, `result:Bytes` | `project-refused`, `engine-unavailable` |
@@ -80,15 +80,30 @@ of a directory in the store (`profiles`, `drafts`, `builds`, `verifications`, `i
 `exports`, `keys`); a key is segments of `[A-Za-z0-9._-]` not starting with `.`, joined by
 `/`, at most 1024 bytes.
 
+`store.get` and `store.put` carry the closed fields of EF-09 (`src/Effects.lex.tex`: `View`,
+`Form`, `Class`, each with a total decoder and a typed refusal for a number past its last
+constructor), and no eleventh effect carries them. `view` is `0` for the bytes as stored, `1` for
+the module of `sdk::read_module` as JSON and `2` for the byte ranges of `sdk::declaration_spans`
+as JSON (`null` for a module written as data); `path`, when it is not empty, names the file of
+the draft at `key` that the view reads, and when it is empty the view reads the bytes at `key`.
+`form` is `0` to store the content as given, `1` to render `{kind, header, data}` with
+`sdk::assemble` and `2` to render `{text, data}` with `sdk::write_module` before storing the text.
+A `class` of these two effects is `0` when the bytes were taken, `1` when the sdk refused them
+(the `content` of `store.get` and the `rendered` of `store.put` are then its message and nothing
+is stored) and `2` when the draft has no such `path`. A `view` or a `form` outside `0` to `2` is
+the failure `view-unknown` or `form-unknown`, and is refused before the store is touched and
+before the sdk is reached. The host reaches `lexlean::sdk` only for the views `1` and `2` and the
+forms `1` and `2` (DRAFTS.md).
+
 ## The bounds
 
 | Value | Where it comes from |
 | --- | --- |
-| `store.put` request up to 9 MiB of content, `store.get` result up to 9 MiB | `draft.max_bytes` 8 MiB of file content (OWNER-VALUES.md) and 1 MiB of headroom for the framing of the preimage (`DRAFT_BLOB_HEADROOM`: 256 files of 36 octets of framing, their paths, which `draft.max_bytes` does not count, and the three heads); the tool layer refuses a larger draft before it asks for an effect (DRAFTS.md) |
+| `store.put` request up to 9 MiB of content, `store.get` result up to 9 MiB, `store.put` result up to 9 MiB (the rendered text) | `draft.max_bytes` 8 MiB of file content (OWNER-VALUES.md) and 1 MiB of headroom for the framing of the preimage (`DRAFT_BLOB_HEADROOM`: 256 files of 36 octets of framing, their paths, which `draft.max_bytes` does not count, and the three heads); the tool layer refuses a larger draft before it asks for an effect (DRAFTS.md) |
 | the Engine's result up to 4 MiB | the binding answers class `4` with a diagnostic rather than a result over it |
 | a status carries the last 64 KiB of a log | `verify.control` result |
 | `requestMaximum` and `responseMaximum` 20 MiB, `bodyMaximum` 16 MiB | a draft of 8 MiB escaped in JSON is at most 16 MiB |
-| an exchange asks for at most 2 effects | `effectBudget`; every tool asks for one |
+| an exchange asks for at most 4 effects | `effectBudget`; `lexlean_draft_assemble` on a base draft asks four (`lexicon.read`, `store.get`, `store.put` of the render, `store.put` of the draft), `lexlean_draft_write` two, the Engine tools one |
 | `rate.tool_calls` 100 per `rate.window_ms` 60000 | OWNER-VALUES.md; the window is the binding's, the limit the core's |
 
 ## The binding
@@ -203,12 +218,6 @@ CI.md describes the job that runs this, and the release step that removes the re
 
 ## Not claimed
 
-- `lexlean_draft_assemble`, and the structured read of a draft, are not tools of this core. They
-  would call four functions of `lexlean::sdk` (draft assembly and structured form reading) that
-  none of the ten effects reaches: `engine.*` runs a command on a project, and `store.*` moves
-  bytes. A tool for them needs a `view` or `form` field on `engine.check` and `engine.snapshot`,
-  or an eleventh effect, and the set of effects is closed (GW-05); that is the lead's decision
-  (DRAFTS.md, "Not met").
 - The tools do what their names say only as far as the vectors show: the semantics of each
   tool, its schema and its errors belong to #8 to #12. This file claims that the tools reach
   the host through the ten effects, and that the host does what the effects declare.

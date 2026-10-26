@@ -15,11 +15,14 @@ fn one_of_each() -> Vec<Request> {
         Request::StoreGet(store_get::Request {
             area: 1,
             key: "tiny/lexlean.toml".into(),
+            path: String::new(),
+            view: 0,
         }),
         Request::StorePut(store_put::Request {
             area: 1,
             key: "tiny/lexlean.toml".into(),
             content: b"x".to_vec(),
+            form: 0,
         }),
         Request::EngineCheck(engine_check::Request {
             project: project.clone(),

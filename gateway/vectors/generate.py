@@ -54,12 +54,18 @@ DRAFT = 8_388_608
 BLOB = DRAFT + 1_048_576
 KEY = 1_024
 EFFECTS = [
-    ("store.get", [("area", "U32"), ("key", "Text")],
-     [("found", "Flag"), ("content", "Bytes")],
-     ["area-unknown", "key-refused", "unreadable"], 4 + 4 + KEY + 8, BLOB + 4_096),
-    ("store.put", [("area", "U32"), ("key", "Text"), ("content", "Bytes")],
-     [("length", "U64")],
-     ["area-unknown", "key-refused", "unwritable"], 4 + 4 + KEY + 4 + BLOB + 8, 16),
+    # `view` and `form` are the closed fields of EF-09 (src/Effects.lex.tex: View, Form, Class). A
+    # `path` names the file of a draft that a view reads; `class` says whether the sdk took the
+    # bytes (0), refused them (1, and the content or rendered field holds its message) or the
+    # draft has no such path (2); `rendered` is the text a form made and stored.
+    ("store.get", [("area", "U32"), ("key", "Text"), ("path", "Text"), ("view", "U32")],
+     [("found", "Flag"), ("content", "Bytes"), ("class", "U32")],
+     ["area-unknown", "key-refused", "unreadable", "view-unknown"],
+     4 + 4 + KEY + 4 + KEY + 4 + 8, BLOB + 4_096),
+    ("store.put", [("area", "U32"), ("key", "Text"), ("content", "Bytes"), ("form", "U32")],
+     [("length", "U64"), ("class", "U32"), ("rendered", "Bytes")],
+     ["area-unknown", "key-refused", "unwritable", "form-unknown"],
+     4 + 4 + KEY + 4 + BLOB + 4 + 8, BLOB + 4_096),
     ("engine.check", [("project", "Text"), ("selection", "U32"), ("files", "Text")],
      [("class", "U32"), ("result", "Bytes")],
      ["project-refused", "engine-unavailable"], 65_536, 4_194_304 + 64),
@@ -91,7 +97,9 @@ FRAME_EFFECT = "rate.calls"
 REQUEST_MAXIMUM = 20_971_520
 RESPONSE_MAXIMUM = 20_971_520
 BODY_MAXIMUM = 16_777_216
-EFFECT_BUDGET = 2
+# A tool that makes a draft from a base draft asks four effects: the record of the profile, the base,
+# the render of the module (store.put with a form) and the draft (store.put).
+EFFECT_BUDGET = 4
 PORT = 5395
 # The bound `prismpm verify` puts on `cargo build --release --locked --offline` of the staged
 # workspace (the binding, which links lexlean, the core of about 14 000 lines, the two host
@@ -323,6 +331,11 @@ BROKEN_RECORD = "not the id of a profile\nsrc\n"
 # whose command result a refused check and a refused snapshot carry (issue #10).
 REFUSED = "\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n"
 DIGEST = "5ee76e509683c39ef3347d2587071270720c04fd7e270b6f4b1538b4d96426cc"
+# The header and the data of the modules the assemble vectors make: an empty semantic module, which
+# `sdk::assemble` and `sdk::write_module` accept.
+HEADER = {"name": "Other", "glossaries": ["lexlean.std.bool@1.2.0", "lexlean.std.nat@1.2.0"],
+          "imports": [], "title": "Other"}
+EMPTY_MODULE = {"spec": "lexlean/semantic-module/2", "declarations": []}
 
 
 def fixture(path: str) -> str:
@@ -408,6 +421,20 @@ def spec() -> list:
          {"profile": "absent", "entry": "entries"}),
         ("attestation.lookup finds nothing", "tool-call", call, "lexlean_attestation",
          {"by": "id", "value": DIGEST}),
+        # The structured read and the assemble tool (issue #9): store.get with a view, and store.put
+        # with a form that the host renders by the sdk.
+        ("store.get with the view 1: the data of a file", "tool-call", call, "lexlean_draft_read",
+         {"draft": handle, "path": SOURCE, "view": "data"}),
+        ("store.get with the view 2: the spans of a file", "tool-call", call, "lexlean_draft_read",
+         {"draft": handle, "path": SOURCE, "view": "spans"}),
+        ("store.put with the form 1: a module is assembled", "tool-call", call, "lexlean_draft_assemble",
+         {"profile": "tiny", "path": "src/Other.lex.tex", "kind": "semantic", "header": HEADER,
+          "data": EMPTY_MODULE}),
+        ("store.put with the form 2: a module is rewritten", "tool-call", call, "lexlean_draft_assemble",
+         {"profile": "tiny", "draft": handle, "path": SOURCE, "data": EMPTY_MODULE}),
+        ("store.put with the form 1: the sdk refuses a module", "tool-call", call, "lexlean_draft_assemble",
+         {"profile": "tiny", "path": SOURCE, "kind": "semantic", "header": HEADER,
+          "data": {"spec": "lexlean/semantic-module/9"}}),
         # An explanation is a function of the code, compiled into the core: no effect is asked.
         ("lexlean_explain a registered code", "explain", call, "lexlean_explain",
          {"code": "LLL1004"}),
@@ -518,6 +545,18 @@ def record_vectors(runner: str) -> list:
     got = written["result"]["structuredContent"]["draft"]
     if got != expected:
         sys.exit(f"generate: the core named the draft {got}, the generator {expected}")
+    # The sdk accepts the empty module of the assemble vectors and refuses the last one.
+    expected_error = {"store.put with the form 1: the sdk refuses a module": True,
+                      "store.put with the form 1: a module is assembled": False,
+                      "store.put with the form 2: a module is rewritten": False,
+                      "store.get with the view 1: the data of a file": False,
+                      "store.get with the view 2: the spans of a file": False}
+    for vector in vectors:
+        if vector["name"] in expected_error:
+            body = json.loads(bytes.fromhex(vector["http_response"]).split(b"\r\n\r\n", 1)[1])
+            failed = body["result"].get("isError", False)
+            if failed != expected_error[vector["name"]]:
+                sys.exit(f"generate: {vector['name']}: isError is {failed}: {body}")
     return vectors
 
 

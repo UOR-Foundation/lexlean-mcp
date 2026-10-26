@@ -285,8 +285,8 @@ definition{
   parameters: [effect : Effects::Effect],
   result: (List String),
   body: (match effect
-    | Effects::Effect.StoreGet => (cons "area-unknown" (cons "key-refused" (cons "unreadable" (nil String))))
-    | Effects::Effect.StorePut => (cons "area-unknown" (cons "key-refused" (cons "unwritable" (nil String))))
+    | Effects::Effect.StoreGet => (cons "area-unknown" (cons "key-refused" (cons "unreadable" (cons "view-unknown" (nil String)))))
+    | Effects::Effect.StorePut => (cons "area-unknown" (cons "key-refused" (cons "unwritable" (cons "form-unknown" (nil String)))))
     | Effects::Effect.EngineCheck => (cons "project-refused" (cons "engine-unavailable" (nil String)))
     | Effects::Effect.EngineSnapshot => (cons "project-refused" (cons "engine-unavailable" (nil String)))
     | Effects::Effect.EngineFormat => (cons "project-refused" (cons "engine-unavailable" (nil String)))
@@ -552,16 +552,176 @@ definition{
 }
 
 definition{
+  name: draftReadText,
+  parameters: [
+    completed : (List HostEffect::Completed),
+    params : Methods::CallToolParams,
+    draft : String
+  ],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match completed
+    | List.nil => (moved (Drafts::read draft (argValue params "path") (ctor Option.none [Bytes])))
+    | List.cons lead rest => (match rest
+      | List.nil => (draftReadWith draft (argValue params "path") lead)
+      | List.cons more again => (refused "the host performed more than one effect"))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: draftViewWith,
+  parameters: [draft : String, path : String, view : Nat, lead : HostEffect::Completed],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (if ((project lead tag) =? (Drafts::storeGetTag)) then (if (failedWith (ctor Effects::Effect.StoreGet) (project lead outcome)) then (accepted (hostFailure (ctor Effects::Effect.StoreGet) (wordAt (project lead outcome) 4))) else (moved (Drafts::viewRead draft path view (ctor Option.some [Bytes] (project lead outcome))))) else (refused "the host performed another effect")),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: draftView,
+  parameters: [
+    completed : (List HostEffect::Completed),
+    params : Methods::CallToolParams,
+    draft : String,
+    view : Nat
+  ],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (argValue params "path")
+    | Option.none => (invalid "a data or spans view needs a path")
+    | Option.some given => (match (Json::asText given)
+      | Option.none => (invalid "path is not a string")
+      | Option.some path => (match completed
+        | List.nil => (moved (Drafts::viewRead draft path view (ctor Option.none [Bytes])))
+        | List.cons lead rest => (match rest
+          | List.nil => (draftViewWith draft path view lead)
+          | List.cons more again => (refused "the host performed more than one effect"))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
   name: draftRead,
   parameters: [completed : (List HostEffect::Completed), params : Methods::CallToolParams],
   result: (Result Methods::Progressed Refusal::ProviderRefusal),
   body: (match (argText params "draft")
     | Option.none => (invalid "draft is not a string")
-    | Option.some draft => (match completed
-      | List.nil => (moved (Drafts::read draft (argValue params "path") (ctor Option.none [Bytes])))
-      | List.cons lead rest => (match rest
-        | List.nil => (draftReadWith draft (argValue params "path") lead)
-        | List.cons more again => (refused "the host performed more than one effect")))),
+    | Option.some draft => (match (argValue params "view")
+      | Option.none => (draftReadText completed params draft)
+      | Option.some given => (match (Json::asText given)
+        | Option.none => (invalid "view is not a string")
+        | Option.some name => (if (prim equal name "text" : Bool) then (draftReadText completed params draft) else (if (prim equal name "data" : Bool) then (draftView completed params draft (Drafts::viewData)) else (if (prim equal name "spans" : Bool) then (draftView completed params draft (Drafts::viewSpans)) else (invalid "view is not text, data or spans"))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+inductive{
+  name: Gathered,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Ready, fields: [Drafts::Seen]},
+    {name: Stopped, fields: [(Result Methods::Progressed Refusal::ProviderRefusal)]}
+  ]
+}
+
+definition{
+  name: slotAfter,
+  parameters: [seen : Drafts::Seen],
+  result: Nat,
+  body: (match (project seen render)
+    | Option.none => 2
+    | Option.some outcome => (match (project seen stored)
+      | Option.none => 3
+      | Option.some done => 4)),
+  executable: true
+}
+
+definition{
+  name: slotOf,
+  parameters: [seen : Drafts::Seen, hasBase : Bool],
+  result: Nat,
+  body: (match (project seen lexicon)
+    | Option.none => 0
+    | Option.some outcome => (match (project seen base)
+      | Option.none => (if hasBase then 1 else (slotAfter seen))
+      | Option.some held => (slotAfter seen))),
+  executable: true
+}
+
+definition{
+  name: effectOfSlot,
+  parameters: [slot : Nat],
+  result: Effects::Effect,
+  body: (if (slot =? 0) then (ctor Effects::Effect.LexiconRead) else (if (slot =? 1) then (ctor Effects::Effect.StoreGet) else (ctor Effects::Effect.StorePut))),
+  executable: true
+}
+
+definition{
+  name: withOutcome,
+  parameters: [seen : Drafts::Seen, slot : Nat, outcome : Bytes],
+  result: Drafts::Seen,
+  body: (let got : (Option Bytes) := (ctor Option.some [Bytes] outcome); (if (slot =? 0) then (record Drafts::Seen {lexicon := got, base := (project seen base), render := (project seen render), stored := (project seen stored)}) else (if (slot =? 1) then (record Drafts::Seen {lexicon := (project seen lexicon), base := got, render := (project seen render), stored := (project seen stored)}) else (if (slot =? 2) then (record Drafts::Seen {lexicon := (project seen lexicon), base := (project seen base), render := got, stored := (project seen stored)}) else (record Drafts::Seen {lexicon := (project seen lexicon), base := (project seen base), render := (project seen render), stored := got}))))),
+  executable: true
+}
+
+definition{
+  name: gather,
+  parameters: [completed : (List HostEffect::Completed), hasBase : Bool, seen : Drafts::Seen],
+  result: Gathered,
+  body: (match completed
+    | List.nil => (ctor Gathered.Ready seen)
+    | List.cons entry rest => (let slot : Nat := (slotOf seen hasBase); (if (slot =? 4) then (ctor Gathered.Stopped (refused "the host performed more effects than the tool asked for")) else (if ((project entry tag) =? (tagOf (effectOfSlot slot))) then (if (failedWith (effectOfSlot slot) (project entry outcome)) then (ctor Gathered.Stopped (accepted (hostFailure (effectOfSlot slot) (wordAt (project entry outcome) 4)))) else (gather rest hasBase (withOutcome seen slot (project entry outcome)))) else (ctor Gathered.Stopped (refused "the host performed another effect")))))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: completed
+}
+
+definition{
+  name: optionalText,
+  parameters: [params : Methods::CallToolParams, key : String],
+  result: (Option (Option String)),
+  body: (match (argValue params key)
+    | Option.none => (ctor Option.some [(Option String)] (ctor Option.none [String]))
+    | Option.some value => (match (Json::asText value)
+      | Option.none => (ctor Option.none [(Option String)])
+      | Option.some text => (ctor Option.some [(Option String)] (ctor Option.some [String] text)))),
+  executable: true
+}
+
+definition{
+  name: hasDraft,
+  parameters: [edit : Drafts::Edit],
+  result: Bool,
+  body: (match (project edit draft) | Option.none => false | Option.some held => true),
+  executable: true
+}
+
+definition{
+  name: draftAssembleWith,
+  parameters: [edit : Drafts::Edit, completed : (List HostEffect::Completed)],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (gather completed (hasDraft edit) (record Drafts::Seen {lexicon := (ctor Option.none [Bytes]), base := (ctor Option.none [Bytes]), render := (ctor Option.none [Bytes]), stored := (ctor Option.none [Bytes])}))
+    | Gathered.Stopped result => result
+    | Gathered.Ready seen => (moved (Drafts::assemble edit seen))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: draftAssemble,
+  parameters: [completed : (List HostEffect::Completed), params : Methods::CallToolParams],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (argText params "profile")
+    | Option.none => (invalid "profile is not a string")
+    | Option.some profile => (match (argText params "path")
+      | Option.none => (invalid "path is not a string")
+      | Option.some path => (match (argValue params "data")
+        | Option.none => (invalid "data is missing")
+        | Option.some data => (match (optionalText params "draft")
+          | Option.none => (invalid "draft is not a string")
+          | Option.some draft => (match (optionalText params "kind")
+            | Option.none => (invalid "kind is not a string")
+            | Option.some kind => (draftAssembleWith (record Drafts::Edit {profile := profile, draft := draft, path := path, data := data, kind := kind, header := (argValue params "header")}) completed)))))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -615,13 +775,13 @@ definition{
     | List.nil => (match (argText params "code")
       | Option.none => (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments "code is not a string"))
       | Option.some code => (explainReply code))
-    | List.cons entry rest => (refused "the host performed an effect that nothing asked for")) else (if (isTool params "lexlean_draft_write") then (draftWrite completed params) else (if (isTool params "lexlean_draft_read") then (draftRead completed params) else (match (plan params)
+    | List.cons entry rest => (refused "the host performed an effect that nothing asked for")) else (if (isTool params "lexlean_draft_write") then (draftWrite completed params) else (if (isTool params "lexlean_draft_read") then (draftRead completed params) else (if (isTool params "lexlean_draft_assemble") then (draftAssemble completed params) else (match (plan params)
     | Option.none => (ctor Result.error [Methods::Progressed, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments "a file name holds a line feed, or all is true with files"))
     | Option.some chosen => (match completed
       | List.nil => (asking (tagOf (project chosen effect)) (project chosen payload))
       | List.cons entry rest => (match rest
         | List.nil => (if ((project entry tag) =? (tagOf (project chosen effect))) then (render (project chosen effect) (project entry outcome)) else (refused "the host performed another effect"))
-        | List.cons more again => (refused "the host performed more than one effect"))))))),
+        | List.cons more again => (refused "the host performed more than one effect")))))))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -655,6 +815,14 @@ definition{
   parameters: [one : String, other : String],
   result: Json::Json,
   body: (ctor Json::Json.object (cons ("type", (textJson "string")) (member "enum" (ctor Json::Json.array (cons (textJson one) (cons (textJson other) (nil Json::Json))))))),
+  executable: true
+}
+
+definition{
+  name: choiceThreeProp,
+  parameters: [one : String, two : String, three : String],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("type", (textJson "string")) (member "enum" (ctor Json::Json.array (cons (textJson one) (cons (textJson two) (cons (textJson three) (nil Json::Json)))))))),
   executable: true
 }
 
@@ -779,10 +947,18 @@ definition{
 }
 
 definition{
+  name: headerProp,
+  parameters: [],
+  result: Json::Json,
+  body: (ctor Json::Json.object (project (objectOf (cons ("name", (nonEmptyProp)) (cons ("glossaries", (stringsProp)) (cons ("imports", (stringsProp)) (member "title" (kindProp "string"))))) (cons "name" (cons "glossaries" (cons "imports" (cons "title" (nil String)))))) members)),
+  executable: true
+}
+
+definition{
   name: gatewayTools,
   parameters: [],
   result: (List Content::Tool),
-  body: (cons (effectTool "lexlean_draft_write" "Write the files of a draft: the paths are admitted under the source roots of the profile, and the draft is named by its profile and by the digest of its files." (objectOf (cons ("profile", (nonEmptyProp)) (member "files" (draftFilesProp))) (cons "profile" (cons "files" (nil String))))) (cons (effectTool "lexlean_draft_read" "Read a file of a draft, or list the files of the draft when no path is given." (objectOf (cons ("draft", (nonEmptyProp)) (member "path" (nonEmptyProp))) (cons "draft" (nil String)))) (cons (engineTool "lexlean_check" "Check a project with the LexLean engine: the result is what lexlean check prints with --diagnostic-format json, and a refused project is an error result that carries it." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "check")) (cons (engineTool "lexlean_snapshot" "Take the semantic snapshot of a project with the LexLean engine: the result is the snapshot, and a refused project is an error result with the command result of check." (objectOf (engineProperties) (cons "project" (nil String))) (snapshotSchema)) (cons (engineTool "lexlean_format" "Format a project with the LexLean engine as lexlean fmt does, or check its formatting with check_only." (objectOf (prim append (engineProperties) (member "check_only" (kindProp "boolean")) : (List (String * Json::Json))) (cons "project" (nil String))) (commandResultSchema "fmt")) (cons (engineTool "lexlean_build" "Build a project with the LexLean engine as lexlean build does." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "build")) (cons (engineTool "lexlean_explain" "Explain a diagnostic code of LexLean: the result is what lexlean explain prints with --diagnostic-format json, and a code the registry does not hold is an error result that carries the refusal of the CLI." (objectOf (member "code" (kindProp "string")) (cons "code" (nil String))) (explainResultSchema)) (cons (effectTool "lexlean_verify" "Start the verification of a project and return its task." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify_control" "Read the state of a verification task, or cancel it." (objectOf (cons ("task", (nonEmptyProp)) (member "action" (choiceProp "status" "cancel"))) (cons "task" (cons "action" (nil String))))) (cons (effectTool "lexlean_lexicon_read" "Read an entry of the lexicon of a profile." (objectOf (cons ("profile", (nonEmptyProp)) (member "entry" (nonEmptyProp))) (cons "profile" (cons "entry" (nil String))))) (cons (effectTool "lexlean_attestation" "Look an attestation up by its ID or by the digest of its file." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (nil Content::Tool)))))))))))),
+  body: (cons (effectTool "lexlean_draft_write" "Write the files of a draft: the paths are admitted under the source roots of the profile, and the draft is named by its profile and by the digest of its files." (objectOf (cons ("profile", (nonEmptyProp)) (member "files" (draftFilesProp))) (cons "profile" (cons "files" (nil String))))) (cons (effectTool "lexlean_draft_read" "Read a file of a draft, or list the files of the draft when no path is given. The view data gives the module of the file as the data of sdk::read_module, and the view spans the byte ranges of its declarations as sdk::declaration_spans gives them; both are for semantic, tooling and core modules, and a prose document is stored and read as text." (objectOf (cons ("draft", (nonEmptyProp)) (cons ("path", (nonEmptyProp)) (member "view" (choiceThreeProp "text" "data" "spans")))) (cons "draft" (nil String)))) (cons (effectTool "lexlean_draft_assemble" "Assemble a semantic, tooling or core module from its data into a new draft: with kind and header the text is that of sdk::assemble, and without them the file of the draft keeps its form as sdk::write_module keeps it. The draft is named by its profile and by the digest of its files." (objectOf (cons ("profile", (nonEmptyProp)) (cons ("path", (nonEmptyProp)) (cons ("data", (kindProp "object")) (cons ("draft", (nonEmptyProp)) (cons ("kind", (choiceThreeProp "semantic" "tooling" "core")) (member "header" (headerProp))))))) (cons "profile" (cons "path" (cons "data" (nil String)))))) (cons (engineTool "lexlean_check" "Check a project with the LexLean engine: the result is what lexlean check prints with --diagnostic-format json, and a refused project is an error result that carries it." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "check")) (cons (engineTool "lexlean_snapshot" "Take the semantic snapshot of a project with the LexLean engine: the result is the snapshot, and a refused project is an error result with the command result of check." (objectOf (engineProperties) (cons "project" (nil String))) (snapshotSchema)) (cons (engineTool "lexlean_format" "Format a project with the LexLean engine as lexlean fmt does, or check its formatting with check_only." (objectOf (prim append (engineProperties) (member "check_only" (kindProp "boolean")) : (List (String * Json::Json))) (cons "project" (nil String))) (commandResultSchema "fmt")) (cons (engineTool "lexlean_build" "Build a project with the LexLean engine as lexlean build does." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "build")) (cons (engineTool "lexlean_explain" "Explain a diagnostic code of LexLean: the result is what lexlean explain prints with --diagnostic-format json, and a code the registry does not hold is an error result that carries the refusal of the CLI." (objectOf (member "code" (kindProp "string")) (cons "code" (nil String))) (explainResultSchema)) (cons (effectTool "lexlean_verify" "Start the verification of a project and return its task." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify_control" "Read the state of a verification task, or cancel it." (objectOf (cons ("task", (nonEmptyProp)) (member "action" (choiceProp "status" "cancel"))) (cons "task" (cons "action" (nil String))))) (cons (effectTool "lexlean_lexicon_read" "Read an entry of the lexicon of a profile." (objectOf (cons ("profile", (nonEmptyProp)) (member "entry" (nonEmptyProp))) (cons "profile" (cons "entry" (nil String))))) (cons (effectTool "lexlean_attestation" "Look an attestation up by its ID or by the digest of its file." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (nil Content::Tool))))))))))))),
   executable: true
 }
 

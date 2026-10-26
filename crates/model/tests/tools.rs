@@ -573,6 +573,31 @@ fn the_codes_of_the_results_resolve_through_lexlean_explain_tl_13() {
     );
 }
 
+/// TL-15: each in-scope function of the API-to-tool map is reached by a tool that runs.
+#[test]
+fn the_running_clause_of_q2_is_a_tool_per_in_scope_function_tl_15() {
+    needs(
+        "TL-15",
+        &["each_in_scope_function_is_reached_by_a_tool_that_runs_tl_15"],
+    );
+    let test = read("gateway/tool-tests/tests/q2.rs");
+    for compared in [
+        "sdk::read_module",
+        "sdk::declaration_spans",
+        "sdk::assemble",
+        "sdk::write_module",
+        "crates/quality-map/map.toml",
+        "gateway.list()",
+    ] {
+        assert!(test.contains(compared), "the Q2 test uses {compared}");
+    }
+    let quality = read("src/Quality.lex.tex");
+    assert!(
+        quality.contains("TL-15"),
+        "the quality model names the row that runs the clause of Q2"
+    );
+}
+
 /// TL-14: the planted defects of lexlean_explain are recorded.
 #[test]
 fn the_planted_defects_of_lexlean_explain_are_recorded_tl_14() {

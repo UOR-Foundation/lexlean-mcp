@@ -3,7 +3,7 @@
 Issue #7 closes the set of effects through which the tool layer acts on its host.
 This repository declares the set in the model, `src/Effects.lex.tex`, as data with
 a total codec, a negative theorem and one acceptance vector per effect. The
-registered rows are `EF-01` to `EF-08` (suite `effects`); `lexlean verify` checks
+registered rows are `EF-01` to `EF-09` (suite `effects`); `lexlean verify` checks
 the kernel side, and `cargo test -p repo-model --test effects` holds the source,
 this document and issue #7 to one statement.
 
@@ -85,6 +85,44 @@ The closed set itself is the `Effect` inductive: it has ten constructors, and a
 `match` over it without an eleventh arm is refused by LexLean (the first planted
 defect below). `encode` has no other target, so there is no wire to write for an
 effect that is not in the type.
+
+## The closed fields
+
+Issue #9 gives two of the ten effects a field each, and no effect is added: the
+set is still E1 to E10, and a request for an eleventh is still the closed refusal
+above (`GW-05`). The fields are numbers on the wire (`u32`), each a closed type of
+this model with a total decoder:
+
+| Type | Field of | Values | Refusal |
+| --- | --- | --- | --- |
+| `View` | `store.get` (view) | Stored 0, Data 1, Spans 2 | `UnknownView` |
+| `Form` | `store.put` (form) | Plain 0, Assemble 1, Rewrite 2 | `UnknownForm` |
+| `Class` | store.get and store.put (class of the answer) | Accepted 0, Refused 1, Absent 2 | `UnknownClass` |
+
+- **`View`** is how `store.get` reads the bytes it found: `Stored` as they are,
+  `Data` as the data `sdk::read_module` reads from them, `Spans` as the byte
+  ranges of `sdk::declaration_spans`.
+- **`Form`** is how `store.put` makes the bytes it stores: `Plain` as given,
+  `Assemble` as the text `sdk::assemble` renders for a kind, a header and data,
+  and `Rewrite` as the text `sdk::write_module` renders for the text of a module
+  and new data.
+- **`Class`** says what became of the sdk call: `Accepted` (the content is the
+  result), `Refused` (the content is the message of the sdk) or `Absent` (the
+  draft has no such path; only `store.get` answers it).
+- `viewTag`, `formTag` and `classTag` give the numbers; `viewAt`, `formAt` and
+  `classAt` are the partial inverse; `decodeView`, `decodeForm` and `decodeClass`
+  are total and give `FieldRefusal` (`UnknownView`, `UnknownForm`,
+  `UnknownClass`) for every number past the last constructor.
+- `decodeViewTag` (and the Form and Class twins) says the decoder inverts the tag
+  for every constructor. `decodeViewSound` says, for every number `n`, that a
+  decoded value has the tag `n`; it is proved by cases on the first four values
+  of `n` and so covers every number. `decodeViewPast` states that the number past
+  the last constructor is `UnknownView`.
+
+A request with a `view` or a `form` outside the table is never forwarded to the
+sdk: the host answers with the typed failure `view-unknown` or `form-unknown`
+(`GW-02`, `GW-05`), and the core reads a `class` outside the table as a
+malformed outcome (`OutcomeMalformed`).
 
 ## The Engine calls
 
@@ -190,7 +228,7 @@ what is shared, and the table says what changes when #216 lands.
 | Declaration | `ServerApplication.host : HostProtocol`, a closed `effects : List HostEffect` in `Foundation.Server.V1.Model` | `Effect`, an inductive of ten constructors, and `allEffects` | the ten become the `effects` of the application's `HostProtocol`, in this order; `tagsAreZeroToNine` pins the order, and `Effects` stays as the reference the generated list is compared with |
 | Name | unique dotted lowercase `name` | `effectName`, the same grammar | unchanged; `namesAreDistinct` and the Q6 theorems hold the list to it |
 | Tag | the position in the list, a `u32` after `perform` | `effectTag`, the position, four octets big-endian | unchanged; the frame is the generated `Request` tag |
-| Fields | typed request and result fields (`U32`, `U64`, `Flag`, `Bytes`, `Text`), closed failures, byte maxima | none: the effect set is names and tags only | each effect gets its request and result fields and failures when the store, the Engine and the verifier slices define their payloads; this model gains a field list per effect and no tag changes |
+| Fields | typed request and result fields (`U32`, `U64`, `Flag`, `Bytes`, `Text`), closed failures, byte maxima | the effect set is names and tags; E1 and E2 gain the closed fields `View`, `Form` and `Class` (above) | each effect gets its request and result fields and failures when the store, the Engine and the verifier slices define their payloads (the gateway wire of `GATEWAY.md` already does); this model gains a field list per effect and no tag changes |
 | Undeclared effect | `EffectUndeclared`: no constructor, no decoder arm | `UnknownId` | `UnknownId` maps to `EffectUndeclared` and `MalformedFrame` to `EffectMalformed`; the generated decoder is checked against `decode` on the vectors |
 | Names on the wire | not on the wire | `UnknownName`, `Wire.Named` | names are a model-side key (documents, diagnostics, vectors); the wire form stays the tag, and `Named` is not generated |
 | Acceptance | `transcripts` of steps, per vector | `acceptanceVectors` of decode requests | the vectors become the first requests of the transcripts; `acceptanceVectorsPass` stays |

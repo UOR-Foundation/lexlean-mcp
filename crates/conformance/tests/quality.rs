@@ -16,16 +16,14 @@ use repo_model::{Level, Model};
 mod common;
 use common::{root, workspace_test_names};
 
-/// The rows `QM-07` is expected to cite, by measure: Q2 (index 1) and Q8 (index 7). `TL-13` is
-/// the row of the tools suite that runs the clause of Q8 which waits for `lexlean_explain`.
+/// The rows `QM-07` is expected to cite, by measure: Q2 (index 1) and Q8 (index 7). `TL-13` and
+/// `TL-15` are the rows of the tools suite that run the clauses which wait for the tools: the
+/// running `lexlean_explain` for Q8, and a tool that runs for each in-scope function for Q2.
+/// Neither clause is in `pendingClauses` any more.
 const CITED: [(u32, &[&str]); 2] = [
-    (1, &["QM-01", "QM-02", "QM-03"]),
+    (1, &["QM-01", "QM-02", "QM-03", "TL-15"]),
     (7, &["QM-04", "QM-05", "QM-06", "TL-13"]),
 ];
-
-/// The measures whose clause that waits for the tools is still in `pendingClauses`: Q2 only.
-/// Q8's running clause is executed by `TL-13`.
-const CLAUSE_PENDING: [u32; 1] = [1];
 
 /// The measures that stay pending, each naming what executes it.
 const PENDING: [u32; 6] = [0, 2, 3, 4, 5, 6];
@@ -55,9 +53,15 @@ fn cited_ids(statement: &str) -> BTreeSet<String> {
 
 /// The text of the declaration `kind{ name: <name>, ...` up to its closing brace.
 fn block<'a>(source: &'a str, kind: &str, name: &str) -> Option<&'a str> {
-    let head = format!("{kind}{{\n  name: {name},");
-    let start = source.find(&head)?;
-    let end = source[start..].find("\n}\n")? + start;
+    // The formatter writes a short declaration on one line and a long one over several.
+    let long = format!("{kind}{{\n  name: {name},");
+    if let Some(start) = source.find(&long) {
+        let end = source[start..].find("\n}\n")? + start;
+        return Some(&source[start..end]);
+    }
+    let short = format!("{kind}{{name: {name},");
+    let start = source.find(&short)?;
+    let end = source[start..].find("}\n")? + start;
     Some(&source[start..end])
 }
 
@@ -111,7 +115,11 @@ fn violations(i: &Inputs) -> Vec<String> {
             out.push(format!("{id} is cited and is not in model/ids.toml"));
             continue;
         };
-        let suite = if id == "TL-13" { "tools" } else { "quality" };
+        let suite = if id.starts_with("TL-") {
+            "tools"
+        } else {
+            "quality"
+        };
         if cited_row.suite != suite {
             out.push(format!(
                 "{id} is cited and is not a row of the {suite} suite"
@@ -136,7 +144,7 @@ fn violations(i: &Inputs) -> Vec<String> {
         ));
     }
 
-    // Q2 and Q8 are Executed, each naming its rows; Q2 names its pending clause and Q8 has none.
+    // Q2 and Q8 are Executed, each naming its rows; neither points at a pending clause.
     for (measure, ids) in CITED {
         match evidence_of(quality, measure) {
             None => out.push(format!("Quality has no evidence for measure {measure}")),
@@ -151,13 +159,7 @@ fn violations(i: &Inputs) -> Vec<String> {
                         ));
                     }
                 }
-                let points = record.contains("pendingClauses");
-                if CLAUSE_PENDING.contains(&measure) && !points {
-                    out.push(format!(
-                        "the Executed status of measure {measure} does not point at pendingClauses"
-                    ));
-                }
-                if !CLAUSE_PENDING.contains(&measure) && points {
+                if record.contains("pendingClauses") {
                     out.push(format!(
                         "the Executed status of measure {measure} points at pendingClauses, and its running clause is executed"
                     ));
@@ -185,7 +187,7 @@ fn violations(i: &Inputs) -> Vec<String> {
     for name in [
         "onlyApiMapAndExplainAreExecuted",
         "measuresPendingExceptQ2AndQ8",
-        "onlyQ2KeepsAPendingClause",
+        "noQualityClauseIsPending",
     ] {
         if block(quality, "theorem", name).is_none() {
             out.push(format!("Quality has no theorem {name}"));
@@ -193,8 +195,11 @@ fn violations(i: &Inputs) -> Vec<String> {
     }
     match block(quality, "definition", "pendingClauses") {
         Some(clauses) => {
-            if !clauses.contains("index := 1") {
-                out.push("pendingClauses does not record the clause of Q2".to_string());
+            if clauses.contains("index := 1") {
+                out.push(
+                    "pendingClauses records a clause of Q2, whose running clause TL-15 executes"
+                        .to_string(),
+                );
             }
             if clauses.contains("index := 7") {
                 out.push(
@@ -203,7 +208,7 @@ fn violations(i: &Inputs) -> Vec<String> {
                 );
             }
         }
-        None => out.push("pendingClauses does not record the clause of Q2".to_string()),
+        None => out.push("pendingClauses is missing".to_string()),
     }
 
     // The counts the model states are the counts the pinned files give.
@@ -292,63 +297,82 @@ fn the_check_rejects_a_pending_q2_a_missing_row_and_a_wrong_count_qm_07() {
     };
     assert!(reported(&planted, "the measure 7 is not Executed"));
 
-    // The running clause of Q8 left in pendingClauses once TL-13 executes it.
-    let at = base
-        .quality
-        .find("name: pendingClauses,")
-        .expect("pendingClauses");
-    let end = at
-        + base.quality[at..]
-            .find("(nil Named))")
-            .expect("the end of the list");
-    let left_pending = format!(
-        "{}{}{}",
-        &base.quality[..end],
-        "(cons (record Named {index := 7, name := \"Q8 running explain\", text := \"left pending\"}) (nil Named)))",
-        &base.quality[end + "(nil Named))".len()..]
-    );
-    let planted = Inputs {
-        quality: left_pending,
-        ..clone(&base)
-    };
-    assert!(reported(
-        &planted,
-        "pendingClauses records a clause of Q8, whose running clause TL-13 executes"
-    ));
-
-    // Q8 pointing at pendingClauses again, with the clause gone.
-    let at = base
-        .quality
-        .find("record MeasureEvidence {measure := 7,")
-        .expect("Q8");
-    let pointing = format!(
-        "{}{}",
-        &base.quality[..at],
-        base.quality[at..].replacen("QM-06", "QM-06; the running clause is in pendingClauses", 1)
-    );
-    let planted = Inputs {
-        quality: pointing,
-        ..clone(&base)
-    };
-    assert!(reported(
-        &planted,
-        "the Executed status of measure 7 points at pendingClauses"
-    ));
-
-    // TL-13 dropped from the statement of QM-07: the running clause of Q8 loses its row.
-    let mut model = base.model.clone();
-    for row in &mut model.ids.id {
-        if row.id == "QM-07" {
-            row.statement = row
-                .statement
-                .replace(" (Q8, whose running clause TL-13 executes)", " (Q8)");
-        }
+    // The running clause of a measure left in pendingClauses once the row that runs it executes it.
+    for (index, name, row) in [
+        (7, "Q8 running explain", "TL-13"),
+        (1, "Q2 tools exist", "TL-15"),
+    ] {
+        let at = base
+            .quality
+            .find("name: pendingClauses,")
+            .expect("pendingClauses");
+        let end = at
+            + base.quality[at..]
+                .find("(nil Named)")
+                .expect("the end of the list");
+        let clause = format!(
+            "(cons (record Named {{index := {index}, name := \"{name}\", text := \"left pending\"}}) (nil Named))"
+        );
+        let left_pending = format!(
+            "{}{clause}{}",
+            &base.quality[..end],
+            &base.quality[end + "(nil Named)".len()..]
+        );
+        let planted = Inputs {
+            quality: left_pending,
+            ..clone(&base)
+        };
+        assert!(reported(
+            &planted,
+            &format!(
+                "pendingClauses records a clause of Q{}, whose running clause {row} executes",
+                index + 1
+            )
+        ));
     }
-    let planted = Inputs {
-        model,
-        ..clone(&base)
-    };
-    assert!(reported(&planted, "QM-07 cites"));
+
+    // A measure pointing at pendingClauses again, with the clause gone.
+    for (index, last) in [(7, "QM-06"), (1, "QM-03")] {
+        let at = base
+            .quality
+            .find(&format!("record MeasureEvidence {{measure := {index},"))
+            .expect("the evidence");
+        let pointing = format!(
+            "{}{}",
+            &base.quality[..at],
+            base.quality[at..].replacen(
+                last,
+                &format!("{last}; the running clause is in pendingClauses"),
+                1
+            )
+        );
+        let planted = Inputs {
+            quality: pointing,
+            ..clone(&base)
+        };
+        assert!(reported(
+            &planted,
+            &format!("the Executed status of measure {index} points at pendingClauses")
+        ));
+    }
+
+    // The row that runs a clause dropped from the statement of QM-07: the clause loses its row.
+    for (measure, row) in [("Q8", "TL-13"), ("Q2", "TL-15")] {
+        let mut model = base.model.clone();
+        for item in &mut model.ids.id {
+            if item.id == "QM-07" {
+                item.statement = item.statement.replace(
+                    &format!(" ({measure}, whose running clause {row} executes)"),
+                    &format!(" ({measure})"),
+                );
+            }
+        }
+        let planted = Inputs {
+            model,
+            ..clone(&base)
+        };
+        assert!(reported(&planted, "QM-07 cites"), "{measure} without {row}");
+    }
 
     // A measure the register does not execute flipped to Executed.
     let at = base
@@ -395,7 +419,7 @@ fn the_check_rejects_a_pending_q2_a_missing_row_and_a_wrong_count_qm_07() {
         quality: dropped,
         ..clone(&base)
     };
-    assert!(reported(&planted, "pendingClauses does not record"));
+    assert!(reported(&planted, "pendingClauses is missing"));
 
     // A count that disagrees with the pinned files.
     let wrong = base.quality.replace(

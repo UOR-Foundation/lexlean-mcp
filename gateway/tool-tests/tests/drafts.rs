@@ -851,10 +851,6 @@ fn a_call_that_breaks_a_schema_of_the_draft_tools_asks_for_no_effect_dr_09() {
             json!({"draft": "tiny/x", "view": "bytes"}),
         ),
         ("lexlean_draft_read", json!({"draft": "tiny/x", "view": 1})),
-        (
-            "lexlean_draft_read",
-            json!({"draft": "tiny/x", "view": "data"}),
-        ),
         ("lexlean_draft_assemble", json!({})),
         (
             "lexlean_draft_assemble",
@@ -867,14 +863,6 @@ fn a_call_that_breaks_a_schema_of_the_draft_tools_asks_for_no_effect_dr_09() {
         (
             "lexlean_draft_assemble",
             json!({"profile": "tiny", "path": SOURCE, "data": {}, "extra": 1}),
-        ),
-        (
-            "lexlean_draft_assemble",
-            json!({"profile": "tiny", "path": SOURCE, "data": {}, "kind": "semantic"}),
-        ),
-        (
-            "lexlean_draft_assemble",
-            json!({"profile": "tiny", "path": SOURCE, "data": {}, "header": tiny_header()}),
         ),
         (
             "lexlean_draft_assemble",
@@ -899,6 +887,37 @@ fn a_call_that_breaks_a_schema_of_the_draft_tools_asks_for_no_effect_dr_09() {
             result["content"][0]["text"]
                 .as_str()
                 .is_some_and(|text| text.starts_with("Invalid arguments:")),
+            "{tool} {arguments}: {}",
+            reply.body
+        );
+        assert!(reply.effects.is_empty(), "{tool} {arguments}");
+    }
+    // What a schema cannot say the core refuses before any effect, as the invalid parameters of
+    // the protocol: a view of data or spans without a path, and a kind without a header or a
+    // header without a kind.
+    let calls = [
+        (
+            "lexlean_draft_read",
+            json!({"draft": "tiny/x", "view": "data"}),
+        ),
+        (
+            "lexlean_draft_read",
+            json!({"draft": "tiny/x", "view": "spans"}),
+        ),
+        (
+            "lexlean_draft_assemble",
+            json!({"profile": "tiny", "path": SOURCE, "data": {}, "kind": "semantic"}),
+        ),
+        (
+            "lexlean_draft_assemble",
+            json!({"profile": "tiny", "path": SOURCE, "data": {}, "header": tiny_header()}),
+        ),
+    ];
+    for (tool, arguments) in calls {
+        let reply = gateway.call(tool, arguments.clone());
+        assert_eq!(
+            reply.error()["code"],
+            -32602,
             "{tool} {arguments}: {}",
             reply.body
         );
@@ -1740,11 +1759,7 @@ fn path_unknown_for_a_rewrite_is_a_typed_refusal_dr_15() {
         &mut gateway,
         json!({"profile": "tiny", "path": SOURCE, "data": tiny_data()}),
     );
-    assert!(
-        reply.text().starts_with("Invalid arguments:"),
-        "{}",
-        reply.body
-    );
+    assert_eq!(reply.error()["code"], -32602, "{}", reply.body);
     assert!(reply.effects.is_empty());
 }
 

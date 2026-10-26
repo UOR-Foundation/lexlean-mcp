@@ -3,12 +3,14 @@
 \useglossary{lexlean.std.nat@1.2.0}
 \useglossary{lexleanmcp.titles@1.0.0}
 \importmodule{DraftAdmission}
+\importmodule{Effects}
 \importmodule{Frame}
 \importmodule{Http}
 \importmodule{HostWire}
 \importmodule{Json}
 \importmodule{JsonRead}
 \importmodule{JsonText}
+\importmodule{JsonWrite}
 \importmodule{ResultJson}
 \importmodule{Sha256}
 \title{LexLean MCP drafts}
@@ -42,6 +44,32 @@ structure{
   fields: [{name: profile, type: Bytes}, {name: roots, type: (List Bytes)}]
 }
 
+structure{
+  name: Edit,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: profile, type: String},
+    {name: draft, type: (Option String)},
+    {name: path, type: String},
+    {name: data, type: Json::Json},
+    {name: kind, type: (Option String)},
+    {name: header, type: (Option Json::Json)}
+  ]
+}
+
+structure{
+  name: Seen,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: lexicon, type: (Option Bytes)},
+    {name: base, type: (Option Bytes)},
+    {name: render, type: (Option Bytes)},
+    {name: stored, type: (Option Bytes)}
+  ]
+}
+
 definition{name: draftArea, parameters: [], result: Nat, body: 1, executable: true}
 
 definition{name: lexiconTag, parameters: [], result: Nat, body: 8, executable: true}
@@ -53,6 +81,18 @@ definition{name: storePutTag, parameters: [], result: Nat, body: 1, executable: 
 definition{name: maxFiles, parameters: [], result: Nat, body: 256, executable: true}
 
 definition{name: maxBytes, parameters: [], result: Nat, body: 8388608, executable: true}
+
+definition{name: viewStored, parameters: [], result: Nat, body: 0, executable: true}
+
+definition{name: viewData, parameters: [], result: Nat, body: 1, executable: true}
+
+definition{name: viewSpans, parameters: [], result: Nat, body: 2, executable: true}
+
+definition{name: formPlain, parameters: [], result: Nat, body: 0, executable: true}
+
+definition{name: formAssemble, parameters: [], result: Nat, body: 1, executable: true}
+
+definition{name: formRewrite, parameters: [], result: Nat, body: 2, executable: true}
 
 definition{
   name: domain,
@@ -350,10 +390,37 @@ definition{
 }
 
 definition{
+  name: keyHead,
+  parameters: [key : String],
+  result: (List Nat),
+  body: (prim append (Frame::u32List (draftArea)) (HostWire::textList key) : (List Nat)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: getPayloadAt,
+  parameters: [key : String, path : String, view : Nat],
+  result: Bytes,
+  body: (JsonText::listToBytes (JsonText::emptyBytes) (prim append (keyHead key) (prim append (HostWire::textList path) (Frame::u32List view) : (List Nat)) : (List Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
   name: getPayload,
   parameters: [key : String],
   result: Bytes,
-  body: (JsonText::listToBytes (JsonText::emptyBytes) (prim append (Frame::u32List (draftArea)) (HostWire::textList key) : (List Nat))),
+  body: (getPayloadAt key "" (viewStored)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: putPayloadAs,
+  parameters: [key : String, content : Bytes, form : Nat],
+  result: Bytes,
+  body: (prim append (JsonText::listToBytes (JsonText::emptyBytes) (prim append (keyHead key) (Frame::u32List (prim length content : Nat)) : (List Nat))) (prim append content (JsonText::listToBytes (JsonText::emptyBytes) (Frame::u32List form)) : Bytes) : Bytes),
   axioms: [Quot.sound, propext],
   executable: true
 }
@@ -362,7 +429,7 @@ definition{
   name: putPayload,
   parameters: [key : String, content : Bytes],
   result: Bytes,
-  body: (prim append (getPayload key) (prim append (JsonText::listToBytes (JsonText::emptyBytes) (Frame::u32List (prim length content : Nat))) content : Bytes) : Bytes),
+  body: (putPayloadAs key content (formPlain)),
   axioms: [Quot.sound, propext],
   executable: true
 }
@@ -678,6 +745,381 @@ definition{
     | Want.File text => (readAt draft (ctor Want.File text) stored)),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
+}
+
+inductive{
+  name: Mode,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Compose, fields: []}, {name: Revise, fields: []}, {name: Wrong, fields: []}]
+}
+
+definition{name: classAccepted, parameters: [], result: Nat, body: 0, executable: true}
+
+definition{name: classRefused, parameters: [], result: Nat, body: 1, executable: true}
+
+definition{name: classAbsent, parameters: [], result: Nat, body: 2, executable: true}
+
+definition{
+  name: refusalWith,
+  parameters: [name : String, message : String],
+  result: Move,
+  body: (ctor Move.Answer (prim join (cons "draft refused:" (cons name (cons message (nil String)))) " " : String) (ctor Json::Json.object (cons ("refusal", (ctor Json::Json.text name)) (cons ("message", (ctor Json::Json.text message)) (nil (String * Json::Json))))) true),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: moduleRefused,
+  parameters: [message : Bytes],
+  result: Move,
+  body: (match (prim utf8_decode message : (Option String))
+    | Option.none => (refusalWith "ModuleRefused" "")
+    | Option.some text => (refusalWith "ModuleRefused" text)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: modeOf,
+  parameters: [edit : Edit],
+  result: Mode,
+  body: (match (project edit kind)
+    | Option.none => (match (project edit header)
+      | Option.none => (ctor Mode.Revise)
+      | Option.some given => (ctor Mode.Wrong))
+    | Option.some named => (match (project edit header)
+      | Option.none => (ctor Mode.Wrong)
+      | Option.some given => (ctor Mode.Compose))),
+  executable: true
+}
+
+definition{
+  name: kindKnown,
+  parameters: [kind : String],
+  result: Bool,
+  body: (if (prim equal kind "semantic" : Bool) then true else (if (prim equal kind "tooling" : Bool) then true else (prim equal kind "core" : Bool))),
+  executable: true
+}
+
+definition{
+  name: editFault,
+  parameters: [edit : Edit],
+  result: (Option String),
+  body: (match (modeOf edit)
+    | Mode.Compose => (match (project edit kind)
+      | Option.none => (ctor Option.none [String])
+      | Option.some named => (if (kindKnown named) then (ctor Option.none [String]) else (ctor Option.some [String] "kind is not semantic, tooling or core")))
+    | Mode.Revise => (match (project edit draft)
+      | Option.none => (ctor Option.some [String] "a rewrite of the data of a file needs the draft that holds the file")
+      | Option.some held => (ctor Option.none [String]))
+    | Mode.Wrong => (ctor Option.some [String] "kind and header are given together or not at all")),
+  executable: true
+}
+
+definition{
+  name: requestOf,
+  parameters: [edit : Edit, old : (Option String)],
+  result: (Option Json::Json),
+  body: (match old
+    | Option.some text => (ctor Option.some [Json::Json] (ctor Json::Json.object (cons ("text", (ctor Json::Json.text text)) (cons ("data", (project edit data)) (nil (String * Json::Json))))))
+    | Option.none => (match (project edit kind)
+      | Option.none => (ctor Option.none [Json::Json])
+      | Option.some named => (match (project edit header)
+        | Option.none => (ctor Option.none [Json::Json])
+        | Option.some given => (ctor Option.some [Json::Json] (ctor Json::Json.object (cons ("kind", (ctor Json::Json.text named)) (cons ("header", given) (cons ("data", (project edit data)) (nil (String * Json::Json)))))))))),
+  executable: true
+}
+
+definition{
+  name: stagingKey,
+  parameters: [profile : String, request : Bytes],
+  result: String,
+  body: (prim join (cons profile (cons "modules" (cons (digestText request) (nil String)))) "/" : String),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: withoutPath,
+  parameters: [rows : (List (Bytes * Bytes)), target : Bytes, kept : (List (Bytes * Bytes))],
+  result: (List (Bytes * Bytes)),
+  body: (match rows
+    | List.nil => (JsonRead::reverseOnto [(Bytes * Bytes)] kept (nil (Bytes * Bytes)))
+    | List.cons row rest => (if (prim equal (first row) target : Bool) then (withoutPath rest target kept) else (withoutPath rest target (cons row kept)))),
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: assembled,
+  parameters: [
+    profile : String,
+    ident : String,
+    path : String,
+    form : String,
+    files : Nat,
+    bytes : Nat
+  ],
+  result: Move,
+  body: (ctor Move.Answer (prim join (cons "draft" (cons (handleOf profile ident) (nil String))) " " : String) (ctor Json::Json.object (cons ("draft", (ctor Json::Json.text (handleOf profile ident))) (cons ("id", (ctor Json::Json.text ident)) (cons ("profile", (ctor Json::Json.text profile)) (cons ("path", (ctor Json::Json.text path)) (cons ("form", (ctor Json::Json.text form)) (cons ("files", (ResultJson::natJson files)) (cons ("bytes", (ResultJson::natJson bytes)) (nil (String * Json::Json)))))))))) false),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: formName,
+  parameters: [old : (Option String)],
+  result: String,
+  body: (match old | Option.none => "assemble" | Option.some text => "rewrite"),
+  executable: true
+}
+
+definition{
+  name: blobStep,
+  parameters: [
+    edit : Edit,
+    old : (Option String),
+    others : (List (Bytes * Bytes)),
+    parts : Record,
+    text : Bytes,
+    stored : (Option Bytes)
+  ],
+  result: Move,
+  body: (let rows : (List (Bytes * Bytes)) := (cons ((prim utf8_encode (project edit path) : Bytes), text) others); (match (DraftAdmission::admitDraft (maxFiles) (maxBytes) (project parts roots) rows)
+    | DraftAdmission::Verdict.Refused reason => (refusal (refusalName reason))
+    | DraftAdmission::Verdict.Admitted => (let blob : Bytes := (preimage (project parts profile) rows); (let ident : String := (digestText blob); (match stored
+      | Option.none => (ctor Move.Ask (storePutTag) (putPayload (handleOf (project edit profile) ident) blob))
+      | Option.some done => (assembled (project edit profile) ident (project edit path) (formName old) (DraftAdmission::countRows rows) (DraftAdmission::totalBytes rows))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: renderedStep,
+  parameters: [
+    edit : Edit,
+    old : (Option String),
+    others : (List (Bytes * Bytes)),
+    parts : Record,
+    outcome : Bytes,
+    stored : (Option Bytes)
+  ],
+  result: Move,
+  body: (match (Frame::u32At outcome 12)
+    | Option.none => (refusal "OutcomeMalformed")
+    | Option.some class => (match (Frame::chunkAt outcome 16)
+      | Option.none => (refusal "OutcomeMalformed")
+      | Option.some chunk => (if (class =? (classAccepted)) then (blobStep edit old others parts (project chunk bytes) stored) else (if (class =? (classRefused)) then (moduleRefused (project chunk bytes)) else (refusal "OutcomeMalformed"))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: renderStep,
+  parameters: [
+    edit : Edit,
+    old : (Option String),
+    others : (List (Bytes * Bytes)),
+    parts : Record,
+    seen : Seen
+  ],
+  result: Move,
+  body: (match (DraftAdmission::admitDraft (maxFiles) (maxBytes) (project parts roots) (cons ((prim utf8_encode (project edit path) : Bytes), (JsonText::emptyBytes)) others))
+    | DraftAdmission::Verdict.Refused reason => (refusal (refusalName reason))
+    | DraftAdmission::Verdict.Admitted => (match (requestOf edit old)
+      | Option.none => (ctor Move.Invalid "kind and header are needed to assemble a module")
+      | Option.some request => (match (JsonWrite::writeJson request)
+        | Result.error why => (ctor Move.Invalid "the data cannot be written as JSON")
+        | Result.ok bytes => (match (project seen render)
+          | Option.none => (ctor Move.Ask (storePutTag) (putPayloadAs (stagingKey (project edit profile) bytes) bytes (match old
+            | Option.none => (formAssemble)
+            | Option.some text => (formRewrite))))
+          | Option.some outcome => (renderedStep edit old others parts outcome (project seen stored)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: rowsStep,
+  parameters: [edit : Edit, rows : (List (Bytes * Bytes)), parts : Record, seen : Seen],
+  result: Move,
+  body: (let target : Bytes := (prim utf8_encode (project edit path) : Bytes); (let others : (List (Bytes * Bytes)) := (withoutPath rows target (nil (Bytes * Bytes))); (match (modeOf edit)
+    | Mode.Revise => (match (findRow rows target)
+      | Option.none => (refusal "PathUnknown")
+      | Option.some held => (match (prim utf8_decode held : (Option String))
+        | Option.none => (refusal "DraftCorrupt")
+        | Option.some text => (renderStep edit (ctor Option.some [String] text) others parts seen)))
+    | Mode.Compose => (renderStep edit (ctor Option.none [String]) others parts seen)
+    | Mode.Wrong => (ctor Move.Invalid "kind and header are given together or not at all")))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: baseStep,
+  parameters: [edit : Edit, ident : (Option String), parts : Record, seen : Seen],
+  result: Move,
+  body: (match ident
+    | Option.none => (rowsStep edit (nil (Bytes * Bytes)) parts seen)
+    | Option.some named => (match (project seen base)
+      | Option.none => (ctor Move.Ask (storeGetTag) (getPayload (handleOf (project edit profile) named)))
+      | Option.some outcome => (match (foundContent outcome)
+        | Option.none => (refusal "DraftUnknown")
+        | Option.some blob => (if (prim equal (digestText blob) named : Bool) then (match (decode blob)
+          | Option.none => (refusal "DraftCorrupt")
+          | Option.some rows => (rowsStep edit rows parts seen)) else (refusal "DraftCorrupt"))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: lexiconStep,
+  parameters: [edit : Edit, ident : (Option String), seen : Seen],
+  result: Move,
+  body: (match (project seen lexicon)
+    | Option.none => (ctor Move.Ask (lexiconTag) (lexiconPayload (project edit profile)))
+    | Option.some outcome => (match (foundContent outcome)
+      | Option.none => (refusal "ProfileRecordMalformed")
+      | Option.some entry => (match (recordOf entry)
+        | Option.none => (refusal "ProfileRecordMalformed")
+        | Option.some parts => (baseStep edit ident parts seen)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: profileStep,
+  parameters: [edit : Edit, seen : Seen],
+  result: Move,
+  body: (match (project edit draft)
+    | Option.none => (lexiconStep edit (ctor Option.none [String]) seen)
+    | Option.some handle => (match (idOfHandle handle)
+      | Option.none => (refusal "DraftUnknown")
+      | Option.some ident => (if (prim equal (handleOf (project edit profile) ident) handle : Bool) then (lexiconStep edit (ctor Option.some [String] ident) seen) else (refusal "ProfileMismatch")))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: assemble,
+  parameters: [edit : Edit, seen : Seen],
+  result: Move,
+  body: (match (editFault edit)
+    | Option.some reason => (ctor Move.Invalid reason)
+    | Option.none => (profileStep edit seen)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: viewName,
+  parameters: [view : Nat],
+  result: String,
+  body: (if (view =? (viewData)) then "data" else "spans"),
+  executable: true
+}
+
+definition{
+  name: viewedDocument,
+  parameters: [path : String, view : Nat, content : Bytes],
+  result: Move,
+  body: (match (JsonRead::readJson content)
+    | Result.error why => (refusal "OutcomeMalformed")
+    | Result.ok document => (match (prim utf8_decode content : (Option String))
+      | Option.none => (refusal "OutcomeMalformed")
+      | Option.some text => (ctor Move.Answer text (ctor Json::Json.object (cons ("path", (ctor Json::Json.text path)) (cons ("view", (ctor Json::Json.text (viewName view))) (cons ("bytes", (ResultJson::natJson (prim length content : Nat))) (cons ((viewName view), document) (nil (String * Json::Json))))))) false))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: viewed,
+  parameters: [path : String, view : Nat, outcome : Bytes],
+  result: Move,
+  body: (match (Frame::chunkAt outcome 5)
+    | Option.none => (refusal "OutcomeMalformed")
+    | Option.some chunk => (if ((JsonText::byteAt outcome 4) =? 1) then (match (Frame::u32At outcome (project chunk next))
+      | Option.none => (refusal "OutcomeMalformed")
+      | Option.some class => (if (class =? (classAccepted)) then (viewedDocument path view (project chunk bytes)) else (if (class =? (classRefused)) then (moduleRefused (project chunk bytes)) else (if (class =? (classAbsent)) then (refusal "PathUnknown") else (refusal "OutcomeMalformed"))))) else (refusal "DraftUnknown"))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: viewRead,
+  parameters: [draft : String, path : String, view : Nat, stored : (Option Bytes)],
+  result: Move,
+  body: (if (prim equal path "" : Bool) then (ctor Move.Invalid "a data or spans view needs a path") else (match (idOfHandle draft)
+    | Option.none => (refusal "DraftUnknown")
+    | Option.some ident => (match stored
+      | Option.none => (ctor Move.Ask (storeGetTag) (getPayloadAt draft path view))
+      | Option.some outcome => (viewed path view outcome)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+theorem{
+  name: viewStoredIsTheModels,
+  parameters: [],
+  statement: ((viewStored) = (Effects::viewTag (ctor Effects::View.Stored))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: viewDataIsTheModels,
+  parameters: [],
+  statement: ((viewData) = (Effects::viewTag (ctor Effects::View.Data))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: viewSpansIsTheModels,
+  parameters: [],
+  statement: ((viewSpans) = (Effects::viewTag (ctor Effects::View.Spans))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: formPlainIsTheModels,
+  parameters: [],
+  statement: ((formPlain) = (Effects::formTag (ctor Effects::Form.Plain))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: formAssembleIsTheModels,
+  parameters: [],
+  statement: ((formAssemble) = (Effects::formTag (ctor Effects::Form.Assemble))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: formRewriteIsTheModels,
+  parameters: [],
+  statement: ((formRewrite) = (Effects::formTag (ctor Effects::Form.Rewrite))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: classAcceptedIsTheModels,
+  parameters: [],
+  statement: ((classAccepted) = (Effects::classTag (ctor Effects::Class.Accepted))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: classRefusedIsTheModels,
+  parameters: [],
+  statement: ((classRefused) = (Effects::classTag (ctor Effects::Class.Refused))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: classAbsentIsTheModels,
+  parameters: [],
+  statement: ((classAbsent) = (Effects::classTag (ctor Effects::Class.Absent))),
+  proof: reflexivity{}
 }
 \end{semanticmodule}
 \end{lexlean}
