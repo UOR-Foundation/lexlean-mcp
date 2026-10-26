@@ -151,9 +151,12 @@ that the check runs on every `cargo test`.
 | Q2 flipped back to `Pending` | same | `the measure 1 is not Executed`; `exactly two measures must be Executed` |
 | `QM-03` removed from the register | same | `QM-03 is cited and is not in model/ids.toml` |
 | the running clause of Q8 put back into `pendingClauses` (`index := 7`) | `cargo test -p repo-conformance --test quality` | `pendingClauses records a clause of Q8, whose running clause TL-13 executes` |
-| the clause of Q8 put back into `pendingClauses` (`index := 7`) | `lexlean verify src/Quality.lex.tex` | `LLV7002`: `Tactic `decide` proved that the proposition namedIndexes pendingClauses = [1] is false` at `src/Quality.lex.tex:678`, the theorem `onlyQ2KeepsAPendingClause` |
+| the running clause of Q2 put back into `pendingClauses` (`index := 1`) | `cargo test -p repo-conformance --test quality` | `pendingClauses records a clause of Q2, whose running clause TL-15 executes` |
+| the evidence of Q2 pointing at `pendingClauses` again | same | `the Executed status of measure 1 points at pendingClauses, and its running clause is executed` |
+| the clause of Q2 put back into `pendingClauses` (`index := 1`) | `lexlean verify src/Quality.lex.tex` | `LLV7002`: `Tactic `decide` proved that the proposition namedIndexes pendingClauses = [] is false` at `src/Quality.lex.tex:673`, the theorem `noQualityClauseIsPending` |
 | the evidence of Q8 pointing at `pendingClauses` again | `cargo test -p repo-conformance --test quality` | `the Executed status of measure 7 points at pendingClauses, and its running clause is executed` |
 | `TL-13` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
+| `TL-15` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
 | `CONFORMANCE.md` edited by hand | `cargo run -p xtask -- check-model` | `CONFORMANCE.md is stale: it disagrees with model/ids.toml` |
 
 The planted-in-memory set is wider: a function with neither tool nor reason, a function
