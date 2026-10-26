@@ -380,7 +380,7 @@ fn a_draft_is_the_one_key_of_its_profile_and_its_content_is_the_preimage_dr_05()
     let draft = handle(&reply);
     assert_eq!(
         stored_drafts(&gateway),
-        [draft.clone()],
+        std::slice::from_ref(&draft),
         "one key, nothing else"
     );
     let stored = std::fs::read(gateway.drafts().join(&draft)).expect("the stored draft");
@@ -446,15 +446,18 @@ fn an_empty_file_and_a_large_file_are_read_back_whole_dr_05() {
 
 #[test]
 fn the_profile_record_is_read_by_the_first_effect_of_a_write_dr_06() {
-    for record in [
-        format!("{PROFILE_ID}\nsrc\n"),
-        format!("{PROFILE_ID}\nsrc"),
-        format!("{PROFILE_ID}\nlib\nsrc\n"),
-        format!("{PROFILE_ID}\nlib/deep\nsrc/nested\n"),
+    for (record, path) in [
+        (format!("{PROFILE_ID}\nsrc\n"), "src/A.lex.tex"),
+        (format!("{PROFILE_ID}\nsrc"), "src/A.lex.tex"),
+        (format!("{PROFILE_ID}\nlib\nsrc\n"), "lib/A.lex.tex"),
+        (
+            format!("{PROFILE_ID}\nlib/deep\nsrc/nested\n"),
+            "lib/deep/A.lex.tex",
+        ),
     ] {
         let mut gateway = Gateway::new();
         gateway.provision("tiny", &record);
-        let reply = write(&mut gateway, "tiny", &[("src/A.lex.tex", "x")]);
+        let reply = write(&mut gateway, "tiny", &[(path, "x")]);
         assert!(!reply.is_error(), "{record:?}: {}", reply.body);
         assert_eq!(reply.effects, ["lexicon.read", "store.put"], "{record:?}");
     }

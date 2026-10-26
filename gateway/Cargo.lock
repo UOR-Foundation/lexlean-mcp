@@ -194,6 +194,7 @@ dependencies = [
  "gateway-host-api",
  "lexlean",
  "serde_json",
+ "sha2",
  "tempfile",
 ]
 
@@ -218,6 +219,7 @@ dependencies = [
  "gateway-host",
  "gateway-host-api",
  "serde_json",
+ "sha2",
  "tempfile",
 ]
 

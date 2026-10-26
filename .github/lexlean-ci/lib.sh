@@ -465,6 +465,9 @@ gateway_verify() {
   fi
   store=$(mktemp -d)
   work=$(mktemp -d)
+  # The vectors of the draft tools name the profile `tiny`, which #8 provisions in a real store:
+  # the replay starts from a store that holds the profiles the vectors were recorded with.
+  python3 -I gateway/vectors/generate.py provision "$store" || return 1
   docker run --rm \
     --user "$(id -u):$(id -g)" \
     --volume "$PWD:$PWD" \

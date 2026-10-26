@@ -73,7 +73,10 @@ only that each reach one tool.
 
 **What it does not show.** That the tools exist, and that each reaches its function. The
 clause is in `pendingClauses`: #9 for the `sdk` functions, #10 and #11 for the `Engine`
-calls. Seven tools have no API function behind them (`lexlean_profiles`,
+calls.
+The draft tools of #9 (DRAFTS.md) do not discharge the part for the `sdk` functions: the four
+functions are not reachable within the ten effects, so `lexlean_draft_assemble` and the
+structured `lexlean_draft_read` are not tools yet, and the clause of Q2 stays pending. Seven tools have no API function behind them (`lexlean_profiles`,
 `lexlean_lexicon_search`, `lexlean_draft_write`, `lexlean_explain`, `lexlean_present`,
 `lexlean_attestation`, `lexlean_export`): Q2 asks that functions reach tools, not the
 converse. The map does not say whether a function outside the five calls and four `sdk`

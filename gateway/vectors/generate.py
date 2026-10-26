@@ -22,6 +22,9 @@ usage:
   generate.py render             write src/Application.lex.tex from exchanges.json
   generate.py check              exit 1 when src/Application.lex.tex is not that rendering
   generate.py record RUNNER      make exchanges.json with RUNNER, then render
+  generate.py provision DIRECTORY  provision the profiles the vectors draft under into the store
+                                 DIRECTORY (empty): `record` does it for its own store, and CI
+                                 does it for the store of `prismpm verify`, which replays them
   generate.py table              print the rows of the table of GATEWAY.md, "The effects"
 """
 
@@ -528,6 +531,14 @@ def main(argv: list) -> int:
         vectors = record_vectors(argv[2])
         EXCHANGES.write_text(json.dumps({"vectors": vectors}, indent=1) + "\n")
         command = "render"
+    if command == "provision" and len(argv) == 3:
+        store = pathlib.Path(argv[2])
+        if not store.is_dir() or any(store.iterdir()):
+            print(f"generate: {store} is not an empty directory", file=sys.stderr)
+            return 1
+        provision(store)
+        print(f"generate: provisioned the profiles of the vectors in {store}")
+        return 0
     if command == "render":
         APPLICATION.write_text(render(load()))
         print(f"generate: wrote {APPLICATION}")

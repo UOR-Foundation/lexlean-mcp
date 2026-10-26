@@ -114,3 +114,22 @@ Restored: both commands pass.
 to `Pending`, the test of `NF-12` removed from the test list, `DL-03` removed from
 the register, and the symlink clause put back into `pendingClauses`, and `DR-08` removed from the
 register, and it fails unless each is reported. It ends with the unplanted inputs and requires no violation.
+
+### 4. The symlink clause of K5 put back into `pendingClauses`
+
+Defect: in `src/Security.lex.tex`, the body of `pendingClauses` replaced by the clause
+`K5 symlink refusal` (index 4), which `DR-08` now executes.
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p repo-conformance --test security` | `SM-01` fails |
+
+Diagnostic:
+
+```
+SM-01 does not hold:
+pendingClauses records a clause, and DR-08 executes the symlink clause of K5
+```
+
+Restored: `src/Security.lex.tex` is the committed one, and `lexlean verify src/Security.lex.tex`
+verifies 5 modules, with `noClauseIsPending` among its theorems.

@@ -77,8 +77,11 @@ impl<'a> Reader<'a> {
     }
 }
 
+/// The (path, content) rows of a draft, as they lie in its preimage.
+pub type Rows<'a> = Vec<(&'a [u8], &'a [u8])>;
+
 /// The profile ID and the rows of a preimage, or `None` when the bytes are not a preimage.
-pub fn decode(bytes: &[u8]) -> Option<([u8; 32], Vec<(&[u8], &[u8])>)> {
+pub fn decode(bytes: &[u8]) -> Option<([u8; 32], Rows<'_>)> {
     let mut reader = Reader { bytes, at: 0 };
     if reader.frame("domain")? != DOMAIN {
         return None;

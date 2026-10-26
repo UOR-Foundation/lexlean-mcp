@@ -176,7 +176,7 @@ model does not sanction.
 
 | ID | Level | Statement |
 | --- | --- | --- |
-| `SM-01` | `build` | The measurement of R5 (path escape) is executed by NF-09, NF-12, DL-01, DL-02, DL-03 and DL-04, whose tests pass, and Security records it as Executed; the symlink clause stays Pending on #9. |
+| `SM-01` | `build` | The measurement of R5 (path escape) is executed by NF-09, NF-12, DL-01, DL-02, DL-03 and DL-04, whose tests pass, and Security records it as Executed; the symlink clause of K5 is executed by DR-08, so Security records no clause as pending. |
 
 ## store
 

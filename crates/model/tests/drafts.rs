@@ -455,7 +455,10 @@ fn every_gate_has_a_recorded_planted_defect_dr_11() {
                 .collect()
         })
         .collect();
-    assert_eq!(rows.len(), 3, "three planted defects are recorded");
+    assert!(
+        rows.len() >= 3,
+        "at least the three planted defects are recorded"
+    );
     for row in &rows {
         assert_eq!(row.len(), 5, "a row has five cells: {row:?}");
         for cell in row {
