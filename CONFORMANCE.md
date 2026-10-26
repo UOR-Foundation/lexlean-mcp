@@ -27,6 +27,22 @@ model does not sanction.
 | `DL-03` | `build` | Draft admission through the exported root admitDraftRun on the full tables gives the verdicts of the kernel-checked instances of admitDraft, with the refusal named by the constructor order of Refusal, and decides in this order: the path refusals of the rows in row order, then TooManyFiles, then TooManyBytes, then DuplicatePath. |
 | `DL-04` | `build` | The duplicate scan of draft admission sorts the paths and compares neighbours, so it makes no pairwise comparison of rows: through the exported root admitDraftRun on a two MiB thread stack, a draft of one million rows whose paths are in no sorted order is admitted within a stated time bound, and the same draft with one repeated path is refused as DuplicatePath within the same bound. |
 
+## drafts
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `DR-01` | `build` | The draft identity of the core is Identity.draftId: the SHA-256 of the framed preimage of the domain lexlean-mcp-draft-v1, the 32 octets of the profile ID and the (path, bytes) rows sorted by path; the core's encoder reproduces the model's draftPreimageVector and draftIdVector byte for byte, and the rows of a draft in any order give the same identity. |
+| `DR-02` | `build` | The identity of a draft depends on its profile and on every path and byte: the same files under two profile IDs, a file whose bytes differ by one and a renamed file each give another identity, and the handle of a draft is its profile name and its identity, so a draft written twice is the same key of the drafts area. |
+| `DR-03` | `build` | Path admission in lexlean_draft_write is the exported admission: a path with a .. component, a path that is not .lex.tex, a path that is not NFC, an absolute, empty, dot or empty-component path and a path outside the source roots are each refused with the constructor of Refusal named for it, before store.put and before any Engine call, and the only effect the call asks for is the lexicon.read of the profile record. |
+| `DR-04` | `build` | A draft is within draft.max_files 256 and draft.max_bytes 8388608 and has no repeated path: a draft at both limits is written, and one file more, one byte more and a repeated path are refused with TooManyFiles, TooManyBytes and DuplicatePath. |
+| `DR-05` | `build` | lexlean_draft_write stores the preimage as the one key <profile>/<identity> of the drafts area, and lexlean_draft_read returns the text of a file of the draft, or the paths and sizes of its files, after checking that the SHA-256 of the stored bytes is the identity of the handle: an unknown draft or a handle that is not <profile>/<64 lower case hexadecimal digits>, a path the draft lacks and a stored draft whose bytes changed or are not a preimage are refused with DraftUnknown, PathUnknown and DraftCorrupt. |
+| `DR-06` | `build` | The profile record is read by the first effect of a write: it holds the 64 lower case hexadecimal digits of the profile ID and one source root to a line; an unknown profile is the host failure profile-unknown, and a profile without a record, or a record that is short, long, not lower case hexadecimal, without a root or with a root that is not a relative path of whole components, is refused as ProfileRecordMalformed, with no store.put. |
+| `DR-07` | `build` | Materialization copies: an Engine tool whose project is the handle of a draft runs on a directory of the builds area that holds the files of the profile bundle and of the draft as regular files of their own and links nothing, the result equals the result of the same tool on a directory project holding the same files, and a handle whose draft or profile is absent is the host failure project-refused. |
+| `DR-08` | `build` | A profile bundle that contains a symbolic link is refused, wherever the link lies (a file, a directory, a dangling link, below a subdirectory) and whatever it points at, as the host failure project-refused, before the Engine is called, and no byte is read through the link. |
+| `DR-09` | `build` | The draft tools are the two the host can serve within E1 to E10: lexlean_draft_write asks lexicon.read and then store.put, lexlean_draft_read asks store.get, both have closed input schemas, the set of effects is the model's ten, and the core declares no tool for the four functions of lexlean::sdk that no effect reaches. |
+| `DR-10` | `build` | Every refusal of the draft tools is typed and has a negative test: ten constructors of Admission.Refusal, ProfileRecordMalformed, DraftUnknown, PathUnknown and DraftCorrupt are each the refusal of one test, the eleventh constructor NotUtf8 is reached only by octets that the JSON reader refuses before any tool runs, which a test shows (the constructor itself is DL-03's), and the host failures profile-unknown, key-refused and project-refused are each the failure of one. |
+| `DR-11` | `build` | Each gate of the draft tools rejects its planted defect: a .. path admitted, a symbolic link followed in a profile bundle and a draft identity that ignores the profile; DRAFTS.md records the command, the diagnostic and the restore of each. |
+
 ## effects
 
 | ID | Level | Statement |
@@ -160,7 +176,7 @@ model does not sanction.
 
 | ID | Level | Statement |
 | --- | --- | --- |
-| `SM-01` | `build` | The measurement of R5 (path escape) is executed by NF-09, NF-12, DL-01, DL-02, DL-03 and DL-04, whose tests pass, and Security records it as Executed; the symlink clause stays Pending on #9. |
+| `SM-01` | `build` | The measurement of R5 (path escape) is executed by NF-09, NF-12, DL-01, DL-02, DL-03 and DL-04, whose tests pass, and Security records it as Executed; the symlink clause of K5 is executed by DR-08, so Security records no clause as pending. |
 
 ## store
 

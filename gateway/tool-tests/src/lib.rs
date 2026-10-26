@@ -17,6 +17,18 @@ use gateway_host::perform::perform;
 use gateway_host::protocol::Request;
 use serde_json::{json, Value};
 
+/// The files of the tiny project that a profile holds: everything but its sources.
+pub const BUNDLE: [&str; 5] = [
+    "lexlean.toml",
+    "lexlean.lock",
+    "lakefile.toml",
+    "lean-toolchain",
+    "lake-manifest.json",
+];
+
+/// The source of the tiny project, as a path below its source root.
+pub const SOURCE: &str = "src/Tiny.lex.tex";
+
 /// The stack of the thread the core runs on: the declaration's `rootStackBytes`, with room.
 pub const STACK_BYTES: usize = 512 << 20;
 
@@ -94,6 +106,16 @@ fn frame_with(
         "params": params,
     }))
     .expect("JSON");
+    frame_of_body(method, tool, body, more)
+}
+
+/// The request frame for a body that is already bytes.
+fn frame_of_body(
+    method: &str,
+    tool: Option<&str>,
+    body: Vec<u8>,
+    more: &[(&str, &str)],
+) -> Vec<u8> {
     let mut fields: Vec<(&str, String)> = vec![
         ("Host", "127.0.0.1".into()),
         ("Content-Type", "application/json".into()),
@@ -140,6 +162,26 @@ impl Reply {
             self.body
         );
         &self.body["result"]
+    }
+
+    /// Whether the result is a tool error.
+    pub fn is_error(&self) -> bool {
+        self.result()
+            .get("isError")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    }
+
+    /// The structured content of a result.
+    pub fn structured(&self) -> &Value {
+        &self.result()["structuredContent"]
+    }
+
+    /// The text of the first content block of a result.
+    pub fn text(&self) -> &str {
+        self.result()["content"][0]["text"]
+            .as_str()
+            .expect("a text block")
     }
 
     /// The `error` of a JSON-RPC response; a result panics with the response.
@@ -228,6 +270,21 @@ pub fn call_frame(tool: &str, arguments: Option<Value>, id: u64) -> Vec<u8> {
     frame("tools/call", Some(tool), id, params)
 }
 
+/// A request for `tools/call` whose `arguments` are these bytes, which need not be JSON that
+/// `serde_json` could write: the body is assembled around them.
+pub fn call_frame_raw(tool: &str, arguments: &[u8], id: u64) -> Vec<u8> {
+    let mut body = format!(
+        "{{\"jsonrpc\":\"2.0\",\"id\":{id},\"method\":\"tools/call\",\"params\":{{\"name\":{},\"arguments\":",
+        serde_json::to_string(tool).expect("JSON")
+    )
+    .into_bytes();
+    body.extend_from_slice(arguments);
+    body.extend_from_slice(b",\"_meta\":");
+    body.extend(serde_json::to_vec(&meta()).expect("JSON"));
+    body.extend_from_slice(b"}}");
+    frame_of_body("tools/call", Some(tool), body, &[])
+}
+
 /// A request for `tools/list`, as a frame.
 pub fn list_frame(id: u64) -> Vec<u8> {
     frame("tools/list", None, id, json!({"_meta": meta()}))
@@ -313,6 +370,32 @@ impl Gateway {
         self.store.join("drafts")
     }
 
+    /// The root of the store.
+    pub fn store(&self) -> &Path {
+        &self.store
+    }
+
+    /// The directory of the profile `name`.
+    pub fn profile(&self, name: &str) -> PathBuf {
+        self.store.join("profiles").join(name)
+    }
+
+    /// Provision the profile `name`: the bundle of the tiny project, which is every file of it
+    /// but its sources, and the record `record` (`DRAFTS.md`).
+    pub fn provision(&self, name: &str, record: &str) {
+        let directory = self.profile(name);
+        std::fs::create_dir_all(&directory).expect("a profile directory");
+        for file in BUNDLE {
+            std::fs::copy(tiny().join(file), directory.join(file)).expect("a bundle file");
+        }
+        std::fs::write(directory.join("profile"), record).expect("a record");
+    }
+
+    /// The record of a profile with this ID whose only source root is `src`.
+    pub fn record(id: &str) -> String {
+        format!("{id}\nsrc\n")
+    }
+
     /// Install the project in `from` as the draft `name`.
     pub fn install(&self, name: &str, from: &Path) {
         copy_tree(from, &self.drafts().join(name));
@@ -335,6 +418,14 @@ impl Gateway {
     pub fn call(&mut self, tool: &str, arguments: Value) -> Reply {
         self.next += 1;
         let request = call_frame(tool, Some(arguments), self.next);
+        let host = &mut self.host;
+        on_big_stack(|| exchange(host, &request))
+    }
+
+    /// `tools/call` of `tool` whose `arguments` are the bytes given.
+    pub fn call_raw_arguments(&mut self, tool: &str, arguments: &[u8]) -> Reply {
+        self.next += 1;
+        let request = call_frame_raw(tool, arguments, self.next);
         let host = &mut self.host;
         on_big_stack(|| exchange(host, &request))
     }

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-drafts"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Drafts"
+component = "write"
+
+[[form]]
+id = "lexlean-mcp-drafts"
+channel = "text"
+surface = "LexLean MCP drafts"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -15,9 +15,9 @@ evidence; the register is `model/ids.toml` and `CONFORMANCE.md` is generated fro
 | R10 | recorded as a residual risk of `mcp-loopback` | `Residual` | none in this release |
 
 The symlink clause of control K5 (materialization refuses symlinks in a profile
-bundle) is not a measurement of `Security` and is not executed. It is recorded in
-`pendingClauses` and is built where drafts are materialized (#9). Likelihoods stay
-unbound until #19.
+bundle) is not a measurement of `Security`. It was recorded in `pendingClauses` until
+drafts were materialized (#9); `DR-08` executes it (DRAFTS.md), so `pendingClauses` is
+empty and `SM-01` cites `DR-08`. Likelihoods stay unbound until #19.
 
 ## R5: path escape (`SM-01`)
 
@@ -112,5 +112,24 @@ Restored: both commands pass.
 
 `the_check_rejects_a_pending_r5_and_a_missing_row_sm_01` plants, in memory, R5 flipped
 to `Pending`, the test of `NF-12` removed from the test list, `DL-03` removed from
-the register, and the `pendingClauses` definition renamed, and it fails unless each
-is reported. It ends with the unplanted inputs and requires no violation.
+the register, and the symlink clause put back into `pendingClauses`, and `DR-08` removed from the
+register, and it fails unless each is reported. It ends with the unplanted inputs and requires no violation.
+
+### 4. The symlink clause of K5 put back into `pendingClauses`
+
+Defect: in `src/Security.lex.tex`, the body of `pendingClauses` replaced by the clause
+`K5 symlink refusal` (index 4), which `DR-08` now executes.
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p repo-conformance --test security` | `SM-01` fails |
+
+Diagnostic:
+
+```
+SM-01 does not hold:
+pendingClauses records a clause, and DR-08 executes the symlink clause of K5
+```
+
+Restored: `src/Security.lex.tex` is the committed one, and `lexlean verify src/Security.lex.tex`
+verifies 5 modules, with `noClauseIsPending` among its theorems.

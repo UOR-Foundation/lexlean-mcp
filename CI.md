@@ -158,3 +158,9 @@ behavior.
 | also failing | `cargo test`: `error: 1 target failed: -p json-oracle --test provenance` |
 | passing | `lexlean / verify` and `lexlean / export lifecycle-oracle` |
 | runs | commit `33ef09f`, run 39904326478, jobs 120253214743 and 120253076251; reverted by `c138d0e` |
+
+The vectors of the draft tools (#9) name the profile `tiny`, which #8 provisions in a real store.
+`gateway_verify` therefore starts `prismpm verify` from a store that `gateway/vectors/generate.py
+provision` has filled with the profiles the vectors were recorded with (the same function that
+`record` uses), and the ordinary tests of `gateway-binding` and `gateway-tool-tests` include the
+draft tests (`tests/materialize.rs`, `tests/drafts.rs`), none of which is ignored.

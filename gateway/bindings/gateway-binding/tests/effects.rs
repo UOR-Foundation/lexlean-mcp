@@ -191,7 +191,7 @@ fn store_get_fails_when_the_path_crosses_a_link() {
 fn store_get_fails_when_the_file_is_over_the_draft_limit() {
     let directory = tempfile::tempdir().expect("a directory");
     let mut config = Config::at(directory.path().join("store"));
-    config.draft_max_bytes = 4;
+    config.blob_max_bytes = 4;
     let mut host = Native::new(config);
     std::fs::create_dir_all(host.config().store.join("drafts")).expect("a directory");
     std::fs::write(host.config().store.join("drafts").join("big"), b"12345").expect("a file");
@@ -327,7 +327,7 @@ fn store_put_fails_when_the_path_crosses_a_link() {
 fn store_put_fails_when_the_content_is_over_the_draft_limit() {
     let directory = tempfile::tempdir().expect("a directory");
     let mut config = Config::at(directory.path().join("store"));
-    config.draft_max_bytes = 4;
+    config.blob_max_bytes = 4;
     let mut host = Native::new(config);
     assert_eq!(put(&mut host, "ok", b"1234"), Ok(4));
     assert_eq!(

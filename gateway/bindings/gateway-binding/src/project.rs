@@ -1,15 +1,68 @@
-//! A draft project: a directory of the `drafts` area that holds a LexLean project.
+//! A project the Engine runs on: a draft, or a directory of the `drafts` area that holds a
+//! LexLean project.
 
 use std::path::{Path, PathBuf};
 
 use camino::Utf8PathBuf;
 use lexlean::Selection;
 
+use crate::materialize;
 use crate::store::{self, StoreError};
 
-/// The draft project `name` of the store at `root`, when it is one: a directory of the
-/// `drafts` area, reached through no link, that holds `lexlean.toml` as a file.
-pub fn resolve(root: &Path, name: &str) -> Option<PathBuf> {
+/// A project that has been resolved to a directory.
+///
+/// The directory of a draft is a copy made for this call and is removed with the value; a
+/// directory project is the one in the `drafts` area and stays.
+pub struct Resolved {
+    directory: PathBuf,
+    ephemeral: bool,
+}
+
+impl Resolved {
+    /// The directory the Engine runs on.
+    pub fn directory(&self) -> &Path {
+        &self.directory
+    }
+
+    /// The directory, kept after the value is gone.
+    pub fn keep(mut self) -> PathBuf {
+        self.ephemeral = false;
+        std::mem::take(&mut self.directory)
+    }
+}
+
+impl Drop for Resolved {
+    fn drop(&mut self) {
+        if self.ephemeral {
+            let _ = std::fs::remove_dir_all(&self.directory);
+        }
+    }
+}
+
+/// The project `name` of the store at `root`, when it is one.
+///
+/// A name of the form `<profile>/<draft id>` is a draft: it is materialized by copying the
+/// profile bundle and the files of the draft into a directory of the `builds` area, and
+/// refused when the draft or the profile is absent or the bundle holds a symbolic link. Any
+/// other name is a directory of the `drafts` area, reached through no link, that holds
+/// `lexlean.toml` as a file. `limit` is the most bytes a stored draft may have.
+pub fn resolve(root: &Path, name: &str, limit: usize) -> Option<Resolved> {
+    if let Some((profile, id)) = materialize::split_handle(name) {
+        return materialize::materialize(root, profile, id, limit)
+            .ok()
+            .map(|directory| Resolved {
+                directory,
+                ephemeral: true,
+            });
+    }
+    directory_project(root, name).map(|directory| Resolved {
+        directory,
+        ephemeral: false,
+    })
+}
+
+/// The draft project `name` of the store at `root`, when it is a directory project.
+fn directory_project(root: &Path, name: &str) -> Option<PathBuf> {
     if !store::name_is_valid(name) {
         return None;
     }
