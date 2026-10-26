@@ -15,6 +15,7 @@ mod config;
 mod engine;
 mod lexicon;
 pub mod materialize;
+pub mod modules;
 mod project;
 mod rate;
 mod store;
@@ -91,6 +92,29 @@ impl Native {
     }
 }
 
+/// The bytes of the file `path` of the draft at `key`, `None` when the draft has no such file,
+/// and an error when `key` is not a draft of the drafts area or its bytes are not the draft their
+/// name says (the identity is checked as a read of the core checks it).
+fn file_of_draft(area: u32, key: &str, blob: &[u8], path: &str) -> Result<Option<Vec<u8>>, ()> {
+    use sha2::{Digest, Sha256};
+    if area != 1 {
+        return Err(());
+    }
+    let (_, id) = materialize::split_handle(key).ok_or(())?;
+    let digest: String = Sha256::digest(blob)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    if digest != id {
+        return Err(());
+    }
+    let (_, rows) = materialize::decode(blob).ok_or(())?;
+    Ok(rows
+        .into_iter()
+        .find(|(name, _)| *name == path.as_bytes())
+        .map(|(_, content)| content.to_vec()))
+}
+
 /// Why an Engine call did not answer.
 enum EngineRefusal {
     Project,
@@ -102,36 +126,119 @@ impl Host for Native {
         &mut self,
         request: store_get::Request,
     ) -> Result<store_get::Completed, HostError<store_get::Failure>> {
+        // The view is a closed field: a number outside the model's is refused before the store
+        // is read, and the sdk is reached for a view of the model only.
+        let Some(view) = modules::View::from_number(request.view) else {
+            return Err(HostError::Failed(store_get::Failure::ViewUnknown));
+        };
         let found = store::read(
             &self.config.store,
             request.area,
             &request.key,
             self.config.blob_max_bytes,
         );
-        match found {
-            Ok(content) => Ok(store_get::Completed {
-                found: content.is_some(),
-                content: content.unwrap_or_default(),
-            }),
-            Err(store::StoreError::Area) => Err(HostError::Failed(store_get::Failure::AreaUnknown)),
-            Err(store::StoreError::Key) => Err(HostError::Failed(store_get::Failure::KeyRefused)),
-            Err(store::StoreError::Io) => Err(HostError::Failed(store_get::Failure::Unreadable)),
+        let blob = match found {
+            Ok(Some(blob)) => blob,
+            Ok(None) => {
+                return Ok(store_get::Completed {
+                    found: false,
+                    content: Vec::new(),
+                    class: modules::ACCEPTED,
+                })
+            }
+            Err(store::StoreError::Area) => {
+                return Err(HostError::Failed(store_get::Failure::AreaUnknown))
+            }
+            Err(store::StoreError::Key) => {
+                return Err(HostError::Failed(store_get::Failure::KeyRefused))
+            }
+            Err(store::StoreError::Io) => {
+                return Err(HostError::Failed(store_get::Failure::Unreadable))
+            }
+        };
+        let selected = if request.path.is_empty() {
+            blob
+        } else {
+            match file_of_draft(request.area, &request.key, &blob, &request.path) {
+                Ok(Some(file)) => file,
+                Ok(None) => {
+                    return Ok(store_get::Completed {
+                        found: true,
+                        content: Vec::new(),
+                        class: modules::ABSENT,
+                    })
+                }
+                Err(()) => return Err(HostError::Failed(store_get::Failure::Unreadable)),
+            }
+        };
+        if view == modules::View::Stored {
+            return Ok(store_get::Completed {
+                found: true,
+                content: selected,
+                class: modules::ACCEPTED,
+            });
         }
+        Ok(
+            match modules::view(view, &selected, self.config.blob_max_bytes) {
+                Ok(content) => store_get::Completed {
+                    found: true,
+                    content,
+                    class: modules::ACCEPTED,
+                },
+                Err(message) => store_get::Completed {
+                    found: true,
+                    content: message.into_bytes(),
+                    class: modules::REFUSED,
+                },
+            },
+        )
     }
 
     fn store_put(
         &mut self,
         request: store_put::Request,
     ) -> Result<store_put::Completed, HostError<store_put::Failure>> {
+        // The form is a closed field, checked first for the same reason as the view.
+        let Some(form) = modules::Form::from_number(request.form) else {
+            return Err(HostError::Failed(store_put::Failure::FormUnknown));
+        };
+        let limit = self.config.blob_max_bytes;
+        let rendered = if form == modules::Form::Plain {
+            None
+        } else {
+            // A key the store would refuse is refused as such, whatever the content says.
+            match store::area_directory(&self.config.store, request.area) {
+                Err(_) => return Err(HostError::Failed(store_put::Failure::AreaUnknown)),
+                Ok(_) if !store::key_is_valid(&request.key) => {
+                    return Err(HostError::Failed(store_put::Failure::KeyRefused))
+                }
+                Ok(_) => {}
+            }
+            match modules::render(form, &request.content, limit) {
+                Ok(text) => Some(text.into_bytes()),
+                Err(message) => {
+                    return Ok(store_put::Completed {
+                        length: 0,
+                        class: modules::REFUSED,
+                        rendered: message.into_bytes(),
+                    })
+                }
+            }
+        };
+        let content = rendered.as_deref().unwrap_or(&request.content);
         let length = store::write(
             &self.config.store,
             request.area,
             &request.key,
-            &request.content,
-            self.config.blob_max_bytes,
+            content,
+            limit,
         );
         match length {
-            Ok(length) => Ok(store_put::Completed { length }),
+            Ok(length) => Ok(store_put::Completed {
+                length,
+                class: modules::ACCEPTED,
+                rendered: rendered.unwrap_or_default(),
+            }),
             Err(store::StoreError::Area) => Err(HostError::Failed(store_put::Failure::AreaUnknown)),
             Err(store::StoreError::Key) => Err(HostError::Failed(store_put::Failure::KeyRefused)),
             Err(store::StoreError::Io) => Err(HostError::Failed(store_put::Failure::Unwritable)),

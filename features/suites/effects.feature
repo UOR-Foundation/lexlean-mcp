@@ -49,3 +49,9 @@ Feature: Host effects
     Given EFFECTS.md and the committed source
     When the planted defects are read
     Then each has a command that runs lexlean verify, a diagnostic and a restore, and the source holds none of them
+
+  @EF-09 @build
+  Scenario: E1 store.get and E2 store.put carry fields that the model closes: a View of store.get (Stored 0, Data 1, Spans 2), a Form of store.put (Plain 0, Assemble 1, Rewrite 2) and a Class in their answers (Accepted 0, Refused 1, Absent 2); each decoder is total and proved sound for every number, a number past the last constructor is the typed refusal UnknownView, UnknownForm or UnknownClass, and the set of effects stays the ten of EF-01 with no effect added.
+    Given src/Effects.lex.tex and EFFECTS.md
+    When the View, Form and Class types and their decoders are read
+    Then each decoder is total and sound for every number, a number past the last constructor is its typed refusal, and the effects are still the ten

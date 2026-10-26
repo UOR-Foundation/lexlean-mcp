@@ -8,7 +8,7 @@ the evidence is, what it does not show, and the defects planted in its gates.
 | Measure | Requirement | Status | Rows |
 | --- | --- | --- | --- |
 | Q1 | a tool result equals the engine's result | Pending | needs the tools (#10, #11) |
-| Q2 | each in-scope API function is reached by exactly one tool | **Executed** | QM-01 to QM-03 |
+| Q2 | each in-scope API function is reached by exactly one tool | **Executed** | QM-01 to QM-03, TL-15 |
 | Q3 | no record for a verification that did not end `verified` | Pending | needs verification as tasks (#11) and the store (#13) |
 | Q4 | check, snapshot, format, build start no child process | Pending | needs the tools (#10) |
 | Q5 | the MCP implementation conforms to 2026-07-28 | Pending | needs the deployed core (#17) |
@@ -17,12 +17,12 @@ the evidence is, what it does not show, and the defects planted in its gates.
 | Q8 | every diagnostic code in a result resolves through F11 | **Executed** | QM-04 to QM-06 |
 
 `measuresPendingExceptQ2AndQ8` pins the pending list, `onlyApiMapAndExplainAreExecuted`
-pins the executed one, and `onlyQ2KeepsAPendingClause` pins the list of clauses that still
-wait for the tools: Q2's, and no other. `qualityValid` requires that the measure of each
+pins the executed one, and `noQualityClauseIsPending` pins the list of clauses that still
+wait for the tools: it is empty. `qualityValid` requires that the measure of each
 clause in `pendingClauses` is an executed one. `QM-07` ties the statuses to the register: the
 rows each status cites are read from the statement of `QM-07`, and each must be registered
-with a test; for Q8 they are `QM-04` to `QM-06` and `TL-13`, the row of the tools suite that
-runs its last clause.
+with a test; for Q2 they are `QM-01` to `QM-03` and `TL-15`, and for Q8 `QM-04` to `QM-06` and
+`TL-13`, the rows of the tools suite that run their last clauses.
 
 ## Q2: the API-to-tool map
 
@@ -71,12 +71,17 @@ write) and `lexlean_draft_read` (the two that read) is this repository's reading
 issue 9, which names the four and the two tools without pairing them. Q2 requires
 only that each reach one tool.
 
-**What it does not show.** That the tools exist, and that each reaches its function. The
-clause is in `pendingClauses`: #9 for the `sdk` functions, #10 and #11 for the `Engine`
-calls.
-The draft tools of #9 (DRAFTS.md) do not discharge the part for the `sdk` functions: the four
-functions are not reachable within the ten effects, so `lexlean_draft_assemble` and the
-structured `lexlean_draft_read` are not tools yet, and the clause of Q2 stays pending. Seven tools have no API function behind them (`lexlean_profiles`,
+**What the running clause shows.** `TL-15` (`gateway/tool-tests/tests/q2.rs`) reads the nine
+in-scope functions and their tools from `map.toml`, requires each tool in `tools/list` of the
+production core, and runs it. The five `Engine` calls ask the effect that is the call
+(`engine.check`, `engine.snapshot`, `engine.build`, `engine.format`, `verify.start`) and answer.
+The four `sdk` functions are reached through `view` and `form` of `store.get` and `store.put`
+(DRAFTS.md): `lexlean_draft_read` with `view` `data` returns what `sdk::read_module` returns for
+the same text and with `spans` what `sdk::declaration_spans` returns, and `lexlean_draft_assemble`
+returns the draft whose file is what `sdk::assemble` (with a header) or `sdk::write_module`
+(without) returns. So the clause of Q2 is not in `pendingClauses`, the evidence of Q2 names
+`TL-15`, and `QM-07` requires both. `TL-15` runs in the gateway job, as `TL-13` does, and the
+workspace gate checks that the row and its test exist. Seven tools have no API function behind them (`lexlean_profiles`,
 `lexlean_lexicon_search`, `lexlean_draft_write`, `lexlean_explain`, `lexlean_present`,
 `lexlean_attestation`, `lexlean_export`): Q2 asks that functions reach tools, not the
 converse. The map does not say whether a function outside the five calls and four `sdk`
@@ -124,8 +129,9 @@ result.
 Q1 (CLI equality as a run), Q3 (fault tolerance), Q4 (no child processes), Q5 (the MCP
 oracles), Q6 (modularity) and Q7 (the same `build_id` on both platforms) stay
 `Pending`: each needs the tools or the deployed service, and each says in the model
-which issue executes it. For Q2 the runtime half is not met, as above; for Q8 the running clause is executed by `TL-13` and the quality model no longer lists it as pending. Issue
-#15 stays open.
+which issue executes it. For Q2 and Q8 the running clauses are executed by `TL-15` and `TL-13`
+and the quality model no longer lists either as pending. Issue
+#15 stays open for the six pending measures.
 
 ## Planted defects
 
@@ -145,9 +151,12 @@ that the check runs on every `cargo test`.
 | Q2 flipped back to `Pending` | same | `the measure 1 is not Executed`; `exactly two measures must be Executed` |
 | `QM-03` removed from the register | same | `QM-03 is cited and is not in model/ids.toml` |
 | the running clause of Q8 put back into `pendingClauses` (`index := 7`) | `cargo test -p repo-conformance --test quality` | `pendingClauses records a clause of Q8, whose running clause TL-13 executes` |
-| the clause of Q8 put back into `pendingClauses` (`index := 7`) | `lexlean verify src/Quality.lex.tex` | `LLV7002`: `Tactic `decide` proved that the proposition namedIndexes pendingClauses = [1] is false` at `src/Quality.lex.tex:678`, the theorem `onlyQ2KeepsAPendingClause` |
+| the running clause of Q2 put back into `pendingClauses` (`index := 1`) | `cargo test -p repo-conformance --test quality` | `pendingClauses records a clause of Q2, whose running clause TL-15 executes` |
+| the evidence of Q2 pointing at `pendingClauses` again | same | `the Executed status of measure 1 points at pendingClauses, and its running clause is executed` |
+| the clause of Q2 put back into `pendingClauses` (`index := 1`) | `lexlean verify src/Quality.lex.tex` | `LLV7002`: `Tactic `decide` proved that the proposition namedIndexes pendingClauses = [] is false` at `src/Quality.lex.tex:673`, the theorem `noQualityClauseIsPending` |
 | the evidence of Q8 pointing at `pendingClauses` again | `cargo test -p repo-conformance --test quality` | `the Executed status of measure 7 points at pendingClauses, and its running clause is executed` |
 | `TL-13` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
+| `TL-15` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
 | `CONFORMANCE.md` edited by hand | `cargo run -p xtask -- check-model` | `CONFORMANCE.md is stale: it disagrees with model/ids.toml` |
 
 The planted-in-memory set is wider: a function with neither tool nor reason, a function

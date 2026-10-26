@@ -3,13 +3,13 @@ Feature: Generated gateway
   Issue #7 generates the host adapter and the gateway binary from the model: a PrismPM server application over one LexLean production root that holds the MCP protocol core and the tool layer, a binding crate that implements the ten host effects, and the acceptance vectors that exercise each effect.
 
   @GW-01 @build
-  Scenario: The gateway declares the ten effects of src/Effects.lex.tex, in order, followed by one frame effect: the host protocol of gateway/src/Application.lex.tex lists the names E1 to E10 that Effects.lex.tex declares at the tags 0 to 9 and then rate.calls at the tag 10, which no core can request, and a test holds the first ten equal to the model and names the eleventh.
+  Scenario: The gateway declares the ten effects of src/Effects.lex.tex, in order, followed by one frame effect: the host protocol of gateway/src/Application.lex.tex lists the names E1 to E10 that Effects.lex.tex declares at the tags 0 to 9 and then rate.calls at the tag 10, which no core can request, a test holds the first ten equal to the model and names the eleventh, and the declared request of store.get ends with the U32 field view and that of store.put with the U32 field form, the closed fields of EF-09, on the effects they extend and on no other.
     Given gateway/src/Application.lex.tex and src/Effects.lex.tex
     When the effect names and their positions are read from both
     Then the two lists are equal, ten long, with no name twice
 
   @GW-02 @build
-  Scenario: Each effect of the gateway has a typed request, a typed result and a closed list of failures in PrismPM's field kinds, as GATEWAY.md tabulates them: an engine error travels in the result's class and result fields, a host fault is one of the declared failures, and no field or failure is declared that the table does not name.
+  Scenario: Each effect of the gateway has a typed request, a typed result and a closed list of failures in PrismPM's field kinds, as GATEWAY.md tabulates them: an engine error travels in the result's class and result fields, the refusal of a module by lexlean::sdk travels in the class and the content or rendered field of store.get and store.put, a host fault is one of the declared failures (store.get adds view-unknown and store.put adds form-unknown), and no field or failure is declared that the table does not name.
     Given the host protocol of gateway/src/Application.lex.tex and the table of GATEWAY.md
     When the request, result and failures of each effect are read from both
     Then they are equal, every kind is one of U32, U64, Flag, Bytes and Text, and the bounds follow the owner values
@@ -27,7 +27,7 @@ Feature: Generated gateway
     Then the set is exactly the ten effects, and each vector is in the file that generated it
 
   @GW-05 @build
-  Scenario: No effect outside E1 to E10 can be encoded by the core: the model's decoder refuses the tag of the frame effect and every other tag past the set, the generated tables mark exactly the tags 0 to 9 as the core's (the Request sum decodes eleven tags and refuses every other with an undeclared effect), and negative tests of the binding crate assert the tag 10 is not the core's and the first and the largest tag past the eleven are refused.
+  Scenario: No effect outside E1 to E10 can be encoded by the core, and no value outside their closed fields: the model's decoder refuses the tag of the frame effect and every other tag past the set, the generated tables mark exactly the tags 0 to 9 as the core's (the Request sum decodes eleven tags and refuses every other with an undeclared effect), and negative tests of the binding crate assert the tag 10 is not the core's, the first and the largest tag past the eleven are refused, and a view of store.get or a form of store.put outside the model's sets is the typed failure view-unknown or form-unknown, reads and stores nothing and does not reach lexlean::sdk.
     Given the binding crate tests of gateway/bindings/gateway-binding
     When the tests that name the closed set are listed
     Then the closed-set tests exist, each is run by the gateway job with a count check and none is ignored without that reason

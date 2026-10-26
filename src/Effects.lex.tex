@@ -1183,5 +1183,321 @@ theorem{
   statement: ((vectorCount (acceptanceVectors)) = 35),
   proof: decide{}
 }
+
+inductive{
+  name: FieldRefusal,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: UnknownView, fields: []},
+    {name: UnknownForm, fields: []},
+    {name: UnknownClass, fields: []}
+  ]
+}
+
+inductive{
+  name: View,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Stored, fields: []}, {name: Data, fields: []}, {name: Spans, fields: []}]
+}
+
+definition{
+  name: viewTag,
+  parameters: [view : View],
+  result: Nat,
+  body: (match view | View.Stored => 0 | View.Data => 1 | View.Spans => 2)
+}
+
+definition{
+  name: viewAt,
+  parameters: [n : Nat],
+  result: (Option View),
+  body: (match n
+    | Nat.zero => (ctor Option.some [View] (ctor View.Stored))
+    | Nat.succ t1 => (match t1
+      | Nat.zero => (ctor Option.some [View] (ctor View.Data))
+      | Nat.succ t2 => (match t2
+        | Nat.zero => (ctor Option.some [View] (ctor View.Spans))
+        | Nat.succ t3 => (ctor Option.none [View]))))
+}
+
+definition{
+  name: decodeView,
+  parameters: [n : Nat],
+  result: (Result View FieldRefusal),
+  body: (match (viewAt n)
+    | Option.some found => (ctor Result.ok [View, FieldRefusal] found)
+    | Option.none => (ctor Result.error [View, FieldRefusal] (ctor FieldRefusal.UnknownView)))
+}
+
+theorem{
+  name: decodeViewTag,
+  parameters: [view : View],
+  statement: ((decodeView (viewTag view)) = (ctor Result.ok [View, FieldRefusal] view)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Stored},
+      {proof: reflexivity{}, binders: [], constructor: Data},
+      {proof: reflexivity{}, binders: [], constructor: Spans}
+    ],
+    scrutinee: view
+  }
+}
+
+theorem{
+  name: decodeViewSound,
+  parameters: [n : Nat],
+  statement: ((match (decodeView n)
+    | Result.ok found => (prim equal (viewTag found) n : Bool)
+    | Result.error refusal => true) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: zero},
+      {
+        proof: cases{
+          branches: [
+            {proof: reflexivity{}, binders: [], constructor: zero},
+            {
+              proof: cases{
+                branches: [
+                  {proof: reflexivity{}, binders: [], constructor: zero},
+                  {proof: reflexivity{}, binders: [t3], constructor: succ}
+                ],
+                scrutinee: t2
+              },
+              binders: [t2],
+              constructor: succ
+            }
+          ],
+          scrutinee: t1
+        },
+        binders: [t1],
+        constructor: succ
+      }
+    ],
+    scrutinee: n
+  }
+}
+
+theorem{
+  name: decodeViewPast,
+  parameters: [],
+  statement: ((decodeView 3) = (ctor Result.error [View, FieldRefusal] (ctor FieldRefusal.UnknownView))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: viewNumbersAreZeroToTwo,
+  parameters: [],
+  statement: (((viewTag (ctor View.Stored)) = 0) /\ (((viewTag (ctor View.Data)) = 1) /\ ((viewTag (ctor View.Spans)) = 2))),
+  proof: decide{}
+}
+
+inductive{
+  name: Form,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Plain, fields: []},
+    {name: Assemble, fields: []},
+    {name: Rewrite, fields: []}
+  ]
+}
+
+definition{
+  name: formTag,
+  parameters: [form : Form],
+  result: Nat,
+  body: (match form | Form.Plain => 0 | Form.Assemble => 1 | Form.Rewrite => 2)
+}
+
+definition{
+  name: formAt,
+  parameters: [n : Nat],
+  result: (Option Form),
+  body: (match n
+    | Nat.zero => (ctor Option.some [Form] (ctor Form.Plain))
+    | Nat.succ t1 => (match t1
+      | Nat.zero => (ctor Option.some [Form] (ctor Form.Assemble))
+      | Nat.succ t2 => (match t2
+        | Nat.zero => (ctor Option.some [Form] (ctor Form.Rewrite))
+        | Nat.succ t3 => (ctor Option.none [Form]))))
+}
+
+definition{
+  name: decodeForm,
+  parameters: [n : Nat],
+  result: (Result Form FieldRefusal),
+  body: (match (formAt n)
+    | Option.some found => (ctor Result.ok [Form, FieldRefusal] found)
+    | Option.none => (ctor Result.error [Form, FieldRefusal] (ctor FieldRefusal.UnknownForm)))
+}
+
+theorem{
+  name: decodeFormTag,
+  parameters: [form : Form],
+  statement: ((decodeForm (formTag form)) = (ctor Result.ok [Form, FieldRefusal] form)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Plain},
+      {proof: reflexivity{}, binders: [], constructor: Assemble},
+      {proof: reflexivity{}, binders: [], constructor: Rewrite}
+    ],
+    scrutinee: form
+  }
+}
+
+theorem{
+  name: decodeFormSound,
+  parameters: [n : Nat],
+  statement: ((match (decodeForm n)
+    | Result.ok found => (prim equal (formTag found) n : Bool)
+    | Result.error refusal => true) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: zero},
+      {
+        proof: cases{
+          branches: [
+            {proof: reflexivity{}, binders: [], constructor: zero},
+            {
+              proof: cases{
+                branches: [
+                  {proof: reflexivity{}, binders: [], constructor: zero},
+                  {proof: reflexivity{}, binders: [t3], constructor: succ}
+                ],
+                scrutinee: t2
+              },
+              binders: [t2],
+              constructor: succ
+            }
+          ],
+          scrutinee: t1
+        },
+        binders: [t1],
+        constructor: succ
+      }
+    ],
+    scrutinee: n
+  }
+}
+
+theorem{
+  name: decodeFormPast,
+  parameters: [],
+  statement: ((decodeForm 3) = (ctor Result.error [Form, FieldRefusal] (ctor FieldRefusal.UnknownForm))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: formNumbersAreZeroToTwo,
+  parameters: [],
+  statement: (((formTag (ctor Form.Plain)) = 0) /\ (((formTag (ctor Form.Assemble)) = 1) /\ ((formTag (ctor Form.Rewrite)) = 2))),
+  proof: decide{}
+}
+
+inductive{
+  name: Class,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Accepted, fields: []},
+    {name: Refused, fields: []},
+    {name: Absent, fields: []}
+  ]
+}
+
+definition{
+  name: classTag,
+  parameters: [class : Class],
+  result: Nat,
+  body: (match class | Class.Accepted => 0 | Class.Refused => 1 | Class.Absent => 2)
+}
+
+definition{
+  name: classAt,
+  parameters: [n : Nat],
+  result: (Option Class),
+  body: (match n
+    | Nat.zero => (ctor Option.some [Class] (ctor Class.Accepted))
+    | Nat.succ t1 => (match t1
+      | Nat.zero => (ctor Option.some [Class] (ctor Class.Refused))
+      | Nat.succ t2 => (match t2
+        | Nat.zero => (ctor Option.some [Class] (ctor Class.Absent))
+        | Nat.succ t3 => (ctor Option.none [Class]))))
+}
+
+definition{
+  name: decodeClass,
+  parameters: [n : Nat],
+  result: (Result Class FieldRefusal),
+  body: (match (classAt n)
+    | Option.some found => (ctor Result.ok [Class, FieldRefusal] found)
+    | Option.none => (ctor Result.error [Class, FieldRefusal] (ctor FieldRefusal.UnknownClass)))
+}
+
+theorem{
+  name: decodeClassTag,
+  parameters: [class : Class],
+  statement: ((decodeClass (classTag class)) = (ctor Result.ok [Class, FieldRefusal] class)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Accepted},
+      {proof: reflexivity{}, binders: [], constructor: Refused},
+      {proof: reflexivity{}, binders: [], constructor: Absent}
+    ],
+    scrutinee: class
+  }
+}
+
+theorem{
+  name: decodeClassSound,
+  parameters: [n : Nat],
+  statement: ((match (decodeClass n)
+    | Result.ok found => (prim equal (classTag found) n : Bool)
+    | Result.error refusal => true) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: zero},
+      {
+        proof: cases{
+          branches: [
+            {proof: reflexivity{}, binders: [], constructor: zero},
+            {
+              proof: cases{
+                branches: [
+                  {proof: reflexivity{}, binders: [], constructor: zero},
+                  {proof: reflexivity{}, binders: [t3], constructor: succ}
+                ],
+                scrutinee: t2
+              },
+              binders: [t2],
+              constructor: succ
+            }
+          ],
+          scrutinee: t1
+        },
+        binders: [t1],
+        constructor: succ
+      }
+    ],
+    scrutinee: n
+  }
+}
+
+theorem{
+  name: decodeClassPast,
+  parameters: [],
+  statement: ((decodeClass 3) = (ctor Result.error [Class, FieldRefusal] (ctor FieldRefusal.UnknownClass))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: classNumbersAreZeroToTwo,
+  parameters: [],
+  statement: (((classTag (ctor Class.Accepted)) = 0) /\ (((classTag (ctor Class.Refused)) = 1) /\ ((classTag (ctor Class.Absent)) = 2))),
+  proof: decide{}
+}
 \end{semanticmodule}
 \end{lexlean}

@@ -53,6 +53,7 @@ fn put(host: &mut Native, key: &str, content: &[u8]) -> Result<u64, store_put::F
         area: 1,
         key: key.to_string(),
         content: content.to_vec(),
+        form: 0,
     })
     .map(|done| done.length)
     .map_err(failure)
@@ -95,6 +96,8 @@ fn store_get_returns_what_store_put_wrote() {
         .store_get(store_get::Request {
             area: 1,
             key: "a/b.txt".into(),
+            path: String::new(),
+            view: 0,
         })
         .expect("read");
     assert!(done.found);
@@ -109,6 +112,8 @@ fn store_get_reports_a_missing_key_as_not_found() {
             .store_get(store_get::Request {
                 area: 1,
                 key: key.into(),
+                path: String::new(),
+                view: 0,
             })
             .expect("read");
         assert!(!done.found, "{key}");
@@ -124,6 +129,8 @@ fn store_get_refuses_an_area_that_is_not_one_of_the_seven() {
             .store_get(store_get::Request {
                 area,
                 key: "k".into(),
+                path: String::new(),
+                view: 0,
             })
             .map(|_| ())
             .map_err(failure);
@@ -143,6 +150,8 @@ fn store_get_refuses_a_key_that_is_not_a_key() {
             .store_get(store_get::Request {
                 area: 1,
                 key: key.into(),
+                path: String::new(),
+                view: 0,
             })
             .map(|_| ())
             .map_err(failure);
@@ -158,6 +167,8 @@ fn store_get_fails_when_the_key_names_a_directory() {
         .store_get(store_get::Request {
             area: 1,
             key: "d".into(),
+            path: String::new(),
+            view: 0,
         })
         .map(|_| ())
         .map_err(failure);
@@ -180,6 +191,8 @@ fn store_get_fails_when_the_path_crosses_a_link() {
             .store_get(store_get::Request {
                 area: 1,
                 key: key.into(),
+                path: String::new(),
+                view: 0,
             })
             .map(|_| ())
             .map_err(failure);
@@ -199,6 +212,8 @@ fn store_get_fails_when_the_file_is_over_the_draft_limit() {
         .store_get(store_get::Request {
             area: 1,
             key: "big".into(),
+            path: String::new(),
+            view: 0,
         })
         .map(|_| ())
         .map_err(failure);
@@ -251,6 +266,7 @@ fn store_put_writes_every_one_of_the_seven_areas() {
             area,
             key: "k".into(),
             content: vec![1, 2, 3],
+            form: 0,
         })
         .expect("put");
         assert!(host.config().store.join(name).join("k").is_file(), "{name}");
@@ -265,6 +281,7 @@ fn store_put_refuses_an_area_that_is_not_one_of_the_seven() {
             area: 7,
             key: "k".into(),
             content: vec![],
+            form: 0,
         })
         .map(|_| ())
         .map_err(failure);
@@ -1060,6 +1077,7 @@ fn lexicon_read_returns_an_entry_of_a_profile() {
         area: 0,
         key: "p1/entries/a.toml".into(),
         content: b"phrase".to_vec(),
+        form: 0,
     })
     .expect("put");
     assert_eq!(
@@ -1075,6 +1093,7 @@ fn lexicon_read_reports_a_missing_entry_as_not_found() {
         area: 0,
         key: "p1/lexicon.toml".into(),
         content: b"x".to_vec(),
+        form: 0,
     })
     .expect("put");
     assert_eq!(
@@ -1102,6 +1121,7 @@ fn lexicon_read_refuses_an_entry_that_is_not_a_key() {
         area: 0,
         key: "p1/x".into(),
         content: b"x".to_vec(),
+        form: 0,
     })
     .expect("put");
     for entry in ["", "..", "../p1/x", "/etc/passwd", "a//b"] {
@@ -1138,6 +1158,7 @@ fn attestation_lookup_finds_a_record_by_its_id() {
         area: 3,
         key: format!("{ID}.json"),
         content: b"{\"a\":1}".to_vec(),
+        form: 0,
     })
     .expect("put");
     assert_eq!(lookup(&mut host, 0, ID), Ok((true, b"{\"a\":1}".to_vec())));
@@ -1150,12 +1171,14 @@ fn attestation_lookup_finds_a_record_by_the_digest_of_a_verified_file() {
         area: 3,
         key: format!("{ID}.json"),
         content: b"{\"a\":1}".to_vec(),
+        form: 0,
     })
     .expect("put");
     host.store_put(store_put::Request {
         area: 4,
         key: format!("by-file/{DIGEST}"),
         content: ID.as_bytes().to_vec(),
+        form: 0,
     })
     .expect("put");
     assert_eq!(
@@ -1204,6 +1227,7 @@ fn attestation_lookup_faults_when_the_index_names_something_that_is_not_an_id() 
         area: 4,
         key: format!("by-file/{DIGEST}"),
         content: b"not an id".to_vec(),
+        form: 0,
     })
     .expect("put");
     let error = host

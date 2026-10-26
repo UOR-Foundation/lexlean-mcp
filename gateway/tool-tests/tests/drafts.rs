@@ -1,12 +1,18 @@
-//! DR-01 to DR-10: the draft tools of F3 (issue #9). Each test calls `lexlean_draft_write`,
-//! `lexlean_draft_read` or an Engine tool through the production core with the real host
+//! DR-01 to DR-15: the draft tools of F3 (issue #9). Each test calls `lexlean_draft_write`,
+//! `lexlean_draft_read`, `lexlean_draft_assemble` or an Engine tool through the production core with the real host
 //! (`gateway_binding::Native`), on a store in a temporary directory, as a client does. Nothing
 //! here knows what a tool does: the core does, and the model (`src/Identity.lex.tex`) is the
 //! oracle of the identity of a draft.
 
 use std::path::Path;
 
+use gateway_binding::Native;
+use gateway_host_api::protocol::{
+    attestation_lookup, engine_build, engine_check, engine_format, engine_snapshot, lexicon_read,
+    rate_calls, store_get, store_put, verify_control, verify_start, Host, HostError,
+};
 use gateway_tool_tests::{tiny, Gateway, Reply, BUNDLE, SOURCE};
+use lexlean::sdk::{self, ModuleKind, SourceHeader};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
@@ -84,6 +90,7 @@ fn stored_drafts(gateway: &Gateway) -> Vec<String> {
         for draft in std::fs::read_dir(profile.path())
             .expect("a profile")
             .flatten()
+            .filter(|draft| draft.file_name() != "modules")
         {
             found.push(format!(
                 "{}/{}",
@@ -725,7 +732,7 @@ fn a_profile_bundle_without_a_link_is_materialized_dr_08() {
 // ---- DR-09 -------------------------------------------------------------------------------------
 
 #[test]
-fn the_two_draft_tools_are_listed_with_closed_schemas_and_no_assemble_dr_09() {
+fn the_three_draft_tools_are_listed_with_closed_schemas_dr_09() {
     let mut gateway = Gateway::new();
     let reply = gateway.list();
     let tools = reply.result()["tools"].as_array().expect("tools").clone();
@@ -733,12 +740,13 @@ fn the_two_draft_tools_are_listed_with_closed_schemas_and_no_assemble_dr_09() {
         .iter()
         .map(|t| t["name"].as_str().expect("a name"))
         .collect();
-    assert!(names.contains(&"lexlean_draft_write"), "{names:?}");
-    assert!(names.contains(&"lexlean_draft_read"), "{names:?}");
-    assert!(
-        !names.iter().any(|name| name.contains("assemble")),
-        "the four functions of lexlean::sdk that no effect reaches have no tool: {names:?}"
-    );
+    for name in [
+        "lexlean_draft_write",
+        "lexlean_draft_read",
+        "lexlean_draft_assemble",
+    ] {
+        assert!(names.contains(&name), "{name}: {names:?}");
+    }
     let tool = |name: &str| {
         tools
             .iter()
@@ -762,6 +770,25 @@ fn the_two_draft_tools_are_listed_with_closed_schemas_and_no_assemble_dr_09() {
     let read_tool = tool("lexlean_draft_read");
     assert_eq!(read_tool["inputSchema"]["additionalProperties"], false);
     assert_eq!(read_tool["inputSchema"]["required"], json!(["draft"]));
+    assert_eq!(
+        read_tool["inputSchema"]["properties"]["view"]["enum"],
+        json!(["text", "data", "spans"])
+    );
+    let assembled = tool("lexlean_draft_assemble");
+    let schema = &assembled["inputSchema"];
+    assert_eq!(schema["additionalProperties"], false);
+    assert_eq!(schema["required"], json!(["profile", "path", "data"]));
+    assert_eq!(
+        schema["properties"]["kind"]["enum"],
+        json!(["semantic", "tooling", "core"])
+    );
+    let header = &schema["properties"]["header"];
+    assert_eq!(header["additionalProperties"], false);
+    assert_eq!(
+        header["required"],
+        json!(["name", "glossaries", "imports", "title"])
+    );
+    assert_eq!(schema["properties"]["data"]["type"], "object");
 }
 
 #[test]
@@ -774,6 +801,17 @@ fn the_effects_of_the_draft_tools_are_the_ones_stated_dr_09() {
     assert_eq!(
         read(&mut gateway, &draft, Some("src/A.lex.tex")).effects,
         ["store.get"]
+    );
+    let assembled = gateway.call(
+        "lexlean_draft_assemble",
+        json!({"profile": "tiny", "path": SOURCE, "kind": "semantic",
+               "header": tiny_header(), "data": tiny_data()}),
+    );
+    assert_eq!(
+        assembled.effects,
+        ["lexicon.read", "store.put", "store.put"],
+        "{}",
+        assembled.body
     );
 }
 
@@ -808,6 +846,38 @@ fn a_call_that_breaks_a_schema_of_the_draft_tools_asks_for_no_effect_dr_09() {
             "lexlean_draft_read",
             json!({"draft": "tiny/x", "extra": true}),
         ),
+        (
+            "lexlean_draft_read",
+            json!({"draft": "tiny/x", "view": "bytes"}),
+        ),
+        ("lexlean_draft_read", json!({"draft": "tiny/x", "view": 1})),
+        ("lexlean_draft_assemble", json!({})),
+        (
+            "lexlean_draft_assemble",
+            json!({"profile": "tiny", "path": SOURCE}),
+        ),
+        (
+            "lexlean_draft_assemble",
+            json!({"profile": "tiny", "path": SOURCE, "data": []}),
+        ),
+        (
+            "lexlean_draft_assemble",
+            json!({"profile": "tiny", "path": SOURCE, "data": {}, "extra": 1}),
+        ),
+        (
+            "lexlean_draft_assemble",
+            json!({"profile": "tiny", "path": SOURCE, "data": {}, "kind": "semantic",
+                   "header": {"name": "Tiny"}}),
+        ),
+        (
+            "lexlean_draft_assemble",
+            json!({"profile": "tiny", "path": SOURCE, "data": {}, "kind": "native",
+                   "header": tiny_header()}),
+        ),
+        (
+            "lexlean_draft_assemble",
+            json!({"profile": "tiny", "path": SOURCE, "data": {}, "draft": 7}),
+        ),
     ];
     for (tool, arguments) in calls {
         let reply = gateway.call(tool, arguments.clone());
@@ -817,6 +887,37 @@ fn a_call_that_breaks_a_schema_of_the_draft_tools_asks_for_no_effect_dr_09() {
             result["content"][0]["text"]
                 .as_str()
                 .is_some_and(|text| text.starts_with("Invalid arguments:")),
+            "{tool} {arguments}: {}",
+            reply.body
+        );
+        assert!(reply.effects.is_empty(), "{tool} {arguments}");
+    }
+    // What a schema cannot say the core refuses before any effect, as the invalid parameters of
+    // the protocol: a view of data or spans without a path, and a kind without a header or a
+    // header without a kind.
+    let calls = [
+        (
+            "lexlean_draft_read",
+            json!({"draft": "tiny/x", "view": "data"}),
+        ),
+        (
+            "lexlean_draft_read",
+            json!({"draft": "tiny/x", "view": "spans"}),
+        ),
+        (
+            "lexlean_draft_assemble",
+            json!({"profile": "tiny", "path": SOURCE, "data": {}, "kind": "semantic"}),
+        ),
+        (
+            "lexlean_draft_assemble",
+            json!({"profile": "tiny", "path": SOURCE, "data": {}, "header": tiny_header()}),
+        ),
+    ];
+    for (tool, arguments) in calls {
+        let reply = gateway.call(tool, arguments.clone());
+        assert_eq!(
+            reply.error()["code"],
+            -32602,
             "{tool} {arguments}: {}",
             reply.body
         );
@@ -1042,5 +1143,676 @@ fn a_bundle_file_is_never_a_file_of_a_draft_dr_10() {
         let reply = write(&mut gateway, "tiny", &[(file, "x")]);
         assert!(reply.is_error(), "{file}: {}", reply.body);
         assert_eq!(reply.effects, ["lexicon.read"], "{file}");
+    }
+}
+
+// ---- the modules of DR-12 to DR-15 ------------------------------------------------------------
+
+fn tiny_text() -> String {
+    std::fs::read_to_string(tiny().join(SOURCE)).expect("the source")
+}
+
+/// The data of the module of the tiny project, as `sdk::read_module` reads it.
+fn tiny_data() -> Value {
+    sdk::read_module(&tiny_text()).expect("the module of the tiny project")
+}
+
+/// The header of the tiny project's module.
+fn tiny_header() -> Value {
+    json!({
+        "name": "Tiny",
+        "glossaries": ["lexlean.std.bool@1.2.0", "lexlean.std.nat@1.2.0"],
+        "imports": [],
+        "title": "Boolean",
+    })
+}
+
+fn tooling_data() -> Value {
+    serde_json::from_str(
+        r#"{"authority":{"id":"A","lean_githash":"g","lean_version":"4.32.1"},"declarations":[{"constructors":[{"fields":[],"name":"false"}],"kind":"type","name":"Bool","parameters":[]},{"kind":"call","name":"f"}],"imports":[],"spec":"lexlean/tooling-module/1"}"#,
+    )
+    .expect("a tooling module")
+}
+
+fn core_data() -> Value {
+    json!({"declarations": [], "imports": ["Init"], "nodes": [], "proof_nodes": [],
+           "spec": "lexlean/core-module/2"})
+}
+
+fn kind_of(name: &str) -> ModuleKind {
+    match name {
+        "semantic" => ModuleKind::Semantic,
+        "tooling" => ModuleKind::Tooling,
+        "core" => ModuleKind::Core,
+        other => panic!("a kind of module: {other}"),
+    }
+}
+
+/// `sdk::assemble` on the header and the data, the oracle of `lexlean_draft_assemble`.
+fn assembled_by_the_sdk(kind: &str, header: &Value, data: &Value) -> String {
+    let words = |key: &str| -> Vec<String> {
+        header[key]
+            .as_array()
+            .expect("a list")
+            .iter()
+            .map(|v| v.as_str().expect("a string").to_string())
+            .collect()
+    };
+    let glossaries = words("glossaries");
+    let imports = words("imports");
+    let glossaries: Vec<&str> = glossaries.iter().map(String::as_str).collect();
+    let imports: Vec<&str> = imports.iter().map(String::as_str).collect();
+    sdk::assemble(
+        &SourceHeader {
+            name: header["name"].as_str().expect("a name"),
+            glossaries: &glossaries,
+            imports: &imports,
+            title: header["title"].as_str().expect("a title"),
+        },
+        kind_of(kind),
+        data,
+    )
+    .expect("the sdk assembles it")
+}
+
+fn assemble(gateway: &mut Gateway, arguments: Value) -> Reply {
+    gateway.call("lexlean_draft_assemble", arguments)
+}
+
+/// The text of a file of a draft, read as text.
+fn text_of(gateway: &mut Gateway, draft: &str, path: &str) -> String {
+    let reply = read(gateway, draft, Some(path));
+    assert!(!reply.is_error(), "{}", reply.body);
+    reply.text().to_string()
+}
+
+fn view(gateway: &mut Gateway, draft: &str, path: &str, view: &str) -> Reply {
+    gateway.call(
+        "lexlean_draft_read",
+        json!({"draft": draft, "path": path, "view": view}),
+    )
+}
+
+// ---- DR-12 -------------------------------------------------------------------------------------
+
+/// A draft with the module of the tiny project in the notation, the same module as data, and a
+/// prose document.
+fn with_the_three_kinds_of_file() -> (Gateway, String) {
+    let mut gateway = with_profile();
+    let notation = tiny_text();
+    let data_form = sdk::to_data_form(&notation).expect("the data form");
+    let draft = handle(&write(
+        &mut gateway,
+        "tiny",
+        &[
+            ("src/Data.lex.tex", &data_form),
+            (
+                "src/Prose.lex.tex",
+                "\\section{Notes}\nOnly words, no module.\n",
+            ),
+            (SOURCE, &notation),
+        ],
+    ));
+    (gateway, draft)
+}
+
+#[test]
+fn the_view_data_is_what_read_module_gives_dr_12() {
+    let (mut gateway, draft) = with_the_three_kinds_of_file();
+    let notation = tiny_text();
+    let expected = sdk::read_module(&notation).expect("reads");
+    for path in [SOURCE, "src/Data.lex.tex"] {
+        let reply = view(&mut gateway, &draft, path, "data");
+        assert!(!reply.is_error(), "{path}: {}", reply.body);
+        assert_eq!(reply.effects, ["store.get"], "{path}");
+        assert_eq!(
+            reply.text(),
+            serde_json::to_string(&expected).expect("JSON"),
+            "{path}: the text is the JSON of sdk::read_module"
+        );
+        assert_eq!(reply.structured()["data"], expected, "{path}");
+        assert_eq!(reply.structured()["path"], path);
+        assert_eq!(reply.structured()["view"], "data");
+        assert_eq!(
+            reply.structured()["bytes"],
+            reply.text().len(),
+            "{path}: the size of the text"
+        );
+    }
+}
+
+#[test]
+fn the_view_spans_are_what_declaration_spans_gives_dr_12() {
+    let (mut gateway, draft) = with_the_three_kinds_of_file();
+    let notation = tiny_text();
+    let spans = sdk::declaration_spans(&notation)
+        .expect("spans")
+        .expect("the notation has spans");
+    assert_eq!(spans.len(), 1, "the tiny module has one declaration");
+    let expected: Vec<Value> = spans.iter().map(|(a, b)| json!([a, b])).collect();
+    let reply = view(&mut gateway, &draft, SOURCE, "spans");
+    assert!(!reply.is_error(), "{}", reply.body);
+    assert_eq!(reply.effects, ["store.get"]);
+    assert_eq!(reply.structured()["spans"], Value::Array(expected.clone()));
+    assert_eq!(
+        reply.text(),
+        serde_json::to_string(&expected).expect("JSON")
+    );
+    let (start, end) = spans[0];
+    assert!(
+        notation[start..end].starts_with("definition{"),
+        "a span is the text of a declaration"
+    );
+}
+
+#[test]
+fn a_module_written_as_data_has_null_spans_dr_12() {
+    let (mut gateway, draft) = with_the_three_kinds_of_file();
+    let reply = view(&mut gateway, &draft, "src/Data.lex.tex", "spans");
+    assert!(!reply.is_error(), "{}", reply.body);
+    assert_eq!(reply.text(), "null");
+    assert_eq!(reply.structured()["spans"], Value::Null);
+}
+
+/// A host that records what the core asked of the store and can change the class it answers.
+struct Rec {
+    inner: Native,
+    gets: Vec<(u32, String, String, u32)>,
+    puts: Vec<(u32, String, usize, u32)>,
+    class: Option<u32>,
+}
+
+macro_rules! delegated {
+    ($name:ident, $module:ident) => {
+        fn $name(
+            &mut self,
+            request: $module::Request,
+        ) -> Result<$module::Completed, HostError<$module::Failure>> {
+            self.inner.$name(request)
+        }
+    };
+}
+
+impl Host for Rec {
+    fn store_get(
+        &mut self,
+        request: store_get::Request,
+    ) -> Result<store_get::Completed, HostError<store_get::Failure>> {
+        self.gets.push((
+            request.area,
+            request.key.clone(),
+            request.path.clone(),
+            request.view,
+        ));
+        let mut completed = self.inner.store_get(request)?;
+        if let Some(class) = self.class {
+            completed.class = class;
+        }
+        Ok(completed)
+    }
+
+    fn store_put(
+        &mut self,
+        request: store_put::Request,
+    ) -> Result<store_put::Completed, HostError<store_put::Failure>> {
+        self.puts.push((
+            request.area,
+            request.key.clone(),
+            request.content.len(),
+            request.form,
+        ));
+        let mut completed = self.inner.store_put(request)?;
+        if let Some(class) = self.class {
+            completed.class = class;
+        }
+        Ok(completed)
+    }
+
+    delegated!(engine_check, engine_check);
+    delegated!(engine_snapshot, engine_snapshot);
+    delegated!(engine_format, engine_format);
+    delegated!(engine_build, engine_build);
+    delegated!(verify_start, verify_start);
+    delegated!(verify_control, verify_control);
+    delegated!(lexicon_read, lexicon_read);
+    delegated!(attestation_lookup, attestation_lookup);
+    delegated!(rate_calls, rate_calls);
+}
+
+fn recording(gateway: &Gateway, class: Option<u32>) -> Rec {
+    Rec {
+        inner: Native::new(gateway.config()),
+        gets: Vec::new(),
+        puts: Vec::new(),
+        class,
+    }
+}
+
+#[test]
+fn a_read_without_a_view_asks_the_view_0_and_returns_the_bytes_dr_12() {
+    let (mut gateway, draft) = with_the_three_kinds_of_file();
+    let mut host = recording(&gateway, None);
+    let reply = gateway.call_with(
+        &mut host,
+        "lexlean_draft_read",
+        json!({"draft": draft, "path": SOURCE}),
+    );
+    assert!(!reply.is_error(), "{}", reply.body);
+    assert_eq!(reply.text(), tiny_text(), "the bytes of the file, as text");
+    assert_eq!(host.gets, [(1, draft.clone(), String::new(), 0)]);
+    assert!(host.puts.is_empty());
+    let named = view(&mut gateway, &draft, SOURCE, "text");
+    assert_eq!(named.text(), tiny_text(), "the view text is the plain read");
+}
+
+#[test]
+fn a_structured_read_asks_one_store_get_with_the_path_and_the_view_dr_12() {
+    let (mut gateway, draft) = with_the_three_kinds_of_file();
+    for (name, number) in [("data", 1), ("spans", 2)] {
+        let mut host = recording(&gateway, None);
+        let reply = gateway.call_with(
+            &mut host,
+            "lexlean_draft_read",
+            json!({"draft": draft, "path": SOURCE, "view": name}),
+        );
+        assert!(!reply.is_error(), "{name}: {}", reply.body);
+        assert_eq!(
+            host.gets,
+            [(1, draft.clone(), SOURCE.to_string(), number)],
+            "{name}: one store.get of the draft with the path and the view"
+        );
+        assert!(host.puts.is_empty(), "{name}: nothing is stored");
+    }
+}
+
+// ---- DR-13 -------------------------------------------------------------------------------------
+
+#[test]
+fn an_assembled_module_is_what_sdk_assemble_returns_dr_13() {
+    let mut gateway = with_profile();
+    let data = tiny_data();
+    let reply = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "path": SOURCE, "kind": "semantic",
+               "header": tiny_header(), "data": data}),
+    );
+    assert!(!reply.is_error(), "{}", reply.body);
+    let draft = handle(&reply);
+    assert_eq!(reply.structured()["form"], "assemble");
+    assert_eq!(reply.structured()["path"], SOURCE);
+    let text = text_of(&mut gateway, &draft, SOURCE);
+    assert_eq!(
+        text,
+        assembled_by_the_sdk("semantic", &tiny_header(), &data)
+    );
+    assert_eq!(
+        text,
+        tiny_text(),
+        "the tiny module is canonical, so it is its own assembly"
+    );
+}
+
+#[test]
+fn a_tooling_and_a_core_module_are_assembled_too_dr_13() {
+    let mut gateway = with_profile();
+    for (kind, data, path) in [
+        ("tooling", tooling_data(), "src/Tool.lex.tex"),
+        ("core", core_data(), "src/Core.lex.tex"),
+    ] {
+        let header =
+            json!({"name": "M", "glossaries": [], "imports": ["Other"], "title": "Boolean"});
+        let reply = assemble(
+            &mut gateway,
+            json!({"profile": "tiny", "path": path, "kind": kind, "header": header, "data": data}),
+        );
+        assert!(!reply.is_error(), "{kind}: {}", reply.body);
+        let draft = handle(&reply);
+        assert_eq!(
+            text_of(&mut gateway, &draft, path),
+            assembled_by_the_sdk(kind, &header, &data),
+            "{kind}"
+        );
+    }
+}
+
+#[test]
+fn a_rewritten_module_is_what_sdk_write_module_returns_dr_13() {
+    let mut gateway = with_profile();
+    let notation = tiny_text();
+    let data_form = sdk::to_data_form(&notation).expect("the data form");
+    let base = handle(&write(
+        &mut gateway,
+        "tiny",
+        &[("src/Data.lex.tex", &data_form), (SOURCE, &notation)],
+    ));
+    let mut changed = tiny_data();
+    changed["declarations"][0]["name"] = json!("twice");
+    for (path, before) in [(SOURCE, &notation), ("src/Data.lex.tex", &data_form)] {
+        let reply = assemble(
+            &mut gateway,
+            json!({"profile": "tiny", "draft": base, "path": path, "data": changed}),
+        );
+        assert!(!reply.is_error(), "{path}: {}", reply.body);
+        assert_eq!(reply.structured()["form"], "rewrite");
+        let draft = handle(&reply);
+        assert_ne!(draft, base, "{path}: a new draft");
+        let text = text_of(&mut gateway, &draft, path);
+        assert_eq!(
+            text,
+            sdk::write_module(before, &changed).expect("the sdk rewrites it"),
+            "{path}"
+        );
+        assert_eq!(
+            sdk::is_notation(&text),
+            sdk::is_notation(before),
+            "{path}: a rewrite keeps the form of the file"
+        );
+    }
+}
+
+#[test]
+fn the_other_files_of_the_base_are_kept_dr_13() {
+    let (mut gateway, base) = with_the_three_kinds_of_file();
+    let mut changed = tiny_data();
+    changed["declarations"][0]["name"] = json!("twice");
+    let reply = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "draft": base, "path": SOURCE, "data": changed}),
+    );
+    let draft = handle(&reply);
+    assert_eq!(reply.structured()["files"], 3);
+    for path in ["src/Data.lex.tex", "src/Prose.lex.tex"] {
+        assert_eq!(
+            text_of(&mut gateway, &draft, path),
+            text_of(&mut gateway, &base, path),
+            "{path} is as it was"
+        );
+    }
+    let listing = read(&mut gateway, &draft, None);
+    assert_eq!(
+        listing.text(),
+        "src/Data.lex.tex\nsrc/Prose.lex.tex\nsrc/Tiny.lex.tex"
+    );
+    // Assembling a module at a path the base lacks adds it.
+    let added = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "draft": base, "path": "src/More.lex.tex",
+               "kind": "semantic", "header": tiny_header(), "data": tiny_data()}),
+    );
+    assert_eq!(added.structured()["files"], 4, "{}", added.body);
+}
+
+#[test]
+fn the_assembled_draft_is_named_by_its_identity_over_the_stored_bytes_dr_13() {
+    let mut gateway = with_profile();
+    let reply = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "path": SOURCE, "kind": "semantic",
+               "header": tiny_header(), "data": tiny_data()}),
+    );
+    let draft = handle(&reply);
+    let id = reply.structured()["id"]
+        .as_str()
+        .expect("an id")
+        .to_string();
+    assert_eq!(draft, format!("tiny/{id}"));
+    let blob = std::fs::read(gateway.drafts().join(&draft)).expect("the stored draft");
+    assert_eq!(
+        sha256(&blob),
+        id,
+        "the identity is the digest of the stored bytes"
+    );
+    // The same module written as text is the same draft: the identity covers the bytes only.
+    let written = handle(&write(&mut gateway, "tiny", &[(SOURCE, &tiny_text())]));
+    assert_eq!(
+        written, draft,
+        "assembled bytes and written bytes name one draft"
+    );
+}
+
+#[test]
+fn the_engine_checks_an_assembled_draft_dr_13() {
+    let mut gateway = with_profile();
+    let reply = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "path": SOURCE, "kind": "semantic",
+               "header": tiny_header(), "data": tiny_data()}),
+    );
+    let draft = handle(&reply);
+    let checked = gateway.call("lexlean_check", json!({"project": draft, "files": []}));
+    assert!(!checked.is_error(), "{}", checked.body);
+    assert_eq!(checked.effects, ["engine.check"]);
+}
+
+#[test]
+fn the_effects_of_an_assemble_are_the_four_stated_dr_13() {
+    let mut gateway = with_profile();
+    let base = handle(&write(&mut gateway, "tiny", &[(SOURCE, &tiny_text())]));
+    let mut host = recording(&gateway, None);
+    let reply = gateway.call_with(
+        &mut host,
+        "lexlean_draft_assemble",
+        json!({"profile": "tiny", "draft": base, "path": SOURCE, "data": tiny_data()}),
+    );
+    assert!(!reply.is_error(), "{}", reply.body);
+    assert_eq!(
+        reply.effects,
+        ["lexicon.read", "store.get", "store.put", "store.put"]
+    );
+    assert_eq!(host.gets, [(1, base.clone(), String::new(), 0)]);
+    let forms: Vec<u32> = host.puts.iter().map(|put| put.3).collect();
+    assert_eq!(
+        forms,
+        [2, 0],
+        "the render by the form 2, then the draft by the form 0"
+    );
+    assert!(
+        host.puts[0].1.starts_with("tiny/modules/"),
+        "the render has a key of its own: {:?}",
+        host.puts[0].1
+    );
+    let mut host = recording(&gateway, None);
+    let fresh = gateway.call_with(
+        &mut host,
+        "lexlean_draft_assemble",
+        json!({"profile": "tiny", "path": SOURCE, "kind": "semantic",
+               "header": tiny_header(), "data": tiny_data()}),
+    );
+    assert_eq!(fresh.effects, ["lexicon.read", "store.put", "store.put"]);
+    let forms: Vec<u32> = host.puts.iter().map(|put| put.3).collect();
+    assert_eq!(
+        forms,
+        [1, 0],
+        "the render by the form 1, then the draft by the form 0"
+    );
+    assert!(host.gets.is_empty());
+}
+
+// ---- DR-14 -------------------------------------------------------------------------------------
+
+const PROSE: &str = "\\section{Notes}\nOnly words, no module: $x$ and %comment.\n";
+
+#[test]
+fn a_prose_document_is_stored_and_read_as_text_dr_14() {
+    let mut gateway = with_profile();
+    let mut host = recording(&gateway, None);
+    let written = gateway.call_with(
+        &mut host,
+        "lexlean_draft_write",
+        json!({"profile": "tiny", "files": files(&[("src/Prose.lex.tex", PROSE)])}),
+    );
+    assert!(!written.is_error(), "{}", written.body);
+    assert_eq!(written.effects, ["lexicon.read", "store.put"]);
+    assert_eq!(
+        host.puts.iter().map(|put| put.3).collect::<Vec<_>>(),
+        [0],
+        "a write stores with the form 0: the sdk renders nothing"
+    );
+    let draft = handle(&written);
+    let mut host = recording(&gateway, None);
+    let reply = gateway.call_with(
+        &mut host,
+        "lexlean_draft_read",
+        json!({"draft": draft, "path": "src/Prose.lex.tex"}),
+    );
+    assert_eq!(reply.text(), PROSE, "the document, byte for byte");
+    assert_eq!(
+        host.gets,
+        [(1, draft.clone(), String::new(), 0)],
+        "the view 0"
+    );
+}
+
+#[test]
+fn a_prose_document_asked_for_the_view_data_is_module_refused_dr_14() {
+    let mut gateway = with_profile();
+    let draft = handle(&write(
+        &mut gateway,
+        "tiny",
+        &[("src/Prose.lex.tex", PROSE)],
+    ));
+    for name in ["data", "spans"] {
+        let reply = view(&mut gateway, &draft, "src/Prose.lex.tex", name);
+        assert!(reply.is_error(), "{name}: {}", reply.body);
+        assert_eq!(reply.structured()["refusal"], "ModuleRefused", "{name}");
+        assert!(
+            reply.structured()["message"]
+                .as_str()
+                .is_some_and(|message| !message.is_empty()),
+            "{name}: the message of the sdk: {}",
+            reply.body
+        );
+        assert_eq!(reply.effects, ["store.get"], "{name}");
+    }
+}
+
+#[test]
+fn the_kind_prose_is_refused_by_the_schema_of_assemble_dr_14() {
+    let mut gateway = with_profile();
+    for kind in ["prose", "document", "Semantic", ""] {
+        let reply = assemble(
+            &mut gateway,
+            json!({"profile": "tiny", "path": "src/Prose.lex.tex", "kind": kind,
+                   "header": tiny_header(), "data": {}}),
+        );
+        assert!(reply.is_error(), "{kind}: {}", reply.body);
+        assert!(
+            reply.text().starts_with("Invalid arguments:"),
+            "{kind}: {}",
+            reply.body
+        );
+        assert!(reply.effects.is_empty(), "{kind}: the sdk is not reached");
+    }
+}
+
+// ---- DR-15 -------------------------------------------------------------------------------------
+
+#[test]
+fn module_refused_is_a_typed_refusal_dr_15() {
+    let mut gateway = with_profile();
+    let reply = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "path": SOURCE, "kind": "semantic",
+               "header": tiny_header(), "data": {"spec": "lexlean/semantic-module/9"}}),
+    );
+    assert!(reply.is_error(), "{}", reply.body);
+    assert_eq!(reply.structured()["refusal"], "ModuleRefused");
+    assert!(
+        reply.structured()["message"]
+            .as_str()
+            .is_some_and(|message| !message.is_empty()),
+        "the message of the sdk: {}",
+        reply.body
+    );
+    assert_eq!(reply.effects, ["lexicon.read", "store.put"]);
+    assert!(stored_drafts(&gateway).is_empty(), "no draft is stored");
+    // A rewrite of text the sdk cannot read is refused too.
+    let base = handle(&write(
+        &mut gateway,
+        "tiny",
+        &[(SOURCE, "\\begin{lexlean}{M}\n\\end{lexlean}\n")],
+    ));
+    let rewritten = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "draft": base, "path": SOURCE, "data": tiny_data()}),
+    );
+    assert_eq!(
+        rewritten.structured()["refusal"],
+        "ModuleRefused",
+        "{}",
+        rewritten.body
+    );
+    assert_eq!(stored_drafts(&gateway), [base], "only the base is stored");
+}
+
+#[test]
+fn path_unknown_for_a_rewrite_is_a_typed_refusal_dr_15() {
+    let mut gateway = with_profile();
+    let base = handle(&write(&mut gateway, "tiny", &[("src/A.lex.tex", "x")]));
+    let reply = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "draft": base, "path": SOURCE, "data": tiny_data()}),
+    );
+    assert_refusal(&reply, "PathUnknown", &["lexicon.read", "store.get"]);
+    // A rewrite with no draft names no file to rewrite: the arguments are invalid.
+    let reply = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "path": SOURCE, "data": tiny_data()}),
+    );
+    assert_eq!(reply.error()["code"], -32602, "{}", reply.body);
+    assert!(reply.effects.is_empty());
+}
+
+#[test]
+fn profile_mismatch_is_a_typed_refusal_dr_15() {
+    let mut gateway = with_profile();
+    let base = format!("other/{}", "0".repeat(64));
+    let reply = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "draft": base, "path": SOURCE, "data": tiny_data()}),
+    );
+    assert_refusal(&reply, "ProfileMismatch", &[]);
+}
+
+#[test]
+fn a_class_outside_the_closed_set_is_a_malformed_outcome_dr_15() {
+    let (mut gateway, draft) = with_the_three_kinds_of_file();
+    let mut host = recording(&gateway, Some(7));
+    let reply = gateway.call_with(
+        &mut host,
+        "lexlean_draft_read",
+        json!({"draft": draft, "path": SOURCE, "view": "data"}),
+    );
+    assert_refusal(&reply, "OutcomeMalformed", &["store.get"]);
+    let mut host = recording(&gateway, Some(7));
+    let reply = gateway.call_with(
+        &mut host,
+        "lexlean_draft_assemble",
+        json!({"profile": "tiny", "path": SOURCE, "kind": "semantic",
+               "header": tiny_header(), "data": tiny_data()}),
+    );
+    assert_refusal(&reply, "OutcomeMalformed", &["lexicon.read", "store.put"]);
+}
+
+#[test]
+fn a_view_or_a_form_of_the_model_is_never_refused_dr_15() {
+    // The values the core sends are the model's: each view of a read and each form of an
+    // assemble is answered, and none of them is the failure of an unknown value.
+    let (mut gateway, draft) = with_the_three_kinds_of_file();
+    for name in ["text", "data", "spans"] {
+        let reply = view(&mut gateway, &draft, SOURCE, name);
+        assert!(!reply.is_error(), "{name}: {}", reply.body);
+    }
+    let fresh = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "path": SOURCE, "kind": "semantic",
+               "header": tiny_header(), "data": tiny_data()}),
+    );
+    let rewritten = assemble(
+        &mut gateway,
+        json!({"profile": "tiny", "draft": handle(&fresh), "path": SOURCE, "data": tiny_data()}),
+    );
+    for reply in [fresh, rewritten] {
+        assert!(!reply.is_error(), "{}", reply.body);
     }
 }

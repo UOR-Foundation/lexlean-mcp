@@ -85,3 +85,9 @@ Feature: Check, snapshot, format and build agree with the CLI
     Given TOOLS.md and the planted defects of lexlean_explain
     When the defects are read
     Then each names a command, a diagnostic and a restore, and the three kinds the statement names are among them
+
+  @TL-15 @build
+  Scenario: Q2, the running clause: each of the nine in-scope functions of crates/quality-map/map.toml is reached by a tool that tools/list of the production core shows and that runs, lexlean_check, lexlean_snapshot, lexlean_format, lexlean_build and lexlean_verify for the Engine calls, and lexlean_draft_assemble and lexlean_draft_read for sdk::assemble, sdk::write_module, sdk::read_module and sdk::declaration_spans, whose results equal what those functions give on the same text.
+    Given the map of crates/quality-map/map.toml and the gateway tools
+    When tools/list is read and each tool of an in-scope function is called
+    Then every tool is listed and runs, and the four results of the sdk functions equal the functions' own

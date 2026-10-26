@@ -4,7 +4,7 @@ Issue #10 asks that `lexlean_check`, `lexlean_snapshot`, `lexlean_format` and `l
 (F4 to F7) and `lexlean_explain` (F11) agree with the `lexlean` CLI. This file says what each
 tool returns, how an answer of the Engine becomes an MCP result, and how the claim "the tool
 equals the CLI" is tested. The rows are `TL-01` to `TL-09` (F4 to F7) and `TL-10` to `TL-14`
-(F11), suite `tools`; the tests are `cargo test -p repo-model --test tools` (the register half)
+(F11), and `TL-15` (the running clause of Q2: QUALITY.md), suite `tools`; the tests are `cargo test -p repo-model --test tools` (the register half)
 and, in the gateway workspace, `cargo test -p gateway-tool-tests` (the behaviour half). The effects are those of
 `src/Effects.lex.tex` and are not changed: `engine.check`, `engine.snapshot`,
 `engine.format` and `engine.build` are E3 to E6, and the set stays E1 to E10.

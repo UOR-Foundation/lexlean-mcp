@@ -692,3 +692,122 @@ fn each_gate_rejects_its_planted_defect_ef_08() {
         "no effect is named after a tool"
     );
 }
+
+/// The closed fields of E1 and E2 (issue #9): the type, its constructors with their numbers, and
+/// the refusal a number past them is.
+/// A closed field: its type, its field name, its constructors with their numbers, its refusal, the
+/// effects it belongs to, and its decoder.
+type Field = (
+    &'static str,
+    &'static str,
+    &'static [(&'static str, u32)],
+    &'static str,
+    &'static str,
+    &'static str,
+);
+
+const FIELDS: [Field; 3] = [
+    (
+        "View",
+        "view",
+        &[("Stored", 0), ("Data", 1), ("Spans", 2)],
+        "UnknownView",
+        "store.get",
+        "decodeView",
+    ),
+    (
+        "Form",
+        "form",
+        &[("Plain", 0), ("Assemble", 1), ("Rewrite", 2)],
+        "UnknownForm",
+        "store.put",
+        "decodeForm",
+    ),
+    (
+        "Class",
+        "class",
+        &[("Accepted", 0), ("Refused", 1), ("Absent", 2)],
+        "UnknownClass",
+        "store.get and store.put",
+        "decodeClass",
+    ),
+];
+
+/// EF-09: the fields that E1 and E2 gained are closed types of the model, and no effect was added.
+#[test]
+fn the_view_form_and_class_of_the_store_effects_are_closed_ef_09() {
+    let source = source();
+    let issue: Vec<String> = ISSUE.iter().map(|(c, _)| (*c).to_string()).collect();
+    assert_eq!(
+        constructors(&source, "Effect"),
+        issue,
+        "the fields add no effect: Effect is still E1 to E10"
+    );
+    let refusals: Vec<String> = FIELDS.iter().map(|f| f.3.to_string()).collect();
+    assert_eq!(
+        constructors(&source, "FieldRefusal"),
+        refusals,
+        "one typed refusal for each closed field, and no other"
+    );
+    let document = read("EFFECTS.md");
+    let table = rows(&document, "## The closed fields");
+    assert_eq!(table.len(), FIELDS.len(), "EFFECTS.md has a row for each");
+    for (kind, field, values, refusal, effect, decoder) in FIELDS {
+        let expected: Vec<String> = values.iter().map(|(name, _)| (*name).to_string()).collect();
+        assert_eq!(constructors(&source, kind), expected, "the type {kind}");
+        let tag = format!("{}Tag", field);
+        let at = format!("{}At", field);
+        for name in [tag.as_str(), at.as_str(), decoder] {
+            assert!(
+                source.contains(&format!("definition{{name: {name}, ")),
+                "src/Effects.lex.tex defines {name}"
+            );
+        }
+        let tagged = definition_body(&source, &tag);
+        for (name, number) in values {
+            assert!(
+                tagged.contains(&format!("{kind}.{name} => {number}")),
+                "{kind}.{name} has the number {number}: {tagged}"
+            );
+        }
+        let sound = format!("{decoder}Sound");
+        let round = format!("{decoder}Tag");
+        assert!(has_theorem(&source, &sound), "theorem {sound}");
+        assert!(has_theorem(&source, &round), "theorem {round}");
+        let (_, proof) = theorem(&source, &sound);
+        assert_eq!(
+            proof, "cases",
+            "{sound} is proved for every number, by cases"
+        );
+        let (statement, _) = theorem(&source, &format!("{decoder}Past"));
+        assert!(
+            statement.contains(refusal),
+            "{decoder}Past states the number past the last constructor is {refusal}: {statement}"
+        );
+        let row = table
+            .iter()
+            .find(|cells| cells[0] == kind)
+            .unwrap_or_else(|| panic!("EFFECTS.md has a row for {kind}"));
+        assert!(
+            row[1].contains(effect),
+            "the row of {kind} names {effect}: {row:?}"
+        );
+        for (name, number) in values {
+            assert!(
+                row[2].contains(&format!("{name} {number}")),
+                "the row of {kind} lists {name} {number}: {row:?}"
+            );
+        }
+        assert!(
+            row[3].contains(refusal),
+            "the row of {kind} names {refusal}"
+        );
+    }
+    let defects = rows(&document, "## Planted defects");
+    assert!(
+        defects
+            .iter()
+            .any(|cells| cells[0].contains("unknown view")),
+        "EFFECTS.md records the planted defect of an unknown view admitted"
+    );
+}
