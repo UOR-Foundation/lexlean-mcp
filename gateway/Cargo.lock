@@ -218,6 +218,7 @@ dependencies = [
  "gateway-binding",
  "gateway-host",
  "gateway-host-api",
+ "lexlean",
  "serde_json",
  "sha2",
  "tempfile",

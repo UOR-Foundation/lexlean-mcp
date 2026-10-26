@@ -695,7 +695,18 @@ fn each_gate_rejects_its_planted_defect_ef_08() {
 
 /// The closed fields of E1 and E2 (issue #9): the type, its constructors with their numbers, and
 /// the refusal a number past them is.
-const FIELDS: [(&str, &str, &[(&str, u32)], &str, &str, &str); 3] = [
+/// A closed field: its type, its field name, its constructors with their numbers, its refusal, the
+/// effects it belongs to, and its decoder.
+type Field = (
+    &'static str,
+    &'static str,
+    &'static [(&'static str, u32)],
+    &'static str,
+    &'static str,
+    &'static str,
+);
+
+const FIELDS: [Field; 3] = [
     (
         "View",
         "view",
