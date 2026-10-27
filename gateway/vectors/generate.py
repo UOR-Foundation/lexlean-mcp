@@ -21,10 +21,18 @@ model and the table of GATEWAY.md.
 usage:
   generate.py render             write src/Application.lex.tex from exchanges.json
   generate.py check              exit 1 when src/Application.lex.tex is not that rendering
-  generate.py record RUNNER      make exchanges.json with RUNNER, then render
-  generate.py provision DIRECTORY  provision the profiles the vectors draft under into the store
-                                 DIRECTORY (empty): `record` does it for its own store, and CI
-                                 does it for the store of `prismpm verify`, which replays them
+  generate.py record RUNNER [BINARY]
+                                 make exchanges.json with RUNNER, then render; the store it
+                                 records on is provisioned with BINARY (as `provision` does)
+  generate.py provision DIRECTORY [BINARY]
+                                 provision the profiles the vectors draft under into the store
+                                 DIRECTORY (empty) with the operator's command `gateway-provision`
+                                 (BINARY, or gateway/target/debug/gateway-provision): `record` does
+                                 it for its own store, and CI does it for the store of
+                                 `prismpm verify`, which replays them
+  generate.py profile-id PROJECT [REVIEW...]
+                                 print the profile ID of the project PROJECT with the review records
+                                 REVIEW, recomputed here from the model's `Identity.profileId`
   generate.py table              print the rows of the table of GATEWAY.md, "The effects"
 """
 
@@ -34,12 +42,17 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import tomllib
 
 HERE = pathlib.Path(__file__).resolve().parent
 GATEWAY = HERE.parent
 APPLICATION = GATEWAY / "src" / "Application.lex.tex"
 EXCHANGES = HERE / "exchanges.json"
-FIXTURE = HERE / "fixture" / "tiny"
+FIXTURES = HERE / "fixture"
+FIXTURE = FIXTURES / "tiny"
+VOCAB = FIXTURES / "vocab"
+VOCAB_REVIEW = FIXTURES / "vocab.review"
+PROVISION = GATEWAY / "target" / "debug" / "gateway-provision"
 
 MODEL = "Foundation.Server.V1.Model"
 
@@ -312,20 +325,12 @@ META = {
     "io.modelcontextprotocol/clientCapabilities": {},
 }
 
-# The files of the profile of the vectors: its bundle, which the host copies beside the files of a
-# draft, and its record (DRAFTS.md): the ID of the profile and its source roots.
-BUNDLE_FILES = [
-    "lexlean.toml",
-    "lexlean.lock",
-    "lakefile.toml",
-    "lean-toolchain",
-    "lake-manifest.json",
-]
+# The profile `tiny` of the vectors is provisioned by `gateway-provision install`, as an operator
+# does it, from the fixture project `tiny`; the vectors draft under it.
 SOURCE = "src/Tiny.lex.tex"
-# The ID of the profile is 32 opaque octets to the draft tools (Profiles.idOf is #8's), so the vectors
-# give their profile a fixed one.
-PROFILE_ID = hashlib.sha256(b"lexlean-mcp gateway vectors: tiny").digest()
-PROFILE_RECORD = PROFILE_ID.hex() + "\nsrc\n"
+TEMPLATE = "lexlean://profiles/{profile}/lexicon/{package}@{version}"
+PACKAGE_URI = "lexlean://profiles/vocab/lexicon/shapes.words@1.0.0"
+MISSING_URI = "lexlean://profiles/vocab/lexicon/no.such@1.0.0"
 BROKEN_RECORD = "not the id of a profile\nsrc\n"
 # A source the Engine refuses (class 1): the project of the vectors after this write is the one
 # whose command result a refused check and a refused snapshot carry (issue #10).
@@ -362,13 +367,93 @@ def draft_handle(profile: str, rows: dict) -> str:
     return f"{profile}/{hashlib.sha256(draft_preimage(PROFILE_ID, rows)).hexdigest()}"
 
 
-def provision(store: pathlib.Path) -> None:
-    """The profiles of the vectors: `tiny` (a bundle and a record) and `broken` (a record that is not one)."""
-    tiny = store / "profiles" / "tiny"
-    tiny.mkdir(parents=True)
-    for path in BUNDLE_FILES:
-        (tiny / path).write_text(fixture(path), encoding="ascii")
-    (tiny / "profile").write_text(PROFILE_RECORD, encoding="ascii")
+# ---- the identity of a profile ---------------------------------------------------------
+
+PROFILE_DOMAIN = b"lexlean-mcp-profile-v1"
+
+
+def lock_toolchain(lock: bytes) -> bytes:
+    """The toolchain of the identity: the header of the lock, as the host reads it."""
+    header = {}
+    for line in lock.decode("utf-8").split("\n"):
+        if line.startswith("["):
+            break
+        key, separator, value = line.partition(" = ")
+        if separator and value.startswith('"') and value.endswith('"'):
+            header[key] = value[1:-1]
+    return (f"compiler_semantics {header['compiler_semantics']}\n"
+            f"lean_toolchain {header['lean_toolchain']}\n").encode("ascii")
+
+
+def profile_rows(project: pathlib.Path) -> dict:
+    """The profile files of a project (PF-03): its configuration, its lock, the files of its local
+    lexicon packages and its artifact sources, by project-relative path. A source file is none."""
+    config = tomllib.loads((project / "lexlean.toml").read_text(encoding="utf-8"))
+    paths = {"lexlean.toml", config["lockfile"]}
+    for source in config.get("lexicon_source", []):
+        if source["kind"] == "path":
+            root = project / source["path"]
+            paths.update(p.relative_to(project).as_posix() for p in root.rglob("*") if p.is_file())
+    for artifact in config.get("artifact_source", []):
+        paths.add(artifact["path"])
+    return {path: (project / path).read_bytes() for path in paths}
+
+
+def listed(count_head: str, item_head: str, items: list) -> bytes:
+    """Identity.encList: the head of the count, the count in 8 octets and the framed items."""
+    name = count_head.encode("ascii")
+    out = len(name).to_bytes(4, "big") + name + len(items).to_bytes(8, "big")
+    for item in items:
+        out += frame(item_head, item)
+    return out
+
+
+def profile_preimage(rows: dict, reviews: list, toolchain: bytes) -> bytes:
+    """Identity.encProfile: the domain, the files sorted by the octets of the path, the review
+    records sorted by their octets and the toolchain."""
+    if len(set(reviews)) != len(reviews):
+        raise ValueError("DuplicateReview")
+    files = []
+    for path in sorted(rows, key=lambda p: p.encode("utf-8")):
+        files += [path.encode("utf-8"), rows[path]]
+    return (frame("domain", PROFILE_DOMAIN) + listed("files", "file", files)
+            + listed("reviews", "review", sorted(reviews)) + frame("toolchain", toolchain))
+
+
+def profile_id(project: pathlib.Path, reviews: list) -> bytes:
+    """The profile ID of a project: the SHA-256 of its preimage, recomputed without the host."""
+    lock = (project / tomllib.loads((project / "lexlean.toml").read_text(encoding="utf-8"))["lockfile"])
+    preimage = profile_preimage(profile_rows(project), reviews, lock_toolchain(lock.read_bytes()))
+    return hashlib.sha256(preimage).digest()
+
+
+# The ID of the profile `tiny` is the real one, recomputed from its fixture; the host records the
+# same one when it installs the fixture, and `record` checks that it did.
+PROFILE_ID = profile_id(FIXTURE, [])
+PROFILE_RECORD = PROFILE_ID.hex() + "\nsrc\n"
+
+
+def install(binary: pathlib.Path, store: pathlib.Path, name: str, project: pathlib.Path, reviews: list) -> bytes:
+    """`gateway-provision install`, as the operator runs it: the ID it prints is the one it recorded."""
+    command = [str(binary), "install", "--store", str(store), name, str(project)]
+    for review in reviews:
+        command += ["--review", str(review)]
+    done = subprocess.run(command, capture_output=True, check=False)
+    if done.returncode != 0:
+        sys.exit(f"generate: {' '.join(command)}: {done.stderr.decode(errors='replace').strip()}")
+    return bytes.fromhex(done.stdout.decode().strip())
+
+
+def provision(store: pathlib.Path, binary: pathlib.Path = PROVISION) -> None:
+    """The profiles of the vectors, provisioned by the operator's command: `tiny` and `vocab` are
+    installed from their fixture projects, and `broken` is a record that is not one."""
+    recorded = install(binary, store, "tiny", FIXTURE, [])
+    if recorded != PROFILE_ID:
+        sys.exit(f"generate: the host recorded {recorded.hex()} for tiny, the generator {PROFILE_ID.hex()}")
+    expected = profile_id(VOCAB, [VOCAB_REVIEW.read_bytes()])
+    recorded = install(binary, store, "vocab", VOCAB, [VOCAB_REVIEW])
+    if recorded != expected:
+        sys.exit(f"generate: the host recorded {recorded.hex()} for vocab, the generator {expected.hex()}")
     broken = store / "profiles" / "broken"
     broken.mkdir(parents=True)
     (broken / "profile").write_text(BROKEN_RECORD, encoding="ascii")
@@ -440,6 +525,25 @@ def spec() -> list:
          {"code": "LLL1004"}),
         ("lexlean_explain a code the registry lacks", "explain", call, "lexlean_explain",
          {"code": "LLX\"9999\\"}),
+        # The profiles and their vocabulary (issue #8): the catalogue is a store.get, the vocabulary
+        # of a profile a lexicon.read, and the resource template and its completion ask the same two.
+        ("store.get: the profiles the gateway serves", "tool-call", call, "lexlean_profiles", {}),
+        ("store.get: a profile that is not installed", "tool-call", call, "lexlean_profiles",
+         {"profile": "absent"}),
+        ("lexicon.read: the vocabulary of a profile is searched", "tool-call", call,
+         "lexlean_lexicon_search", {"profile": "vocab", "query": "shapes"}),
+        ("lexicon.read: a profile without a vocabulary", "tool-call", call, "lexlean_lexicon_search",
+         {"profile": "broken"}),
+        ("resources/templates/list: the template of the profiles", "method", "resources/templates/list",
+         None, {}),
+        ("store.get: the resources of the profiles", "method", "resources/list", None, {}),
+        ("lexicon.read: a package of a profile is read", "method", "resources/read", PACKAGE_URI,
+         {"uri": PACKAGE_URI}),
+        ("lexicon.read: a package that the profile lacks", "method", "resources/read", MISSING_URI,
+         {"uri": MISSING_URI}),
+        ("store.get: the profiles are completed", "method", "completion/complete", None,
+         {"ref": {"type": "ref/resource", "uri": TEMPLATE},
+          "argument": {"name": "profile", "value": "v"}}),
     ]
     return out
 
@@ -453,11 +557,17 @@ def chunk(value: bytes) -> bytes:
 
 
 def http_request(index: int, method: str, tool, arguments) -> tuple:
+    """The request of one vector. A call of a tool names it and gives its arguments; any other
+    method is given its parameters whole in `arguments`, and `tool` is then the value of its
+    Mcp-Name header when the method has one (`resources/read` names the URI)."""
     params = {}
-    if tool is not None:
-        params["name"] = tool
-        if arguments is not None:
-            params["arguments"] = arguments
+    if method == "tools/call":
+        if tool is not None:
+            params["name"] = tool
+            if arguments is not None:
+                params["arguments"] = arguments
+    elif arguments is not None:
+        params.update(arguments)
     params["_meta"] = META
     body = json.dumps(
         {"jsonrpc": "2.0", "id": 100 + index, "method": method, "params": params},
@@ -510,11 +620,11 @@ def http_response(frame: bytes) -> bytes:
     return out
 
 
-def record_vectors(runner: str) -> list:
+def record_vectors(runner: str, binary: pathlib.Path = PROVISION) -> list:
     requests = spec()
     built = [http_request(i, m, t, a) for i, (_, _, m, t, a) in enumerate(requests)]
     with tempfile.TemporaryDirectory() as store:
-        provision(pathlib.Path(store))
+        provision(pathlib.Path(store), binary)
         environment = {"LEXLEAN_MCP_STORE": store, "PATH": "/usr/bin:/bin"}
         process = subprocess.run(
             [runner],
@@ -566,16 +676,20 @@ def load() -> list:
 
 def main(argv: list) -> int:
     command = argv[1] if len(argv) > 1 else "render"
-    if command == "record" and len(argv) == 3:
-        vectors = record_vectors(argv[2])
+    if command == "profile-id" and len(argv) >= 3:
+        project = pathlib.Path(argv[2])
+        print(profile_id(project, [pathlib.Path(r).read_bytes() for r in argv[3:]]).hex())
+        return 0
+    if command == "record" and len(argv) in (3, 4):
+        vectors = record_vectors(argv[2], pathlib.Path(argv[3]) if len(argv) == 4 else PROVISION)
         EXCHANGES.write_text(json.dumps({"vectors": vectors}, indent=1) + "\n")
         command = "render"
-    if command == "provision" and len(argv) == 3:
+    if command == "provision" and len(argv) in (3, 4):
         store = pathlib.Path(argv[2])
         if not store.is_dir() or any(store.iterdir()):
             print(f"generate: {store} is not an empty directory", file=sys.stderr)
             return 1
-        provision(store)
+        provision(store, pathlib.Path(argv[3]) if len(argv) == 4 else PROVISION)
         print(f"generate: provisioned the profiles of the vectors in {store}")
         return 0
     if command == "render":

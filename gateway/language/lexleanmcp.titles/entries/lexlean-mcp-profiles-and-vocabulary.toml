@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-profiles-and-vocabulary"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Vocabulary"
+component = "behave"
+
+[[form]]
+id = "lexlean-mcp-profiles-and-vocabulary"
+channel = "text"
+surface = "LexLean MCP profiles and vocabulary"
+canonical_source = true
+features = ["sentence-case", "singular"]

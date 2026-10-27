@@ -467,6 +467,9 @@ gateway_verify() {
   work=$(mktemp -d)
   # The vectors of the draft tools name the profile `tiny`, which #8 provisions in a real store:
   # the replay starts from a store that holds the profiles the vectors were recorded with.
+  # The operator's command is the one that provisions: it is built first, and the generator
+  # calls it (gateway/target/debug/gateway-provision) for each profile of the vectors.
+  gateway_cargo build -p gateway-binding --bin gateway-provision --locked --offline || return 1
   python3 -I gateway/vectors/generate.py provision "$store" || return 1
   docker run --rm \
     --user "$(id -u):$(id -g)" \

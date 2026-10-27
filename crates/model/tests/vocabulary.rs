@@ -651,7 +651,7 @@ fn an_atlas_profile_serves_all_293_entries_vo_14() {
         + &read("gateway/tool-tests/tests/q4.rs")
         + &read("gateway/tool-tests/tests/tools.rs");
     let ignored = tests.matches("#[ignore").count();
-    let lib = read(".github/lexlean-ci/lib.sh");
+    let lib = read(".github/workflows/lexlean.yml");
     assert!(
         lib.contains(&format!(
             "gateway_ignored_tests gateway-tool-tests {ignored}"
@@ -757,6 +757,8 @@ fn the_planted_defects_are_recorded_vo_16() {
         "a mixed-language package admitted",
         "an Atlas entry missing from the served lexicon",
         "a capability declared that is not served",
+        "a profile installed without a review record",
+        "a reserved entry copied into a project",
     ] {
         assert!(
             section.to_lowercase().contains(defect),
@@ -765,7 +767,7 @@ fn the_planted_defects_are_recorded_vo_16() {
     }
     for word in ["Command", "Diagnostic", "Restore"] {
         assert!(
-            section.matches(word).count() >= 4,
+            section.matches(word).count() >= 6,
             "each defect records its {word}"
         );
     }

@@ -29,6 +29,10 @@ pub const DOMAIN: &[u8] = b"lexlean-mcp-draft-v1";
 /// The entry of a profile that holds its record, and is not a file of the bundle.
 pub const RECORD: &str = "profile";
 
+/// The entries of a profile that the host derives at install time: the record, the served
+/// vocabulary and the review records. None of them is a file of the project a draft is checked in.
+const DERIVED: [&str; 3] = [RECORD, "vocabulary", "reviews"];
+
 /// Why a draft could not be materialized. The host reports all of them as `project-refused`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refused {
@@ -133,7 +137,7 @@ fn copy_bundle(from: &Path, to: &Path, top: bool) -> Result<(), Refused> {
     for entry in entries {
         let entry = entry.map_err(|_| Refused::Io)?;
         let name = entry.file_name();
-        if top && name == RECORD {
+        if top && DERIVED.iter().any(|derived| name == *derived) {
             continue;
         }
         let source = entry.path();

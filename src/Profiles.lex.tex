@@ -384,13 +384,20 @@ structure{
   fields: [{name: package, type: String}, {name: language, type: String}]
 }
 
-definition{name: languageMismatchCode, parameters: [], result: String, body: "LLC0103"}
+definition{
+  name: languageMismatchCode,
+  parameters: [],
+  result: String,
+  body: "LLC0103",
+  executable: true
+}
 
 definition{
   name: checkPackage,
   parameters: [profile : String, package : String],
   result: PackageCheck,
-  body: (if (prim equal profile package : Bool) then (ctor PackageCheck.Admitted) else (ctor PackageCheck.Refused (languageMismatchCode)))
+  body: (if (prim equal profile package : Bool) then (ctor PackageCheck.Admitted) else (ctor PackageCheck.Refused (languageMismatchCode))),
+  executable: true
 }
 
 definition{
@@ -402,6 +409,7 @@ definition{
     | List.cons head rest => (match (checkPackage profile (project head language))
       | PackageCheck.Admitted => (checkPackages profile rest)
       | PackageCheck.Refused code => (ctor PackageCheck.Refused code))),
+  executable: true,
   recursive_argument: packages
 }
 

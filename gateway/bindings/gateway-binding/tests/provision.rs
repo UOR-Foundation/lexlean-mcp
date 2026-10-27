@@ -304,11 +304,25 @@ fn a_byte_of_each_profile_file_changes_the_id_vo_02() {
     ] {
         let scratch = Scratch::new("vocab");
         scratch.edit(file, |mut bytes| {
-            let last = bytes.len() - 1;
-            bytes[last] ^= 1;
+            // The compiler forbids comments, so the byte of the two files it reads is a digit of
+            // a limit and the last hex digit of a digest, which keep them well formed.
+            if file == "lexlean.toml" {
+                let text = String::from_utf8(bytes).expect("UTF-8");
+                bytes = text
+                    .replace("max_parse_states = 4000000", "max_parse_states = 4000001")
+                    .into_bytes();
+            } else if file == "lexlean.lock" {
+                let text = String::from_utf8(bytes).expect("UTF-8");
+                bytes = text.replace("811ec\"", "811ed\"").into_bytes();
+            } else {
+                let last = bytes.len() - 1;
+                bytes[last] ^= 1;
+            }
             bytes
         });
-        assert_ne!(id_of(&scratch), original, "a byte of {file}");
+        let changed = identify(&scratch.project(), &[scratch.review()])
+            .unwrap_or_else(|refusal| panic!("an ID with a byte of {file} changed: {refusal:?}"));
+        assert_ne!(hex(&changed.id), original, "a byte of {file}");
     }
 }
 

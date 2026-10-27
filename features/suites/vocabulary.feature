@@ -93,7 +93,7 @@ Feature: Profiles, vocabulary and provisioning
     Then each is the constructor or the code stated, and nothing is served
 
   @VO-16 @build
-  Scenario: Each gate of the profile work rejects its planted defect: a profile file excluded from the identity, a mixed-language package admitted, an Atlas entry missing from the served lexicon and a capability declared that is not served; PROFILES.md records the command, the diagnostic and the restore of each.
+  Scenario: Each gate of the profile work rejects its planted defect: a profile file excluded from the identity, a mixed-language package admitted, an Atlas entry missing from the served lexicon, a capability declared that is not served, a profile installed without a review record and a reserved entry copied into a project; PROFILES.md records the command, the diagnostic and the restore of each.
     Given the sources with one defect planted
     When the gate of the defect is run
     Then the gate fails with its diagnostic and the restored sources pass

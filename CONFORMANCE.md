@@ -183,6 +183,7 @@ model does not sanction.
 | ID | Level | Statement |
 | --- | --- | --- |
 | `SM-01` | `build` | The measurement of R5 (path escape) is executed by NF-09, NF-12, DL-01, DL-02, DL-03 and DL-04, whose tests pass, and Security records it as Executed; the symlink clause of K5 is executed by DR-08, so Security records no clause as pending. |
+| `SM-02` | `build` | The measurement of R2 (a lexicon entry renders words that misstate its denotation) is executed by VO-06, VO-07 and VO-15, whose tests pass, and Security records it as Executed: no profile is installed, and so none served, whose path or Git package has no review record naming its ID, version and tree digest. |
 
 ## store
 

@@ -165,6 +165,12 @@ suite = "security"
 statement = "The measurement of R5 (path escape) is executed by NF-09, NF-12, DL-01, DL-02, DL-03 and DL-04, whose tests pass, and Security records it as Executed; the symlink clause of K5 is executed by DR-08, so Security records no clause as pending."
 
 [[id]]
+id = "SM-02"
+level = "build"
+suite = "security"
+statement = "The measurement of R2 (a lexicon entry renders words that misstate its denotation) is executed by VO-06, VO-07 and VO-15, whose tests pass, and Security records it as Executed: no profile is installed, and so none served, whose path or Git package has no review record naming its ID, version and tree digest."
+
+[[id]]
 id = "FX-01"
 level = "some-true"
 suite = "fixtures"
@@ -918,4 +924,4 @@ statement = "Every refusal of provisioning and of the vocabulary tools is typed 
 id = "VO-16"
 level = "build"
 suite = "vocabulary"
-statement = "Each gate of the profile work rejects its planted defect: a profile file excluded from the identity, a mixed-language package admitted, an Atlas entry missing from the served lexicon and a capability declared that is not served; PROFILES.md records the command, the diagnostic and the restore of each."
+statement = "Each gate of the profile work rejects its planted defect: a profile file excluded from the identity, a mixed-language package admitted, an Atlas entry missing from the served lexicon, a capability declared that is not served, a profile installed without a review record and a reserved entry copied into a project; PROFILES.md records the command, the diagnostic and the restore of each."

@@ -10,8 +10,9 @@ evidence; the register is `model/ids.toml` and `CONFORMANCE.md` is generated fro
 
 | Risk | Measurement | Status | Evidence |
 | --- | --- | --- | --- |
+| R2 | no profile served without a review record per package digest | `Executed` | `SM-02` |
 | R5 | a planted `..` path refused before any `Engine` call | `Executed` | `SM-01` |
-| R1 to R4, R6 to R9 | as stated in `Security` | `Pending` | the issue named in each status (#7 to #13, #17) |
+| R1, R3, R4, R6 to R9 | as stated in `Security` | `Pending` | the issue named in each status (#7 to #13, #17) |
 | R10 | recorded as a residual risk of `mcp-loopback` | `Residual` | none in this release |
 
 The symlink clause of control K5 (materialization refuses symlinks in a profile
@@ -70,10 +71,10 @@ Diagnostics:
 
 ```
 error[LLV7002]: Lean rejected `LexLeanMcp.Security` (error): Tactic `decide` proved that the proposition
-  pendingRisks measurements = [0, 1, 2, 3, 5, 6, 7, 8]
+  pendingRisks measurements = [0, 2, 3, 5, 6, 7, 8]
 is false
 error[LLV7002]: Lean rejected `LexLeanMcp.Security` (error): Tactic `decide` proved that the proposition
-  executedRisks measurements = [4]
+  executedRisks measurements = [1, 4]
 is false
 ```
 

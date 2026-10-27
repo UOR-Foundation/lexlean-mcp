@@ -1,0 +1,50 @@
+\begin{lexlean}{ProfileLanguage}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\title{LexLean MCP profile language}
+\begin{semanticmodule}
+inductive{
+  name: PackageCheck,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Admitted, fields: []}, {name: Refused, fields: [String]}]
+}
+
+structure{
+  name: PackageDecl,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: package, type: String}, {name: language, type: String}]
+}
+
+definition{
+  name: languageMismatchCode,
+  parameters: [],
+  result: String,
+  body: "LLC0103",
+  executable: true
+}
+
+definition{
+  name: checkPackage,
+  parameters: [profile : String, package : String],
+  result: PackageCheck,
+  body: (if (prim equal profile package : Bool) then (ctor PackageCheck.Admitted) else (ctor PackageCheck.Refused (languageMismatchCode))),
+  executable: true
+}
+
+definition{
+  name: checkPackages,
+  parameters: [profile : String, packages : (List PackageDecl)],
+  result: PackageCheck,
+  body: (match packages
+    | List.nil => (ctor PackageCheck.Admitted)
+    | List.cons head rest => (match (checkPackage profile (project head language))
+      | PackageCheck.Admitted => (checkPackages profile rest)
+      | PackageCheck.Refused code => (ctor PackageCheck.Refused code))),
+  executable: true,
+  recursive_argument: packages
+}
+\end{semanticmodule}
+\end{lexlean}

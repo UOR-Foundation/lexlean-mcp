@@ -13,10 +13,12 @@
 mod attestation;
 mod config;
 mod engine;
+pub mod identity;
 mod lexicon;
 pub mod materialize;
 pub mod modules;
 mod project;
+pub mod provision;
 mod rate;
 mod store;
 mod verifier;
