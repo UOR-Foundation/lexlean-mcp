@@ -561,26 +561,26 @@ definition{
 
 definition{
   name: dropJson,
-  parameters: [items : (List Json::Json), skip : Nat],
+  parameters: [skip : Nat, items : (List Json::Json)],
   result: (List Json::Json),
   body: (match skip
     | Nat.zero => items
     | Nat.succ below => (match items
       | List.nil => (nil Json::Json)
-      | List.cons head rest => (dropJson rest below))),
+      | List.cons head rest => (dropJson below rest))),
   executable: true,
   recursive_argument: skip
 }
 
 definition{
   name: takeJson,
-  parameters: [items : (List Json::Json), room : Nat, built : (List Json::Json)],
+  parameters: [room : Nat, items : (List Json::Json), built : (List Json::Json)],
   result: (List Json::Json),
   body: (match room
     | Nat.zero => (JsonRead::reverseOnto [Json::Json] built (nil Json::Json))
     | Nat.succ below => (match items
       | List.nil => (JsonRead::reverseOnto [Json::Json] built (nil Json::Json))
-      | List.cons head rest => (takeJson rest below (cons head built)))),
+      | List.cons head rest => (takeJson below rest (cons head built)))),
   executable: true,
   recursive_argument: room
 }
@@ -589,7 +589,7 @@ definition{
   name: found,
   parameters: [search : Search, chosen : (List Json::Json)],
   result: Json::Json,
-  body: (ctor Json::Json.object (cons ("profile", (GatewayTools::textJson (project search profile))) (cons ("query", (GatewayTools::textJson (project search query))) (cons ("total", (ResultJson::natJson (countJson chosen 0))) (cons ("offset", (ResultJson::natJson (project search offset))) (GatewayTools::member "entries" (ctor Json::Json.array (takeJson (dropJson chosen (project search offset)) (project search limit) (nil Json::Json))))))))),
+  body: (ctor Json::Json.object (cons ("profile", (GatewayTools::textJson (project search profile))) (cons ("query", (GatewayTools::textJson (project search query))) (cons ("total", (ResultJson::natJson (countJson chosen 0))) (cons ("offset", (ResultJson::natJson (project search offset))) (GatewayTools::member "entries" (ctor Json::Json.array (takeJson (project search limit) (dropJson (project search offset) chosen) (nil Json::Json))))))))),
   executable: true
 }
 
@@ -910,7 +910,7 @@ definition{
   name: resourceUri,
   parameters: [profile : String, row : Row],
   result: String,
-  body: (prim join (cons (uriHead) (cons profile (cons "/lexicon/" (cons (project row package) (cons "@" (cons (project row version) (nil String))))))) "" : String),
+  body: (prim join (cons (uriHead) (cons profile (cons "/" (cons "lexicon/" (cons (project row package) (cons "@" (cons (project row version) (nil String)))))))) "" : String),
   axioms: [propext],
   executable: true
 }
