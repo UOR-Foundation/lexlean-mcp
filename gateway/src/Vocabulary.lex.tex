@@ -1,0 +1,1130 @@
+\begin{lexlean}{Vocabulary}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Common}
+\importmodule{Content}
+\importmodule{Drafts}
+\importmodule{Effects}
+\importmodule{Frame}
+\importmodule{GatewayTools}
+\importmodule{HostEffect}
+\importmodule{HostWire}
+\importmodule{Json}
+\importmodule{JsonRead}
+\importmodule{JsonText}
+\importmodule{JsonWrite}
+\importmodule{Methods}
+\importmodule{ProfileLanguage}
+\importmodule{Refusal}
+\importmodule{Resources}
+\importmodule{ResultJson}
+\title{LexLean MCP profiles and vocabulary}
+\begin{semanticmodule}
+structure{
+  name: Row,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: package, type: String},
+    {name: version, type: String},
+    {name: language, type: String}
+  ]
+}
+
+structure{
+  name: Listed,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: language, type: String},
+    {name: rows, type: (List Row)},
+    {name: body, type: Json::Json}
+  ]
+}
+
+structure{
+  name: Entry,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: package, type: String},
+    {name: version, type: String},
+    {name: id, type: String},
+    {name: surfaces, type: (List String)},
+    {name: body, type: Json::Json}
+  ]
+}
+
+structure{
+  name: Vocab,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: language, type: String},
+    {name: rows, type: (List Row)},
+    {name: entries, type: (List Entry)}
+  ]
+}
+
+structure{
+  name: Search,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: profile, type: String},
+    {name: query, type: String},
+    {name: package, type: (Option String)},
+    {name: offset, type: Nat},
+    {name: limit, type: Nat}
+  ]
+}
+
+structure{
+  name: Wanted,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: profile, type: String},
+    {name: package, type: String},
+    {name: version, type: String}
+  ]
+}
+
+inductive{
+  name: Fetched,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Failed, fields: [Nat]},
+    {name: Absent, fields: []},
+    {name: Present, fields: [Bytes]},
+    {name: Garbled, fields: []}
+  ]
+}
+
+definition{name: catalogueArea, parameters: [], result: Nat, body: 4, executable: true}
+
+definition{
+  name: templateUri,
+  parameters: [],
+  result: String,
+  body: "lexlean://profiles/{profile}/lexicon/{package}@{version}",
+  executable: true
+}
+
+definition{
+  name: jsonType,
+  parameters: [],
+  result: String,
+  body: "application/json",
+  executable: true
+}
+
+definition{
+  name: cataloguePayload,
+  parameters: [],
+  result: Bytes,
+  body: (JsonText::listToBytes (JsonText::emptyBytes) (prim append (Frame::u32List (catalogueArea)) (prim append (HostWire::textList "profiles") (prim append (HostWire::textList "") (Frame::u32List (Drafts::viewStored)) : (List Nat)) : (List Nat)) : (List Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: vocabularyPayload,
+  parameters: [profile : String],
+  result: Bytes,
+  body: (JsonText::listToBytes (JsonText::emptyBytes) (prim append (HostWire::textList profile) (HostWire::textList "vocabulary") : (List Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: fetch,
+  parameters: [outcome : Bytes],
+  result: Fetched,
+  body: (if ((GatewayTools::wordAt outcome 0) =? 1) then (ctor Fetched.Failed (GatewayTools::wordAt outcome 4)) else (if ((JsonText::byteAt outcome 4) =? 1) then (match (Frame::chunkAt outcome 5)
+    | Option.none => (ctor Fetched.Garbled)
+    | Option.some chunk => (ctor Fetched.Present (project chunk bytes))) else (ctor Fetched.Absent))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: textAt,
+  parameters: [object : Json::JsonObject, key : String],
+  result: (Option String),
+  body: (match (Json::lookup key object)
+    | Json::Lookup.absent => (ctor Option.none [String])
+    | Json::Lookup.present value => (Json::asText value)),
+  executable: true
+}
+
+definition{
+  name: listAt,
+  parameters: [object : Json::JsonObject, key : String],
+  result: (Option (List Json::Json)),
+  body: (match (Json::lookup key object)
+    | Json::Lookup.absent => (ctor Option.none [(List Json::Json)])
+    | Json::Lookup.present value => (Json::asArray value)),
+  executable: true
+}
+
+definition{
+  name: rowOf,
+  parameters: [item : Json::Json],
+  result: (Option Row),
+  body: (match (Json::asObject item)
+    | Option.none => (ctor Option.none [Row])
+    | Option.some object => (match (textAt object "package")
+      | Option.none => (ctor Option.none [Row])
+      | Option.some package => (match (textAt object "version")
+        | Option.none => (ctor Option.none [Row])
+        | Option.some version => (match (textAt object "language")
+          | Option.none => (ctor Option.none [Row])
+          | Option.some language => (ctor Option.some [Row] (record Row {package := package, version := version, language := language})))))),
+  executable: true
+}
+
+definition{
+  name: rowsOnto,
+  parameters: [items : (List Json::Json), built : (List Row)],
+  result: (Option (List Row)),
+  body: (match items
+    | List.nil => (ctor Option.some [(List Row)] (JsonRead::reverseOnto [Row] built (nil Row)))
+    | List.cons head rest => (match (rowOf head)
+      | Option.none => (ctor Option.none [(List Row)])
+      | Option.some row => (rowsOnto rest (cons row built)))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: declsOnto,
+  parameters: [rows : (List Row), built : (List ProfileLanguage::PackageDecl)],
+  result: (List ProfileLanguage::PackageDecl),
+  body: (match rows
+    | List.nil => built
+    | List.cons head rest => (declsOnto rest (cons (record ProfileLanguage::PackageDecl {package := (project head package), language := (project head language)}) built))),
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: listedOf,
+  parameters: [item : Json::Json],
+  result: (Option Listed),
+  body: (match (Json::asObject item)
+    | Option.none => (ctor Option.none [Listed])
+    | Option.some object => (match (textAt object "name")
+      | Option.none => (ctor Option.none [Listed])
+      | Option.some name => (match (textAt object "language")
+        | Option.none => (ctor Option.none [Listed])
+        | Option.some language => (match (listAt object "packages")
+          | Option.none => (ctor Option.none [Listed])
+          | Option.some packages => (match (rowsOnto packages (nil Row))
+            | Option.none => (ctor Option.none [Listed])
+            | Option.some rows => (ctor Option.some [Listed] (record Listed {name := name, language := language, rows := rows, body := item}))))))),
+  executable: true
+}
+
+definition{
+  name: listedOnto,
+  parameters: [items : (List Json::Json), built : (List Listed)],
+  result: (Option (List Listed)),
+  body: (match items
+    | List.nil => (ctor Option.some [(List Listed)] (JsonRead::reverseOnto [Listed] built (nil Listed)))
+    | List.cons head rest => (match (listedOf head)
+      | Option.none => (ctor Option.none [(List Listed)])
+      | Option.some listed => (listedOnto rest (cons listed built)))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: catalogueFrom,
+  parameters: [bytes : Bytes],
+  result: (Option (List Listed)),
+  body: (match (JsonRead::readJson bytes)
+    | Result.error refusal => (ctor Option.none [(List Listed)])
+    | Result.ok document => (match (Json::asObject document)
+      | Option.none => (ctor Option.none [(List Listed)])
+      | Option.some object => (match (listAt object "profiles")
+        | Option.none => (ctor Option.none [(List Listed)])
+        | Option.some items => (listedOnto items (nil Listed))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: admits,
+  parameters: [listed : Listed],
+  result: ProfileLanguage::PackageCheck,
+  body: (ProfileLanguage::checkPackages (project listed language) (declsOnto (project listed rows) (nil ProfileLanguage::PackageDecl))),
+  executable: true
+}
+
+definition{
+  name: servedOnto,
+  parameters: [items : (List Listed), built : (List Json::Json)],
+  result: (List Json::Json),
+  body: (match items
+    | List.nil => (JsonRead::reverseOnto [Json::Json] built (nil Json::Json))
+    | List.cons head rest => (match (admits head)
+      | ProfileLanguage::PackageCheck.Admitted => (servedOnto rest (cons (project head body) built))
+      | ProfileLanguage::PackageCheck.Refused code => (servedOnto rest built))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: refusedOnto,
+  parameters: [items : (List Listed), built : (List Json::Json)],
+  result: (List Json::Json),
+  body: (match items
+    | List.nil => (JsonRead::reverseOnto [Json::Json] built (nil Json::Json))
+    | List.cons head rest => (match (admits head)
+      | ProfileLanguage::PackageCheck.Admitted => (refusedOnto rest built)
+      | ProfileLanguage::PackageCheck.Refused code => (refusedOnto rest (cons (ctor Json::Json.object (cons ("name", (GatewayTools::textJson (project head name))) (GatewayTools::member "code" (GatewayTools::textJson code)))) built)))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: findListed,
+  parameters: [name : String, items : (List Listed)],
+  result: (Option Listed),
+  body: (match items
+    | List.nil => (ctor Option.none [Listed])
+    | List.cons head rest => (if (prim equal (project head name) name : Bool) then (ctor Option.some [Listed] head) else (findListed name rest))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: jsonReply,
+  parameters: [document : Json::Json, failed : Bool],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (JsonWrite::writeJson document)
+    | Result.error reason => (GatewayTools::refused "the result cannot be written")
+    | Result.ok written => (GatewayTools::accepted (GatewayTools::reply (GatewayTools::contentText written) document failed))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: typedRefusal,
+  parameters: [name : String],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (jsonReply (ctor Json::Json.object (GatewayTools::member "refusal" (GatewayTools::textJson name))) true),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: languageRefusal,
+  parameters: [code : String],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (jsonReply (ctor Json::Json.object (cons ("refusal", (GatewayTools::textJson "LanguageMismatch")) (GatewayTools::member "code" (GatewayTools::textJson code)))) true),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: listing,
+  parameters: [served : (List Json::Json), refused : (List Json::Json)],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("profiles", (ctor Json::Json.array served)) (GatewayTools::member "refused" (ctor Json::Json.array refused)))),
+  executable: true
+}
+
+definition{
+  name: profilesFor,
+  parameters: [wanted : (Option String), items : (List Listed)],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match wanted
+    | Option.none => (jsonReply (listing (servedOnto items (nil Json::Json)) (refusedOnto items (nil Json::Json))) false)
+    | Option.some name => (match (findListed name items)
+      | Option.none => (typedRefusal "ProfileUnknown")
+      | Option.some listed => (match (admits listed)
+        | ProfileLanguage::PackageCheck.Admitted => (jsonReply (listing (cons (project listed body) (nil Json::Json)) (nil Json::Json)) false)
+        | ProfileLanguage::PackageCheck.Refused code => (languageRefusal code)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: profilesWith,
+  parameters: [wanted : (Option String), outcome : Bytes],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (fetch outcome)
+    | Fetched.Failed index => (GatewayTools::accepted (GatewayTools::hostFailure (ctor Effects::Effect.StoreGet) index))
+    | Fetched.Garbled => (GatewayTools::accepted (GatewayTools::malformed))
+    | Fetched.Absent => (profilesFor wanted (nil Listed))
+    | Fetched.Present bytes => (match (catalogueFrom bytes)
+      | Option.none => (typedRefusal "CatalogueMalformed")
+      | Option.some items => (profilesFor wanted items))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: profilesTool,
+  parameters: [completed : (List HostEffect::Completed), params : Methods::CallToolParams],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (GatewayTools::optionalText params "profile")
+    | Option.none => (GatewayTools::invalid "profile is not a string")
+    | Option.some wanted => (match completed
+      | List.nil => (GatewayTools::askingBytes (Drafts::storeGetTag) (cataloguePayload))
+      | List.cons entry rest => (match rest
+        | List.nil => (if ((project entry tag) =? (Drafts::storeGetTag)) then (profilesWith wanted (project entry outcome)) else (GatewayTools::refused "the host performed another effect"))
+        | List.cons more again => (GatewayTools::refused "the host performed more than one effect")))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: surfacesOnto,
+  parameters: [forms : (List Json::Json), built : (List String)],
+  result: (Option (List String)),
+  body: (match forms
+    | List.nil => (ctor Option.some [(List String)] built)
+    | List.cons head rest => (match (Json::asObject head)
+      | Option.none => (ctor Option.none [(List String)])
+      | Option.some object => (match (textAt object "surface")
+        | Option.none => (ctor Option.none [(List String)])
+        | Option.some surface => (surfacesOnto rest (cons surface built))))),
+  executable: true,
+  recursive_argument: forms
+}
+
+definition{
+  name: entryOf,
+  parameters: [item : Json::Json],
+  result: (Option Entry),
+  body: (match (Json::asObject item)
+    | Option.none => (ctor Option.none [Entry])
+    | Option.some object => (match (textAt object "package")
+      | Option.none => (ctor Option.none [Entry])
+      | Option.some package => (match (textAt object "version")
+        | Option.none => (ctor Option.none [Entry])
+        | Option.some version => (match (textAt object "id")
+          | Option.none => (ctor Option.none [Entry])
+          | Option.some ident => (match (listAt object "forms")
+            | Option.none => (ctor Option.none [Entry])
+            | Option.some forms => (match (surfacesOnto forms (nil String))
+              | Option.none => (ctor Option.none [Entry])
+              | Option.some surfaces => (ctor Option.some [Entry] (record Entry {package := package, version := version, id := ident, surfaces := surfaces, body := item})))))))),
+  executable: true
+}
+
+definition{
+  name: entriesOnto,
+  parameters: [items : (List Json::Json), built : (List Entry)],
+  result: (Option (List Entry)),
+  body: (match items
+    | List.nil => (ctor Option.some [(List Entry)] (JsonRead::reverseOnto [Entry] built (nil Entry)))
+    | List.cons head rest => (match (entryOf head)
+      | Option.none => (ctor Option.none [(List Entry)])
+      | Option.some entry => (entriesOnto rest (cons entry built)))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: vocabOf,
+  parameters: [bytes : Bytes],
+  result: (Option Vocab),
+  body: (match (JsonRead::readJson bytes)
+    | Result.error refusal => (ctor Option.none [Vocab])
+    | Result.ok document => (match (Json::asObject document)
+      | Option.none => (ctor Option.none [Vocab])
+      | Option.some object => (match (textAt object "language")
+        | Option.none => (ctor Option.none [Vocab])
+        | Option.some language => (match (listAt object "packages")
+          | Option.none => (ctor Option.none [Vocab])
+          | Option.some packages => (match (rowsOnto packages (nil Row))
+            | Option.none => (ctor Option.none [Vocab])
+            | Option.some rows => (match (listAt object "entries")
+              | Option.none => (ctor Option.none [Vocab])
+              | Option.some items => (match (entriesOnto items (nil Entry))
+                | Option.none => (ctor Option.none [Vocab])
+                | Option.some entries => (ctor Option.some [Vocab] (record Vocab {language := language, rows := rows, entries := entries}))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: lowerOctet,
+  parameters: [octet : Nat],
+  result: Nat,
+  body: (if ((octet <? 65) || (90 <? octet)) then octet else (octet + 32)),
+  executable: true
+}
+
+definition{
+  name: loweredOnto,
+  parameters: [octets : (List Nat), built : (List Nat)],
+  result: (List Nat),
+  body: (match octets
+    | List.nil => (JsonRead::reverseOnto [Nat] built (nil Nat))
+    | List.cons head rest => (loweredOnto rest (cons (lowerOctet head) built))),
+  executable: true,
+  recursive_argument: octets
+}
+
+definition{
+  name: lowered,
+  parameters: [octets : (List Nat)],
+  result: (List Nat),
+  body: (loweredOnto octets (nil Nat)),
+  executable: true
+}
+
+definition{
+  name: contains,
+  parameters: [needle : (List Nat), hay : (List Nat)],
+  result: Bool,
+  body: (match hay
+    | List.nil => (Resources::startsWith needle (nil Nat))
+    | List.cons head tail => (if (Resources::startsWith needle (cons head tail)) then true else (contains needle tail))),
+  executable: true,
+  recursive_argument: hay
+}
+
+definition{
+  name: textHas,
+  parameters: [needle : (List Nat), text : String],
+  result: Bool,
+  body: (contains needle (lowered (Resources::bytesOfText text))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: anyHas,
+  parameters: [needle : (List Nat), texts : (List String)],
+  result: Bool,
+  body: (match texts
+    | List.nil => false
+    | List.cons head rest => (if (textHas needle head) then true else (anyHas needle rest))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: texts
+}
+
+definition{
+  name: entryMatches,
+  parameters: [needle : (List Nat), entry : Entry],
+  result: Bool,
+  body: (if (textHas needle (project entry id)) then true else (anyHas needle (project entry surfaces))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: inPackage,
+  parameters: [package : (Option String), entry : Entry],
+  result: Bool,
+  body: (match package
+    | Option.none => true
+    | Option.some name => (prim equal name (project entry package) : Bool)),
+  executable: true
+}
+
+definition{
+  name: chosenOnto,
+  parameters: [
+    entries : (List Entry),
+    package : (Option String),
+    needle : (List Nat),
+    built : (List Json::Json)
+  ],
+  result: (List Json::Json),
+  body: (match entries
+    | List.nil => (JsonRead::reverseOnto [Json::Json] built (nil Json::Json))
+    | List.cons head rest => (if ((inPackage package head) && (entryMatches needle head)) then (chosenOnto rest package needle (cons (project head body) built)) else (chosenOnto rest package needle built))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: entries
+}
+
+definition{
+  name: countJson,
+  parameters: [items : (List Json::Json), counted : Nat],
+  result: Nat,
+  body: (match items | List.nil => counted | List.cons head rest => (countJson rest (counted + 1))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: dropJson,
+  parameters: [skip : Nat, items : (List Json::Json)],
+  result: (List Json::Json),
+  body: (match skip
+    | Nat.zero => items
+    | Nat.succ below => (match items
+      | List.nil => (nil Json::Json)
+      | List.cons head rest => (dropJson below rest))),
+  executable: true,
+  recursive_argument: skip
+}
+
+definition{
+  name: takeJson,
+  parameters: [room : Nat, items : (List Json::Json), built : (List Json::Json)],
+  result: (List Json::Json),
+  body: (match room
+    | Nat.zero => (JsonRead::reverseOnto [Json::Json] built (nil Json::Json))
+    | Nat.succ below => (match items
+      | List.nil => (JsonRead::reverseOnto [Json::Json] built (nil Json::Json))
+      | List.cons head rest => (takeJson below rest (cons head built)))),
+  executable: true,
+  recursive_argument: room
+}
+
+definition{
+  name: found,
+  parameters: [search : Search, chosen : (List Json::Json)],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("profile", (GatewayTools::textJson (project search profile))) (cons ("query", (GatewayTools::textJson (project search query))) (cons ("total", (ResultJson::natJson (countJson chosen 0))) (cons ("offset", (ResultJson::natJson (project search offset))) (GatewayTools::member "entries" (ctor Json::Json.array (takeJson (project search limit) (dropJson (project search offset) chosen) (nil Json::Json))))))))),
+  executable: true
+}
+
+definition{
+  name: searchIn,
+  parameters: [search : Search, bytes : Bytes],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (vocabOf bytes)
+    | Option.none => (typedRefusal "VocabularyMalformed")
+    | Option.some vocab => (match (ProfileLanguage::checkPackages (project vocab language) (declsOnto (project vocab rows) (nil ProfileLanguage::PackageDecl)))
+      | ProfileLanguage::PackageCheck.Refused code => (languageRefusal code)
+      | ProfileLanguage::PackageCheck.Admitted => (jsonReply (found search (chosenOnto (project vocab entries) (project search package) (lowered (Resources::bytesOfText (project search query))) (nil Json::Json))) false))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: searchWith,
+  parameters: [search : Search, outcome : Bytes],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (fetch outcome)
+    | Fetched.Failed index => (GatewayTools::accepted (GatewayTools::hostFailure (ctor Effects::Effect.LexiconRead) index))
+    | Fetched.Garbled => (GatewayTools::accepted (GatewayTools::malformed))
+    | Fetched.Absent => (typedRefusal "VocabularyMissing")
+    | Fetched.Present bytes => (searchIn search bytes)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: wholeArgument,
+  parameters: [params : Methods::CallToolParams, key : String, fallback : Nat],
+  result: (Option Nat),
+  body: (match (GatewayTools::argValue params key)
+    | Option.none => (ctor Option.some [Nat] fallback)
+    | Option.some value => (match (Json::asInteger value)
+      | Option.none => (ctor Option.none [Nat])
+      | Option.some whole => (match (prim checked_convert whole : (Option UInt64))
+        | Option.none => (ctor Option.none [Nat])
+        | Option.some word => (ctor Option.some [Nat] (prim to_nat word : Nat))))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: searchTurn,
+  parameters: [search : Search, completed : (List HostEffect::Completed)],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match completed
+    | List.nil => (GatewayTools::askingBytes (Drafts::lexiconTag) (vocabularyPayload (project search profile)))
+    | List.cons entry rest => (match rest
+      | List.nil => (if ((project entry tag) =? (Drafts::lexiconTag)) then (searchWith search (project entry outcome)) else (GatewayTools::refused "the host performed another effect"))
+      | List.cons more again => (GatewayTools::refused "the host performed more than one effect"))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: searchTool,
+  parameters: [completed : (List HostEffect::Completed), params : Methods::CallToolParams],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (GatewayTools::argText params "profile")
+    | Option.none => (GatewayTools::invalid "profile is not a string")
+    | Option.some profile => (match (GatewayTools::optionalText params "query")
+      | Option.none => (GatewayTools::invalid "query is not a string")
+      | Option.some query => (match (GatewayTools::optionalText params "package")
+        | Option.none => (GatewayTools::invalid "package is not a string")
+        | Option.some package => (match (wholeArgument params "offset" 0)
+          | Option.none => (GatewayTools::invalid "offset is not a whole number")
+          | Option.some offset => (match (wholeArgument params "limit" 20)
+            | Option.none => (GatewayTools::invalid "limit is not a whole number")
+            | Option.some limit => (searchTurn (record Search {profile := profile, query := (match query
+              | Option.none => ""
+              | Option.some text => text), package := package, offset := offset, limit := limit}) completed)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: behave,
+  parameters: [completed : (List HostEffect::Completed), params : Methods::CallToolParams],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (if (GatewayTools::isTool params "lexlean_profiles") then (profilesTool completed params) else (if (GatewayTools::isTool params "lexlean_lexicon_search") then (searchTool completed params) else (GatewayTools::behave completed params))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: uriHead,
+  parameters: [],
+  result: String,
+  body: "lexlean://profiles/",
+  executable: true
+}
+
+definition{
+  name: dropPrefix,
+  parameters: [prefix : (List Nat), octets : (List Nat)],
+  result: (Option (List Nat)),
+  body: (match prefix
+    | List.nil => (ctor Option.some [(List Nat)] octets)
+    | List.cons wanted more => (match octets
+      | List.nil => (ctor Option.none [(List Nat)])
+      | List.cons seen tail => (if (wanted =? seen) then (dropPrefix more tail) else (ctor Option.none [(List Nat)])))),
+  executable: true,
+  recursive_argument: prefix
+}
+
+definition{
+  name: splitOnto,
+  parameters: [separator : Nat, octets : (List Nat), taken : (List Nat)],
+  result: (Option ((List Nat) * (List Nat))),
+  body: (match octets
+    | List.nil => (ctor Option.none [((List Nat) * (List Nat))])
+    | List.cons head rest => (if (head =? separator) then (ctor Option.some [((List Nat) * (List Nat))] ((JsonRead::reverseOnto [Nat] taken (nil Nat)), rest)) else (splitOnto separator rest (cons head taken)))),
+  executable: true,
+  recursive_argument: octets
+}
+
+definition{
+  name: hasOctet,
+  parameters: [wanted : Nat, octets : (List Nat)],
+  result: Bool,
+  body: (match octets
+    | List.nil => false
+    | List.cons head rest => (if (head =? wanted) then true else (hasOctet wanted rest))),
+  executable: true,
+  recursive_argument: octets
+}
+
+definition{
+  name: isEmptyList,
+  parameters: [octets : (List Nat)],
+  result: Bool,
+  body: (match octets | List.nil => true | List.cons head rest => false),
+  executable: true
+}
+
+definition{
+  name: textOfOctets,
+  parameters: [octets : (List Nat)],
+  result: (Option String),
+  body: (prim utf8_decode (JsonText::listToBytes (JsonText::emptyBytes) octets) : (Option String)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: wantedFrom,
+  parameters: [profile : (List Nat), package : (List Nat), version : (List Nat)],
+  result: (Option Wanted),
+  body: (if ((isEmptyList profile) || ((isEmptyList package) || ((isEmptyList version) || ((hasOctet 47 package) || (hasOctet 47 version))))) then (ctor Option.none [Wanted]) else (match (textOfOctets profile)
+    | Option.none => (ctor Option.none [Wanted])
+    | Option.some profileText => (match (textOfOctets package)
+      | Option.none => (ctor Option.none [Wanted])
+      | Option.some packageText => (match (textOfOctets version)
+        | Option.none => (ctor Option.none [Wanted])
+        | Option.some versionText => (ctor Option.some [Wanted] (record Wanted {profile := profileText, package := packageText, version := versionText})))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: wantedOf,
+  parameters: [uri : String],
+  result: (Option Wanted),
+  body: (match (dropPrefix (Resources::bytesOfText (uriHead)) (Resources::bytesOfText uri))
+    | Option.none => (ctor Option.none [Wanted])
+    | Option.some afterHead => (match (splitOnto 47 afterHead (nil Nat))
+      | Option.none => (ctor Option.none [Wanted])
+      | Option.some parts => (match (dropPrefix (Resources::bytesOfText "lexicon/") (second parts))
+        | Option.none => (ctor Option.none [Wanted])
+        | Option.some afterLexicon => (match (splitOnto 64 afterLexicon (nil Nat))
+          | Option.none => (ctor Option.none [Wanted])
+          | Option.some halves => (wantedFrom (first parts) (first halves) (second halves)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: notFound,
+  parameters: [uri : String],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.resourceNotFound uri)),
+  executable: true
+}
+
+definition{
+  name: unreadable,
+  parameters: [reason : String],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.internal reason)),
+  executable: true
+}
+
+definition{
+  name: unacceptable,
+  parameters: [reason : String],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments reason)),
+  executable: true
+}
+
+definition{
+  name: asked,
+  parameters: [tag : Nat, payload : Bytes],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.effectRequested (record HostEffect::EffectRequest {tag := tag, payload := payload}))),
+  executable: true
+}
+
+definition{
+  name: hasRow,
+  parameters: [rows : (List Row), package : String, version : String],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons head rest => (if ((prim equal (project head package) package : Bool) && (prim equal (project head version) version : Bool)) then true else (hasRow rest package version))),
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: packageOnto,
+  parameters: [
+    entries : (List Entry),
+    package : String,
+    version : String,
+    built : (List Json::Json)
+  ],
+  result: (List Json::Json),
+  body: (match entries
+    | List.nil => (JsonRead::reverseOnto [Json::Json] built (nil Json::Json))
+    | List.cons head rest => (if ((prim equal (project head package) package : Bool) && (prim equal (project head version) version : Bool)) then (packageOnto rest package version (cons (project head body) built)) else (packageOnto rest package version built))),
+  executable: true,
+  recursive_argument: entries
+}
+
+definition{
+  name: packageDocument,
+  parameters: [vocab : Vocab, package : String, version : String],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("package", (GatewayTools::textJson package)) (cons ("version", (GatewayTools::textJson version)) (cons ("language", (GatewayTools::textJson (project vocab language))) (GatewayTools::member "entries" (ctor Json::Json.array (packageOnto (project vocab entries) package version (nil Json::Json)))))))),
+  executable: true
+}
+
+definition{
+  name: contentsOf,
+  parameters: [cache : Common::CacheHint, uri : String, document : Json::Json],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (JsonWrite::writeJson document)
+    | Result.error reason => (unreadable "the resource cannot be written")
+    | Result.ok written => (Resources::readOutcome cache uri (ctor Option.some [(List Content::ResourceContents)] (cons (ctor Content::ResourceContents.text (record Content::TextResourceContents {uri := uri, mimeType := (ctor Option.some [String] (jsonType)), text := (GatewayTools::contentText written), meta := (ctor Option.none [Json::JsonObject])})) (nil Content::ResourceContents))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: readIn,
+  parameters: [cache : Common::CacheHint, uri : String, wanted : Wanted, bytes : Bytes],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (vocabOf bytes)
+    | Option.none => (unacceptable "VocabularyMalformed")
+    | Option.some vocab => (match (ProfileLanguage::checkPackages (project vocab language) (declsOnto (project vocab rows) (nil ProfileLanguage::PackageDecl)))
+      | ProfileLanguage::PackageCheck.Refused code => (unacceptable (prim join (cons "LanguageMismatch" (cons code (nil String))) " " : String))
+      | ProfileLanguage::PackageCheck.Admitted => (if (hasRow (project vocab rows) (project wanted package) (project wanted version)) then (contentsOf cache uri (packageDocument vocab (project wanted package) (project wanted version))) else (notFound uri)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: readWith,
+  parameters: [cache : Common::CacheHint, uri : String, wanted : Wanted, outcome : Bytes],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (fetch outcome)
+    | Fetched.Failed index => (notFound uri)
+    | Fetched.Absent => (notFound uri)
+    | Fetched.Garbled => (unreadable "the host answered with a malformed outcome")
+    | Fetched.Present bytes => (readIn cache uri wanted bytes)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: readTurn,
+  parameters: [
+    cache : Common::CacheHint,
+    uri : String,
+    wanted : Wanted,
+    completed : (List HostEffect::Completed)
+  ],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match completed
+    | List.nil => (asked (Drafts::lexiconTag) (vocabularyPayload (project wanted profile)))
+    | List.cons entry rest => (match rest
+      | List.nil => (if ((project entry tag) =? (Drafts::lexiconTag)) then (readWith cache uri wanted (project entry outcome)) else (unreadable "the host performed another effect"))
+      | List.cons more again => (unreadable "the host performed more than one effect"))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: readResource,
+  parameters: [
+    completed : (List HostEffect::Completed),
+    cache : Common::CacheHint,
+    params : Methods::ReadResourceParams
+  ],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (wantedOf (project params uri))
+    | Option.none => (notFound (project params uri))
+    | Option.some wanted => (readTurn cache (project params uri) wanted completed)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: resourceUri,
+  parameters: [profile : String, row : Row],
+  result: String,
+  body: (prim join (cons (uriHead) (cons profile (cons "/" (cons "lexicon/" (cons (project row package) (cons "@" (cons (project row version) (nil String)))))))) "" : String),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: resourceOf,
+  parameters: [profile : String, row : Row],
+  result: Content::Resource,
+  body: (record Content::Resource {name := (prim join (cons (project row package) (cons "@" (cons (project row version) (nil String)))) "" : String), title := (ctor Option.none [String]), icons := (ctor Option.none [(List Common::Icon)]), uri := (resourceUri profile row), description := (ctor Option.some [String] (prim join (cons "The lexicon package" (cons (project row package) (cons "of the profile" (cons profile (nil String))))) " " : String)), mimeType := (ctor Option.some [String] (jsonType)), annotations := (ctor Option.none [Common::Annotations]), size := (ctor Option.none [Nat]), meta := (ctor Option.none [Json::JsonObject])}),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: rowResources,
+  parameters: [profile : String, rows : (List Row), built : (List Content::Resource)],
+  result: (List Content::Resource),
+  body: (match rows
+    | List.nil => built
+    | List.cons head rest => (rowResources profile rest (cons (resourceOf profile head) built))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: resourcesOnto,
+  parameters: [items : (List Listed), built : (List Content::Resource)],
+  result: (List Content::Resource),
+  body: (match items
+    | List.nil => (JsonRead::reverseOnto [Content::Resource] built (nil Content::Resource))
+    | List.cons head rest => (match (admits head)
+      | ProfileLanguage::PackageCheck.Admitted => (resourcesOnto rest (rowResources (project head name) (project head rows) built))
+      | ProfileLanguage::PackageCheck.Refused code => (resourcesOnto rest built))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: listedWith,
+  parameters: [cache : Common::CacheHint, params : Methods::PaginatedParams, outcome : Bytes],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (fetch outcome)
+    | Fetched.Failed index => (unreadable "the host could not read the catalogue")
+    | Fetched.Garbled => (unreadable "the host answered with a malformed outcome")
+    | Fetched.Absent => (Resources::answerListResources cache (nil Content::Resource) params)
+    | Fetched.Present bytes => (match (catalogueFrom bytes)
+      | Option.none => (unreadable "the catalogue of the profiles is malformed")
+      | Option.some items => (Resources::answerListResources cache (resourcesOnto items (nil Content::Resource)) params))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: listResources,
+  parameters: [
+    completed : (List HostEffect::Completed),
+    cache : Common::CacheHint,
+    params : Methods::PaginatedParams
+  ],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (project params cursor)
+    | Option.some cursor => (Resources::answerListResources cache (nil Content::Resource) params)
+    | Option.none => (match completed
+      | List.nil => (asked (Drafts::storeGetTag) (cataloguePayload))
+      | List.cons entry rest => (match rest
+        | List.nil => (if ((project entry tag) =? (Drafts::storeGetTag)) then (listedWith cache params (project entry outcome)) else (unreadable "the host performed another effect"))
+        | List.cons more again => (unreadable "the host performed more than one effect")))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: profileTemplate,
+  parameters: [],
+  result: Content::ResourceTemplate,
+  body: (record Content::ResourceTemplate {name := "profile-lexicon", title := (ctor Option.none [String]), icons := (ctor Option.none [(List Common::Icon)]), uriTemplate := (templateUri), description := (ctor Option.some [String] "The entries of a lexicon package of a profile, as JSON."), mimeType := (ctor Option.some [String] (jsonType)), annotations := (ctor Option.none [Common::Annotations]), meta := (ctor Option.none [Json::JsonObject])}),
+  executable: true
+}
+
+definition{
+  name: listTemplates,
+  parameters: [cache : Common::CacheHint, params : Methods::PaginatedParams],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (Resources::answerListTemplates cache (cons (profileTemplate) (nil Content::ResourceTemplate)) params),
+  executable: true
+}
+
+definition{
+  name: namesOnto,
+  parameters: [items : (List Listed), built : (List String)],
+  result: (List String),
+  body: (match items
+    | List.nil => (JsonRead::reverseOnto [String] built (nil String))
+    | List.cons head rest => (match (admits head)
+      | ProfileLanguage::PackageCheck.Admitted => (namesOnto rest (cons (project head name) built))
+      | ProfileLanguage::PackageCheck.Refused code => (namesOnto rest built))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: hasText,
+  parameters: [wanted : String, texts : (List String)],
+  result: Bool,
+  body: (match texts
+    | List.nil => false
+    | List.cons head rest => (if (prim equal head wanted : Bool) then true else (hasText wanted rest))),
+  executable: true,
+  recursive_argument: texts
+}
+
+definition{
+  name: packagesOnto,
+  parameters: [rows : (List Row), built : (List String)],
+  result: (List String),
+  body: (match rows
+    | List.nil => built
+    | List.cons head rest => (if (hasText (project head package) built) then (packagesOnto rest built) else (packagesOnto rest (cons (project head package) built)))),
+  executable: true,
+  recursive_argument: rows
+}
+
+definition{
+  name: packageNamesOnto,
+  parameters: [items : (List Listed), only : (Option String), built : (List String)],
+  result: (List String),
+  body: (match items
+    | List.nil => (JsonRead::reverseOnto [String] built (nil String))
+    | List.cons head rest => (match (admits head)
+      | ProfileLanguage::PackageCheck.Refused code => (packageNamesOnto rest only built)
+      | ProfileLanguage::PackageCheck.Admitted => (match only
+        | Option.none => (packageNamesOnto rest only (packagesOnto (project head rows) built))
+        | Option.some wanted => (if (prim equal wanted (project head name) : Bool) then (packageNamesOnto rest only (packagesOnto (project head rows) built)) else (packageNamesOnto rest only built))))),
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: contextProfile,
+  parameters: [given : Methods::CompleteParams],
+  result: (Option String),
+  body: (match (project given context)
+    | Option.none => (ctor Option.none [String])
+    | Option.some context => (match (project context arguments)
+      | Option.none => (ctor Option.none [String])
+      | Option.some pairs => (Resources::argumentOf "profile" pairs))),
+  executable: true
+}
+
+definition{
+  name: candidatesIn,
+  parameters: [given : Methods::CompleteParams, items : (List Listed)],
+  result: (Result (List String) Refusal::ProviderRefusal),
+  body: (if (prim equal (project (project given argument) name) "profile" : Bool) then (ctor Result.ok [(List String), Refusal::ProviderRefusal] (Resources::matching (project (project given argument) value) (namesOnto items (nil String)))) else (ctor Result.ok [(List String), Refusal::ProviderRefusal] (Resources::matching (project (project given argument) value) (packageNamesOnto items (contextProfile given) (nil String))))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: candidatesWith,
+  parameters: [given : Methods::CompleteParams, outcome : Bytes],
+  result: (Result (List String) Refusal::ProviderRefusal),
+  body: (match (fetch outcome)
+    | Fetched.Failed index => (ctor Result.error [(List String), Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.internal "the host could not read the catalogue"))
+    | Fetched.Garbled => (ctor Result.error [(List String), Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.internal "the host answered with a malformed outcome"))
+    | Fetched.Absent => (candidatesIn given (nil Listed))
+    | Fetched.Present bytes => (match (catalogueFrom bytes)
+      | Option.none => (ctor Result.error [(List String), Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.internal "the catalogue of the profiles is malformed"))
+      | Option.some items => (candidatesIn given items))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: candidatesTurn,
+  parameters: [completed : (List HostEffect::Completed), given : Methods::CompleteParams],
+  result: (Result (List String) Refusal::ProviderRefusal),
+  body: (match completed
+    | List.nil => (ctor Result.error [(List String), Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.effectRequested (record HostEffect::EffectRequest {tag := (Drafts::storeGetTag), payload := (cataloguePayload)})))
+    | List.cons entry rest => (match rest
+      | List.nil => (if ((project entry tag) =? (Drafts::storeGetTag)) then (candidatesWith given (project entry outcome)) else (ctor Result.error [(List String), Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.internal "the host performed another effect")))
+      | List.cons more again => (ctor Result.error [(List String), Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.internal "the host performed more than one effect")))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: argumentIsServed,
+  parameters: [name : String],
+  result: Bool,
+  body: ((prim equal name "profile" : Bool) || (prim equal name "package" : Bool)),
+  executable: true
+}
+
+definition{
+  name: candidates,
+  parameters: [completed : (List HostEffect::Completed), given : Methods::CompleteParams],
+  result: (Result (List String) Refusal::ProviderRefusal),
+  body: (match (project given reference)
+    | Methods::CompletionReference.prompt prompt => (ctor Result.error [(List String), Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments "completion is offered for the resource template of the profiles only"))
+    | Methods::CompletionReference.resourceTemplate uri => (if (prim equal uri (templateUri) : Bool) then (if (argumentIsServed (project (project given argument) name)) then (candidatesTurn completed given) else (ctor Result.error [(List String), Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments "only the profile and the package are completed"))) else (ctor Result.error [(List String), Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.invalidArguments "completion is offered for the resource template of the profiles only")))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: complete,
+  parameters: [completed : (List HostEffect::Completed), params : Methods::CompleteParams],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (Resources::answerComplete (fun [completed] (given : Methods::CompleteParams) => (candidates completed given)) params),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+\end{semanticmodule}
+\end{lexlean}

@@ -6,6 +6,10 @@ edition = "2021"
 publish = false
 license = "MIT OR Apache-2.0"
 
+[[bin]]
+name = "gateway-provision"
+path = "src/bin/gateway-provision.rs"
+
 [dependencies]
 gateway-host-api = { path = "../../gateway-host-api" }
 lexlean = "0.3.0"

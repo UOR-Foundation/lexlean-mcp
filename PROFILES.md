@@ -3,11 +3,11 @@
 Issue #8 asks for the profile identity, provisioning (J5), the language rule,
 the Atlas profiles, the tools `lexlean_profiles` and `lexlean_lexicon_search`,
 the resource template `lexlean://profiles/{profile}/lexicon/{package}@{version}`
-and completion of its arguments. The tools, the template and the completion
-bind into the generated gateway of #7, and provisioning runs the real
-`lexlean init` and `lexlean lock`. This file records the slice that stands
-without them: `src/Profiles.lex.tex`, registered as PF-01 to PF-09. The
-issue's own acceptance stays open.
+and completion of its arguments. This file records both halves. The model side is
+`src/Profiles.lex.tex`, registered as PF-01 to PF-09. The gateway side is the
+code that binds the model into the gateway of #7, registered as VO-01 to VO-16
+(CONFORMANCE.md): the host's identity, the operator's provisioning command, the
+two tools, the resource template, completion and the capabilities that carry them.
 
 ## What is claimed
 
@@ -48,20 +48,56 @@ to the pinned LexLean by `cargo test -p repo-model --test profiles`.
 - "Served" means that the module an entry denotes is among the modules of the
   profile's source roots. The real gateway serving them is #7's.
 - `src/Security.lex.tex` risk 1 ("no profile served without a review record
-  per package digest") stays Pending: no review record exists in this slice.
+  per package digest") was Pending in this slice, because no review record
+  existed in it. The gateway side executes it (`SM-02`, below).
 
-## Not met
+## The gateway side (VO-01 to VO-16)
 
-The following wait for the gateway chain after #7 and are not claimed by PF-01
-to PF-09:
+What is served, and how it is held to the model:
 
-- `lexlean_profiles`, `lexlean_lexicon_search` and the resource template with
-  `cacheScope: public`;
-- completion of the `profile` and `package` arguments;
-- provisioning (`lexlean init`, configuration, `lexlean lock` with
-  `--allow-network` only for Git-sourced packages, the Lake workspace and the
-  review records);
-- a served Atlas profile that returns its 293 entries to a client.
+- **Identity (VO-01, VO-02).** The profile ID is the SHA-256 of `Identity.encProfile`: the
+  frame `domain` (`lexlean-mcp-profile-v1`), the `files` list of (path, bytes) rows sorted
+  bytewise, the `reviews` list sorted bytewise and the frame `toolchain`. The rows are
+  `lexlean.toml`, the lockfile, every file of each path lexicon package (all of its files, so a
+  renamed, added or removed file counts) and the `artifact_source` files; a file under a source
+  root is not a row. The toolchain bytes are `compiler_semantics <hex>\nlean_toolchain <str>\n`,
+  read from the header of the lock. The encoder is Rust (`identity.rs`) and is held to the
+  model three ways: it reproduces the model's own vectors (`profilePreimageVector`,
+  `profileIdVector`, `profileDigestVector`, `changedFileProfileId`,
+  `profileFramingReviewsVector`) read from `src/Identity.lex.tex` at test time,
+  `gateway/vectors/generate.py profile-id` recomputes the ID of a real project independently,
+  and a byte of each kind of profile file changes the ID.
+- **Language (VO-03, VO-04).** `gateway/src/ProfileLanguage.lex.tex` holds `PackageCheck`,
+  `PackageDecl`, `languageMismatchCode`, `checkPackage` and `checkPackages` byte for byte as the
+  model declares them (the model carries the three definitions as `executable: true`, and a test
+  compares the text of each declaration). A package of another language is refused with
+  `LLC0103` at `install` (the compiler's own refusal, carried through), by the catalogue (the
+  profile is listed under `refused`), by `lexlean_lexicon_search` and by `resources/read`.
+- **Provisioning (VO-05 to VO-08).** `gateway-provision` is the operator's command and no
+  effect: `init`, `lock` (`--allow-network` only for the Git-sourced packages of a lock, and
+  accepted by `lock` alone), `identify` and `install`. `install` lays the project out as locked
+  into `profiles/<name>`, with the record `profile` (line 1 the ID in hex, then the roots), the
+  derived `vocabulary` and the `reviews`, by one rename; it refuses with a typed `Refusal` and
+  leaves the store as it was. A profile is one project directory; a project with source packages
+  is refused, because their files lie outside the bundle. The catalogue is the store key
+  `profiles` of the area `index`.
+- **Review records (VO-06).** A record is four lines (`lexlean-mcp-review-v1`,
+  `package ID@VERSION`, `tree_sha256 HEX`, `reviewer TEXT`). A locked package of kind `path` or
+  `git` needs a record that names its ID, version and tree digest; a builtin package needs none.
+  The bytes of every record enter the ID.
+- **Tools, template, completion (VO-09 to VO-12).** `lexlean_profiles` asks one `store.get` of
+  the catalogue; `lexlean_lexicon_search` asks one `lexicon.read` (effect E9, the profile's
+  `vocabulary` entry); `resources/templates/list`, `resources/list` and `resources/read` serve
+  the template with `cacheScope: public` and the owner's TTL; `completion/complete` completes
+  `profile` and `package` (at most 100 values). No effect was added: the set stays E1 to E10.
+- **Capabilities (VO-13).** The gateway declares `tools`, `resources` and `completions`; it does
+  not declare `prompts` or `tasks`, because it serves neither.
+- **Atlas (VO-14).** `examples/uor-atlas` of the pinned LexLean installs as a profile of
+  language 1.0 with its 86 core modules in its source root, and its 293 entries are listed,
+  searched and read through the tools and the template. The tests need the sources of LexLean and
+  run in the gateway job with `--ignored`.
+
+The decisions that the issue leaves open, and what was chosen, are in the comment on #8.
 
 ## Planted defects
 
@@ -79,3 +115,40 @@ Each defect was planted in a copy of the tree, `lexlean lock` and
 
 Baseline: `lexlean verify src/Profiles.lex.tex` on the unplanted tree:
 `verified 5 modules; attestation 476737ae7d8ad1d704fee5e585993cba9128d73f123f1aa63ed3a3676443dd27`, exit 0. The CI job `lexlean / verify` runs the whole project.
+
+## Planted defects of the gateway side
+
+Each defect was planted in the tree, the command below run (the gateway workspace is built
+offline with `RUSTUP_TOOLCHAIN=stable`; the model tests run in the root workspace), and the file
+restored (`cp` of the saved copy, equal by `cmp`). The unplanted tree passes the same commands.
+The script was `plant.sh N`; every defect was rejected by the test named.
+
+**G1. A profile file excluded from the identity.** Planted: in `gateway/bindings/gateway-binding/src/provision.rs`, the loop that adds the `artifact_source` files to the rows of the identity is deleted.
+- Command: `cargo test -p gateway-binding --test provision a_byte --locked --offline` (gateway workspace)
+- Diagnostic: `a_byte_of_each_profile_file_changes_the_id_vo_02` fails: ``assertion `left != right` failed: a byte of artifacts/notes.bin``, both IDs `f2fb08f5...96ed` (0 passed, 1 failed)
+- Restore: `provision.rs` restored from the saved copy; 36 passed
+
+**G2. A mixed-language package admitted.** Planted: in `gateway/src/ProfileLanguage.lex.tex`, `checkPackage` answers `Admitted` for a package of another language (the else branch).
+- Command: `cargo test -p repo-model --test vocabulary the_language_rule`
+- Diagnostic: `the_language_rule_of_the_core_is_the_models_vo_03` fails: ``checkPackage of gateway/src/ProfileLanguage.lex.tex is the declaration of src/Profiles.lex.tex``, the core's text against the model's (the model's own law, P4 above, rejects the same defect in `src/Profiles.lex.tex`)
+- Restore: `ProfileLanguage.lex.tex` restored; 1 passed
+
+**G3. An Atlas entry missing from the served lexicon.** Planted: in `provision.rs`, the vocabulary loop skips the first entry of each package (`.skip(1)`).
+- Command: `cargo test -p gateway-binding --test provision the_vocabulary_lists --locked --offline`
+- Diagnostic: `the_vocabulary_lists_every_locked_package_and_the_served_entries_vo_08` fails: ``the ghost entry denotes a module the project lacks`` (left 1, right 2). The Atlas count of 293 is held by `an_atlas_profile_serves_all_293_entries_vo_14`, which needs the sources of LexLean and runs in the gateway job with `--ignored`
+- Restore: `provision.rs` restored; 1 passed
+
+**G4. A capability declared that is not served.** Planted: in `gateway/src/Gateway.lex.tex`, `gatewayCapabilities` declares `prompts` with `listChanged` empty.
+- Command: `cargo test -p repo-model --test vocabulary the_declared_capabilities`
+- Diagnostic: `the_declared_capabilities_are_the_served_ones_vo_13` fails: `prompts are not: nothing offers one`
+- Restore: `Gateway.lex.tex` restored; 1 passed
+
+**G5. A profile installed without a review record.** Planted: in `provision.rs`, a locked path package with no record is skipped (`continue`) instead of refused with `ReviewMissing`.
+- Command: `cargo test -p gateway-binding --test provision a_path_package_without --locked --offline`
+- Diagnostic: `a_path_package_without_a_review_is_refused_vo_06` fails at `tests/provision.rs:128`: `installed vocab`, the install succeeded where `ReviewMissing` is expected
+- Restore: `provision.rs` restored; 1 passed
+
+**G6. A reserved entry copied into a project.** Planted: in `provision.rs`, the loop over the reserved names `profile`, `vocabulary` and `reviews` of the project root runs over no name (`.iter().take(0)`).
+- Command: `cargo test -p gateway-binding --test provision a_reserved_entry --locked --offline`
+- Diagnostic: `a_reserved_entry_is_refused_vo_07` fails at `tests/provision.rs:128`: `installed vocab`, the install succeeded where `ReservedEntry` is expected
+- Restore: `provision.rs` restored; 1 passed

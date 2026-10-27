@@ -3,11 +3,11 @@
   "waiting": {
     "caching": {
       "issue": 45,
-      "reason": "4 of 8 checks pass (the tools/list caching hints); the other three call prompts/list, resources/list and resources/templates/list, which the gateway answers with Method not found because it declares neither the prompts nor the resources capability; #8 adds resources/templates/list, nothing offers prompts, and the resources-read check needs a listed resource (decision recorded in #45: declaring empty capabilities to pass was not done)"
+      "reason": "the checks that call prompts/list answer Method not found: the gateway offers no prompt templates and does not declare the prompts capability (decision recorded in #45); the tools/list hints pass, and since #8 the gateway declares resources and answers resources/list and resources/templates/list, whose lexicon template and resources carry ttlMs and cacheScope public (VO-11); the resources-read check reads the suite's fixture resource, which the gateway does not have"
     },
     "completion-complete": {
       "issue": 45,
-      "reason": "the scenario completes an argument of the fixture prompt `test_prompt_with_arguments` (ref/prompt); the gateway declares no completions capability and offers no prompts, and #8's completion of the `profile` and `package` arguments of its resource template is another ref, so it does not make this scenario pass (decision recorded in #45)"
+      "reason": "the scenario completes an argument of the fixture prompt `test_prompt_with_arguments` (ref/prompt); the gateway offers no prompts, and since #8 it declares completions for the arguments `profile` and `package` of its resource template (ref/resource, VO-12), which is another reference, so the scenario does not pass (decision recorded in #45)"
     },
     "http-custom-header-server-validation": {
       "issue": 45,
@@ -77,21 +77,17 @@
       "issue": 45,
       "reason": "the scenario lists or gets the fixture's prompts; no issue of this product offers prompt templates, so the gateway does not declare the prompts capability (\"Present if the server offers any prompt templates.\") and answers Method not found (decision recorded in #45)"
     },
-    "resources-list": {
-      "issue": 45,
-      "reason": "the scenario reads the fixture's resources; the gateway offers no resources today, and the resource template that #8 adds is lexlean://profiles/{profile}/lexicon/{package}@{version}, not the fixture's, so #8 does not make this scenario pass (ServerCapabilities.resources: \"Present if the server offers any resources to read.\"; decision recorded in #45)"
-    },
     "resources-read-binary": {
       "issue": 45,
-      "reason": "the scenario reads the fixture resource `test://static-binary`; the gateway offers no resources today, and the resource template that #8 adds is lexlean://profiles/{profile}/lexicon/{package}@{version}, not the fixture's, so #8 does not make this scenario pass (ServerCapabilities.resources: \"Present if the server offers any resources to read.\"; decision recorded in #45)"
+      "reason": "the scenario reads the fixture resource `test://static-binary`; since #8 the gateway declares resources and serves the template lexlean://profiles/{profile}/lexicon/{package}@{version} (VO-11), not the fixture's, so the scenario does not pass (decision recorded in #45)"
     },
     "resources-read-text": {
       "issue": 45,
-      "reason": "the scenario reads the fixture resource `test://static-text`; the gateway offers no resources today, and the resource template that #8 adds is lexlean://profiles/{profile}/lexicon/{package}@{version}, not the fixture's, so #8 does not make this scenario pass (ServerCapabilities.resources: \"Present if the server offers any resources to read.\"; decision recorded in #45)"
+      "reason": "the scenario reads the fixture resource `test://static-text`; since #8 the gateway declares resources and serves the template lexlean://profiles/{profile}/lexicon/{package}@{version} (VO-11), not the fixture's, so the scenario does not pass (decision recorded in #45)"
     },
     "resources-templates-read": {
       "issue": 45,
-      "reason": "the scenario reads the fixture template `test://template/{id}/data`; the gateway offers no resources today, and the resource template that #8 adds is lexlean://profiles/{profile}/lexicon/{package}@{version}, not the fixture's, so #8 does not make this scenario pass (ServerCapabilities.resources: \"Present if the server offers any resources to read.\"; decision recorded in #45)"
+      "reason": "the scenario reads the fixture template `test://template/{id}/data`; since #8 the gateway declares resources and serves the template lexlean://profiles/{profile}/lexicon/{package}@{version} (VO-11), not the fixture's, so the scenario does not pass (decision recorded in #45)"
     },
     "server-stateless": {
       "issue": 45,

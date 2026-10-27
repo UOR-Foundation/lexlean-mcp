@@ -55,6 +55,15 @@ call that is not a call. A result over 4 MiB (the bound of an engine result, GAT
 "The bounds") is the answer of class 4, `LLS8002`, that says so; the one case in the
 tests is the snapshot of `uor-atlas`, 59 MB, whose `check` and `build` results are small.
 
+## The vocabulary tools
+
+`lexlean_profiles` and `lexlean_lexicon_search` (F1, F2) are the tools of issue #8. They run no
+Engine call and ask for effects already in the set (`store.get` of the catalogue, `lexicon.read`
+of the vocabulary of a profile), so the set stays E1 to E10. Their inputs, results and refusals,
+the resource template and completion are in PROFILES.md ("The gateway side") and in the rows
+`VO-09` to `VO-12`; a profile that holds a package of another language is refused with `LLC0103`
+(`VO-04`).
+
 ## Snapshot
 
 The CLI has no `snapshot` command. A project that checks has a snapshot, and the tool

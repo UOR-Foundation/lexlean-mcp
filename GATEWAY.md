@@ -14,6 +14,7 @@ the declaration by `cargo test -p repo-model --test gateway`.
 | `gateway/src/Effects.lex.tex` | the declaration half, byte for byte (`src/Effects.lex.tex`); the single source of the ten effects |
 | `gateway/src/Gateway.lex.tex`, `GatewayTools.lex.tex`, `HostWire.lex.tex` | the tool layer and the production root `LexLeanMcpGateway.Gateway.gatewayRun` |
 | `gateway/src/Drafts.lex.tex`, `DraftAdmission.lex.tex`, `Nfc.lex.tex`, `NfcTables.lex.tex`, `gateway/artifacts` | the draft tools (DRAFTS.md): `Drafts` is the identity, the profile record, the storage, the reading (as text, as data and as spans) and the assembly of a module; the other three are `src/Admission.lex.tex` (module name and title aside), `src/Nfc.lex.tex`, `src/NfcTables.lex.tex` and the tables they embed, byte for byte, so that the core admits a path with the exported admission (DR-03) |
+| `gateway/src/Vocabulary.lex.tex`, `ProfileLanguage.lex.tex`, `gateway/bindings/gateway-binding/src/{identity,provision}.rs`, `src/bin/gateway-provision.rs` | profiles and vocabulary (PROFILES.md): the tools `lexlean_profiles` and `lexlean_lexicon_search`, the resource template, completion and the capabilities `resources` and `completions` (`Vocabulary`); the language rule, a copy of the declarations of `src/Profiles.lex.tex` that a test holds byte for byte (`ProfileLanguage`); the profile identity and the operator's provisioning command (`identity`, `provision`, `gateway-provision`), which are no effect |
 | `gateway/src/Application.lex.tex` | the server application: the eleven effects, the limits, the serving surface and the vectors; rendered by `gateway/vectors/generate.py` |
 | `gateway/mcp/src`, `gateway/language/mcp.core` | the protocol core of UOR-Foundation/MCP at `.github/mcp.rev`, laid out by `gateway/lay-out-mcp.sh`; not committed |
 | `gateway/bindings/gateway-binding` | the binding crate: `Native` implements the generated `Host` trait, and nothing else |
@@ -222,5 +223,5 @@ CI.md describes the job that runs this, and the release step that removes the re
   tool, its schema and its errors belong to #8 to #12. This file claims that the tools reach
   the host through the ten effects, and that the host does what the effects declare.
 - That the gateway passes the scenarios of MCP's server suite that wait. The conformance run
-  (AC-03, part b, `GW-12`) is `GATEWAY-CONFORMANCE.md`: 40 scenarios fail and are exactly
+  (AC-03, part b, `GW-12`) is `GATEWAY-CONFORMANCE.md`: 39 scenarios fail and are exactly
   `gateway/waiting.json`, each with its reason; they are failures and are counted as such.

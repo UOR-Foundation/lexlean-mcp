@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "shapes-square"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Main"
+component = "shapes-squareValid"
+
+[[form]]
+id = "shapes-square"
+channel = "text"
+surface = "Shapes Square"
+canonical_source = true
+features = ["sentence-case", "singular"]

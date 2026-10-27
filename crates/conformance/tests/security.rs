@@ -1,4 +1,5 @@
-//! `SM-01`: the measurement of R5 (path escape) is executed.
+//! `SM-01`: the measurement of R5 (path escape) is executed. `SM-02`: the measurement of R2 (a
+//! lexicon entry that misstates its denotation) is executed by the review records of provisioning.
 //!
 //! `src/Security.lex.tex` records the status of each measurement. A status of
 //! `Executed` is a claim about rows of the register, and LexLean cannot see the
@@ -114,9 +115,10 @@ fn violations(
         out.push("src/Admission.lex.tex is not the Admission module".to_string());
     }
 
-    // R5 is the only Executed measurement, and its status is the Executed one.
-    if security.matches(EXECUTED).count() != 1 {
-        out.push("exactly one measurement must be Executed".to_string());
+    // R5 and R2 are the Executed measurements (R2 is the one of SM-02), and the status of R5 is
+    // the Executed one.
+    if security.matches(EXECUTED).count() != 2 {
+        out.push("exactly two measurements must be Executed".to_string());
     }
     match security.find(R5_MEASUREMENT) {
         None => out.push("Security has no measurement of R5".to_string()),
@@ -143,9 +145,9 @@ fn violations(
         out.push("Admission has no theorem admittedPathHasNoDotDot".to_string());
     }
     for name in [
-        "onlyPathEscapeIsExecuted",
+        "onlyR2AndR5AreExecuted",
         "noClauseIsPending",
-        "measurementsPendingExceptR5",
+        "measurementsPendingExceptR2AndR5",
     ] {
         if block(security, "theorem", name).is_none() {
             out.push(format!("Security has no theorem {name}"));
@@ -254,4 +256,112 @@ fn the_check_rejects_a_pending_r5_and_a_missing_row_sm_01() {
 
     // The control: nothing planted, nothing reported.
     assert!(violations(&model, &tests, &security, &admission).is_empty());
+}
+
+/// The rows `SM-02` is expected to cite.
+const CITED_R2: [&str; 3] = ["VO-06", "VO-07", "VO-15"];
+
+/// The start of the measurement of R2, the risk of index 1, in `Security`.
+const R2_MEASUREMENT: &str = "record Measurement {risk := 1,";
+
+/// Everything the claim of `SM-02` needs, as a list of violations; empty when the claim holds.
+fn violations_r2(model: &Model, tests: &BTreeSet<String>, security: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let Some(row) = model.ids.id.iter().find(|r| r.id == "SM-02") else {
+        return vec!["SM-02 is not in model/ids.toml".to_string()];
+    };
+    if row.level != Level::Build || row.suite != "security" {
+        out.push("SM-02 is not a build row of the security suite".to_string());
+    }
+    let mut cited = cited_ids(&row.statement);
+    cited.remove("SM-02");
+    let expected: BTreeSet<String> = CITED_R2.iter().map(|s| s.to_string()).collect();
+    if cited != expected {
+        out.push(format!(
+            "SM-02 cites {cited:?}, and the expected evidence is {expected:?}"
+        ));
+    }
+    for id in &expected {
+        let Some(cited_row) = model.ids.id.iter().find(|r| &r.id == id) else {
+            out.push(format!("{id} is cited and is not in model/ids.toml"));
+            continue;
+        };
+        if cited_row.level != Level::Build {
+            out.push(format!("{id} is cited and is not a build row"));
+        }
+        let suffix = format!("_{}", id.to_lowercase().replace('-', "_"));
+        if !tests.iter().any(|t| t.ends_with(&suffix)) {
+            out.push(format!("{id} is cited and no test name ends in `{suffix}`"));
+        }
+    }
+    match security.find(R2_MEASUREMENT) {
+        None => out.push("Security has no measurement of R2".to_string()),
+        Some(at) => {
+            let record = &security[at..];
+            let record = &record[..record.find(")})").unwrap_or(record.len())];
+            if !record.contains(EXECUTED) {
+                out.push("the measurement of R2 is not Executed".to_string());
+            }
+            for word in ["ReviewMissing", "VO-06", "VO-07", "VO-15"] {
+                if !record.contains(word) {
+                    out.push(format!("the Executed status of R2 does not name {word}"));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// `SM-02`: the claim holds on the repository as it is.
+#[test]
+fn the_measurement_of_r2_is_executed_by_the_review_rows_sm_02() {
+    let (model, tests, security, _) = inputs();
+    let found = violations_r2(&model, &tests, &security);
+    assert!(
+        found.is_empty(),
+        "SM-02 does not hold:\n{}",
+        found.join("\n")
+    );
+}
+
+/// `SM-02`: the check can fail, with the planted defects `SECURITY.md` records.
+#[test]
+fn the_check_rejects_a_pending_r2_and_a_missing_row_sm_02() {
+    let (model, tests, security, _) = inputs();
+
+    let at = security.find(R2_MEASUREMENT).expect("R2 is stated");
+    let flipped = format!(
+        "{}{}",
+        &security[..at],
+        security[at..].replacen(EXECUTED, "ctor MeasureStatus.Pending", 1)
+    );
+    let found = violations_r2(&model, &tests, &flipped);
+    assert!(
+        found
+            .iter()
+            .any(|v| v.contains("the measurement of R2 is not Executed")),
+        "{found:?}"
+    );
+
+    let mut without_test = tests.clone();
+    without_test.retain(|t| !t.ends_with("_vo_06"));
+    let found = violations_r2(&model, &without_test, &security);
+    assert!(
+        found
+            .iter()
+            .any(|v| v.contains("VO-06") && v.contains("no test name")),
+        "{found:?}"
+    );
+
+    let mut without_row = model.clone();
+    without_row.ids.id.retain(|r| r.id != "VO-07");
+    let found = violations_r2(&without_row, &tests, &security);
+    assert!(
+        found
+            .iter()
+            .any(|v| v.contains("VO-07") && v.contains("not in model/ids.toml")),
+        "{found:?}"
+    );
+
+    assert!(violations_r2(&model, &tests, &security).is_empty());
 }

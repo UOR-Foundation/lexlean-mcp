@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "shapes-ghost"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Gone"
+component = "shapes-ghostValid"
+
+[[form]]
+id = "shapes-ghost"
+channel = "text"
+surface = "Shapes Ghost"
+canonical_source = true
+features = ["sentence-case", "singular"]

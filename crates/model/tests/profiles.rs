@@ -106,7 +106,11 @@ fn unhex(text: &str) -> String {
 fn body(source: &str, name: &str) -> String {
     let definition = declaration(source, "definition", name);
     let body = field(&definition, "body: ");
-    let end = body.find(", axioms:").unwrap_or(body.len());
+    let end = [", axioms:", ", executable:"]
+        .iter()
+        .filter_map(|stop| body.find(stop))
+        .min()
+        .unwrap_or(body.len());
     body[..end].to_string()
 }
 

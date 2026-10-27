@@ -56,12 +56,12 @@ oracle's, decided from the per-scenario checks of the frozen requirements
 ## The run, per scenario
 
 Run of the gateway of this commit (`gateway-host serve`, the core of `gateway/generated`) through MCP's oracle at the pin 39a7d8e (the squash merge of MCP#40; its oracle and the run before it, at 59bfc29, gave the same table), spec
-2026-07-28, 106 HTTP exchanges. Required: 8 of 37 pass. Not scored: 1 of 13 passes, 1 is skipped by
-the suite. 40 scenarios fail and are exactly the list of `gateway/waiting.json`. The schema oracle
-validated every JSON-RPC message of the transcript: 211 messages, 88 refused probes, 1 transport
+2026-07-28, 106 HTTP exchanges. Required: 9 of 37 pass. Not scored: 1 of 13 passes, 1 is skipped by
+the suite. 39 scenarios fail and are exactly the list of `gateway/waiting.json`. The schema oracle
+validated every JSON-RPC message of the transcript: 211 messages, 85 refused probes, 1 transport
 refusal, all valid.
 
-The gateway's catalogue is lexlean-mcp's ten tools, one per host effect. The suite's scenarios
+The gateway's catalogue is lexlean-mcp's fourteen tools. The suite's scenarios
 were written against a fixture server, and most of them call the fixture's own tools, prompts and
 resources. Those scenarios cannot pass here, and the product does not add fixture tools, prompts
 or resources to make them pass (R4, and the decision recorded in #45). Each is an entry of the
@@ -70,8 +70,8 @@ list, with its reason and the issue that records it or delivers the capability.
 | # | scenario | kind | result | waits on | checks | notes |
 |---|---|---|---|---|---|---|
 | 1 | `server-stateless` | required | waiting | #45 | 21 of 30 (5 skipped) | 4 checks call fixture diagnostic tools; 5 skipped by the suite |
-| 2 | `completion-complete` | required | waiting | #45 | 1 of 2 | completes an argument of a fixture prompt |
-| 3 | `tools-list` | required | pass |  | 3 of 3 | the catalogue is lexlean-mcp's ten tools |
+| 2 | `completion-complete` | required | waiting | #45 | 1 of 2 | completes an argument of a fixture prompt (`ref/prompt`); the gateway completes the arguments of its resource template (`ref/resource`, VO-12) |
+| 3 | `tools-list` | required | pass |  | 3 of 3 | the catalogue is lexlean-mcp's fourteen tools |
 | 4 | `tools-call-simple-text` | required | waiting | #45 | 1 of 2 | calls the fixture tool `test_simple_text` |
 | 5 | `tools-call-image` | required | waiting | #45 | 1 of 2 | calls the fixture tool `test_image_content` |
 | 6 | `tools-call-audio` | required | waiting | #45 | 1 of 2 | calls the fixture tool `test_audio_content` |
@@ -80,18 +80,18 @@ list, with its reason and the issue that records it or delivers the capability.
 | 9 | `tools-call-error` | required | waiting | #45 | 1 of 2 | calls the fixture tool `test_error_handling` |
 | 10 | `tools-call-with-progress` | required | waiting | #45 | 1 of 2 | calls the fixture tool `test_tool_with_progress` |
 | 11 | `server-sse-multiple-streams` | required | pass |  | 1 of 2 (1 info) | 1 info: the gateway answers JSON, event streams are optional there |
-| 12 | `resources-list` | required | waiting | #45 | 1 of 2 | fixture resource; none offered (#8 adds another template) |
-| 13 | `resources-read-text` | required | waiting | #45 | 1 of 2 | fixture resource; none offered (#8 adds another template) |
-| 14 | `resources-read-binary` | required | waiting | #45 | 1 of 2 | fixture resource; none offered (#8 adds another template) |
-| 15 | `resources-templates-read` | required | waiting | #45 | 1 of 2 | fixture resource; none offered (#8 adds another template) |
-| 16 | `sep-2164-resource-not-found` | required | pass |  | 2 of 4 (2 warning) | 2 SHOULD warnings: the gateway offers no resources, so it answers -32601 where -32602 with data.uri is recommended |
+| 12 | `resources-list` | required | pass |  | 2 of 2 | `resources/list` answers one resource for each package of each installed profile (VO-11) |
+| 13 | `resources-read-text` | required | waiting | #45 | 1 of 2 | the fixture's resource; the gateway's resources are the lexicon of its profiles (VO-11) |
+| 14 | `resources-read-binary` | required | waiting | #45 | 1 of 2 | the fixture's resource; the gateway's resources are the lexicon of its profiles (VO-11) |
+| 15 | `resources-templates-read` | required | waiting | #45 | 1 of 2 | the fixture's resource; the gateway's resources are the lexicon of its profiles (VO-11) |
+| 16 | `sep-2164-resource-not-found` | required | pass |  | 4 of 4 | a resource that is not found is -32602 with the URI |
 | 17 | `prompts-list` | required | waiting | #45 | 1 of 2 | fixture prompts; no prompts capability |
 | 18 | `prompts-get-simple` | required | waiting | #45 | 1 of 2 | fixture prompts; no prompts capability |
 | 19 | `prompts-get-with-args` | required | waiting | #45 | 1 of 2 | fixture prompts; no prompts capability |
 | 20 | `prompts-get-embedded-resource` | required | waiting | #45 | 1 of 2 | fixture prompts; no prompts capability |
 | 21 | `prompts-get-with-image` | required | waiting | #45 | 1 of 2 | fixture prompts; no prompts capability |
 | 22 | `dns-rebinding-protection` | required | pass |  | 2 of 2 | a foreign Host or Origin is refused with 403 |
-| 23 | `caching` | required | waiting | #45 | 4 of 8 (1 skipped) | tools/list hints pass; prompts/list, resources/list, resources/templates/list answer Method not found |
+| 23 | `caching` | required | waiting | #45 | 6 of 8 (1 skipped) | the hints of tools/list, resources/list and resources/templates/list pass; prompts/list answers Method not found: no prompts |
 | 24 | `input-required-result-basic-elicitation` | required | waiting | #45 | 1 of 2 | calls the fixture tool `test_input_required_result_elicitation`; no tool of this product asks the client for input |
 | 25 | `input-required-result-basic-sampling` | required | waiting | #45 | 1 of 2 | calls the fixture tool `test_input_required_result_sampling`; no tool of this product asks the client for input |
 | 26 | `input-required-result-basic-list-roots` | required | waiting | #45 | 1 of 2 | calls the fixture tool `test_input_required_result_list_roots`; no tool of this product asks the client for input |
@@ -131,8 +131,10 @@ list, with its reason and the issue that records it or delivers the capability.
   `input-required-result-validate-input` exercise the served headers, the typed refusal of a
   method the core does not register and of an invalid argument.
 - `server-sse-multiple-streams` passes with an info: the gateway answers JSON, and event
-  streams are optional there. `sep-2164-resource-not-found` passes with two SHOULD warnings: the
-  gateway offers no resources, so it answers `-32601` where `-32602` with `data.uri` is recommended.
+  streams are optional there. `sep-2164-resource-not-found` passes (4 of 4): the gateway declares
+  resources since #8, and a resource that is not found is `-32602` with the URI in `data.uri`.
+- `resources-list` passes (2 of 2) since #8: the gateway lists one resource for each package of
+  each installed profile.
 - `input-required-result-missing-input-response` and `input-required-result-ignore-extra-params`
   pass with a warning each: the fixture tool they call is not in the catalogue, so the gateway
   answers a JSON-RPC error and the SHOULD checks about re-requesting input are warnings. These are
@@ -143,9 +145,9 @@ list, with its reason and the issue that records it or delivers the capability.
 | Group | Scenarios | Reason | Delivered by |
 | --- | --- | --- | --- |
 | fixture tools | `tools-call-*` (7), `input-required-result-*` that call a `test_input_required_result_*` tool (9), `server-stateless` (4 checks), `json-schema-2020-12` | the scenario calls a tool of the suite's fixture, which the catalogue does not have | no one: #45 |
-| prompts | `prompts-*` (5), `input-required-result-non-tool-request`, `completion-complete` | no prompts: `ServerCapabilities.prompts` is "Present if the server offers any prompt templates." | no one: #45 (#8 adds completion of its own template's arguments, a different `ref`) |
-| resources | `resources-list`, `resources-read-text`, `resources-read-binary`, `resources-templates-read` | the fixture's `test://` resources; `ServerCapabilities.resources` is "Present if the server offers any resources to read." | no one: #45 (#8 adds the template `lexlean://profiles/{profile}/lexicon/{package}@{version}`, not the fixture's) |
-| caching | `caching` | 4 of 8 checks pass (`tools/list`); the others need `prompts/list`, `resources/list` and `resources/templates/list` | #45; `resources/templates/list` arrives with #8 |
+| prompts | `prompts-*` (5), `input-required-result-non-tool-request`, `completion-complete` | no prompts: `ServerCapabilities.prompts` is "Present if the server offers any prompt templates."; `completion-complete` completes an argument of a fixture prompt (`ref/prompt`), and the completion #8 adds is of the arguments of its resource template (`ref/resource`) | no one: #45 |
+| resources | `resources-read-text`, `resources-read-binary`, `resources-templates-read` | the fixture's `test://` resources; since #8 the gateway declares resources and serves the template `lexlean://profiles/{profile}/lexicon/{package}@{version}`, not the fixture's | no one: #45 |
+| caching | `caching` | 6 of 8 checks pass and 1 is skipped (the hints of `tools/list`, `resources/list` and `resources/templates/list`); the check of `prompts/list` fails because nothing offers prompts | #45 |
 | custom headers | `http-custom-header-server-validation` | needs a tool whose schema carries `x-mcp-header`, which is optional ("Property schemas may carry an `x-mcp-header` annotation") | #45: a product decision for #10 |
 | tasks | `tasks-*` (9) | the tasks extension (`tasks/get`, `tasks/update`, `tasks/cancel`, `io.modelcontextprotocol/tasks` in `ServerCapabilities.extensions`, "Optional MCP extensions that the server supports") arrives with #11 and MCP#12; the scenarios also call fixture tools (`slow_compute`, `greet`, `confirm_delete`, `failing_job`) | #11 for the methods; the fixture tools: #45 |
 

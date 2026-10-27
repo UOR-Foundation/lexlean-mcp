@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "shapes-circle"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Main"
+component = "shapes-circleValid"
+
+[[form]]
+id = "shapes-circle"
+channel = "text"
+surface = "Shapes Circle"
+canonical_source = true
+features = ["sentence-case", "singular"]
