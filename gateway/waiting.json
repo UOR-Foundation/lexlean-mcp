@@ -77,10 +77,6 @@
       "issue": 45,
       "reason": "the scenario lists or gets the fixture's prompts; no issue of this product offers prompt templates, so the gateway does not declare the prompts capability (\"Present if the server offers any prompt templates.\") and answers Method not found (decision recorded in #45)"
     },
-    "resources-list": {
-      "issue": 45,
-      "reason": "the scenario reads the fixture's resources; since #8 the gateway declares resources and serves the template lexlean://profiles/{profile}/lexicon/{package}@{version} (VO-11), not the fixture's, so the scenario does not pass (decision recorded in #45)"
-    },
     "resources-read-binary": {
       "issue": 45,
       "reason": "the scenario reads the fixture resource `test://static-binary`; since #8 the gateway declares resources and serves the template lexlean://profiles/{profile}/lexicon/{package}@{version} (VO-11), not the fixture's, so the scenario does not pass (decision recorded in #45)"

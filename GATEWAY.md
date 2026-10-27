@@ -223,5 +223,5 @@ CI.md describes the job that runs this, and the release step that removes the re
   tool, its schema and its errors belong to #8 to #12. This file claims that the tools reach
   the host through the ten effects, and that the host does what the effects declare.
 - That the gateway passes the scenarios of MCP's server suite that wait. The conformance run
-  (AC-03, part b, `GW-12`) is `GATEWAY-CONFORMANCE.md`: 40 scenarios fail and are exactly
+  (AC-03, part b, `GW-12`) is `GATEWAY-CONFORMANCE.md`: 39 scenarios fail and are exactly
   `gateway/waiting.json`, each with its reason; they are failures and are counted as such.
