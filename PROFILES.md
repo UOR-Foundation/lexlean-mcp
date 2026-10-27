@@ -115,3 +115,40 @@ Each defect was planted in a copy of the tree, `lexlean lock` and
 
 Baseline: `lexlean verify src/Profiles.lex.tex` on the unplanted tree:
 `verified 5 modules; attestation 476737ae7d8ad1d704fee5e585993cba9128d73f123f1aa63ed3a3676443dd27`, exit 0. The CI job `lexlean / verify` runs the whole project.
+
+## Planted defects of the gateway side
+
+Each defect was planted in the tree, the command below run (the gateway workspace is built
+offline with `RUSTUP_TOOLCHAIN=stable`; the model tests run in the root workspace), and the file
+restored (`cp` of the saved copy, equal by `cmp`). The unplanted tree passes the same commands.
+The script was `plant.sh N`; every defect was rejected by the test named.
+
+**G1. A profile file excluded from the identity.** Planted: in `gateway/bindings/gateway-binding/src/provision.rs`, the loop that adds the `artifact_source` files to the rows of the identity is deleted.
+- Command: `cargo test -p gateway-binding --test provision a_byte --locked --offline` (gateway workspace)
+- Diagnostic: `a_byte_of_each_profile_file_changes_the_id_vo_02` fails: ``assertion `left != right` failed: a byte of artifacts/notes.bin``, both IDs `f2fb08f5...96ed` (0 passed, 1 failed)
+- Restore: `provision.rs` restored from the saved copy; 36 passed
+
+**G2. A mixed-language package admitted.** Planted: in `gateway/src/ProfileLanguage.lex.tex`, `checkPackage` answers `Admitted` for a package of another language (the else branch).
+- Command: `cargo test -p repo-model --test vocabulary the_language_rule`
+- Diagnostic: `the_language_rule_of_the_core_is_the_models_vo_03` fails: ``checkPackage of gateway/src/ProfileLanguage.lex.tex is the declaration of src/Profiles.lex.tex``, the core's text against the model's (the model's own law, P4 above, rejects the same defect in `src/Profiles.lex.tex`)
+- Restore: `ProfileLanguage.lex.tex` restored; 1 passed
+
+**G3. An Atlas entry missing from the served lexicon.** Planted: in `provision.rs`, the vocabulary loop skips the first entry of each package (`.skip(1)`).
+- Command: `cargo test -p gateway-binding --test provision the_vocabulary_lists --locked --offline`
+- Diagnostic: `the_vocabulary_lists_every_locked_package_and_the_served_entries_vo_08` fails: ``the ghost entry denotes a module the project lacks`` (left 1, right 2). The Atlas count of 293 is held by `an_atlas_profile_serves_all_293_entries_vo_14`, which needs the sources of LexLean and runs in the gateway job with `--ignored`
+- Restore: `provision.rs` restored; 1 passed
+
+**G4. A capability declared that is not served.** Planted: in `gateway/src/Gateway.lex.tex`, `gatewayCapabilities` declares `prompts` with `listChanged` empty.
+- Command: `cargo test -p repo-model --test vocabulary the_declared_capabilities`
+- Diagnostic: `the_declared_capabilities_are_the_served_ones_vo_13` fails: `prompts are not: nothing offers one`
+- Restore: `Gateway.lex.tex` restored; 1 passed
+
+**G5. A profile installed without a review record.** Planted: in `provision.rs`, a locked path package with no record is skipped (`continue`) instead of refused with `ReviewMissing`.
+- Command: `cargo test -p gateway-binding --test provision a_path_package_without --locked --offline`
+- Diagnostic: `a_path_package_without_a_review_is_refused_vo_06` fails at `tests/provision.rs:128`: `installed vocab`, the install succeeded where `ReviewMissing` is expected
+- Restore: `provision.rs` restored; 1 passed
+
+**G6. A reserved entry copied into a project.** Planted: in `provision.rs`, the loop over the reserved names `profile`, `vocabulary` and `reviews` of the project root runs over no name (`.iter().take(0)`).
+- Command: `cargo test -p gateway-binding --test provision a_reserved_entry --locked --offline`
+- Diagnostic: `a_reserved_entry_is_refused_vo_07` fails at `tests/provision.rs:128`: `installed vocab`, the install succeeded where `ReservedEntry` is expected
+- Restore: `provision.rs` restored; 1 passed

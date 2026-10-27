@@ -260,7 +260,7 @@ fn the_language_rule_of_the_core_is_the_models_vo_03() {
     let vocabulary = tight(&read("gateway/src/Vocabulary.lex.tex"));
     assert!(
         vocabulary.contains("ProfileLanguage::checkPackages")
-            && vocabulary.contains("ProfileLanguage::languageMismatchCode"),
+            && vocabulary.contains("ProfileLanguage::PackageCheck.Refused"),
         "the tools apply the model's rule"
     );
     let language = read("gateway/src/ProfileLanguage.lex.tex");
@@ -429,7 +429,7 @@ fn the_vocabulary_is_what_the_compiler_resolved_vo_08() {
         "the packages are the compiler's own resolution"
     );
     assert!(
-        provision.contains("VOCABULARY_LIMIT") && provision.contains("1 << 20"),
+        provision.contains("VOCABULARY_LIMIT: usize = ENTRY_MAXIMUM"),
         "the bound is the 1 MiB of lexicon.read"
     );
     let lexicon = read("gateway/bindings/gateway-binding/src/lexicon.rs");
@@ -457,7 +457,12 @@ fn lexlean_profiles_is_one_store_get_vo_09() {
         "the tool is in the catalogue"
     );
     let vocabulary = tight(&read("gateway/src/Vocabulary.lex.tex"));
-    for needle in ["catalogueKey", "CatalogueMalformed", "ProfileUnknown"] {
+    for needle in [
+        "catalogueArea",
+        "cataloguePayload",
+        "CatalogueMalformed",
+        "ProfileUnknown",
+    ] {
         assert!(vocabulary.contains(needle), "the core has {needle}");
     }
     needs(
@@ -481,7 +486,7 @@ fn lexlean_lexicon_search_is_one_lexicon_read_vo_10() {
         "the tool is in the catalogue"
     );
     let vocabulary = tight(&read("gateway/src/Vocabulary.lex.tex"));
-    for needle in ["VocabularyMissing", "VocabularyMalformed", "searchPage"] {
+    for needle in ["VocabularyMissing", "VocabularyMalformed", "searchIn"] {
         assert!(vocabulary.contains(needle), "the core has {needle}");
     }
     needs(
@@ -506,9 +511,11 @@ fn the_template_is_public_with_the_owner_ttl_vo_11() {
         vocabulary.contains("lexlean://profiles/{profile}/lexicon/{package}@{version}"),
         "the template is the issue's"
     );
+    let gateway = tight(&read("gateway/src/Gateway.lex.tex"));
     assert!(
-        vocabulary.contains("cacheScope := (ctor Common::CacheScope.public)"),
-        "the scope is public"
+        gateway.contains("name: resourceCache")
+            && gateway.contains("cacheScope := (ctor Common::CacheScope.public)"),
+        "the scope of the lexicon is public"
     );
     let owner = read("OWNER-VALUES.md");
     let ttl = owner
@@ -518,7 +525,9 @@ fn the_template_is_public_with_the_owner_ttl_vo_11() {
         .map(|cell| cell.trim().trim_matches('`').to_string())
         .expect("the owner value cache.ttl_ms");
     assert!(
-        vocabulary.contains(&format!("ttlMs := {ttl}")),
+        gateway.contains(&format!(
+            "ttlMs := {ttl}, cacheScope := (ctor Common::CacheScope.public)"
+        )),
         "the lifetime of the lexicon is the owner's cache.ttl_ms {ttl}"
     );
     needs(
@@ -540,7 +549,8 @@ fn completion_covers_profile_and_package_vo_12() {
     let vocabulary = tight(&read("gateway/src/Vocabulary.lex.tex"));
     assert!(
         vocabulary.contains("Resources::matching")
-            && vocabulary.contains("Resources::completionOf"),
+            && vocabulary.contains("Resources::answerComplete")
+            && vocabulary.contains("Resources::argumentOf"),
         "completion is MCP's own"
     );
     needs(
@@ -761,7 +771,7 @@ fn the_planted_defects_are_recorded_vo_16() {
         "a reserved entry copied into a project",
     ] {
         assert!(
-            section.to_lowercase().contains(defect),
+            section.to_lowercase().contains(&defect.to_lowercase()),
             "the section records the defect: {defect}"
         );
     }

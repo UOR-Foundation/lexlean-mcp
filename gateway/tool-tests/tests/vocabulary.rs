@@ -977,7 +977,7 @@ fn atlas_project() -> PathBuf {
 }
 
 #[test]
-#[ignore = "needs LEXLEAN_SOURCES (gateway/lay-out-lexlean.sh); the gateway job runs it with -- --ignored"]
+#[ignore = "needs LEXLEAN_SOURCES (gateway/lay-out-lexlean.sh) and the lexlean binary: the gateway job of .github/workflows/lexlean.yml runs it with --ignored and requires the count"]
 fn an_atlas_profile_serves_all_293_entries_vo_14() {
     let mut gateway = Gateway::new();
     let installed = gateway.install_profile("uor-atlas", &atlas_project(), &[]);
@@ -1045,7 +1045,7 @@ fn an_atlas_profile_serves_all_293_entries_vo_14() {
 }
 
 #[test]
-#[ignore = "needs LEXLEAN_SOURCES (gateway/lay-out-lexlean.sh); the gateway job runs it with -- --ignored"]
+#[ignore = "needs LEXLEAN_SOURCES (gateway/lay-out-lexlean.sh) and the lexlean binary: the gateway job of .github/workflows/lexlean.yml runs it with --ignored and requires the count"]
 fn a_profile_without_the_module_atlas_serves_none_of_the_entries_vo_14() {
     let scratch = tempfile::tempdir().expect("a directory");
     let project = scratch.path().join("uor-atlas");
