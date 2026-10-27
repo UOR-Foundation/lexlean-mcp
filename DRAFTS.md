@@ -102,8 +102,9 @@ is stored, and no Engine tool runs on a refused path.
 
 ## The profile record (`DR-06`)
 
-The source roots are those of the profile, and the profile is provisioned by #8. This is the
-contract with it: the entry `profile` of the profile in the `profiles` area (the lexicon entry
+The source roots are those of the profile, and the profile is provisioned by `gateway-provision
+install` (PROFILES.md, `VO-05` to `VO-07`), which writes this entry. This is the contract between
+the two: the entry `profile` of the profile in the `profiles` area (the lexicon entry
 of that name) is text of lines separated by `\n`. The first line is the profile ID, 64 lower
 case hexadecimal digits. Every following non-empty line is one source root, a relative path of
 whole components (`src`, `src/lib`). At least one root is required. A profile that is not
