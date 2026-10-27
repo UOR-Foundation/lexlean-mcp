@@ -311,7 +311,12 @@ fn the_schema_of_lexlean_profiles_is_closed_vo_09() {
         json!({"other": 1}),
     ] {
         let reply = gateway.call("lexlean_profiles", arguments.clone());
-        assert_eq!(reply.error()["code"], -32602, "{arguments}: {}", reply.body);
+        assert!(reply.is_error(), "{arguments}: {}", reply.body);
+        assert!(
+            reply.text().starts_with("Invalid arguments:"),
+            "{arguments}: the core refuses it before the tool runs: {}",
+            reply.body
+        );
         assert!(reply.effects.is_empty(), "{arguments}: no effect");
     }
 }
@@ -472,7 +477,7 @@ fn search_refusals_are_typed_vo_10() {
     );
     failure(
         &search(&mut gateway, json!({"profile": "../vocab"})),
-        "key-refused",
+        "profile-unknown",
         &["lexicon.read"],
     );
     std::fs::remove_file(gateway.profile("tiny").join("vocabulary")).expect("a removed vocabulary");
@@ -532,7 +537,9 @@ fn search_refuses_a_vocabulary_of_mixed_languages_with_llc0103_vo_04() {
             "{package}: {}",
             resource.body
         );
-        let message = resource.error()["message"].as_str().expect("a message");
+        let message = resource.error()["data"]["reason"]
+            .as_str()
+            .expect("a reason");
         assert!(
             message.contains("LanguageMismatch") && message.contains("LLC0103"),
             "{package}: {message}"
@@ -571,7 +578,12 @@ fn the_schema_of_lexlean_lexicon_search_is_closed_vo_10() {
         json!({"profile": "vocab", "extra": true}),
     ] {
         let reply = search(&mut gateway, arguments.clone());
-        assert_eq!(reply.error()["code"], -32602, "{arguments}: {}", reply.body);
+        assert!(reply.is_error(), "{arguments}: {}", reply.body);
+        assert!(
+            reply.text().starts_with("Invalid arguments:"),
+            "{arguments}: the core refuses it before the tool runs: {}",
+            reply.body
+        );
         assert!(reply.effects.is_empty(), "{arguments}: no effect");
     }
     let names_listed: Vec<&str> = listed.result()["tools"]
@@ -582,8 +594,8 @@ fn the_schema_of_lexlean_lexicon_search_is_closed_vo_10() {
         .collect();
     assert_eq!(
         names_listed.len(),
-        12,
-        "the ten tools and the two of issue 8"
+        14,
+        "the twelve tools before issue 8 and the two of issue 8"
     );
 }
 

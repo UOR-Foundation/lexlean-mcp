@@ -178,8 +178,11 @@ fn row(path: &str, bytes: &str) -> (Vec<u8>, Vec<u8>) {
     (path.as_bytes().to_vec(), bytes.as_bytes().to_vec())
 }
 
+/// The rows of a profile: (path, bytes).
+type Rows = Vec<(Vec<u8>, Vec<u8>)>;
+
 /// The files, the review and the toolchain of `profilePreimageVector`.
-fn vector_inputs() -> (Vec<(Vec<u8>, Vec<u8>)>, Vec<Vec<u8>>, Vec<u8>) {
+fn vector_inputs() -> (Rows, Vec<Vec<u8>>, Vec<u8>) {
     (
         vec![row("lexlean.lock", "L"), row("lexlean.toml", "T")],
         vec![b"r1".to_vec()],
