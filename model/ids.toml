@@ -384,7 +384,7 @@ statement = "Every diagnostic code that the 297 negative fixtures of AC-07 retur
 id = "QM-07"
 level = "build"
 suite = "quality"
-statement = "The measures of Q2 and Q8 are Executed in src/Quality.lex.tex by QM-01, QM-02 and QM-03 (Q2, whose running clause TL-15 executes) and by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes), whose tests pass; Q1 and Q3 to Q7 stay Pending, each naming the issue that executes it, pendingClauses is empty because no clause of Q2 or of Q8 waits for the tools, and the counts the model states (9 functions, 86 codes) are those of the pinned files."
+statement = "The measures of Q1, Q2, Q4 and Q8 are Executed in src/Quality.lex.tex, whose tests pass: Q1 by TL-03 and TL-06, which run lexlean_check and lexlean_build beside the CLI, while its clause for lexlean_verify stays in pendingClauses until verification runs as tasks (#11); Q2 by QM-01, QM-02 and QM-03 (Q2, whose running clause TL-15 executes); Q4 by the host process accounting (Q4, whose running clause TL-08 executes); and Q8 by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes). Q3 and Q5 to Q7 stay Pending, each naming the issue that executes it, pendingClauses holds only the clause of Q1 for lexlean_verify, and the counts the model states (285 negative fixtures, 9 functions, 86 codes) are those of the pinned files."
 
 [[id]]
 id = "QM-08"

@@ -2,27 +2,62 @@
 
 Issue #15 models the quality requirements Q1 to Q8 as chains with an
 all-or-none measure. `src/Quality.lex.tex` records, for each measure, whether it
-is `Executed` or `Pending`. This file states which two are `Executed` now, what
+is `Executed` or `Pending`. This file states which four are `Executed` now, what
 the evidence is, what it does not show, and the defects planted in its gates.
 
 | Measure | Requirement | Status | Rows |
 | --- | --- | --- | --- |
-| Q1 | a tool result equals the engine's result | Pending | needs the tools (#10, #11) |
+| Q1 | a tool result equals the engine's result | **Executed** for check and build; the verify clause is pending (#11) | TL-03, TL-06 |
 | Q2 | each in-scope API function is reached by exactly one tool | **Executed** | QM-01 to QM-03, TL-15 |
 | Q3 | no record for a verification that did not end `verified` | Pending | needs verification as tasks (#11) and the store (#13) |
-| Q4 | check, snapshot, format, build start no child process | Pending | needs the tools (#10) |
+| Q4 | check, snapshot, format, build start no child process | **Executed** | TL-08 |
 | Q5 | the MCP implementation conforms to 2026-07-28 | Pending | needs the deployed core (#17) |
 | Q6 | protocol and tool semantics live only in `.lex.tex` | Pending | needs the host adapter (#7) |
 | Q7 | the same `build_id` on `linux/amd64` and `linux/arm64` | Pending | needs `build` as a tool (#10), on both platforms |
 | Q8 | every diagnostic code in a result resolves through F11 | **Executed** | QM-04 to QM-06 |
 
-`measuresPendingExceptQ2AndQ8` pins the pending list, `onlyApiMapAndExplainAreExecuted`
-pins the executed one, and `noQualityClauseIsPending` pins the list of clauses that still
-wait for the tools: it is empty. `qualityValid` requires that the measure of each
-clause in `pendingClauses` is an executed one. `QM-07` ties the statuses to the register: the
-rows each status cites are read from the statement of `QM-07`, and each must be registered
-with a test; for Q2 they are `QM-01` to `QM-03` and `TL-15`, and for Q8 `QM-04` to `QM-06` and
-`TL-13`, the rows of the tools suite that run their last clauses.
+`measuresPendingAreQ3AndQ5ToQ7` pins the pending list, `executedMeasuresAreQ1Q2Q4AndQ8`
+pins the executed one, and `onlyTheVerifyClauseOfQ1IsPending` pins the list of clauses that
+still wait: one, the clause of Q1 for `lexlean_verify`. `qualityValid` requires that the
+measure of each clause in `pendingClauses` is an executed one. `QM-07` ties the statuses to
+the register: the rows each status cites are read from the statement of `QM-07`, and each
+must be registered with a test; for Q1 they are `TL-03` and `TL-06`, for Q2 `QM-01` to `QM-03`
+and `TL-15`, for Q4 `TL-08`, and for Q8 `QM-04` to `QM-06` and `TL-13`. `QM-07` also requires
+the count of Q1 (285) to be the fixtures of `crates/negative-fixtures/register.toml` in scope.
+
+## Q1: a tool result equals the engine's result
+
+**Evidence.** `TL-03` (`gateway/tool-tests/tests/equality.rs`, TOOLS.md) stages each check
+and build fixture of the register (252 of F4, 1 of F7), runs the `lexlean` binary of the
+gateway's pin on one copy and calls `lexlean_check` or `lexlean_build` through the production
+core with the real host on another, and requires the same exit code and class, the same
+diagnostics (code, message, span), the same bytes in the text block and the same project files
+afterwards. `TL-06` does the same for `lexlean_build` on each of the 18 examples of LexLean,
+tree for tree. Both run in the gateway job with `--ignored`, which requires their count; the
+workspace gate checks that the rows and their tests exist.
+
+**The count.** The model stated 273 fixtures, the count of issue #10 at an older LexLean. The
+register at `9796067` holds 297: 252 F4, 1 F7, 32 verify and 12 excluded, so 285 are in
+scope. The model now states 285, and `QM-07` recomputes it from the register.
+
+**What it does not show.** `lexlean_verify` against the CLI, on the 32 verify fixtures and
+the examples, waits for verification as tasks (#11). That clause is in `pendingClauses`, and
+the evidence of Q1 names it. The equality holds at the gateway's pin (`gateway/mcp/lexlean.rev`),
+whose fixture locks are rewritten for its compiler (TOOLS.md); 12 examples build to a tree that
+differs from their committed `expected/build`, the same for the tool and the CLI.
+
+## Q4: no child process
+
+**Evidence.** `TL-08` (`gateway/tool-tests/tests/q4.rs`) calls `lexlean_check`,
+`lexlean_snapshot`, `lexlean_format` and `lexlean_build` through the production core with the
+real host, in a test binary of one test so that nothing else in the process spawns. Across
+each call, and across every selection and the check-only format, it requires the host's process
+accounting not to move: the waited-for children of `/proc/self/stat` (faults and times) and the
+live children of every thread. A control then spawns a child and requires the same instrument
+to see it. `TL-08` runs in every `cargo test` of the gateway workspace.
+
+**What it does not show.** It covers the four tools on one project and their argument paths,
+not every fixture.
 
 ## Q2: the API-to-tool map
 
@@ -126,12 +161,12 @@ result.
 
 ## What is not met
 
-Q1 (CLI equality as a run), Q3 (fault tolerance), Q4 (no child processes), Q5 (the MCP
-oracles), Q6 (modularity) and Q7 (the same `build_id` on both platforms) stay
-`Pending`: each needs the tools or the deployed service, and each says in the model
-which issue executes it. For Q2 and Q8 the running clauses are executed by `TL-15` and `TL-13`
-and the quality model no longer lists either as pending. Issue
-#15 stays open for the six pending measures.
+Q3 (fault tolerance), Q5 (the MCP oracles), Q6 (modularity) and Q7 (the same `build_id`
+on both platforms) stay `Pending`: each needs verification as tasks, the deployed service,
+the generated host adapter or a run on `linux/arm64`, and each says in the model which issue
+executes it. The gateway job runs on `linux/amd64` only, so no run yet observes a `build_id`
+on `linux/arm64`. Q1's clause for `lexlean_verify` waits for #11. Issue #15 stays open for
+the four pending measures and that clause.
 
 ## Planted defects
 
@@ -148,12 +183,11 @@ that the check runs on every `cargo test`.
 | the entry of `LLB6002` removed from the vendored `ERRORS.md` | `cargo test -p quality-map --test explain` | `LLB6002 is registered and has no entry in ERRORS.md`; `ERRORS.md: the git blob id is c09fd5d1... and the table records 9a995e31...` |
 | a fixture returns `LLX9999`, a code the registry lacks (`register.toml`) | same | `LLX9999 is returned and the registry does not explain it` |
 | the count of codes in the model changed from 86 to 85 | `cargo test -p repo-conformance --test quality` | `the model counts Some(85) diagnostic codes and the registry holds 86` |
-| Q2 flipped back to `Pending` | same | `the measure 1 is not Executed`; `exactly two measures must be Executed` |
+| Q2 flipped back to `Pending` | same | `the measure 1 is not Executed`; `exactly 4 measures must be Executed` |
 | `QM-03` removed from the register | same | `QM-03 is cited and is not in model/ids.toml` |
 | the running clause of Q8 put back into `pendingClauses` (`index := 7`) | `cargo test -p repo-conformance --test quality` | `pendingClauses records a clause of Q8, whose running clause TL-13 executes` |
 | the running clause of Q2 put back into `pendingClauses` (`index := 1`) | `cargo test -p repo-conformance --test quality` | `pendingClauses records a clause of Q2, whose running clause TL-15 executes` |
 | the evidence of Q2 pointing at `pendingClauses` again | same | `the Executed status of measure 1 points at pendingClauses, and its running clause is executed` |
-| the clause of Q2 put back into `pendingClauses` (`index := 1`) | `lexlean verify src/Quality.lex.tex` | `LLV7002`: `Tactic `decide` proved that the proposition namedIndexes pendingClauses = [] is false` at `src/Quality.lex.tex:673`, the theorem `noQualityClauseIsPending` |
 | the evidence of Q8 pointing at `pendingClauses` again | `cargo test -p repo-conformance --test quality` | `the Executed status of measure 7 points at pendingClauses, and its running clause is executed` |
 | `TL-13` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
 | `TL-15` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
@@ -162,13 +196,17 @@ that the check runs on every `cargo test`.
 The planted-in-memory set is wider: a function with neither tool nor reason, a function
 both mapped and not exposed, a function re-signed upstream, a vendored byte altered or
 removed, a pin moved without a new import, a code with no statement, an entry altered,
-an exit status that disagrees with its class, rows out of order, Q8 flipped back, a
-measure flipped to `Executed` without rows, a cited row with no test, and the pending
-clauses dropped.
+an exit status that disagrees with its class, rows out of order, Q1, Q4 and Q8 flipped
+back, Q3 flipped to `Executed` without rows, a cited row with no test, the pending clauses
+dropped, a clause of Q4 left in `pendingClauses`, the evidence of Q4 pointing at
+`pendingClauses`, `TL-06` and `TL-08` removed from the statement of `QM-07`, the evidence of
+Q1 no longer pointing at its verify clause, that clause dropped (`pendingClauses does not
+record the clause of Q1 for lexlean_verify`), and the count of Q1 put back to 273 (`the model
+counts Some(273) negative fixtures and the register holds 285 in scope`).
 
 Not run on the working tree: a flip of Q2 in `src/Quality.lex.tex` through `lexlean
-verify`, which would make `measuresPendingExceptQ2AndQ8` and
-`onlyApiMapAndExplainAreExecuted` fail with `LLV7002`. The local verification runs once,
+verify`, which would make `measuresPendingAreQ3AndQ5ToQ7` and
+`executedMeasuresAreQ1Q2Q4AndQ8` fail with `LLV7002`. The local verification runs once,
 on the final state, to keep to the shared memory budget; CI runs it on every push.
 
 ## Reproducing
