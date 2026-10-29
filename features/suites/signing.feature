@@ -51,10 +51,10 @@ Feature: The signer of the verification records
     Then each defect makes the test that answers it fail, with the diagnostic SIGNING.md records
 
   @SG-09 @build
-  Scenario: The signing key is configured by the operator and a verification is not started without it: the host reads the path of the key file from LEXLEAN_MCP_SIGNING_KEY (an empty value is no path), keeps its history in the keys area of the store, and verify.start fails with verifier-unavailable, starts no task and runs no verification when no key is configured and when the configured file is missing, unreadable or malformed, before any copy of the project is made.
+  Scenario: The signing key is configured by the operator and a verification is not started without it: the host reads the path of the key file from LEXLEAN_MCP_SIGNING_KEY (an empty value is no path), keeps its history in the keys area of the store, and verify.start fails with verifier-unavailable, starts no task, runs no verification and leaves nothing in the builds area when no key is configured and when the configured file is missing, unreadable or malformed, while a project that is not one is refused as project-refused whatever the state of the key.
     Given a host with no key, with a path that is missing, with a directory, and with a file that is not a key
     When verify.start is asked for a project that exists
-    Then each is verifier-unavailable, the next task is still task-1, nothing was copied into the builds area and the runner never ran
+    Then each is verifier-unavailable, the next task is still task-1, nothing is in the builds area and an absent project is project-refused
 
   @SG-10 @build
   Scenario: A verification that ends verified leaves a record that is a signed envelope: verifications/<attestation ID>.json is the DSSE envelope, verifications/<attestation ID>/attestation.json is the attestation.json of the verified directory byte for byte, the envelope validates against keys/history with those bytes, its predicate carries the attestation, build, source and semantic IDs, the status verified, the modules and the SHA-256 of each source file, and the result of the task names the key.

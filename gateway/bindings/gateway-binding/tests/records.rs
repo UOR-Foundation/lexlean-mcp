@@ -241,6 +241,20 @@ fn verify_start_without_a_usable_key_is_unavailable_and_starts_nothing_sg_09() {
             Err(verify_start::Failure::VerifierUnavailable),
             "{label}"
         );
+        // The request is judged before the service: a project that is not one is refused as such.
+        let absent = host
+            .verify_start(verify_start::Request {
+                project: "absent".into(),
+                selection: 0,
+                files: String::new(),
+            })
+            .map(|done| done.task)
+            .map_err(failure);
+        assert_eq!(
+            absent,
+            Err(verify_start::Failure::ProjectRefused),
+            "{label}: an absent project"
+        );
         // No task was made, and nothing was copied for one.
         let known = host
             .verify_control(verify_control::Request {

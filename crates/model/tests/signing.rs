@@ -253,7 +253,8 @@ fn a_verification_is_not_started_without_a_usable_key_sg_09() {
         config.contains("\"LEXLEAN_MCP_SIGNING_KEY\""),
         "the key file is named by LEXLEAN_MCP_SIGNING_KEY"
     );
-    // The key is loaded before the project is copied, so nothing is left when it is unusable.
+    // The project is judged first and the key after, so that a project that is not one is refused
+    // whatever the key, and the copy a draft makes is dropped when the key is unusable.
     let host = read("gateway/bindings/gateway-binding/src/lib.rs");
     let start = host.find("fn verify_start(").expect("verify_start");
     let body = &host[start..];
@@ -263,10 +264,7 @@ fn a_verification_is_not_started_without_a_usable_key_sg_09() {
     let copy = body
         .find("project::resolve(")
         .expect("verify_start copies the project");
-    assert!(
-        key < copy,
-        "the key is checked before the project is copied"
-    );
+    assert!(copy < key, "the project is judged before the key");
 }
 
 #[test]

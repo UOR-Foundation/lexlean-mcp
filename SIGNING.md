@@ -71,9 +71,11 @@ choose, so the validator does not compare times.
 ## The record
 
 **Configuration.** `LEXLEAN_MCP_SIGNING_KEY` names the key file (an empty value is none). The
-history is `keys/history` below the store. `verify.start` loads the key before it copies the
-project, so a verification that could not be signed is never begun and nothing is left in the
-`builds` area; a missing, unreadable or malformed key, and no key, are all `verifier-unavailable`,
+history is `keys/history` below the store. `verify.start` judges the request first: a project
+that is not one is `project-refused` whatever the key, which is why the recorded exchanges of the
+protocol replay with none. Then it loads the key, so a verification that could not be signed is
+never begun and nothing is left in the `builds` area (the copy a draft makes is removed with the
+request); a missing, unreadable or malformed key, and no key, are all `verifier-unavailable`,
 the failure the model already declares for E7. An operator who fixes the key file does not restart
 the gateway: the file is read at each start.
 

@@ -978,7 +978,7 @@ statement = "Each gate of the signer rejects its planted defect: the lengths of 
 id = "SG-09"
 level = "build"
 suite = "signing"
-statement = "The signing key is configured by the operator and a verification is not started without it: the host reads the path of the key file from LEXLEAN_MCP_SIGNING_KEY (an empty value is no path), keeps its history in the keys area of the store, and verify.start fails with verifier-unavailable, starts no task and runs no verification when no key is configured and when the configured file is missing, unreadable or malformed, before any copy of the project is made."
+statement = "The signing key is configured by the operator and a verification is not started without it: the host reads the path of the key file from LEXLEAN_MCP_SIGNING_KEY (an empty value is no path), keeps its history in the keys area of the store, and verify.start fails with verifier-unavailable, starts no task, runs no verification and leaves nothing in the builds area when no key is configured and when the configured file is missing, unreadable or malformed, while a project that is not one is refused as project-refused whatever the state of the key."
 
 [[id]]
 id = "SG-10"
