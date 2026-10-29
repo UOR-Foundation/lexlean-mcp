@@ -26,9 +26,12 @@ mod verifier;
 
 pub use config::{Config, DRAFT_BLOB_HEADROOM, DRAFT_MAX_BYTES, LOG_TAIL_BYTES, RATE_WINDOW};
 pub use engine::{Answer, Call, Unavailable};
-pub use verifier::{Job, Outcome, Report, Runner, State, Verifier};
+pub use verifier::{conclude, Facts, Job, Outcome, Report, Runner, State, Verifier};
 
+use std::sync::Arc;
 use std::time::Instant;
+
+use crate::signer::Signer;
 
 use gateway_host_api::protocol::{
     attestation_lookup, engine_build, engine_check, engine_format, engine_snapshot, lexicon_read,
@@ -344,6 +347,10 @@ impl Host for Native {
         &mut self,
         request: verify_start::Request,
     ) -> Result<verify_start::Completed, HostError<verify_start::Failure>> {
+        // Before any copy of the project: a verification that could not be signed is not begun.
+        let unavailable = || HostError::Failed(verify_start::Failure::VerifierUnavailable);
+        let key = self.config.signing_key.as_deref().ok_or_else(unavailable)?;
+        let signer = Signer::load(key, self.config.history_path()).map_err(|_| unavailable())?;
         let Some(resolved) = project::resolve(
             &self.config.store,
             &request.project,
@@ -362,6 +369,7 @@ impl Host for Native {
             directory,
             selection,
             store: self.config.store.clone(),
+            signer: Arc::new(signer),
         });
         Ok(verify_start::Completed {
             task,

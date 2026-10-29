@@ -1,14 +1,14 @@
 //! The records of verifications, and their lookup.
 //!
-//! A verification that succeeds leaves a record in the `verifications` area, named by its
-//! attestation ID, and an entry of the `index` area for the digest of each source file it
-//! verified, whose content is the attestation ID. The signed envelope of the record is the
-//! work of the signing issue; the record is the unsigned document it will wrap.
+//! A verification that succeeds leaves a record in the `verifications` area: the signed envelope
+//! `<attestation ID>.json` and the `attestation.json` it signs, `<attestation ID>/attestation.json`,
+//! and an entry of the `index` area for the digest of each source file it verified, whose content
+//! is the attestation ID. The lookup returns the envelope, which a reader validates against the
+//! key history (`signer`).
 
 use std::path::Path;
 
 use lexlean::Sha256Digest;
-use serde_json::Value;
 
 use crate::config::DRAFT_MAX_BYTES;
 use crate::store::{self, StoreError};
@@ -53,28 +53,43 @@ fn sources(directory: &Path, found: &mut Vec<Vec<u8>>, depth: usize) {
     }
 }
 
-/// Write the record of a verification of the project in `directory`, and the index entry of
-/// each of its source files.
-pub fn record(root: &Path, directory: &Path, attestation: &str, record: &Value) -> Result<(), ()> {
+/// The SHA-256 of each source file below `directory`, in the order of their paths.
+pub fn source_digests(directory: &Path) -> Vec<String> {
+    let mut files = Vec::new();
+    sources(directory, &mut files, 0);
+    files
+        .iter()
+        .map(|bytes| Sha256Digest::of(bytes).to_hex())
+        .collect()
+}
+
+/// Write the record of a verification: the `attestation.json` that was verified, then the signed
+/// envelope that names it, then the index entry of each source file in `digests`. The envelope is
+/// written after its subject, so a lookup never finds an envelope without the file it signs; a
+/// failure leaves no envelope, and the caller reports the verification as failed.
+pub fn record(
+    root: &Path,
+    attestation: &str,
+    digests: &[String],
+    subject: &[u8],
+    envelope: &[u8],
+) -> Result<(), ()> {
     if !is_digest(attestation) {
         return Err(());
     }
-    let mut files = Vec::new();
-    sources(directory, &mut files, 0);
-    let digests: Vec<String> = files
-        .iter()
-        .map(|bytes| Sha256Digest::of(bytes).to_hex())
-        .collect();
-    let mut document = record.clone();
-    if let Some(object) = document.as_object_mut() {
-        object.insert("files".to_owned(), Value::from(digests.clone()));
-    }
-    let bytes = serde_json::to_vec(&document).map_err(|_| ())?;
+    store::write(
+        root,
+        3,
+        &format!("{attestation}/attestation.json"),
+        subject,
+        RECORD_MAXIMUM,
+    )
+    .map_err(|_| ())?;
     store::write(
         root,
         3,
         &format!("{attestation}.json"),
-        &bytes,
+        envelope,
         RECORD_MAXIMUM,
     )
     .map_err(|_| ())?;

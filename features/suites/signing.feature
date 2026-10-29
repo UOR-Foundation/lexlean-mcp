@@ -49,3 +49,33 @@ Feature: The signer of the verification records
     Given the signer with one defect planted at a time
     When the tests of SG-01 to SG-07 run
     Then each defect makes the test that answers it fail, with the diagnostic SIGNING.md records
+
+  @SG-09 @build
+  Scenario: The signing key is configured by the operator and a verification is not started without it: the host reads the path of the key file from LEXLEAN_MCP_SIGNING_KEY (an empty value is no path), keeps its history in the keys area of the store, and verify.start fails with verifier-unavailable, starts no task and runs no verification when no key is configured and when the configured file is missing, unreadable or malformed, before any copy of the project is made.
+    Given a host with no key, with a path that is missing, with a directory, and with a file that is not a key
+    When verify.start is asked for a project that exists
+    Then each is verifier-unavailable, the next task is still task-1, nothing was copied into the builds area and the runner never ran
+
+  @SG-10 @build
+  Scenario: A verification that ends verified leaves a record that is a signed envelope: verifications/<attestation ID>.json is the DSSE envelope, verifications/<attestation ID>/attestation.json is the attestation.json of the verified directory byte for byte, the envelope validates against keys/history with those bytes, its predicate carries the attestation, build, source and semantic IDs, the status verified, the modules and the SHA-256 of each source file, and the result of the task names the key.
+    Given the facts of a verification that ended verified, and a host with a key
+    When the verification is concluded
+    Then the envelope, the subject and the history are on disk and validate, and the predicate says what the row lists
+
+  @SG-11 @build
+  Scenario: attestation.lookup returns the signed envelope: by attestation ID and by the SHA-256 of a source file the verification covered, the lookup of a concluded verification returns exactly the bytes of the envelope in the store, and those bytes validate against keys/history and the stored attestation.json.
+    Given a concluded verification and a lookup by its ID and by the digest of a source file
+    When attestation.lookup is asked both ways
+    Then both return the envelope, which validates
+
+  @SG-12 @build
+  Scenario: A verification that cannot be signed leaves no record: when the key's history cannot be written, or the attestation.json of the verified directory cannot be read, the task ends failed with class 5, and the store holds no envelope, no attestation.json and no index entry for it; a verification that failed leaves none either.
+    Given a host whose history is blocked, a verified directory without attestation.json, and a draft that does not verify
+    When each is concluded or run
+    Then each ends failed and the verifications and index areas are empty
+
+  @SG-13 @build
+  Scenario: Each gate of the signed record rejects its planted defect: verify.start accepting a verification without a key, the failure to sign ignored and an unsigned record written, the envelope stored without its attestation.json, the predicate without the digests of the source files, and the lookup answering the unsigned record again; SIGNING.md records the command, the diagnostic and the restore of each.
+    Given the host with one defect planted at a time
+    When the tests of SG-09 to SG-12 run
+    Then each defect makes the test that answers it fail, with the diagnostic SIGNING.md records

@@ -365,8 +365,16 @@ impl Gateway {
     pub fn new() -> Gateway {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let store = directory.path().join("store");
+        // A verification is not started without a key.
+        std::fs::write(
+            directory.path().join("signing.key"),
+            format!("{}\n", "44".repeat(32)),
+        )
+        .expect("a key file");
         Gateway {
-            host: Native::new(Config::at(store.clone())),
+            host: Native::new(
+                Config::at(store.clone()).with_signing_key(directory.path().join("signing.key")),
+            ),
             store,
             next: 100,
             _directory: directory,
@@ -492,7 +500,7 @@ impl Gateway {
 
     /// The configuration of the real host.
     pub fn config(&self) -> Config {
-        Config::at(self.store.clone())
+        Config::at(self.store.clone()).with_signing_key(self._directory.path().join("signing.key"))
     }
 }
 

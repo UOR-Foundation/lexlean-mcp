@@ -973,3 +973,33 @@ id = "SG-08"
 level = "build"
 suite = "signing"
 statement = "Each gate of the signer rejects its planted defect: the lengths of PAE swapped, the keyid taken from the seed instead of the public key, the digest of the subject not checked, a revoked key accepted, and the history not appended on the first use of a key; SIGNING.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "SG-09"
+level = "build"
+suite = "signing"
+statement = "The signing key is configured by the operator and a verification is not started without it: the host reads the path of the key file from LEXLEAN_MCP_SIGNING_KEY (an empty value is no path), keeps its history in the keys area of the store, and verify.start fails with verifier-unavailable, starts no task and runs no verification when no key is configured and when the configured file is missing, unreadable or malformed, before any copy of the project is made."
+
+[[id]]
+id = "SG-10"
+level = "build"
+suite = "signing"
+statement = "A verification that ends verified leaves a record that is a signed envelope: verifications/<attestation ID>.json is the DSSE envelope, verifications/<attestation ID>/attestation.json is the attestation.json of the verified directory byte for byte, the envelope validates against keys/history with those bytes, its predicate carries the attestation, build, source and semantic IDs, the status verified, the modules and the SHA-256 of each source file, and the result of the task names the key."
+
+[[id]]
+id = "SG-11"
+level = "build"
+suite = "signing"
+statement = "attestation.lookup returns the signed envelope: by attestation ID and by the SHA-256 of a source file the verification covered, the lookup of a concluded verification returns exactly the bytes of the envelope in the store, and those bytes validate against keys/history and the stored attestation.json."
+
+[[id]]
+id = "SG-12"
+level = "build"
+suite = "signing"
+statement = "A verification that cannot be signed leaves no record: when the key's history cannot be written, or the attestation.json of the verified directory cannot be read, the task ends failed with class 5, and the store holds no envelope, no attestation.json and no index entry for it; a verification that failed leaves none either."
+
+[[id]]
+id = "SG-13"
+level = "build"
+suite = "signing"
+statement = "Each gate of the signed record rejects its planted defect: verify.start accepting a verification without a key, the failure to sign ignored and an unsigned record written, the envelope stored without its attestation.json, the predicate without the digests of the source files, and the lookup answering the unsigned record again; SIGNING.md records the command, the diagnostic and the restore of each."

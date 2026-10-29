@@ -1,4 +1,5 @@
-//! The verifier: tasks that run `Engine::verify` on a draft project, one at a time.
+//! The verifier: tasks that run `Engine::verify` on a draft project, one at a time, and sign
+//! the verifications that end `verified`.
 //!
 //! The owner value `verify.concurrency` is 1: a task started while another runs waits, and
 //! none fails for waiting. A task is a thread of this process. LexLean runs Lean in child
@@ -9,6 +10,7 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use camino::Utf8Path;
 use lexlean::verify::{allow_children, end_live_children, GroupEnd};
@@ -17,6 +19,7 @@ use serde_json::json;
 
 use crate::attestation;
 use crate::engine::{class_number, diagnostics};
+use crate::signer::Signer;
 
 /// The state of a task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,6 +54,8 @@ pub struct Job {
     pub selection: Selection,
     /// The root of the store, where the record of a verification is written.
     pub store: PathBuf,
+    /// The signer of the record: a verification is not started without one.
+    pub signer: Arc<Signer>,
 }
 
 /// What runs a job; replaced in tests.
@@ -253,7 +258,81 @@ fn pump(shared: &Arc<Shared>) {
     });
 }
 
-/// Run `Engine::verify` on the project of a job and record the verification.
+/// What a verification that ended `verified` established, and where its verified directory is.
+#[derive(Debug, Clone)]
+pub struct Facts {
+    /// The attestation ID, in lowercase hexadecimal.
+    pub attestation_id: String,
+    /// The build ID.
+    pub build_id: String,
+    /// The source ID.
+    pub source_id: String,
+    /// The semantic ID.
+    pub semantic_id: String,
+    /// The modules that were verified.
+    pub modules: Vec<String>,
+    /// The verified directory, which holds `attestation.json`.
+    pub root: PathBuf,
+}
+
+/// Sign and record a verification that ended `verified`, or leave the store as it was.
+///
+/// The subject is the `attestation.json` of the verified directory, byte for byte; the predicate
+/// carries the IDs, the modules and the digest of each source file, so the envelope binds the
+/// record to the files it covers. The envelope is written last, after the history that names its
+/// key (the signer's) and the subject, so a verification that could not be signed has no record.
+pub fn conclude(job: &Job, facts: &Facts) -> Outcome {
+    let Ok(subject) = std::fs::read(facts.root.join("attestation.json")) else {
+        return failure(
+            5,
+            "the attestation.json of the verification could not be read",
+        );
+    };
+    let digests = attestation::source_digests(&job.directory);
+    let predicate = json!({
+        "status": "verified",
+        "attestation_id": facts.attestation_id,
+        "build_id": facts.build_id,
+        "source_id": facts.source_id,
+        "semantic_id": facts.semantic_id,
+        "modules": facts.modules,
+        "files": digests,
+    });
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs());
+    let envelope = match job.signer.sign(&subject, &predicate, now) {
+        Ok(envelope) => envelope,
+        Err(error) => {
+            return failure(5, &format!("the verification could not be signed: {error}"));
+        }
+    };
+    if attestation::record(
+        &job.store,
+        &facts.attestation_id,
+        &digests,
+        &subject,
+        &envelope,
+    )
+    .is_err()
+    {
+        return failure(5, "the record of the verification could not be written");
+    }
+    let result = json!({
+        "attestation_id": facts.attestation_id,
+        "build_id": facts.build_id,
+        "source_id": facts.source_id,
+        "semantic_id": facts.semantic_id,
+        "modules": facts.modules,
+        "keyid": job.signer.keyid(),
+    });
+    Outcome {
+        class: 0,
+        result: serde_json::to_vec(&result).unwrap_or_default(),
+    }
+}
+
+/// Run `Engine::verify` on the project of a job and, when it verifies, sign and record it.
 pub fn verify(job: &Job) -> Outcome {
     let file = job.directory.join("lexlean.toml");
     let Some(file) = Utf8Path::from_path(&file) else {
@@ -271,23 +350,17 @@ pub fn verify(job: &Job) -> Outcome {
     match engine.verify(VerifyRequest {
         selection: job.selection.clone(),
     }) {
-        Ok(verified) => {
-            let attestation = verified.attestation_id.to_hex();
-            let record = json!({
-                "attestation_id": attestation,
-                "build_id": verified.build_id.to_hex(),
-                "source_id": verified.source_id.to_hex(),
-                "semantic_id": verified.semantic_id.to_hex(),
-                "modules": verified.units.keys().collect::<Vec<_>>(),
-            });
-            match attestation::record(&job.store, &job.directory, &attestation, &record) {
-                Ok(()) => Outcome {
-                    class: 0,
-                    result: serde_json::to_vec(&record).unwrap_or_default(),
-                },
-                Err(()) => failure(5, "the record of the verification could not be written"),
-            }
-        }
+        Ok(verified) => conclude(
+            job,
+            &Facts {
+                attestation_id: verified.attestation_id.to_hex(),
+                build_id: verified.build_id.to_hex(),
+                source_id: verified.source_id.to_hex(),
+                semantic_id: verified.semantic_id.to_hex(),
+                modules: verified.units.keys().cloned().collect(),
+                root: verified.root.into_std_path_buf(),
+            },
+        ),
         Err(error) => Outcome {
             class: class_number(error.class),
             result: diagnostics(&error),

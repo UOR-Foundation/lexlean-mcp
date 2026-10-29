@@ -14,9 +14,17 @@ use gateway_host_api::protocol::{
 
 const TINY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../vectors/fixture/tiny");
 
+/// A configuration whose store is below `dir` and whose signing key is a file of `dir`: a
+/// verification is not started without one.
+fn config_in(dir: &Path) -> Config {
+    let key = dir.join("signing.key");
+    std::fs::write(&key, format!("{}\n", "11".repeat(32))).expect("a key file");
+    Config::at(dir.join("store")).with_signing_key(key)
+}
+
 fn host() -> (Native, tempfile::TempDir) {
     let directory = tempfile::tempdir().expect("a temporary directory");
-    let host = Native::new(Config::at(directory.path().join("store")));
+    let host = Native::new(config_in(directory.path()));
     (host, directory)
 }
 
@@ -770,7 +778,7 @@ fn gated_host() -> (Native, tempfile::TempDir, mpsc::Sender<()>, Arc<Gate>) {
     });
     let runner_gate = Arc::clone(&gate);
     let host = Native::with_runner(
-        Config::at(directory.path().join("store")),
+        config_in(directory.path()),
         Arc::new(move |_job: &Job| {
             {
                 let mut running = runner_gate.running.lock().expect("a lock");
@@ -901,7 +909,7 @@ fn verify_start_refuses_a_project_that_is_not_a_draft_project() {
 #[test]
 fn verify_start_records_the_failure_of_a_bad_draft() {
     let directory = tempfile::tempdir().expect("a directory");
-    let mut host = Native::new(Config::at(directory.path().join("store")));
+    let mut host = Native::new(config_in(directory.path()));
     copy(
         Path::new(TINY),
         &host.config().store.join("drafts").join("tiny"),
@@ -961,6 +969,19 @@ fn verify_start_runs_a_real_verification_and_leaves_a_record() {
         .expect("lookup");
     assert!(by_file.found);
     assert_eq!(by_file.envelope, by_id.envelope);
+    // The record is a signed envelope that validates against the history and the stored subject.
+    let subject = std::fs::read(
+        host.config()
+            .store
+            .join("verifications")
+            .join(&attestation)
+            .join("attestation.json"),
+    )
+    .expect("the subject");
+    let history =
+        gateway_binding::signer::read_history(&host.config().history_path()).expect("a history");
+    gateway_binding::signer::validate(&by_id.envelope, &history, &subject)
+        .expect("a valid envelope");
 }
 
 #[test]

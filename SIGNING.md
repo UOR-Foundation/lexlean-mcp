@@ -2,9 +2,11 @@
 
 Issue #11 asks that every verification record be signed: a DSSE envelope over an in-toto
 statement whose subject is `attestation.json`, with the key history published. This file
-records the slice that stands without the verifier process and the store: the signer, its
-key file, its key history and the validator, registered as SG-01 to SG-08. The verify task
-does not call it yet (see "Not met"), so Q3, R1 and R8 stay `Pending` in the model.
+records the signer, its key file, its key history and the validator (SG-01 to SG-08), and the
+use the verify task makes of them (SG-09 to SG-13): the key is configured, a verification is
+not started without it, and the record of a verification that ended `verified` is the signed
+envelope. The verifier is still a thread of the gateway process, and Q3, R1 and R8 stay
+`Pending` in the model (see "Not met").
 
 The code is `gateway/bindings/gateway-binding/src/signer.rs`; its tests are
 `gateway/bindings/gateway-binding/tests/signing.rs`, and `crates/model/tests/signing.rs`
@@ -21,7 +23,12 @@ holds them against the rows, the failures and this file.
 | SG-05 | The key history is appended on first use, survives rotation, revokes a key on the operator's word, and refuses a damaged list; a revoked key signs nothing. |
 | SG-06 | The key is a file of 64 hexadecimal digits; each fault has its own error; the seed is in nothing that is printed or written. |
 | SG-07 | A signature whose history cannot be recorded returns no envelope; the history is replaced whole. |
-| SG-08 | Each gate rejects its planted defect (below). |
+| SG-08 | Each gate of the signer rejects its planted defect (below). |
+| SG-09 | The key file is named by `LEXLEAN_MCP_SIGNING_KEY`; `verify.start` fails with `verifier-unavailable`, starts no task and copies nothing when there is no key or the file is missing, unreadable or malformed. |
+| SG-10 | A verification that ended `verified` leaves the signed envelope, the `attestation.json` it signs byte for byte, and an envelope that validates against `keys/history`, with the IDs, the modules and the digests of the source files in its predicate. |
+| SG-11 | `attestation.lookup` returns exactly that envelope, by attestation ID and by the digest of a source file. |
+| SG-12 | A verification that cannot be signed, or whose `attestation.json` cannot be read, leaves no record; so does one that failed. |
+| SG-13 | Each gate of the record rejects its planted defect (below). |
 
 ## The formats
 
@@ -61,6 +68,29 @@ first key stay valid. `revoke` sets `revoked_at` and every envelope of that key 
 `KeyRevoked`, whatever it says: an envelope carries no time that someone holding the key could not
 choose, so the validator does not compare times.
 
+## The record
+
+**Configuration.** `LEXLEAN_MCP_SIGNING_KEY` names the key file (an empty value is none). The
+history is `keys/history` below the store. `verify.start` loads the key before it copies the
+project, so a verification that could not be signed is never begun and nothing is left in the
+`builds` area; a missing, unreadable or malformed key, and no key, are all `verifier-unavailable`,
+the failure the model already declares for E7. An operator who fixes the key file does not restart
+the gateway: the file is read at each start.
+
+**Layout.** `verifications/<attestation ID>.json` is the envelope and
+`verifications/<attestation ID>/attestation.json` is the file it signs, the `attestation.json` of
+the verified directory. `index/by-file/<sha256>` names the attestation ID, as before. The subject is
+written first, then the envelope, then the index entries, so a lookup never finds an envelope
+without the file it signs. The envelope is signed after the engine has verified and the subject has
+been read; a failure at any step ends the task `failed` with class 5 and leaves no envelope.
+
+**Predicate.** `status` (`verified`), `attestation_id`, `build_id`, `source_id`, `semantic_id`,
+`modules`, and `files`, the SHA-256 of each source file of the project in the order of their paths.
+The compiler, the toolchain and the observed axioms are in `attestation.json`, which the subject
+digest binds; they are not repeated in the predicate.
+
+**Result.** The result of the task is the IDs and the modules as before, and `keyid`.
+
 ## Claim level
 
 - Ed25519 is `ed25519-dalek` 2.2.0 and base64 is `base64` 0.22.1. SG-02 reproduces from RFC 8032
@@ -72,10 +102,15 @@ choose, so the validator does not compare times.
 
 ## Not met
 
-- **Nothing calls the signer.** `verifier::verify` still writes the unsigned record of
-  `attestation::record`, and `attestation.lookup` (E10) still returns it. Making `verifications/<id>.json`
-  the envelope, `verifications/<id>/attestation.json` the subject, the key a configured file, and a
-  missing key `verifier-unavailable` is the next slice and changes the record and the lookup.
+- **The key is in the gateway process.** The verification is still a thread of it, so the design's
+  separation (the signer in the parent, a verifier child that never holds the key) arrives with the
+  verifier process per task.
+- **The cancel race.** The runner writes the record before the task's lock is taken again, so a
+  task cancelled in the instant after the engine verified can leave a signed record and report
+  `cancelled`. The record is of a verification that did end `verified`, but AC-12 ("leaves no record")
+  is not shown, and Q3 stays `Pending`.
+- **The observed axioms are not compared** with a committed record (AC-05), and no example other than
+  the tiny fixture was verified and signed.
 - **One verifier process per task**, the queue, the cancel race and the lock that Q3 needs, the
   tasks mapping and the pin move to MCP's tasks extension are afflom's design on #11 and are not
   here. AC-05, AC-07, AC-11, AC-12 and AC-13 are not addressed.
@@ -112,11 +147,27 @@ The root-workspace gate that holds every constructor of every public failure to 
 | --- | --- | --- | --- |
 | a constructor with no test: `EnvelopeError::Replayed` added to `signer.rs` | `cargo test -p repo-model --test signing` | 7 passed, 1 failed: `every_refusal_of_an_envelope_and_of_a_key_has_a_negative_test_sg_04` panics `no test reaches EnvelopeError::Replayed` | `git checkout gateway/bindings/gateway-binding/src/signer.rs` |
 
+## Planted defects of the signed record
+
+Planted and restored the same way, with `cargo test -p gateway-binding --test records` (7 passed on
+the unplanted tree).
+
+| Defect | Command | Diagnostic | Restore |
+| --- | --- | --- | --- |
+| verify.start accepting a verification without a key: `verify_start` in `lib.rs` falls back to a built-in key when none loads | `cargo test -p gateway-binding --test records` | 6 passed, 1 failed: `verify_start_without_a_usable_key_is_unavailable_and_starts_nothing_sg_09` finds `Ok("task-1")` where `Err(VerifierUnavailable)` is required, for "no key" | `git checkout gateway/bindings/gateway-binding/src/lib.rs` |
+| the failure to sign ignored: `conclude` takes an empty envelope when `sign` fails and records it | `cargo test -p gateway-binding --test records` | 6 passed, 1 failed: `a_history_that_cannot_be_written_leaves_no_record_sg_12` finds class 0 where 5 is required, and an envelope in the store | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
+| the envelope stored without its attestation.json: `record` does not write the subject | `cargo test -p gateway-binding --test records` | 5 passed, 2 failed: `a_verification_that_ended_verified_leaves_a_signed_envelope_sg_10` and `the_lookup_returns_the_envelope_by_id_and_by_file_digest_sg_11` (`the subject: Os { code: 2, kind: NotFound ... }`) | `git checkout gateway/bindings/gateway-binding/src/attestation.rs` |
+| the predicate without the digests of the source files: `files` is the empty list | `cargo test -p gateway-binding --test records` | 6 passed, 1 failed: `a_verification_that_ended_verified_leaves_a_signed_envelope_sg_10` finds `Array []` where the digest of `Tiny.lex.tex` is required | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
+| the lookup answering the unsigned record again: it reads `<id>/attestation.json` and not `<id>.json` | `cargo test -p gateway-binding --test records` | 6 passed, 1 failed: `the_lookup_returns_the_envelope_by_id_and_by_file_digest_sg_11` finds the bytes of attestation.json where the stored envelope is required | `git checkout gateway/bindings/gateway-binding/src/attestation.rs` |
+
 ## Reproducing
 
 ```sh
 gateway/registry.sh                                      # the registry from gateway/Cargo.lock
 cd gateway
 CARGO_HOME=$PWD/registry/cargo-home cargo test -p gateway-binding --locked --offline --test signing
-cd .. && cargo test -p repo-model --test signing         # SG-01 to SG-08 against the rows
+CARGO_HOME=$PWD/registry/cargo-home cargo test -p gateway-binding --locked --offline --test records
+# a real verification, signed and validated (needs the Lean toolchain; the gateway job runs it by count)
+CARGO_HOME=$PWD/registry/cargo-home cargo test -p gateway-binding --locked --offline -- --ignored
+cd .. && cargo test -p repo-model --test signing         # SG-01 to SG-13 against the rows
 ```

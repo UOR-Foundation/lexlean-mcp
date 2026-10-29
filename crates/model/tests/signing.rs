@@ -22,12 +22,14 @@ fn read(relative: &str) -> String {
 
 const SIGNER: &str = "gateway/bindings/gateway-binding/src/signer.rs";
 const TESTS: &str = "gateway/bindings/gateway-binding/tests/signing.rs";
+const RECORDS: &str = "gateway/bindings/gateway-binding/tests/records.rs";
+const VERIFIER: &str = "gateway/bindings/gateway-binding/src/verifier.rs";
 
-/// The names of the `#[test]` functions of the binding's signing tests.
+/// The names of the `#[test]` functions of the binding's signing and record tests.
 fn gateway_tests() -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     let mut in_test = false;
-    for line in read(TESTS).lines() {
+    for line in read(TESTS).lines().chain(read(RECORDS).lines()) {
         let line = line.trim();
         if line == "#[test]" {
             in_test = true;
@@ -230,6 +232,115 @@ fn each_gate_of_the_signer_rejects_its_planted_defect_sg_08() {
             .find(|line| line.starts_with('|') && line.contains(defect))
             .unwrap_or_else(|| panic!("SIGNING.md records no planted defect: {defect}"));
         // A row names the command, the diagnostic and the restore.
+        assert!(
+            row.contains("cargo test") && row.contains("sg_") && row.contains("git checkout"),
+            "the row of `{defect}` lacks its command, its failing test or its restore: {row}"
+        );
+    }
+}
+
+#[test]
+fn a_verification_is_not_started_without_a_usable_key_sg_09() {
+    answered_by(
+        "SG-09",
+        &[
+            "the_variable_names_the_key_file_and_an_empty_one_is_no_path_sg_09",
+            "verify_start_without_a_usable_key_is_unavailable_and_starts_nothing_sg_09",
+        ],
+    );
+    let config = read("gateway/bindings/gateway-binding/src/config.rs");
+    assert!(
+        config.contains("\"LEXLEAN_MCP_SIGNING_KEY\""),
+        "the key file is named by LEXLEAN_MCP_SIGNING_KEY"
+    );
+    // The key is loaded before the project is copied, so nothing is left when it is unusable.
+    let host = read("gateway/bindings/gateway-binding/src/lib.rs");
+    let start = host.find("fn verify_start(").expect("verify_start");
+    let body = &host[start..];
+    let key = body
+        .find("self.config.signing_key")
+        .expect("verify_start reads the key");
+    let copy = body
+        .find("project::resolve(")
+        .expect("verify_start copies the project");
+    assert!(
+        key < copy,
+        "the key is checked before the project is copied"
+    );
+}
+
+#[test]
+fn the_record_of_a_verification_is_the_signed_envelope_sg_10() {
+    answered_by(
+        "SG-10",
+        &["a_verification_that_ended_verified_leaves_a_signed_envelope_sg_10"],
+    );
+    let verifier = read(VERIFIER);
+    // Every record is written by `conclude`, and the result of the engine reaches `conclude`.
+    assert_eq!(
+        verifier.matches("attestation::record(").count(),
+        1,
+        "a record is written in one place"
+    );
+    let verify = &verifier[verifier.find("pub fn verify(").expect("verify")..];
+    assert!(
+        verify.contains("conclude("),
+        "a verified project is concluded"
+    );
+}
+
+#[test]
+fn the_lookup_returns_the_envelope_sg_11() {
+    answered_by(
+        "SG-11",
+        &["the_lookup_returns_the_envelope_by_id_and_by_file_digest_sg_11"],
+    );
+}
+
+#[test]
+fn a_verification_that_cannot_be_signed_leaves_no_record_sg_12() {
+    answered_by(
+        "SG-12",
+        &[
+            "a_history_that_cannot_be_written_leaves_no_record_sg_12",
+            "a_verified_directory_without_attestation_json_leaves_no_record_sg_12",
+            "a_draft_that_does_not_verify_leaves_no_record_and_no_key_entry_sg_12",
+        ],
+    );
+    // The order in `conclude`: the subject is read, then signed, then recorded.
+    let verifier = read(VERIFIER);
+    let conclude = &verifier[verifier.find("pub fn conclude(").expect("conclude")..];
+    let read_at = conclude
+        .find("attestation.json")
+        .expect("conclude reads the subject");
+    let sign = conclude.find("job.signer.sign(").expect("conclude signs");
+    let record = conclude
+        .find("attestation::record(")
+        .expect("conclude records");
+    assert!(
+        read_at < sign && sign < record,
+        "read, then sign, then record"
+    );
+}
+
+#[test]
+fn each_gate_of_the_signed_record_rejects_its_planted_defect_sg_13() {
+    let document = read("SIGNING.md");
+    let section = document
+        .split("## Planted defects of the signed record")
+        .nth(1)
+        .expect("SIGNING.md has a section Planted defects of the signed record");
+    for defect in [
+        "verify.start accepting a verification without a key",
+        "the failure to sign ignored",
+        "the envelope stored without its attestation.json",
+        "the predicate without the digests of the source files",
+        "the lookup answering the unsigned record again",
+    ] {
+        let row = section
+            .lines()
+            .find(|line| line.starts_with('|') && line.contains(defect))
+            .unwrap_or_else(|| panic!("SIGNING.md records no planted defect: {defect}"));
         assert!(
             row.contains("cargo test") && row.contains("sg_") && row.contains("git checkout"),
             "the row of `{defect}` lacks its command, its failing test or its restore: {row}"

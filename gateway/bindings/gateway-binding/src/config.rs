@@ -1,5 +1,6 @@
 //! Where the host keeps its state, and the owner values that bound it.
 
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -27,6 +28,9 @@ pub struct Config {
     pub blob_max_bytes: usize,
     /// The length of the rate window.
     pub rate_window: Duration,
+    /// The file that holds the signing key, named by `LEXLEAN_MCP_SIGNING_KEY`. A verification
+    /// is not started without a key that loads, because its record would be unsigned.
+    pub signing_key: Option<PathBuf>,
 }
 
 impl Config {
@@ -36,14 +40,32 @@ impl Config {
             store: store.into(),
             blob_max_bytes: DRAFT_MAX_BYTES + DRAFT_BLOB_HEADROOM,
             rate_window: RATE_WINDOW,
+            signing_key: None,
         }
+    }
+
+    /// This configuration with the key file `key`.
+    pub fn with_signing_key(mut self, key: impl Into<PathBuf>) -> Config {
+        self.signing_key = Some(key.into());
+        self
+    }
+
+    /// The key history: `keys/history` below the store.
+    pub fn history_path(&self) -> PathBuf {
+        self.store.join("keys").join("history")
     }
 
     /// The configuration of a process: the store is `LEXLEAN_MCP_STORE`, else
     /// `lexlean-mcp/store` below `XDG_DATA_HOME` or `~/.local/share`, else a directory of
-    /// the working directory.
+    /// the working directory; the key file is `LEXLEAN_MCP_SIGNING_KEY`.
     pub fn from_environment() -> Config {
-        let variable = |name: &str| std::env::var_os(name).filter(|value| !value.is_empty());
+        Config::from_variables(|name| std::env::var_os(name))
+    }
+
+    /// The configuration that the variables `lookup` gives, as `from_environment` reads them;
+    /// a variable that is empty is not set.
+    pub fn from_variables(lookup: impl Fn(&str) -> Option<OsString>) -> Config {
+        let variable = |name: &str| lookup(name).filter(|value| !value.is_empty());
         let store = if let Some(path) = variable("LEXLEAN_MCP_STORE") {
             PathBuf::from(path)
         } else if let Some(data) = variable("XDG_DATA_HOME") {
@@ -57,6 +79,8 @@ impl Config {
         } else {
             PathBuf::from("lexlean-mcp-store")
         };
-        Config::at(store)
+        let mut config = Config::at(store);
+        config.signing_key = variable("LEXLEAN_MCP_SIGNING_KEY").map(PathBuf::from);
+        config
     }
 }
