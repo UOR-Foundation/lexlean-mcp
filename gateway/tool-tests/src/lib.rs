@@ -365,16 +365,18 @@ impl Gateway {
     pub fn new() -> Gateway {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let store = directory.path().join("store");
-        // A verification is not started without a key.
+        // A verification is not started without a key and a verifier program.
         std::fs::write(
             directory.path().join("signing.key"),
             format!("{}\n", "44".repeat(32)),
         )
         .expect("a key file");
+        stand_in_verifier(&directory.path().join("verifier"));
+        let config = Config::at(store.clone())
+            .with_signing_key(directory.path().join("signing.key"))
+            .with_verifier(directory.path().join("verifier"));
         Gateway {
-            host: Native::new(
-                Config::at(store.clone()).with_signing_key(directory.path().join("signing.key")),
-            ),
+            host: Native::new(config),
             store,
             next: 100,
             _directory: directory,
@@ -500,8 +502,23 @@ impl Gateway {
 
     /// The configuration of the real host.
     pub fn config(&self) -> Config {
-        Config::at(self.store.clone()).with_signing_key(self._directory.path().join("signing.key"))
+        Config::at(self.store.clone())
+            .with_signing_key(self._directory.path().join("signing.key"))
+            .with_verifier(self._directory.path().join("verifier"))
     }
+}
+
+/// A program that takes the place of `gateway-verifier` for the tests that only need a task to
+/// begin: it says it has started, reads the job, and ends when its input does, as the real one
+/// does when the host lets go of it.
+fn stand_in_verifier(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::write(
+        path,
+        "#!/bin/sh\nprintf '{\"event\":\"started\",\"sid\":null}\\n'\ncat > /dev/null\n",
+    )
+    .expect("a script");
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("a mode");
 }
 
 /// Copy a directory tree, leaving out the build root of LexLean.

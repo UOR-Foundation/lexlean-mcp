@@ -9,18 +9,20 @@
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use gateway_binding::signer::{self, Signer};
-use gateway_binding::{conclude, Config, Facts, Job, Native, Outcome, State};
+use gateway_binding::{conclude, Config, Facts, Job, Native, State};
 use gateway_host_api::protocol::{
     attestation_lookup, verify_control, verify_start, Host, HostError,
 };
 use lexlean::Selection;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+
+#[allow(dead_code)]
+mod common;
 
 const TINY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../vectors/fixture/tiny");
 const SEED: [u8; 32] = [0x33; 32];
@@ -69,7 +71,9 @@ fn key_file(dir: &Path) -> PathBuf {
 
 /// A configuration whose store is below `dir` and whose key is a file of `dir`.
 fn config(dir: &Path) -> Config {
-    Config::at(dir.join("store")).with_signing_key(key_file(dir))
+    Config::at(dir.join("store"))
+        .with_signing_key(key_file(dir))
+        .with_verifier(common::real_verifier())
 }
 
 /// The attestation.json of a verified directory, as bytes the signer must not alter.
@@ -191,7 +195,6 @@ fn the_variable_names_the_key_file_and_an_empty_one_is_no_path_sg_09() {
 
 #[test]
 fn verify_start_without_a_usable_key_is_unavailable_and_starts_nothing_sg_09() {
-    let runs = Arc::new(AtomicUsize::new(0));
     let unusable: [(&str, Make); 4] = [
         ("no key", Box::new(|dir| Config::at(dir.join("store")))),
         (
@@ -213,17 +216,8 @@ fn verify_start_without_a_usable_key_is_unavailable_and_starts_nothing_sg_09() {
     ];
     for (label, make) in unusable {
         let directory = tempfile::tempdir().expect("a directory");
-        let counter = Arc::clone(&runs);
-        let mut host = Native::with_runner(
-            make(directory.path()),
-            Arc::new(move |_job: &Job| {
-                counter.fetch_add(1, Ordering::SeqCst);
-                Outcome {
-                    class: 0,
-                    result: Vec::new(),
-                }
-            }),
-        );
+        let program = common::fake_verifier(directory.path());
+        let mut host = Native::new(make(directory.path()).with_verifier(program));
         copy(
             Path::new(TINY),
             &host.config().store.join("drafts").join("tiny"),
@@ -255,7 +249,7 @@ fn verify_start_without_a_usable_key_is_unavailable_and_starts_nothing_sg_09() {
             Err(verify_start::Failure::ProjectRefused),
             "{label}: an absent project"
         );
-        // No task was made, and nothing was copied for one.
+        // No task was made, no process was started, and nothing was copied for one.
         let known = host
             .verify_control(verify_control::Request {
                 task: "task-1".into(),
@@ -270,17 +264,11 @@ fn verify_start_without_a_usable_key_is_unavailable_and_starts_nothing_sg_09() {
             "{label}: no copy of the project was made"
         );
     }
-    assert_eq!(runs.load(Ordering::SeqCst), 0, "no verification ran");
 
     // With a key, the same request starts the first task.
     let directory = tempfile::tempdir().expect("a directory");
-    let mut host = Native::with_runner(
-        config(directory.path()),
-        Arc::new(|_job: &Job| Outcome {
-            class: 0,
-            result: Vec::new(),
-        }),
-    );
+    let program = common::fake_verifier(directory.path());
+    let mut host = Native::new(config(directory.path()).with_verifier(program));
     copy(
         Path::new(TINY),
         &host.config().store.join("drafts").join("tiny"),

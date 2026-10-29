@@ -347,7 +347,7 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "gateway-binding tests" gateway_cargo test -p gateway-binding --locked --offline &&
-            gate "gateway-binding ignored tests" gateway_ignored_tests gateway-binding 1 &&
+            gate "gateway-binding ignored tests" gateway_ignored_tests gateway-binding 2 &&
             gate "gateway-tool-tests" gateway_cargo test -p gateway-tool-tests --locked --offline
       - name: 7h2. each tool equals the lexlean CLI of the same commit (AC-07)
         run: |

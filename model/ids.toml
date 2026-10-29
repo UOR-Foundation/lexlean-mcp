@@ -1003,3 +1003,39 @@ id = "SG-13"
 level = "build"
 suite = "signing"
 statement = "Each gate of the signed record rejects its planted defect: verify.start accepting a verification without a key, the failure to sign ignored and an unsigned record written, the envelope stored without its attestation.json, the predicate without the digests of the source files, and the lookup answering the unsigned record again; SIGNING.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "VP-01"
+level = "build"
+suite = "verifier"
+statement = "The verifier is a program that speaks lines of JSON: gateway-verifier becomes the leader of a session of its own and says so in a started event that names the session, reads one job line (the directory of the project and the selection) from its standard input, runs Engine::verify and prints one verdict --- verified with the IDs, the modules and the verified directory, failed with the class and the diagnostics of the engine, or cancelled with the groups it ended and those it could not end --- on a line of its standard output; a line cancel on its standard input ends every live child group of the process, the end of that input ends them and the process, and a job line that is not a job is a failed verdict of class 5."
+
+[[id]]
+id = "VP-02"
+level = "build"
+suite = "verifier"
+statement = "Each task runs in a process of its own that does not hold the key: verify.start starts the program of the configuration (LEXLEAN_MCP_VERIFIER, else gateway-verifier beside the running executable) with the width and the memory of the owner values in LEXLEAN_VERIFY_WIDTH and LEXLEAN_VERIFY_MEMORY_KIB, without LEXLEAN_MCP_SIGNING_KEY in its environment and with nothing of the seed or of the path of the key file in its arguments, its environment or its input; when the configured program is not a file, verify.start fails with verifier-unavailable, starts no task and leaves nothing in the builds area."
+
+[[id]]
+id = "VP-03"
+level = "build"
+suite = "verifier"
+statement = "The tasks run as many at a time as the slots of verify.concurrency allow and the others wait: with one slot the second and the third of three tasks are Queued while the first runs, none fails for waiting, they run in the order they were started and never two at once; with two slots two run at once; and a verification that the process reports verified is signed and recorded by the host with the facts the process printed, in the process of the host."
+
+[[id]]
+id = "VP-04"
+level = "build"
+suite = "verifier"
+statement = "A cancel ends one task: a queued task leaves the queue and its process is never started; a running task is sent cancel, the answer carries the groups its process reported, the task ends Cancelled with no record and the other tasks are not touched; a process that reports verified while the cancel is pending leaves no record, because the record is made under the lock that the cancel takes; and a process that does not answer within the grace is killed, together with its session."
+
+[[id]]
+id = "VP-05"
+level = "build"
+suite = "verifier"
+statement = "A verifier that is lost leaves nothing: a process that ends without a verdict, by exiting or by a signal, ends its task Failed with class 5 and the result {\"failure\":\"verifier-lost\"} with the tail of its standard error, no record is made, the other tasks are not touched, and every process left in its session --- children that outlived it --- is killed, because LexLean starts its own children with an empty environment, so no marker in the environment can find them."
+
+[[id]]
+id = "VP-06"
+level = "build"
+suite = "verifier"
+statement = "Each gate of the verifier process rejects its planted defect: the key left in the environment of the process, a record made for a task that is being cancelled, the session of a lost verifier not killed, the slots ignored so that every task starts at once, and a process that ignores cancel left running; VERIFIER.md records the command, the diagnostic and the restore of each."

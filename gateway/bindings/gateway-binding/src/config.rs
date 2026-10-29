@@ -18,6 +18,22 @@ pub const RATE_WINDOW: Duration = Duration::from_millis(60_000);
 /// The most bytes of a verification log that a status carries.
 pub const LOG_TAIL_BYTES: usize = 65_536;
 
+/// The environment variable that names the file of the signing key. The verifier process is
+/// started without it.
+pub const SIGNING_KEY_VARIABLE: &str = "LEXLEAN_MCP_SIGNING_KEY";
+
+/// The tasks that run at once: the owner value `verify.concurrency`.
+pub const VERIFY_CONCURRENCY: usize = 1;
+
+/// The width of one verification: the owner value `verify.width`.
+pub const VERIFY_WIDTH: u32 = 1;
+
+/// The memory budget of one verification, in KiB: the owner value `verify.memory_kib`.
+pub const VERIFY_MEMORY_KIB: u64 = 12_582_912;
+
+/// How long a process may take to answer a cancel before it is killed.
+pub const CANCEL_GRACE: Duration = Duration::from_secs(30);
+
 /// The host's configuration.
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -31,6 +47,17 @@ pub struct Config {
     /// The file that holds the signing key, named by `LEXLEAN_MCP_SIGNING_KEY`. A verification
     /// is not started without a key that loads, because its record would be unsigned.
     pub signing_key: Option<PathBuf>,
+    /// The program that verifies, one process for each task: `LEXLEAN_MCP_VERIFIER`, else
+    /// `gateway-verifier` beside the running executable. A verification is not started without it.
+    pub verifier_program: Option<PathBuf>,
+    /// The tasks that run at once.
+    pub verify_concurrency: usize,
+    /// The width of one verification, given to its process in `LEXLEAN_VERIFY_WIDTH`.
+    pub verify_width: u32,
+    /// The memory budget of one verification, in KiB, given in `LEXLEAN_VERIFY_MEMORY_KIB`.
+    pub verify_memory_kib: u64,
+    /// How long a process may take to answer a cancel before it is killed.
+    pub cancel_grace: Duration,
 }
 
 impl Config {
@@ -41,7 +68,30 @@ impl Config {
             blob_max_bytes: DRAFT_MAX_BYTES + DRAFT_BLOB_HEADROOM,
             rate_window: RATE_WINDOW,
             signing_key: None,
+            verifier_program: None,
+            verify_concurrency: VERIFY_CONCURRENCY,
+            verify_width: VERIFY_WIDTH,
+            verify_memory_kib: VERIFY_MEMORY_KIB,
+            cancel_grace: CANCEL_GRACE,
         }
+    }
+
+    /// This configuration with the verifier program `program`.
+    pub fn with_verifier(mut self, program: impl Into<PathBuf>) -> Config {
+        self.verifier_program = Some(program.into());
+        self
+    }
+
+    /// This configuration with `slots` tasks at once.
+    pub fn with_verify_concurrency(mut self, slots: usize) -> Config {
+        self.verify_concurrency = slots;
+        self
+    }
+
+    /// This configuration with `grace` for a process to answer a cancel.
+    pub fn with_cancel_grace(mut self, grace: Duration) -> Config {
+        self.cancel_grace = grace;
+        self
     }
 
     /// This configuration with the key file `key`.
@@ -59,7 +109,17 @@ impl Config {
     /// `lexlean-mcp/store` below `XDG_DATA_HOME` or `~/.local/share`, else a directory of
     /// the working directory; the key file is `LEXLEAN_MCP_SIGNING_KEY`.
     pub fn from_environment() -> Config {
-        Config::from_variables(|name| std::env::var_os(name))
+        let mut config = Config::from_variables(|name| std::env::var_os(name));
+        if config.verifier_program.is_none() {
+            config.verifier_program = std::env::current_exe()
+                .ok()
+                .and_then(|exe| {
+                    exe.parent()
+                        .map(|directory| directory.join("gateway-verifier"))
+                })
+                .filter(|program| program.is_file());
+        }
+        config
     }
 
     /// The configuration that the variables `lookup` gives, as `from_environment` reads them;
@@ -80,7 +140,8 @@ impl Config {
             PathBuf::from("lexlean-mcp-store")
         };
         let mut config = Config::at(store);
-        config.signing_key = variable("LEXLEAN_MCP_SIGNING_KEY").map(PathBuf::from);
+        config.signing_key = variable(SIGNING_KEY_VARIABLE).map(PathBuf::from);
+        config.verifier_program = variable("LEXLEAN_MCP_VERIFIER").map(PathBuf::from);
         config
     }
 }

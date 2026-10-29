@@ -1,30 +1,38 @@
-//! The verifier: tasks that run `Engine::verify` on a draft project, one at a time, and sign
-//! the verifications that end `verified`.
+//! The verifier of the host: tasks that each run `Engine::verify` in a process of their own, and
+//! the signing of the verifications that end `verified`.
 //!
-//! The owner value `verify.concurrency` is 1: a task started while another runs waits, and
-//! none fails for waiting. A task is a thread of this process. LexLean runs Lean in child
-//! process groups of its own; cancelling a running task ends every live group the library
-//! started (`end_live_children`), which is the running task's, because only one runs.
-//! Tasks live as long as the process: a task of an earlier process is unknown.
+//! A task is a `gateway-verifier` process (see `child`). The host starts at most
+//! `verify.concurrency` of them at once and holds the others in a queue, and none fails for waiting.
+//! One process for each task is the only isolation the library offers: `end_live_children` ends
+//! every child group of the process that calls it, so a process that runs two tasks cannot cancel
+//! one. The key of the gateway is not in these processes: they print the facts of a verification,
+//! and the host signs and records them (`conclude`) under the lock that a cancel takes, so a task
+//! is either cancelled or recorded and never both.
+//!
+//! A process that ends without a verdict is a lost verifier: its task fails, and whatever its
+//! session still holds is killed (`sweep`). Tasks live as long as the host: a task of an earlier
+//! process is unknown, and the processes of a host that has gone end themselves when their input
+//! does.
 
 use std::collections::{BTreeMap, VecDeque};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::{mpsc, Arc, Condvar, Mutex, MutexGuard, PoisonError};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use camino::Utf8Path;
-use lexlean::verify::{allow_children, end_live_children, GroupEnd};
-use lexlean::{Engine, Selection, VerifyRequest};
-use serde_json::json;
+use lexlean::Selection;
+use serde_json::{json, Value};
 
 use crate::attestation;
-use crate::engine::{class_number, diagnostics};
+use crate::config::{Config, SIGNING_KEY_VARIABLE};
 use crate::signer::Signer;
+use crate::sweep;
 
 /// The state of a task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum State {
-    /// Waiting for the running task to end.
+    /// Waiting for a slot.
     Queued = 0,
     /// Running.
     Running = 1,
@@ -58,9 +66,6 @@ pub struct Job {
     pub signer: Arc<Signer>,
 }
 
-/// What runs a job; replaced in tests.
-pub type Runner = Arc<dyn Fn(&Job) -> Outcome + Send + Sync>;
-
 /// A status or a cancellation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Report {
@@ -76,11 +81,44 @@ pub struct Report {
     pub groups_failed: u32,
 }
 
+/// Where a task is. A cancel in progress is `Cancelling`, which a status reports as running.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Phase {
+    Queued,
+    Running,
+    Cancelling,
+    Verified,
+    Failed,
+    Cancelled,
+}
+
+impl Phase {
+    fn state(self) -> State {
+        match self {
+            Phase::Queued => State::Queued,
+            Phase::Running | Phase::Cancelling => State::Running,
+            Phase::Verified => State::Verified,
+            Phase::Failed => State::Failed,
+            Phase::Cancelled => State::Cancelled,
+        }
+    }
+
+    fn ended(self) -> bool {
+        matches!(self, Phase::Verified | Phase::Failed | Phase::Cancelled)
+    }
+}
+
 struct Task {
     job: Job,
-    state: State,
-    cancelled: bool,
+    phase: Phase,
     outcome: Option<Outcome>,
+    /// The input of the process, held while it runs; letting go of it is the end of the input.
+    input: Option<ChildStdin>,
+    pid: Option<u32>,
+    /// The session the process said it leads.
+    session: Option<u32>,
+    /// The groups a cancel ended and could not end, as the process reported them.
+    groups: (u32, u32),
 }
 
 #[derive(Default)]
@@ -88,12 +126,18 @@ struct Tasks {
     next: u64,
     tasks: BTreeMap<String, Task>,
     queue: VecDeque<String>,
-    running: Option<String>,
+    /// The processes that run: tasks that are `Running` or `Cancelling`, until the process is gone.
+    running: usize,
 }
 
 struct Shared {
     tasks: Mutex<Tasks>,
-    runner: Runner,
+    changed: Condvar,
+    program: Option<PathBuf>,
+    concurrency: usize,
+    width: u32,
+    memory_kib: u64,
+    grace: Duration,
 }
 
 /// The verifier of a host.
@@ -101,96 +145,8 @@ pub struct Verifier {
     shared: Arc<Shared>,
 }
 
-fn lock(tasks: &Mutex<Tasks>) -> MutexGuard<'_, Tasks> {
-    tasks.lock().unwrap_or_else(PoisonError::into_inner)
-}
-
-impl Default for Verifier {
-    fn default() -> Verifier {
-        Verifier::with_runner(Arc::new(verify))
-    }
-}
-
-impl Verifier {
-    /// A verifier that runs jobs with `runner`.
-    pub fn with_runner(runner: Runner) -> Verifier {
-        Verifier {
-            shared: Arc::new(Shared {
-                tasks: Mutex::new(Tasks::default()),
-                runner,
-            }),
-        }
-    }
-
-    /// Queue a task; it runs when none is running. Returns its name and its state.
-    pub fn start(&self, job: Job) -> (String, State) {
-        let name = {
-            let mut tasks = lock(&self.shared.tasks);
-            tasks.next += 1;
-            let name = format!("task-{}", tasks.next);
-            tasks.tasks.insert(
-                name.clone(),
-                Task {
-                    job,
-                    state: State::Queued,
-                    cancelled: false,
-                    outcome: None,
-                },
-            );
-            tasks.queue.push_back(name.clone());
-            name
-        };
-        pump(&self.shared);
-        let state = lock(&self.shared.tasks)
-            .tasks
-            .get(&name)
-            .map_or(State::Queued, |task| task.state);
-        (name, state)
-    }
-
-    /// The state of a task; `None` when there is no such task.
-    pub fn status(&self, name: &str) -> Option<Report> {
-        let tasks = lock(&self.shared.tasks);
-        tasks.tasks.get(name).map(|task| report(task, 0, 0))
-    }
-
-    /// Cancel a task: a queued one leaves the queue, a running one has its process groups
-    /// ended. A task that has ended stays as it ended. `None` when there is no such task.
-    pub fn cancel(&self, name: &str) -> Option<Report> {
-        let mut tasks = lock(&self.shared.tasks);
-        let state = tasks.tasks.get(name)?.state;
-        match state {
-            State::Queued => {
-                tasks.queue.retain(|queued| queued != name);
-                let task = tasks.tasks.get_mut(name)?;
-                task.state = State::Cancelled;
-                task.cancelled = true;
-                task.outcome = Some(cancelled());
-                Some(report(task, 0, 0))
-            }
-            State::Running => {
-                // Held under the lock of the tasks: the worker takes it to end the task, so it
-                // cannot finish and re-enable children between the mark and the ending.
-                let task = tasks.tasks.get_mut(name)?;
-                task.cancelled = true;
-                task.state = State::Cancelled;
-                task.outcome = Some(cancelled());
-                let mut ended = 0;
-                let mut failed = 0;
-                for group in end_live_children() {
-                    match group.outcome {
-                        GroupEnd::Ended => ended += 1,
-                        GroupEnd::Failed(_) => failed += 1,
-                        GroupEnd::AlreadyGone => {}
-                    }
-                }
-                Some(report(tasks.tasks.get(name)?, ended, failed))
-            }
-            State::Verified | State::Failed | State::Cancelled => {
-                Some(report(tasks.tasks.get(name)?, 0, 0))
-            }
-        }
-    }
+fn lock(shared: &Shared) -> MutexGuard<'_, Tasks> {
+    shared.tasks.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 fn cancelled() -> Outcome {
@@ -205,7 +161,7 @@ fn report(task: &Task, groups_ended: u32, groups_failed: u32) -> Report {
         (outcome.class, outcome.result.clone())
     });
     Report {
-        state: task.state,
+        state: task.phase.state(),
         class,
         result,
         groups_ended,
@@ -213,48 +169,429 @@ fn report(task: &Task, groups_ended: u32, groups_failed: u32) -> Report {
     }
 }
 
-/// Start the next queued task when none is running.
-fn pump(shared: &Arc<Shared>) {
-    let next = {
-        let mut tasks = lock(&shared.tasks);
-        if tasks.running.is_some() {
-            return;
+impl Verifier {
+    /// A verifier that runs the program of `config`, `verify.concurrency` tasks at a time.
+    pub fn new(config: &Config) -> Verifier {
+        Verifier {
+            shared: Arc::new(Shared {
+                tasks: Mutex::new(Tasks::default()),
+                changed: Condvar::new(),
+                program: config.verifier_program.clone(),
+                concurrency: config.verify_concurrency.max(1),
+                width: config.verify_width,
+                memory_kib: config.verify_memory_kib,
+                grace: config.cancel_grace,
+            }),
         }
-        let Some(name) = tasks.queue.pop_front() else {
-            return;
+    }
+
+    /// Queue a task; it runs when a slot is free. Returns its name and its state.
+    pub fn start(&self, job: Job) -> (String, State) {
+        let name = {
+            let mut tasks = lock(&self.shared);
+            tasks.next += 1;
+            let name = format!("task-{}", tasks.next);
+            tasks.tasks.insert(
+                name.clone(),
+                Task {
+                    job,
+                    phase: Phase::Queued,
+                    outcome: None,
+                    input: None,
+                    pid: None,
+                    session: None,
+                    groups: (0, 0),
+                },
+            );
+            tasks.queue.push_back(name.clone());
+            name
         };
-        tasks.running = Some(name.clone());
-        let Some(task) = tasks.tasks.get_mut(&name) else {
-            tasks.running = None;
-            return;
-        };
-        task.state = State::Running;
-        (name, task.job.clone())
-    };
-    let shared = Arc::clone(shared);
-    std::thread::spawn(move || {
-        let (name, job) = next;
-        let outcome = (shared.runner)(&job);
-        {
-            let mut tasks = lock(&shared.tasks);
-            if let Some(task) = tasks.tasks.get_mut(&name) {
-                if task.cancelled {
-                    task.state = State::Cancelled;
-                    task.outcome = Some(cancelled());
-                    // The library refuses children after `end_live_children`.
-                    allow_children();
-                } else {
-                    task.state = if outcome.class == 0 {
-                        State::Verified
-                    } else {
-                        State::Failed
-                    };
-                    task.outcome = Some(outcome);
+        pump(&self.shared);
+        let state = lock(&self.shared)
+            .tasks
+            .get(&name)
+            .map_or(State::Queued, |task| task.phase.state());
+        (name, state)
+    }
+
+    /// The state of a task; `None` when there is no such task.
+    pub fn status(&self, name: &str) -> Option<Report> {
+        let tasks = lock(&self.shared);
+        tasks.tasks.get(name).map(|task| report(task, 0, 0))
+    }
+
+    /// Cancel a task. A queued one leaves the queue and is never given to a process. A running one
+    /// is sent `cancel`; the answer carries the groups its process ended, and when the process does
+    /// not answer within the grace it is killed with its session. A task that has ended stays as it
+    /// ended. `None` when there is no such task.
+    pub fn cancel(&self, name: &str) -> Option<Report> {
+        let shared = &self.shared;
+        let mut tasks = lock(shared);
+        match tasks.tasks.get(name)?.phase {
+            Phase::Queued => {
+                tasks.queue.retain(|queued| queued != name);
+                let task = tasks.tasks.get_mut(name)?;
+                task.phase = Phase::Cancelled;
+                task.outcome = Some(cancelled());
+                shared.changed.notify_all();
+                return Some(report(task, 0, 0));
+            }
+            Phase::Running => {
+                let task = tasks.tasks.get_mut(name)?;
+                task.phase = Phase::Cancelling;
+                if let Some(input) = task.input.as_mut() {
+                    let _ = writeln!(input, "cancel").and_then(|()| input.flush());
                 }
             }
-            tasks.running = None;
+            Phase::Cancelling => {}
+            Phase::Verified | Phase::Failed | Phase::Cancelled => {
+                return Some(report(tasks.tasks.get(name)?, 0, 0));
+            }
         }
-        pump(&shared);
+
+        // The watcher of the process ends the task when the process answers or is gone.
+        let (mut tasks, mut over) = wait_for_end(shared, tasks, name, shared.grace);
+        let mut swept = 0;
+        if !over {
+            let (pid, session) = {
+                let task = tasks.tasks.get(name)?;
+                (task.pid, task.session)
+            };
+            drop(tasks);
+            if let Some(pid) = pid {
+                sweep::kill(pid);
+            }
+            if let Some(session) = session {
+                swept = sweep::kill_session(session);
+            }
+            let (again, ended) = wait_for_end(shared, lock(shared), name, Duration::from_secs(5));
+            tasks = again;
+            over = ended;
+        }
+        let task = tasks.tasks.get_mut(name)?;
+        if !over {
+            // The watcher is stuck; the task is cancelled all the same, and the process is not its business.
+            task.phase = Phase::Cancelled;
+            task.outcome = Some(cancelled());
+            shared.changed.notify_all();
+        }
+        let (ended, failed) = task.groups;
+        Some(report(task, ended + swept, failed))
+    }
+}
+
+impl Drop for Verifier {
+    fn drop(&mut self) {
+        // Letting go of the inputs ends the processes: each ends its groups when its input does.
+        let mut tasks = lock(&self.shared);
+        tasks.queue.clear();
+        for task in tasks.tasks.values_mut() {
+            task.input = None;
+        }
+    }
+}
+
+/// Wait until the task has ended, for at most `limit`; whether it has.
+fn wait_for_end<'a>(
+    shared: &'a Shared,
+    mut tasks: MutexGuard<'a, Tasks>,
+    name: &str,
+    limit: Duration,
+) -> (MutexGuard<'a, Tasks>, bool) {
+    let deadline = Instant::now() + limit;
+    loop {
+        if tasks.tasks.get(name).is_none_or(|task| task.phase.ended()) {
+            return (tasks, true);
+        }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return (tasks, false);
+        }
+        tasks = shared
+            .changed
+            .wait_timeout(tasks, remaining)
+            .unwrap_or_else(PoisonError::into_inner)
+            .0;
+    }
+}
+
+/// The kind and the files of a selection, as the process reads them.
+fn selection_spec(selection: &Selection) -> (u32, Vec<String>) {
+    match selection {
+        Selection::Entrypoints => (0, Vec::new()),
+        Selection::All => (1, Vec::new()),
+        Selection::Files(files) => (2, files.iter().map(ToString::to_string).collect()),
+    }
+}
+
+/// Start the queued tasks while a slot is free.
+fn pump(shared: &Arc<Shared>) {
+    let mut tasks = lock(shared);
+    while tasks.running < shared.concurrency {
+        let Some(name) = tasks.queue.pop_front() else {
+            break;
+        };
+        let Some(task) = tasks.tasks.get_mut(&name) else {
+            continue;
+        };
+        match launch(shared, &name, task) {
+            Ok(()) => tasks.running += 1,
+            Err(message) => {
+                task.phase = Phase::Failed;
+                task.outcome = Some(failure(5, &message));
+                shared.changed.notify_all();
+            }
+        }
+    }
+}
+
+/// Start the process of a task and the thread that watches it.
+fn launch(shared: &Arc<Shared>, name: &str, task: &mut Task) -> Result<(), String> {
+    let program = shared
+        .program
+        .as_deref()
+        .ok_or("no verifier program is configured")?;
+    let directory = task
+        .job
+        .directory
+        .to_str()
+        .ok_or("the project path is not UTF-8")?;
+    let (kind, files) = selection_spec(&task.job.selection);
+    let line = json!({"directory": directory, "selection": {"kind": kind, "files": files}});
+    let mut child = Command::new(program)
+        .env("LEXLEAN_VERIFY_WIDTH", shared.width.to_string())
+        .env("LEXLEAN_VERIFY_MEMORY_KIB", shared.memory_kib.to_string())
+        .env_remove(SIGNING_KEY_VARIABLE)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("the verifier could not be started: {}", error.kind()))?;
+    let (Some(mut input), Some(output), Some(errors)) =
+        (child.stdin.take(), child.stdout.take(), child.stderr.take())
+    else {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err("the verifier has no pipes".to_owned());
+    };
+    // A process that is already gone is found by its watcher.
+    let _ = writeln!(input, "{line}").and_then(|()| input.flush());
+    task.pid = Some(child.id());
+    task.input = Some(input);
+    task.phase = Phase::Running;
+
+    let tail = Arc::new(Mutex::new(Vec::new()));
+    let drained = Arc::clone(&tail);
+    std::thread::spawn(move || drain(errors, &drained));
+    let shared = Arc::clone(shared);
+    let name = name.to_owned();
+    std::thread::spawn(move || watch(&shared, &name, child, output, &tail));
+    Ok(())
+}
+
+/// Keep the last bytes of the standard error of a process, for the result of a lost verifier.
+fn drain(mut errors: impl Read, tail: &Mutex<Vec<u8>>) {
+    const KEPT: usize = 8192;
+    let mut buffer = [0u8; 1024];
+    while let Ok(count) = errors.read(&mut buffer) {
+        if count == 0 {
+            break;
+        }
+        let mut kept = tail.lock().unwrap_or_else(PoisonError::into_inner);
+        kept.extend_from_slice(&buffer[..count]);
+        if kept.len() > KEPT {
+            let excess = kept.len() - KEPT;
+            kept.drain(..excess);
+        }
+    }
+}
+
+/// Read the lines of a process until its verdict or its end, settle its task, wait for the
+/// process, kill what its session still holds, and free its slot.
+///
+/// The end of the process is found by asking the process and not by the end of its output: a child
+/// that outlived it may hold the pipe open, and a lost verifier must not wait for that child.
+fn watch(
+    shared: &Arc<Shared>,
+    name: &str,
+    mut child: Child,
+    output: ChildStdout,
+    tail: &Mutex<Vec<u8>>,
+) {
+    let (send, receive) = mpsc::channel::<Value>();
+    std::thread::spawn(move || {
+        for line in BufReader::new(output).lines().map_while(Result::ok) {
+            if let Ok(event) = serde_json::from_str::<Value>(&line) {
+                if send.send(event).is_err() {
+                    break;
+                }
+            }
+        }
+    });
+
+    let mut verdict = None;
+    // Whether the event was a verdict.
+    let mut take = |event: Value| -> bool {
+        match event.get("event").and_then(Value::as_str) {
+            Some("started") => {
+                let session = event
+                    .get("sid")
+                    .and_then(Value::as_u64)
+                    .and_then(|sid| u32::try_from(sid).ok());
+                if let Some(task) = lock(shared).tasks.get_mut(name) {
+                    task.session = session;
+                }
+                false
+            }
+            Some("verified" | "failed" | "cancelled") => {
+                verdict = Some(event);
+                true
+            }
+            _ => false,
+        }
+    };
+    loop {
+        match receive.recv_timeout(Duration::from_millis(25)) {
+            Ok(event) => {
+                if take(event) {
+                    break;
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                if matches!(child.try_wait(), Ok(None)) {
+                    continue;
+                }
+                // The process is gone: take what it had written, then stop.
+                while let Ok(event) = receive.recv_timeout(Duration::from_millis(100)) {
+                    if take(event) {
+                        break;
+                    }
+                }
+                break;
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+    }
+    if verdict.is_none() {
+        // A lost verifier: let its last words reach the tail.
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let log =
+        String::from_utf8_lossy(&tail.lock().unwrap_or_else(PoisonError::into_inner)).into_owned();
+    settle(shared, name, verdict, &log);
+
+    // The process ends itself after its verdict; one that does not is killed after the grace.
+    let deadline = Instant::now() + shared.grace;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) | Err(_) => break,
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                break;
+            }
+        }
+    }
+    let session = lock(shared).tasks.get(name).and_then(|task| task.session);
+    if let Some(session) = session {
+        sweep::kill_session(session);
+    }
+    {
+        let mut tasks = lock(shared);
+        tasks.running = tasks.running.saturating_sub(1);
+        if let Some(task) = tasks.tasks.get_mut(name) {
+            task.input = None;
+        }
+    }
+    shared.changed.notify_all();
+    pump(shared);
+}
+
+/// The facts of a `verified` verdict, or `None` when it is not one.
+fn facts_of(event: &Value) -> Option<Facts> {
+    let text = |field: &str| event.get(field).and_then(Value::as_str).map(str::to_owned);
+    let modules = event
+        .get("modules")?
+        .as_array()?
+        .iter()
+        .map(|module| module.as_str().map(str::to_owned))
+        .collect::<Option<Vec<_>>>()?;
+    Some(Facts {
+        attestation_id: text("attestation_id")?,
+        build_id: text("build_id")?,
+        source_id: text("source_id")?,
+        semantic_id: text("semantic_id")?,
+        modules,
+        root: PathBuf::from(text("root")?),
+    })
+}
+
+/// The end of a task, given the verdict of its process or none. This is the one place a verdict
+/// becomes a state, and the one place a record is made, under the lock that a cancel takes.
+fn settle(shared: &Shared, name: &str, verdict: Option<Value>, log: &str) {
+    let mut tasks = lock(shared);
+    let Some(task) = tasks.tasks.get_mut(name) else {
+        return;
+    };
+    let event = verdict
+        .as_ref()
+        .and_then(|verdict| verdict.get("event"))
+        .and_then(Value::as_str);
+    match (task.phase, event, &verdict) {
+        (Phase::Running, Some("verified"), Some(verdict)) => match facts_of(verdict) {
+            Some(facts) => {
+                let outcome = conclude(&task.job, &facts);
+                task.phase = if outcome.class == 0 {
+                    Phase::Verified
+                } else {
+                    Phase::Failed
+                };
+                task.outcome = Some(outcome);
+            }
+            None => lose(task, log),
+        },
+        (Phase::Running, Some("failed"), Some(verdict)) => {
+            let class = verdict
+                .get("class")
+                .and_then(Value::as_u64)
+                .and_then(|class| u32::try_from(class).ok())
+                .unwrap_or(5);
+            task.phase = Phase::Failed;
+            task.outcome = Some(Outcome {
+                class,
+                result: serde_json::to_vec(verdict.get("result").unwrap_or(&Value::Null))
+                    .unwrap_or_default(),
+            });
+        }
+        (Phase::Running, _, _) => lose(task, log),
+        (Phase::Cancelling, event, verdict) => {
+            // Whatever the process concluded, the task was cancelled: nothing is recorded.
+            if let (Some("cancelled"), Some(verdict)) = (event, verdict) {
+                let count = |field: &str| {
+                    verdict
+                        .get(field)
+                        .and_then(Value::as_u64)
+                        .and_then(|count| u32::try_from(count).ok())
+                        .unwrap_or(0)
+                };
+                task.groups = (count("ended"), count("failed"));
+            }
+            task.phase = Phase::Cancelled;
+            task.outcome = Some(cancelled());
+        }
+        _ => {}
+    }
+    shared.changed.notify_all();
+}
+
+/// The task of a process that ended without a verdict.
+fn lose(task: &mut Task, log: &str) {
+    task.phase = Phase::Failed;
+    task.outcome = Some(Outcome {
+        class: 5,
+        result: serde_json::to_vec(&json!({"failure": "verifier-lost", "log": log}))
+            .unwrap_or_default(),
     });
 }
 
@@ -329,42 +666,6 @@ pub fn conclude(job: &Job, facts: &Facts) -> Outcome {
     Outcome {
         class: 0,
         result: serde_json::to_vec(&result).unwrap_or_default(),
-    }
-}
-
-/// Run `Engine::verify` on the project of a job and, when it verifies, sign and record it.
-pub fn verify(job: &Job) -> Outcome {
-    let file = job.directory.join("lexlean.toml");
-    let Some(file) = Utf8Path::from_path(&file) else {
-        return failure(5, "the project path is not UTF-8");
-    };
-    let engine = match Engine::load(file) {
-        Ok(engine) => engine,
-        Err(error) => {
-            return Outcome {
-                class: class_number(error.class),
-                result: diagnostics(&error),
-            }
-        }
-    };
-    match engine.verify(VerifyRequest {
-        selection: job.selection.clone(),
-    }) {
-        Ok(verified) => conclude(
-            job,
-            &Facts {
-                attestation_id: verified.attestation_id.to_hex(),
-                build_id: verified.build_id.to_hex(),
-                source_id: verified.source_id.to_hex(),
-                semantic_id: verified.semantic_id.to_hex(),
-                modules: verified.units.keys().cloned().collect(),
-                root: verified.root.into_std_path_buf(),
-            },
-        ),
-        Err(error) => Outcome {
-            class: class_number(error.class),
-            result: diagnostics(&error),
-        },
     }
 }
 

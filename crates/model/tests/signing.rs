@@ -280,10 +280,11 @@ fn the_record_of_a_verification_is_the_signed_envelope_sg_10() {
         1,
         "a record is written in one place"
     );
-    let verify = &verifier[verifier.find("pub fn verify(").expect("verify")..];
+    // The verdict of a process that verified reaches `conclude`, in `settle`.
+    let settle = &verifier[verifier.find("fn settle(").expect("settle")..];
     assert!(
-        verify.contains("conclude("),
-        "a verified project is concluded"
+        settle.contains("conclude(&task.job"),
+        "a verified verdict is concluded"
     );
 }
 

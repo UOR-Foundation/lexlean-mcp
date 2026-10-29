@@ -280,6 +280,7 @@ dependencies = [
  "ed25519-dalek",
  "gateway-host-api",
  "lexlean",
+ "rustix",
  "serde_json",
  "sha2",
  "tempfile",
