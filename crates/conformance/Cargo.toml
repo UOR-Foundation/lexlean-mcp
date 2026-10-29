@@ -11,6 +11,7 @@ publish = false
 repo-model = { workspace = true }
 
 [dev-dependencies]
+negative-fixtures = { path = "../negative-fixtures", version = "0.1.0" }
 quality-map = { path = "../quality-map", version = "0.1.0" }
 
 [lints]

@@ -332,14 +332,14 @@ definition{
   name: descriptions,
   parameters: [],
   result: (List Description),
-  body: (cons (record Description {index := 0, observation := "canonical JSON of the structured content of `lexlean_check`, `lexlean_build`, `lexlean_verify` against the CLI's command result for the same command, over every example and the 273 negative fixtures of AC-07", threshold := "all equal"}) (cons (record Description {index := 1, observation := "map from `Engine::{check, snapshot, format, build, verify}` and `sdk::{assemble, write_module, read_module, declaration_spans}` to tools", threshold := "total"}) (cons (record Description {index := 2, observation := "fault cases: child killed, verifier killed, store full", threshold := "zero records"}) (cons (record Description {index := 3, observation := "child processes observed by host process accounting during each call", threshold := "zero"}) (cons (record Description {index := 4, observation := "`mcp-conformance-server-2026-07-28` and `mcp-schema-2026-07-28`", threshold := "50 of 50 scenarios pass; zero schema failures"}) (cons (record Description {index := 5, observation := "tool or method names in host adapter source", threshold := "zero"}) (cons (record Description {index := 6, observation := "`build_id` on `linux/amd64` against `linux/arm64`", threshold := "equal"}) (cons (record Description {index := 7, observation := "codes resolved against codes returned", threshold := "all"}) (nil Description)))))))))
+  body: (cons (record Description {index := 0, observation := "canonical JSON of the structured content of `lexlean_check`, `lexlean_build`, `lexlean_verify` against the CLI's command result for the same command, over every example and the 285 negative fixtures of AC-07 in the register", threshold := "all equal"}) (cons (record Description {index := 1, observation := "map from `Engine::{check, snapshot, format, build, verify}` and `sdk::{assemble, write_module, read_module, declaration_spans}` to tools", threshold := "total"}) (cons (record Description {index := 2, observation := "fault cases: child killed, verifier killed, store full", threshold := "zero records"}) (cons (record Description {index := 3, observation := "child processes observed by host process accounting during each call", threshold := "zero"}) (cons (record Description {index := 4, observation := "`mcp-conformance-server-2026-07-28` and `mcp-schema-2026-07-28`", threshold := "50 of 50 scenarios pass; zero schema failures"}) (cons (record Description {index := 5, observation := "tool or method names in host adapter source", threshold := "zero"}) (cons (record Description {index := 6, observation := "`build_id` on `linux/amd64` against `linux/arm64`", threshold := "equal"}) (cons (record Description {index := 7, observation := "codes resolved against codes returned", threshold := "all"}) (nil Description)))))))))
 }
 
 definition{
   name: cardinalities,
   parameters: [],
   result: (List Cardinality),
-  body: (cons (record Cardinality {measure := 0, count := 273, unit := "negative fixtures of AC-07"}) (cons (record Cardinality {measure := 1, count := 9, unit := "in-scope API functions of the pinned LexLean"}) (cons (record Cardinality {measure := 4, count := 50, unit := "scenarios"}) (cons (record Cardinality {measure := 7, count := 86, unit := "diagnostic codes of the pinned LexLean registry"}) (nil Cardinality)))))
+  body: (cons (record Cardinality {measure := 0, count := 285, unit := "negative fixtures of AC-07 in the register"}) (cons (record Cardinality {measure := 1, count := 9, unit := "in-scope API functions of the pinned LexLean"}) (cons (record Cardinality {measure := 4, count := 50, unit := "scenarios"}) (cons (record Cardinality {measure := 7, count := 86, unit := "diagnostic codes of the pinned LexLean registry"}) (nil Cardinality)))))
 }
 
 definition{
@@ -353,10 +353,15 @@ definition{
   name: evidence,
   parameters: [],
   result: (List MeasureEvidence),
-  body: (cons (record MeasureEvidence {measure := 0, status := (ctor EvidenceStatus.Pending "Run where the tools are built: #10 for check and build, #11 for verify.")}) (cons (record MeasureEvidence {measure := 1, status := (ctor EvidenceStatus.Executed "Executed by the API-to-tool map as built: QM-01, QM-02 and QM-03 recompute the 33 public functions of the pinned LexLean surface from its vendored sources and require each to reach one tool the issues define or to state why no tool does; that each mapped tool exists and runs is executed by TL-15, which calls the tool of each of the 9 in-scope functions through the production core with the real host and holds the four sdk functions to their own results, so no clause of Q2 is pending.")}) (cons (record MeasureEvidence {measure := 2, status := (ctor EvidenceStatus.Pending "Run where verification runs as tasks (#11); the store-full case needs the store (#13).")}) (cons (record MeasureEvidence {measure := 3, status := (ctor EvidenceStatus.Pending "Run where the tools are built (#10).")}) (cons (record MeasureEvidence {measure := 4, status := (ctor EvidenceStatus.Pending "Run against the deployed core (#17), through the MCP oracles.")}) (cons (record MeasureEvidence {measure := 5, status := (ctor EvidenceStatus.Pending "Run once the host adapter is generated (#7).")}) (cons (record MeasureEvidence {measure := 6, status := (ctor EvidenceStatus.Pending "Run where build is a tool (#10), on both platforms.")}) (cons (record MeasureEvidence {measure := 7, status := (ctor EvidenceStatus.Executed "Executed by the explained codes as built: QM-04, QM-05 and QM-06 require each of the 86 codes of the pinned LexLean registry to have one complete entry that lexlean explain prints, and every code the negative fixtures return to resolve to one; that a code in a result of the running tool resolves through the running lexlean_explain is executed by TL-13, which runs where the tools are built (gateway/tool-tests), so no clause of Q8 is pending.")}) (nil MeasureEvidence)))))))))
+  body: (cons (record MeasureEvidence {measure := 0, status := (ctor EvidenceStatus.Executed "Executed for check and build where the tools are built (gateway/tool-tests): TL-03 runs lexlean_check and lexlean_build beside the CLI of the same commit on the 253 check and build fixtures of the register and requires the same exit code, diagnostics, result bytes and project files, and TL-06 does the same for lexlean_build on every example; the clause for lexlean_verify and the 32 verify fixtures waits for verification as tasks (#11) and is in pendingClauses.")}) (cons (record MeasureEvidence {measure := 1, status := (ctor EvidenceStatus.Executed "Executed by the API-to-tool map as built: QM-01, QM-02 and QM-03 recompute the 33 public functions of the pinned LexLean surface from its vendored sources and require each to reach one tool the issues define or to state why no tool does; that each mapped tool exists and runs is executed by TL-15, which calls the tool of each of the 9 in-scope functions through the production core with the real host and holds the four sdk functions to their own results, so no clause of Q2 is pending.")}) (cons (record MeasureEvidence {measure := 2, status := (ctor EvidenceStatus.Pending "Run where verification runs as tasks (#11); the store-full case needs the store (#13).")}) (cons (record MeasureEvidence {measure := 3, status := (ctor EvidenceStatus.Executed "Executed where the tools are built (gateway/tool-tests): TL-08 calls lexlean_check, lexlean_snapshot, lexlean_format and lexlean_build through the production core with the real host, in a test binary in which nothing else spawns, and requires the host process accounting (the waited-for children of /proc/self/stat and the live children of every thread) not to move across any call, with a control child the same instrument sees, so no clause of Q4 is pending.")}) (cons (record MeasureEvidence {measure := 4, status := (ctor EvidenceStatus.Pending "Run against the deployed core (#17), through the MCP oracles.")}) (cons (record MeasureEvidence {measure := 5, status := (ctor EvidenceStatus.Pending "Run once the host adapter is generated (#7).")}) (cons (record MeasureEvidence {measure := 6, status := (ctor EvidenceStatus.Pending "Run where build is a tool (#10), on both platforms.")}) (cons (record MeasureEvidence {measure := 7, status := (ctor EvidenceStatus.Executed "Executed by the explained codes as built: QM-04, QM-05 and QM-06 require each of the 86 codes of the pinned LexLean registry to have one complete entry that lexlean explain prints, and every code the negative fixtures return to resolve to one; that a code in a result of the running tool resolves through the running lexlean_explain is executed by TL-13, which runs where the tools are built (gateway/tool-tests), so no clause of Q8 is pending.")}) (nil MeasureEvidence)))))))))
 }
 
-definition{name: pendingClauses, parameters: [], result: (List Named), body: (nil Named)}
+definition{
+  name: pendingClauses,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "Q1 verify", text := "lexlean_verify against the CLI's command result on the 32 verify fixtures of the register, run where verification runs as tasks (#11)"}) (nil Named))
+}
 
 definition{
   name: nonEmpty,
@@ -645,7 +650,7 @@ theorem{
 theorem{
   name: fixturesRequired,
   parameters: [],
-  statement: ((countOf 0 (cardinalities)) = 273),
+  statement: ((countOf 0 (cardinalities)) = 285),
   proof: decide{}
 }
 
@@ -657,23 +662,23 @@ theorem{
 }
 
 theorem{
-  name: measuresPendingExceptQ2AndQ8,
+  name: measuresPendingAreQ3AndQ5ToQ7,
   parameters: [],
-  statement: ((pendingMeasures (evidence)) = (cons 0 (cons 2 (cons 3 (cons 4 (cons 5 (cons 6 (nil Nat)))))))),
+  statement: ((pendingMeasures (evidence)) = (cons 2 (cons 4 (cons 5 (cons 6 (nil Nat)))))),
   proof: decide{}
 }
 
 theorem{
-  name: onlyApiMapAndExplainAreExecuted,
+  name: executedMeasuresAreQ1Q2Q4AndQ8,
   parameters: [],
-  statement: ((executedMeasures (evidence)) = (cons 1 (cons 7 (nil Nat)))),
+  statement: ((executedMeasures (evidence)) = (cons 0 (cons 1 (cons 3 (cons 7 (nil Nat)))))),
   proof: decide{}
 }
 
 theorem{
-  name: noQualityClauseIsPending,
+  name: onlyTheVerifyClauseOfQ1IsPending,
   parameters: [],
-  statement: ((namedIndexes (pendingClauses)) = (nil Nat)),
+  statement: ((namedIndexes (pendingClauses)) = (cons 0 (nil Nat))),
   proof: decide{}
 }
 
