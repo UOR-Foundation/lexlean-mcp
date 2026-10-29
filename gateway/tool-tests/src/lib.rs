@@ -151,6 +151,8 @@ pub struct Reply {
     pub body: Value,
     /// The names of the effects the core asked for, in order.
     pub effects: Vec<String>,
+    /// The notifications streamed before the response, in order.
+    pub notifications: Vec<Value>,
 }
 
 impl Reply {
@@ -195,7 +197,30 @@ impl Reply {
     }
 }
 
-fn read_response(frame: &[u8]) -> (u32, Value) {
+/// The JSON-RPC messages of a body that is a stream of events (`data: <JSON>` separated by a blank
+/// line), or the one message of a body that is JSON.
+fn messages_of(body: &[u8]) -> Vec<Value> {
+    let Some(text) = std::str::from_utf8(body)
+        .ok()
+        .filter(|text| text.starts_with("data:"))
+    else {
+        return vec![serde_json::from_slice(body).expect("a JSON body")];
+    };
+    text.split("\n\n")
+        .filter(|event| !event.trim().is_empty())
+        .map(|event| {
+            let data = event
+                .lines()
+                .filter_map(|line| line.strip_prefix("data:"))
+                .map(str::trim_start)
+                .collect::<Vec<_>>()
+                .join("\n");
+            serde_json::from_str(&data).expect("a JSON event")
+        })
+        .collect()
+}
+
+fn read_response(frame: &[u8]) -> (u32, Value, Vec<Value>) {
     let mut at = 0;
     let word = |at: &mut usize| {
         let value = u32::from_be_bytes(frame[*at..*at + 4].try_into().expect("a word"));
@@ -219,12 +244,39 @@ fn read_response(frame: &[u8]) -> (u32, Value) {
     }
     let body = take(&mut at);
     assert_eq!(at, frame.len(), "trailing bytes in the response frame");
-    (status, serde_json::from_slice(&body).expect("a JSON body"))
+    let mut messages = messages_of(&body);
+    let response = messages.pop().expect("a message");
+    (status, response, messages)
+}
+
+/// The request frame after the host's sections: the time, an identifier and the table of tasks,
+/// asked of the host as the adapter does before it hands the frame to the core.
+fn with_host_sections<H: gateway_host_api::protocol::Host>(
+    host: &mut H,
+    request: &[u8],
+) -> Vec<u8> {
+    use gateway_host_api::protocol::{clock_now, task_id, task_table, HostError};
+    fn answered<T, F>(result: Result<T, HostError<F>>) -> T {
+        match result {
+            Ok(done) => done,
+            Err(_) => panic!("the host did not answer a frame effect"),
+        }
+    }
+    let now = answered(host.clock_now(clock_now::Request {}));
+    let id = answered(host.task_id(task_id::Request {}));
+    let table = answered(host.task_table(task_table::Request {}));
+    let mut out = request.to_vec();
+    out.extend(now.ms.to_be_bytes());
+    out.extend(chunk(now.iso.as_bytes()));
+    out.extend(chunk(id.id.as_bytes()));
+    out.extend(chunk(&table.table));
+    out
 }
 
 /// Run one exchange: the turns of the core and the effects the host performs, until the core
 /// answers. `host` is whatever implements the host trait of the generated crate.
 fn exchange<H: gateway_host_api::protocol::Host>(host: &mut H, request: &[u8]) -> Reply {
+    let request = &with_host_sections(host, request)[..];
     let mut completed: Vec<(u32, Vec<u8>)> = Vec::new();
     let mut effects = Vec::new();
     loop {
@@ -232,11 +284,12 @@ fn exchange<H: gateway_host_api::protocol::Host>(host: &mut H, request: &[u8]) -
         let output = core(input).expect("the core answers");
         match step(&output).expect("a step") {
             Step::Done(response) => {
-                let (status, body) = read_response(response);
+                let (status, body, notifications) = read_response(response);
                 return Reply {
                     status,
                     body,
                     effects,
+                    notifications,
                 };
             }
             Step::Perform(tag, payload) => {
@@ -259,6 +312,25 @@ fn meta() -> Value {
         "io.modelcontextprotocol/clientInfo": {"name": "gateway-tool-tests", "version": "1.0.0"},
         "io.modelcontextprotocol/clientCapabilities": {},
     })
+}
+
+/// The meta of a client that declares the tasks extension.
+fn task_meta() -> Value {
+    let mut meta = meta();
+    meta["io.modelcontextprotocol/clientCapabilities"] =
+        json!({"extensions": {"io.modelcontextprotocol/tasks": {}}});
+    meta
+}
+
+/// A request for `method` on the task `task` (`tasks/get`, `tasks/cancel`) by a client that
+/// declares the tasks extension, as a frame.
+fn task_frame(method: &str, task: &str, id: u64) -> Vec<u8> {
+    frame(
+        method,
+        Some(task),
+        id,
+        json!({"taskId": task, "_meta": task_meta()}),
+    )
 }
 
 /// A request for `tools/call` with these arguments, as a frame.
@@ -438,6 +510,49 @@ impl Gateway {
         let request = call_frame(tool, Some(arguments), self.next);
         let host = &mut self.host;
         on_big_stack(|| exchange(host, &request))
+    }
+
+    /// `tools/call` of `tool` with `arguments`, by a client that declares the tasks extension.
+    pub fn task_call(&mut self, tool: &str, arguments: Value) -> Reply {
+        self.next += 1;
+        let params = json!({"name": tool, "arguments": arguments, "_meta": task_meta()});
+        let request = frame("tools/call", Some(tool), self.next, params);
+        let host = &mut self.host;
+        on_big_stack(|| exchange(host, &request))
+    }
+
+    /// A method of the protocol that names a task (`tasks/get`, `tasks/cancel`) by a client that
+    /// declares the tasks extension: `task` is the `Mcp-Name` of the request, and `taskId` of
+    /// its parameters.
+    pub fn task_rpc(&mut self, method: &str, task: &str) -> Reply {
+        let host = &mut self.host;
+        let request = task_frame(method, task, self.next + 1);
+        self.next += 1;
+        on_big_stack(|| exchange(host, &request))
+    }
+
+    /// [`task_rpc`](Gateway::task_rpc) served by `host` instead of the real one.
+    pub fn task_rpc_with<H: gateway_host_api::protocol::Host + Send>(
+        &mut self,
+        host: &mut H,
+        method: &str,
+        task: &str,
+    ) -> Reply {
+        self.next += 1;
+        let request = task_frame(method, task, self.next);
+        on_big_stack(|| exchange(host, &request))
+    }
+
+    /// Take the real host out of the gateway, to wrap it; [`put_host`](Gateway::put_host) gives
+    /// it back. The gateway holds a fresh host meanwhile.
+    pub fn take_host(&mut self) -> Native {
+        let fresh = Native::new(self.config());
+        std::mem::replace(&mut self.host, fresh)
+    }
+
+    /// Put back the host that [`take_host`](Gateway::take_host) took.
+    pub fn put_host(&mut self, host: Native) {
+        self.host = host;
     }
 
     /// Any method of the protocol with these parameters: `name` is the `Mcp-Name` field the
