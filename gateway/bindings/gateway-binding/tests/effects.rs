@@ -2,15 +2,16 @@
 //! directory: its success, and each failure it declares.
 
 use std::path::Path;
-use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use gateway_binding::{Config, Job, Native, Outcome, State};
+use gateway_binding::{Config, Native, State};
 use gateway_host_api::protocol::{
     attestation_lookup, engine_build, engine_check, engine_format, engine_snapshot, lexicon_read,
     rate_calls, store_get, store_put, verify_control, verify_start, Host, HostError,
 };
+
+#[allow(dead_code)]
+mod common;
 
 const TINY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../vectors/fixture/tiny");
 
@@ -19,7 +20,9 @@ const TINY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../vectors/fixture/t
 fn config_in(dir: &Path) -> Config {
     let key = dir.join("signing.key");
     std::fs::write(&key, format!("{}\n", "11".repeat(32))).expect("a key file");
-    Config::at(dir.join("store")).with_signing_key(key)
+    Config::at(dir.join("store"))
+        .with_signing_key(key)
+        .with_verifier(common::real_verifier())
 }
 
 fn host() -> (Native, tempfile::TempDir) {
@@ -763,45 +766,27 @@ fn engine_build_is_unavailable_when_the_engine_cannot_run() {
 
 // ---- verify.start and verify.control --------------------------------------------------
 
-/// A runner that waits for a signal, and counts how many run at once.
-struct Gate {
-    release: Mutex<mpsc::Receiver<()>>,
-    running: Mutex<(usize, usize)>,
+/// The gate that the stand-in verifier waits for: opening it lets every task that waits for it end.
+struct Gate(std::path::PathBuf);
+
+impl Gate {
+    fn open(&self) {
+        std::fs::write(&self.0, b"").expect("a gate");
+    }
 }
 
-fn gated_host() -> (Native, tempfile::TempDir, mpsc::Sender<()>, Arc<Gate>) {
+/// A host whose verifier is the stand-in script (`common/fake-verifier.sh`), with the draft project
+/// `tiny` installed and a behavior that verifies once the gate is open.
+fn gated_host() -> (Native, tempfile::TempDir, Gate) {
     let directory = tempfile::tempdir().expect("a directory");
-    let (send, receive) = mpsc::channel();
-    let gate = Arc::new(Gate {
-        release: Mutex::new(receive),
-        running: Mutex::new((0, 0)),
-    });
-    let runner_gate = Arc::clone(&gate);
-    let host = Native::with_runner(
-        config_in(directory.path()),
-        Arc::new(move |_job: &Job| {
-            {
-                let mut running = runner_gate.running.lock().expect("a lock");
-                running.0 += 1;
-                running.1 = running.1.max(running.0);
-            }
-            let _ = runner_gate
-                .release
-                .lock()
-                .expect("a lock")
-                .recv_timeout(Duration::from_secs(30));
-            runner_gate.running.lock().expect("a lock").0 -= 1;
-            Outcome {
-                class: 0,
-                result: b"{\"verified\":true}".to_vec(),
-            }
-        }),
-    );
-    copy(
-        Path::new(TINY),
-        &host.config().store.join("drafts").join("tiny"),
-    );
-    (host, directory, send, gate)
+    let host = Native::new(common::config(
+        directory.path(),
+        common::fake_verifier(directory.path()),
+    ));
+    common::install_draft(&host, None);
+    let gate = Gate(directory.path().join("gate"));
+    common::set_behavior(&host, &format!("verified {}", gate.0.display()));
+    (host, directory, gate)
 }
 
 fn start(host: &mut Native, project: &str) -> Result<(String, u32), verify_start::Failure> {
@@ -843,7 +828,7 @@ fn wait_for(host: &mut Native, task: &str, state: State) -> verify_control::Comp
 
 #[test]
 fn verify_start_runs_a_task_to_its_end() {
-    let (mut host, _directory, release, _gate) = gated_host();
+    let (mut host, _directory, gate) = gated_host();
     let (task, state) = start(&mut host, "tiny").expect("start");
     assert_eq!(task, "task-1");
     assert_eq!(state, State::Running as u32);
@@ -851,15 +836,17 @@ fn verify_start_runs_a_task_to_its_end() {
         status(&mut host, &task).expect("status").state,
         State::Running as u32
     );
-    release.send(()).expect("a signal");
+    gate.open();
     let done = wait_for(&mut host, &task, State::Verified);
     assert_eq!(done.class, 0);
-    assert_eq!(done.result, b"{\"verified\":true}");
+    let result: serde_json::Value = serde_json::from_slice(&done.result).expect("JSON");
+    assert!(result["attestation_id"].is_string(), "{result}");
+    assert!(result["keyid"].is_string(), "{result}");
 }
 
 #[test]
-fn verify_start_runs_one_task_at_a_time_and_none_fails_for_waiting() {
-    let (mut host, _directory, release, gate) = gated_host();
+fn verify_start_queues_the_tasks_that_find_no_slot_and_none_fails_for_waiting() {
+    let (mut host, _directory, gate) = gated_host();
     let (first, state) = start(&mut host, "tiny").expect("start");
     assert_eq!(state, State::Running as u32);
     let (second, state) = start(&mut host, "tiny").expect("start");
@@ -870,20 +857,15 @@ fn verify_start_runs_one_task_at_a_time_and_none_fails_for_waiting() {
         (first.as_str(), second.as_str(), third.as_str()),
         ("task-1", "task-2", "task-3")
     );
+    gate.open();
     for task in [&first, &second, &third] {
-        release.send(()).expect("a signal");
         wait_for(&mut host, task, State::Verified);
     }
-    assert_eq!(
-        gate.running.lock().expect("a lock").1,
-        1,
-        "never two at once"
-    );
 }
 
 #[test]
 fn verify_start_refuses_a_project_that_is_not_a_draft_project() {
-    let (mut host, _directory, _release, _gate) = gated_host();
+    let (mut host, _directory, _gate) = gated_host();
     for project in ["absent", "..", ""] {
         assert_eq!(
             start(&mut host, project),
@@ -986,19 +968,19 @@ fn verify_start_runs_a_real_verification_and_leaves_a_record() {
 
 #[test]
 fn verify_control_reports_the_status_of_a_task() {
-    let (mut host, _directory, release, _gate) = gated_host();
+    let (mut host, _directory, gate) = gated_host();
     let (task, _) = start(&mut host, "tiny").expect("start");
     let running = status(&mut host, &task).expect("status");
     assert_eq!((running.state, running.class), (State::Running as u32, 0));
     assert!(running.result.is_empty());
     assert_eq!((running.groups_ended, running.groups_failed), (0, 0));
-    release.send(()).expect("a signal");
+    gate.open();
     wait_for(&mut host, &task, State::Verified);
 }
 
 #[test]
 fn verify_control_cancels_a_queued_task_and_it_never_runs() {
-    let (mut host, _directory, release, gate) = gated_host();
+    let (mut host, _directory, gate) = gated_host();
     let (first, _) = start(&mut host, "tiny").expect("start");
     let (second, state) = start(&mut host, "tiny").expect("start");
     assert_eq!(state, State::Queued as u32);
@@ -1010,19 +992,20 @@ fn verify_control_cancels_a_queued_task_and_it_never_runs() {
         .expect("cancel");
     assert_eq!(cancelled.state, State::Cancelled as u32);
     assert_eq!((cancelled.groups_ended, cancelled.groups_failed), (0, 0));
-    release.send(()).expect("a signal");
+    gate.open();
     wait_for(&mut host, &first, State::Verified);
     std::thread::sleep(Duration::from_millis(100));
     assert_eq!(
         status(&mut host, &second).expect("status").state,
         State::Cancelled as u32
     );
-    assert_eq!(gate.running.lock().expect("a lock").1, 1);
 }
 
 #[test]
 fn verify_control_cancels_a_running_task() {
-    let (mut host, _directory, release, _gate) = gated_host();
+    let (mut host, _directory, gate) = gated_host();
+    // A process that answers a cancel with the groups it ended.
+    common::set_behavior(&host, "wait-cancel");
     let (task, _) = start(&mut host, "tiny").expect("start");
     let cancelled = host
         .verify_control(verify_control::Request {
@@ -1031,25 +1014,21 @@ fn verify_control_cancels_a_running_task() {
         })
         .expect("cancel");
     assert_eq!(cancelled.state, State::Cancelled as u32);
-    release.send(()).expect("a signal");
-    std::thread::sleep(Duration::from_millis(100));
+    assert_eq!((cancelled.groups_ended, cancelled.groups_failed), (2, 1));
     let after = status(&mut host, &task).expect("status");
-    assert_eq!(
-        after.state,
-        State::Cancelled as u32,
-        "the end of the run does not undo the cancellation"
-    );
-    // A task started after the cancellation runs: children are allowed again.
+    assert_eq!(after.state, State::Cancelled as u32);
+    // A task started after the cancellation runs: the cancel was the task's, not the host's.
+    common::set_behavior(&host, &format!("verified {}", gate.0.display()));
     let (next, _) = start(&mut host, "tiny").expect("start");
-    release.send(()).expect("a signal");
+    gate.open();
     wait_for(&mut host, &next, State::Verified);
 }
 
 #[test]
 fn verify_control_leaves_a_finished_task_as_it_ended() {
-    let (mut host, _directory, release, _gate) = gated_host();
+    let (mut host, _directory, gate) = gated_host();
     let (task, _) = start(&mut host, "tiny").expect("start");
-    release.send(()).expect("a signal");
+    gate.open();
     wait_for(&mut host, &task, State::Verified);
     let after = host
         .verify_control(verify_control::Request { task, action: 1 })

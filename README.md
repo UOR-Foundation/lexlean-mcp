@@ -131,7 +131,9 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
 - [STORE.md](STORE.md) states what the store model claims and does not claim
   and the defects planted in its laws.
 - [SIGNING.md](SIGNING.md) states what the signer of the verification records claims
-  (SG-01 to SG-08), what is not met, and the defects planted in its gates.
+  (SG-01 to SG-13), what is not met, and the defects planted in its gates.
+- [VERIFIER.md](VERIFIER.md) states what the verifier process claims (VP-01 to VP-06): one process
+  for each task, the queue, the cancel, the lost verifier and the sweep of its session.
 - [PROFILES.md](PROFILES.md) states what the profiles model claims and does not
   claim and the defects planted in its laws.
 - [CI.md](CI.md) describes the workflow that runs every gate that works without

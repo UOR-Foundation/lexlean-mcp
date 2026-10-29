@@ -5,7 +5,7 @@ statement whose subject is `attestation.json`, with the key history published. T
 records the signer, its key file, its key history and the validator (SG-01 to SG-08), and the
 use the verify task makes of them (SG-09 to SG-13): the key is configured, a verification is
 not started without it, and the record of a verification that ended `verified` is the signed
-envelope. The verifier is still a thread of the gateway process, and Q3, R1 and R8 stay
+envelope. Each verification runs in a process of its own (VERIFIER.md), and Q3, R1 and R8 stay
 `Pending` in the model (see "Not met").
 
 The code is `gateway/bindings/gateway-binding/src/signer.rs`; its tests are
@@ -104,13 +104,9 @@ digest binds; they are not repeated in the predicate.
 
 ## Not met
 
-- **The key is in the gateway process.** The verification is still a thread of it, so the design's
-  separation (the signer in the parent, a verifier child that never holds the key) arrives with the
-  verifier process per task.
-- **The cancel race.** The runner writes the record before the task's lock is taken again, so a
-  task cancelled in the instant after the engine verified can leave a signed record and report
-  `cancelled`. The record is of a verification that did end `verified`, but AC-12 ("leaves no record")
-  is not shown, and Q3 stays `Pending`.
+- **The signer is in the gateway process.** The verifier process does not hold the key and the
+  record is made under the lock a cancel takes (VERIFIER.md, VP-02 and VP-04), but OWNER-VALUES and
+  #17 plan a signer service of its own, and `Signer` has not been moved behind a process.
 - **The observed axioms are not compared** with a committed record (AC-05), and no example other than
   the tiny fixture was verified and signed.
 - **One verifier process per task**, the queue, the cancel race and the lock that Q3 needs, the

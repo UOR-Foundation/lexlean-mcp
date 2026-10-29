@@ -11,6 +11,7 @@
 //! that run in this process.
 
 mod attestation;
+pub mod child;
 mod config;
 mod engine;
 pub mod identity;
@@ -22,11 +23,15 @@ pub mod provision;
 mod rate;
 pub mod signer;
 mod store;
+mod sweep;
 mod verifier;
 
-pub use config::{Config, DRAFT_BLOB_HEADROOM, DRAFT_MAX_BYTES, LOG_TAIL_BYTES, RATE_WINDOW};
+pub use config::{
+    Config, CANCEL_GRACE, DRAFT_BLOB_HEADROOM, DRAFT_MAX_BYTES, LOG_TAIL_BYTES, RATE_WINDOW,
+    SIGNING_KEY_VARIABLE, VERIFY_CONCURRENCY, VERIFY_MEMORY_KIB, VERIFY_WIDTH,
+};
 pub use engine::{Answer, Call, Unavailable};
-pub use verifier::{conclude, Facts, Job, Outcome, Report, Runner, State, Verifier};
+pub use verifier::{conclude, Facts, Job, Outcome, Report, State, Verifier};
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -54,18 +59,10 @@ impl Default for Native {
 impl Native {
     /// A host with this configuration.
     pub fn new(config: Config) -> Native {
+        let verifier = Verifier::new(&config);
         Native {
             config,
-            verifier: Verifier::default(),
-            counter: rate::Counter::default(),
-        }
-    }
-
-    /// A host whose verifications are run by `runner`.
-    pub fn with_runner(config: Config, runner: Runner) -> Native {
-        Native {
-            config,
-            verifier: Verifier::with_runner(runner),
+            verifier,
             counter: rate::Counter::default(),
         }
     }
@@ -365,6 +362,14 @@ impl Host for Native {
         let unavailable = || HostError::Failed(verify_start::Failure::VerifierUnavailable);
         let key = self.config.signing_key.as_deref().ok_or_else(unavailable)?;
         let signer = Signer::load(key, self.config.history_path()).map_err(|_| unavailable())?;
+        if !self
+            .config
+            .verifier_program
+            .as_deref()
+            .is_some_and(std::path::Path::is_file)
+        {
+            return Err(unavailable());
+        }
         // The verification outlives this call: its directory is kept, and the `builds` area is
         // a cache that the lifecycle of the store drops.
         let directory = resolved.keep();
