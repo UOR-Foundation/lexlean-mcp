@@ -130,6 +130,8 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   observability theorems, the command that rejects each and the restore.
 - [STORE.md](STORE.md) states what the store model claims and does not claim
   and the defects planted in its laws.
+- [SIGNING.md](SIGNING.md) states what the signer of the verification records claims
+  (SG-01 to SG-08), what is not met, and the defects planted in its gates.
 - [PROFILES.md](PROFILES.md) states what the profiles model claims and does not
   claim and the defects planted in its laws.
 - [CI.md](CI.md) describes the workflow that runs every gate that works without

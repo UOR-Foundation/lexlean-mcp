@@ -1,0 +1,238 @@
+//! SG-01 to SG-08: the signer of the verification records (issue #11, the host half that stands
+//! without the verifier process).
+//!
+//! The behavior is tested where the host runs: `gateway/bindings/gateway-binding/tests/signing.rs`
+//! signs, validates and damages envelopes with expected bytes made by code of its own. These tests
+//! read the sources as text and hold them against each other: the rows against the tests that
+//! answer them, every constructor of every public failure against a negative test (R5), the key
+//! against anything that prints, and the planted defects against `SIGNING.md`. Nothing here runs
+//! the signer.
+
+use std::collections::BTreeSet;
+use std::path::PathBuf;
+
+fn root() -> PathBuf {
+    repo_model::repo_root()
+}
+
+fn read(relative: &str) -> String {
+    std::fs::read_to_string(root().join(relative))
+        .unwrap_or_else(|error| panic!("{relative}: {error}"))
+}
+
+const SIGNER: &str = "gateway/bindings/gateway-binding/src/signer.rs";
+const TESTS: &str = "gateway/bindings/gateway-binding/tests/signing.rs";
+
+/// The names of the `#[test]` functions of the binding's signing tests.
+fn gateway_tests() -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let mut in_test = false;
+    for line in read(TESTS).lines() {
+        let line = line.trim();
+        if line == "#[test]" {
+            in_test = true;
+        } else if in_test && line.starts_with("fn ") {
+            names.insert(line[3..].split('(').next().expect("a name").to_string());
+            in_test = false;
+        }
+    }
+    names
+}
+
+/// The tests of the binding that answer the row `id`, which must be exactly `expected`.
+fn answered_by(id: &str, expected: &[&str]) {
+    let suffix = id.to_lowercase().replace('-', "_");
+    let found: BTreeSet<String> = gateway_tests()
+        .into_iter()
+        .filter(|name| name.ends_with(&format!("_{suffix}")))
+        .collect();
+    let expected: BTreeSet<String> = expected.iter().map(|name| (*name).to_string()).collect();
+    assert_eq!(found, expected, "the tests of the binding that answer {id}");
+    let document = read("SIGNING.md");
+    assert!(document.contains(id), "SIGNING.md does not name {id}");
+}
+
+/// The constructors of `pub enum <name>` in the signer, as written.
+fn constructors(source: &str, name: &str) -> Vec<String> {
+    let head = format!("pub enum {name} {{");
+    let start = source
+        .find(&head)
+        .unwrap_or_else(|| panic!("{SIGNER} has no {head}"))
+        + head.len();
+    let end = start + source[start..].find("\n}\n").expect("the end of the enum");
+    source[start..end]
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.chars().next().is_some_and(|c| c.is_ascii_uppercase()))
+        .map(|line| {
+            line.split(['(', ',', ' '])
+                .next()
+                .expect("a name")
+                .to_string()
+        })
+        .collect()
+}
+
+#[test]
+fn the_envelope_is_answered_by_its_tests_sg_01() {
+    answered_by(
+        "SG-01",
+        &[
+            "the_envelope_is_dsse_over_an_in_toto_statement_sg_01",
+            "the_keyid_is_the_digest_of_the_public_key_not_of_the_seed_sg_01",
+        ],
+    );
+}
+
+#[test]
+fn the_primitives_are_answered_by_the_standards_vectors_sg_02() {
+    answered_by(
+        "SG-02",
+        &[
+            "pae_is_the_example_of_the_dsse_protocol_sg_02",
+            "the_key_of_rfc_8032_test_1_has_its_public_key_and_signature_sg_02",
+            "equal_inputs_give_equal_envelopes_sg_02",
+        ],
+    );
+    let tests = read(TESTS);
+    // The vectors are the standards' bytes, spelled out in the test and not computed from the signer.
+    for published in [
+        "DSSEv1 29 http://example.com/HelloWorld 11 hello world",
+        "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+        "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b",
+    ] {
+        assert!(tests.contains(published), "the test lacks {published}");
+    }
+}
+
+#[test]
+fn the_validator_is_answered_by_its_tests_sg_03() {
+    answered_by(
+        "SG-03",
+        &[
+            "the_validator_accepts_what_the_signer_wrote_sg_03",
+            "the_validator_uses_the_key_the_history_names_sg_03",
+        ],
+    );
+}
+
+#[test]
+fn every_refusal_of_an_envelope_and_of_a_key_has_a_negative_test_sg_04() {
+    answered_by(
+        "SG-04",
+        &[
+            "every_refusal_of_an_envelope_is_typed_and_reached_sg_04",
+            "a_valid_signature_beside_a_bad_one_is_accepted_and_a_bad_one_alone_is_not_sg_04",
+        ],
+    );
+    // R5 for the whole module: every constructor of every public failure is named by a test.
+    let source = read(SIGNER);
+    let tests = read(TESTS);
+    for kind in ["EnvelopeError", "KeyError", "HistoryError", "SignError"] {
+        let found = constructors(&source, kind);
+        assert!(!found.is_empty(), "{kind} has no constructors");
+        for constructor in found {
+            assert!(
+                tests.contains(&format!("{kind}::{constructor}")),
+                "no test reaches {kind}::{constructor}"
+            );
+        }
+    }
+    assert_eq!(
+        constructors(&source, "EnvelopeError").len(),
+        9,
+        "the nine refusals of the row"
+    );
+}
+
+#[test]
+fn the_history_is_answered_by_its_tests_sg_05() {
+    answered_by(
+        "SG-05",
+        &[
+            "the_first_use_of_a_key_adds_its_entry_and_later_uses_add_nothing_sg_05",
+            "a_second_key_is_a_rotation_and_the_first_envelopes_stay_valid_sg_05",
+            "a_revoked_key_fails_and_the_other_key_does_not_sg_05",
+            "a_revoked_key_signs_nothing_sg_05",
+            "a_history_that_is_not_a_list_of_good_entries_is_malformed_sg_05",
+        ],
+    );
+}
+
+#[test]
+fn the_key_is_a_file_secret_that_nothing_prints_sg_06() {
+    answered_by(
+        "SG-06",
+        &[
+            "a_key_file_of_64_hexadecimal_digits_is_the_seed_sg_06",
+            "each_fault_of_a_key_file_has_its_own_error_sg_06",
+            "the_seed_appears_in_nothing_that_is_written_or_printed_sg_06",
+        ],
+    );
+    let source = read(SIGNER);
+    // The tests print nothing of the key; the module must not either, and the signer's Debug is
+    // written by hand because a derived one would print the key.
+    for printing in ["println!", "eprintln!", "dbg!", "print!"] {
+        assert!(!source.contains(printing), "the signer uses {printing}");
+    }
+    let signer_head = source
+        .find("pub struct Signer {")
+        .expect("the struct of the signer");
+    assert!(
+        !source[signer_head.saturating_sub(120)..signer_head].contains("derive(Debug"),
+        "Signer must not derive Debug: it holds the key"
+    );
+    assert!(
+        source.contains("impl fmt::Debug for Signer"),
+        "Signer has a Debug that is written by hand"
+    );
+}
+
+#[test]
+fn a_signature_that_cannot_be_recorded_is_not_returned_sg_07() {
+    answered_by(
+        "SG-07",
+        &[
+            "a_history_that_cannot_be_written_gives_no_envelope_sg_07",
+            "the_history_is_replaced_whole_and_no_temporary_file_is_left_sg_07",
+        ],
+    );
+    // The history is written before the envelope is made: the order is in the source.
+    let source = read(SIGNER);
+    let write = source
+        .find("write_history(&self.history, &entries)")
+        .expect("sign writes the history");
+    let envelope = source
+        .find("let signature = self.key.sign(")
+        .expect("sign signs");
+    assert!(
+        write < envelope,
+        "the history is written before the key signs"
+    );
+}
+
+#[test]
+fn each_gate_of_the_signer_rejects_its_planted_defect_sg_08() {
+    let document = read("SIGNING.md");
+    let section = document
+        .split("## Planted defects")
+        .nth(1)
+        .expect("SIGNING.md has a section Planted defects");
+    for defect in [
+        "the lengths of PAE swapped",
+        "the keyid taken from the seed",
+        "the digest of the subject not checked",
+        "a revoked key accepted",
+        "the history not appended on the first use",
+    ] {
+        let row = section
+            .lines()
+            .find(|line| line.starts_with('|') && line.contains(defect))
+            .unwrap_or_else(|| panic!("SIGNING.md records no planted defect: {defect}"));
+        // A row names the command, the diagnostic and the restore.
+        assert!(
+            row.contains("cargo test") && row.contains("sg_") && row.contains("git checkout"),
+            "the row of `{defect}` lacks its command, its failing test or its restore: {row}"
+        );
+    }
+}

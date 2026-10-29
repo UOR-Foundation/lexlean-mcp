@@ -20,6 +20,7 @@ pub mod modules;
 mod project;
 pub mod provision;
 mod rate;
+pub mod signer;
 mod store;
 mod verifier;
 
