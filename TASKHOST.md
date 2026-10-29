@@ -52,6 +52,16 @@ MCP's `TaskServe` fixes the time to live and the poll interval (60 s and 1 s) an
 task from a scripted plan. The gateway therefore builds its entries in `src/TaskTools.lex.tex`
 and uses `TaskServe` only to find, read and cancel a terminal entry.
 
+## The vectors
+
+Three vectors exercise the tasks: `tasks/get` of a task the verifier lost (the only transcript of
+`task.store`), of a task the table lacks, and by a client that does not declare the extension.
+The first is not served (`NOT_SERVED` of `gateway/vectors/generate.py`): its response carries the
+time and the table its frame gives, and a served program asks its own host for both, so its
+answer there is the unknown task. `prismpm verify` replays its frame through the binding, where
+the bytes are the modeled ones; the served pass still covers the frame effects with every other
+vector.
+
 ## Planted defects
 
 A gate is evidence only after a planted defect shows that it can fail (AGENTS.md). Each defect below was applied to the committed file named, the command was run, and the file was restored. The unplanted tree passes every one of these commands. The first three commands run in `gateway/` against the local registry (`CARGO_HOME=gateway/registry/cargo-home`, `--locked --offline`); the fourth runs at the root.

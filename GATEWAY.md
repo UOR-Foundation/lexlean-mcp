@@ -147,7 +147,9 @@ with `vectors/runner`, on a store that starts empty; `generate.py render` writes
 `src/Application.lex.tex` from it, and CI fails when the committed file is not that
 rendering. `prismpm verify` replays every vector three ways (a script of the recorded
 outcomes, the real binding through `gateway-host run`, and the served program over a socket)
-and requires the same bytes each time.
+and requires the same bytes each time, but for the one vector that `NOT_SERVED` of
+`generate.py` names: its response depends on the table and the clock its frame gives, which a
+fresh served program answers from its own host, so only its frame is replayed (TASKHOST.md).
 
 Five vectors ask for no effect (`tools-list`, `invalid-arguments`, `unknown-tool`, and two
 `explain` calls, one of a registered code and one of a code with a quotation mark and a reverse

@@ -223,6 +223,7 @@ def render(vectors: list) -> str:
             ("response", hexed(bytes.fromhex(v["http_response"]))),
         ])
         for index, v in enumerate(vectors)
+        if v["name"] not in NOT_SERVED
     ]
     transcripts = []
     for index, v in enumerate(vectors):
@@ -365,6 +366,11 @@ LOST_TABLE = json.dumps([{
     "plan": {"parkAfterMs": 10 ** 15, "parked": {}, "finishAfterMs": 10 ** 15,
              "outcome": {"completes": {}}},
 }], separators=(",", ":")).encode()
+# The vectors that are not served. A served vector is sent to a fresh program, whose adapter asks
+# its own host for the clock and the table; the response of these depends on the table and the
+# clock their frame gives, so only their frame is replayed (through the binding, by `prismpm
+# verify`), and that is where their transcript, the only one of task.store, is held (TASKHOST.md).
+NOT_SERVED = {"task.store: a task that the verifier lost is recorded"}
 # For each vector that is given a table or a client that declares the tasks extension: its _meta
 # and its table.
 TASK_VECTORS = {
