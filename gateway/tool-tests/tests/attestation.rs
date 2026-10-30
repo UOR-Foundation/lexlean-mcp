@@ -27,10 +27,25 @@ fn id() -> String {
 }
 
 /// The attestation.json of the verified directory: bytes the signer must not alter.
+/// The canonical LaTeX of the module of the tiny project, as the verification rendered it.
+const RENDERING: &[u8] = b"\\documentclass[11pt]{article}\n";
+
+/// The build manifest of the verification: the source it covered and the rendering of its module.
+fn manifest() -> Vec<u8> {
+    serde_json::to_vec(&json!({
+        "inputs": [{"kind": "source", "path": SOURCE, "sha256": source_digest()}],
+        "outputs": [{"kind": "tex", "path": "modules/Tiny/Tiny.tex",
+                     "sha256": hex(&Sha256::digest(RENDERING))}],
+    }))
+    .expect("JSON")
+}
+
+/// The attestation.json of the verified directory, which names the manifest by its digest.
 fn attestation_json() -> Vec<u8> {
     format!(
-        "{{\"attestation_id\":\"{}\",\"toolchain\":{{\"lean\":\"4.32.1\"}}}}",
-        id()
+        "{{\"attestation_id\":\"{}\",\"build_manifest\":{{\"sha256\":\"{}\"}},\"toolchain\":{{\"lean\":\"4.32.1\"}}}}",
+        id(),
+        hex(&Sha256::digest(manifest()))
     )
     .into_bytes()
 }
@@ -51,6 +66,9 @@ fn with_record() -> Gateway {
     let verified = work.path().join("verified");
     std::fs::create_dir_all(&verified).expect("a directory");
     std::fs::write(verified.join("attestation.json"), attestation_json()).expect("a file");
+    std::fs::write(verified.join("build-manifest.json"), manifest()).expect("a file");
+    std::fs::create_dir_all(verified.join("modules/Tiny")).expect("a directory");
+    std::fs::write(verified.join("modules/Tiny/Tiny.tex"), RENDERING).expect("a file");
     let config = gateway.config();
     let job = Job {
         directory: project,

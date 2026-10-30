@@ -1005,6 +1005,18 @@ suite = "signing"
 statement = "Each gate of the signed record rejects its planted defect: verify.start accepting a verification without a key, the failure to sign ignored and an unsigned record written, the envelope stored without its attestation.json, the predicate without the digests of the source files, and the lookup answering the unsigned record again; SIGNING.md records the command, the diagnostic and the restore of each."
 
 [[id]]
+id = "SG-14"
+level = "build"
+suite = "signing"
+statement = "A verified record keeps the evidence its attestation.json binds: below verifications/<attestation ID>/ the store holds build-manifest.json, the manifest whose SHA-256 attestation.json names as build_manifest, each output of kind tex that the manifest names (the canonical LaTeX of a module) at its path, and each input of kind source at sources/<its path>, every file byte for byte with the digest the manifest gives, written after attestation.json and before the envelope; a real verification of the tiny project leaves such a record."
+
+[[id]]
+id = "SG-15"
+level = "build"
+suite = "signing"
+statement = "A verification whose evidence cannot be kept whole leaves no record: when the build manifest is missing or is not the one attestation.json names, attestation.json names no manifest, a rendering or a source file is missing or differs from the digest the manifest gives, the manifest names no rendering or no source, or a path the manifest names is not a key of the store, the task ends failed with class 5 and the store holds no envelope, no attestation.json, no evidence, no index entry and no key entry for it."
+
+[[id]]
 id = "VP-01"
 level = "build"
 suite = "verifier"
