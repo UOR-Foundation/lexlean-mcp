@@ -75,7 +75,7 @@ run (the rest run in the gateway job). Restoring the file passes all of them.
 ## Decisions the model makes
 
 - The alerts on "classes 2, 3 and 70" are on the exit codes of LexLean's
-  `ErrorClass` at `release/v0.4` at `9796067` (SPEC 24.5 and 23.6): 2 is
+  `ErrorClass` at v0.4.0 at `e0b74b8` (SPEC 24.5 and 23.6): 2 is
   `CliOrConfiguration`, 3 is `Environment`, 70 is `Internal`. Classes 1
   (`Language`) and 4 (`SecurityOrLimit`) are answers to a bad or over-limit
   draft and never alert.
@@ -97,7 +97,7 @@ run (the rest run in the gateway job). Restoring the file passes all of them.
 A gate is evidence only after a planted defect shows it can fail (R2 of
 `AGENTS.md`). Each defect below was applied to a copy of `src/Observability.lex.tex`
 in a project of the three modules `Product`, `OwnerValues` and `Observability`
-(`lexlean lock`, then `lexlean verify`), with LexLean `release/v0.4` at `9796067`.
+(`lexlean lock`, then `lexlean verify`), with LexLean v0.4.0 at `e0b74b8`.
 The pull request's `lexlean / verify` job runs the same command on every module
 of the repository. The diagnostic is the first one `lexlean verify` prints; the
 restore is the unedited module, which verifies.

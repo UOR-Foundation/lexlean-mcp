@@ -34,14 +34,14 @@ unmapped here, fails a test.
 **Q8.** `model/errors.toml` registers the diagnostic codes and `ERRORS.md` is
 generated from it; `lexlean explain <CODE>` prints the entry of the code. The
 tests require every row to be complete, `ERRORS.md` to hold exactly the entry
-each row renders to, and every code the 297 negative fixtures return (the
+each row renders to, and every code the 298 negative fixtures return (the
 register of `negative-fixtures`) to be one of them.
 
 ## Regenerating
 
 ```sh
 git clone --filter=blob:none --no-checkout https://github.com/UOR-Foundation/LexLean <dir>
-git -C <dir> checkout 97960679736e960e84a98f5c43981e1f2c70d6d7
+git -C <dir> checkout e0b74b81e6f49c83596a957d232c8383a5db1a25
 cargo run -p quality-map --example import -- <dir>
 ```
 

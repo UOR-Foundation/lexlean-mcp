@@ -3,7 +3,7 @@ Feature: The executed measures of the quality model
   Q2 asks that each in-scope function of LexLean's public API reach exactly one tool, and Q8 that every diagnostic code resolve through lexlean_explain. The tools do not exist yet (#9 to #12), so what is measured here is what stands without them: the public functions and the diagnostic registry of the pinned LexLean, recomputed from its vendored files, and the API-to-tool map and the explained codes checked against them. A measure is Executed in src/Quality.lex.tex only when the registered rows whose tests pass observe it.
 
   @QM-01 @some-true
-  Scenario: LexLean release/v0.4 at 9796067 declares 33 public functions in the files of its stable API surface: 7 methods of Engine, 8 functions of lexlean::sdk, 11 of lexlean::api::production with the methods of its request, result and report, 5 free functions of lexlean::api and the 2 lifecycle functions of lexlean::verify; the vendored copies of crates/lexlean/src/api.rs, api/production.rs, sdk.rs and verify/lifeline.rs are the files of that commit, each with the git blob id the table records.
+  Scenario: LexLean v0.4.0 at `e0b74b8` declares 33 public functions in the files of its stable API surface: 7 methods of Engine, 8 functions of lexlean::sdk, 11 of lexlean::api::production with the methods of its request, result and report, 5 free functions of lexlean::api and the 2 lifecycle functions of lexlean::verify; the vendored copies of crates/lexlean/src/api.rs, api/production.rs, sdk.rs and verify/lifeline.rs are the files of that commit, each with the git blob id the table records.
     Given the cited authority A-LEXLEAN-API, .github/lexlean.rev and the vendored surface files
     When the blob ids, the checksum and the public functions are recomputed from the bytes
     Then each file is the pinned blob, the manifest is the authority's checksum, the pin is the one lexlean.rev names, and the count of public functions is the one the statement gives
@@ -21,7 +21,7 @@ Feature: The executed measures of the quality model
     Then no function is unmapped, no row names two outcomes, every tool is defined by an issue, and the functions that reach a tool are the in-scope ones
 
   @QM-04 @some-true
-  Scenario: LexLean release/v0.4 at 9796067 registers 86 diagnostic codes in model/errors.toml, each with a class, an exit status, a title and a statement, and generates ERRORS.md from the registry, one entry per code, which lexlean explain prints; the vendored copies are the files of that commit.
+  Scenario: LexLean v0.4.0 at `e0b74b8` registers 86 diagnostic codes in model/errors.toml, each with a class, an exit status, a title and a statement, and generates ERRORS.md from the registry, one entry per code, which lexlean explain prints; the vendored copies are the files of that commit.
     Given the cited authority A-LEXLEAN-ERRORS and the vendored registry and entries
     When the blob ids and the checksum are recomputed from the bytes and the registry is counted
     Then each file is the pinned blob, the manifest is the authority's checksum, and the registry holds the 86 codes the statement gives
@@ -33,7 +33,7 @@ Feature: The executed measures of the quality model
     Then every row is complete, the entries are the rows rendered, and none is missing or extra
 
   @QM-06 @build
-  Scenario: Every diagnostic code that the 297 negative fixtures of AC-07 return is a registered code with an entry in ERRORS.md, so a code in a result resolves through explain.
+  Scenario: Every diagnostic code that the 298 negative fixtures of AC-07 return is a registered code with an entry in ERRORS.md, so a code in a result resolves through explain.
     Given the fixture register and the vendored registry and entries
     When the codes of the command results of the fixtures are collected and looked up
     Then each returned code is registered and has an entry
