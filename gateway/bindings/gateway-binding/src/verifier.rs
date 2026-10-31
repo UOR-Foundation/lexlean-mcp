@@ -28,6 +28,7 @@ use crate::attestation;
 use crate::config::{Config, SIGNING_KEY_VARIABLE};
 use crate::signer::Signer;
 use crate::sweep;
+use crate::telemetry::{ErrorClass, GroupEnd, Telemetry, VerifyOutcome};
 
 /// The state of a task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,6 +120,10 @@ struct Task {
     session: Option<u32>,
     /// The groups a cancel ended and could not end, as the process reported them.
     groups: (u32, u32),
+    /// The profile of the draft, for the labels of the indicators.
+    profile: String,
+    queued: Instant,
+    started: Option<Instant>,
 }
 
 #[derive(Default)]
@@ -138,6 +143,7 @@ struct Shared {
     width: u32,
     memory_kib: u64,
     grace: Duration,
+    telemetry: Telemetry,
 }
 
 /// The verifier of a host.
@@ -147,6 +153,10 @@ pub struct Verifier {
 
 fn lock(shared: &Shared) -> MutexGuard<'_, Tasks> {
     shared.tasks.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+fn millis(elapsed: Duration) -> u64 {
+    u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX)
 }
 
 fn cancelled() -> Outcome {
@@ -181,12 +191,26 @@ impl Verifier {
                 width: config.verify_width,
                 memory_kib: config.verify_memory_kib,
                 grace: config.cancel_grace,
+                telemetry: Telemetry::new(None),
             }),
         }
     }
 
+    /// This verifier reporting to `telemetry`.
+    pub fn with_telemetry(mut self, telemetry: Telemetry) -> Verifier {
+        if let Some(shared) = Arc::get_mut(&mut self.shared) {
+            shared.telemetry = telemetry;
+        }
+        self
+    }
+
     /// Queue a task; it runs when a slot is free. Returns its name and its state.
     pub fn start(&self, job: Job) -> (String, State) {
+        self.start_as(job, "other")
+    }
+
+    /// Queue a task of a draft of `profile`, which labels its indicators.
+    pub fn start_as(&self, job: Job, profile: &str) -> (String, State) {
         let name = {
             let mut tasks = lock(&self.shared);
             tasks.next += 1;
@@ -201,6 +225,9 @@ impl Verifier {
                     pid: None,
                     session: None,
                     groups: (0, 0),
+                    profile: profile.to_owned(),
+                    queued: Instant::now(),
+                    started: None,
                 },
             );
             tasks.queue.push_back(name.clone());
@@ -379,6 +406,8 @@ fn launch(shared: &Arc<Shared>, name: &str, task: &mut Task) -> Result<(), Strin
     task.pid = Some(child.id());
     task.input = Some(input);
     task.phase = Phase::Running;
+    task.started = Some(Instant::now());
+    shared.telemetry.queue_wait(millis(task.queued.elapsed()));
 
     let tail = Arc::new(Mutex::new(Vec::new()));
     let drained = Arc::clone(&tail);
@@ -534,6 +563,7 @@ fn settle(shared: &Shared, name: &str, verdict: Option<Value>, log: &str) {
     let Some(task) = tasks.tasks.get_mut(name) else {
         return;
     };
+    let was_over = task.phase.ended();
     let event = verdict
         .as_ref()
         .and_then(|verdict| verdict.get("event"))
@@ -541,7 +571,9 @@ fn settle(shared: &Shared, name: &str, verdict: Option<Value>, log: &str) {
     match (task.phase, event, &verdict) {
         (Phase::Running, Some("verified"), Some(verdict)) => match facts_of(verdict) {
             Some(facts) => {
-                let outcome = conclude(&task.job, &facts);
+                let outcome = conclude_with(&task.job, &facts, || {
+                    shared.telemetry.signing_failure();
+                });
                 task.phase = if outcome.class == 0 {
                     Phase::Verified
                 } else {
@@ -576,13 +608,45 @@ fn settle(shared: &Shared, name: &str, verdict: Option<Value>, log: &str) {
                         .unwrap_or(0)
                 };
                 task.groups = (count("ended"), count("failed"));
+                shared
+                    .telemetry
+                    .child_group_ends(GroupEnd::Ended, task.groups.0);
+                shared
+                    .telemetry
+                    .child_group_ends(GroupEnd::Failed, task.groups.1);
             }
             task.phase = Phase::Cancelled;
             task.outcome = Some(cancelled());
         }
         _ => {}
     }
+    if !was_over && task.phase.ended() {
+        end_telemetry(shared, task);
+    }
     shared.changed.notify_all();
+}
+
+/// The indicators of a task that has just ended: its duration and outcome (S4), and the class of a
+/// failure (S1). A task that failed because of its process is class 5, an internal fault.
+fn end_telemetry(shared: &Shared, task: &Task) {
+    let outcome = match task.phase {
+        Phase::Verified => VerifyOutcome::Verified,
+        Phase::Cancelled => VerifyOutcome::Cancelled,
+        _ => VerifyOutcome::Failed,
+    };
+    if let Some(started) = task.started {
+        shared
+            .telemetry
+            .verify_duration(&task.profile, outcome, millis(started.elapsed()));
+    }
+    let class = match outcome {
+        VerifyOutcome::Failed => task
+            .outcome
+            .as_ref()
+            .and_then(|outcome| ErrorClass::from_number(outcome.class)),
+        _ => None,
+    };
+    shared.telemetry.tool_outcome(class);
 }
 
 /// The task of a process that ended without a verdict.
@@ -619,6 +683,12 @@ pub struct Facts {
 /// record to the files it covers. The envelope is written last, after the history that names its
 /// key (the signer's) and the subject, so a verification that could not be signed has no record.
 pub fn conclude(job: &Job, facts: &Facts) -> Outcome {
+    conclude_with(job, facts, || {})
+}
+
+/// `conclude`, calling `unsigned` when the record could not be made after the verification
+/// verified (`slo.S8`).
+fn conclude_with(job: &Job, facts: &Facts, unsigned: impl Fn()) -> Outcome {
     let Ok(subject) = std::fs::read(facts.root.join("attestation.json")) else {
         return failure(
             5,
@@ -641,6 +711,7 @@ pub fn conclude(job: &Job, facts: &Facts) -> Outcome {
     let envelope = match job.signer.sign(&subject, &predicate, now) {
         Ok(envelope) => envelope,
         Err(error) => {
+            unsigned();
             return failure(5, &format!("the verification could not be signed: {error}"));
         }
     };
@@ -653,6 +724,7 @@ pub fn conclude(job: &Job, facts: &Facts) -> Outcome {
     )
     .is_err()
     {
+        unsigned();
         return failure(5, "the record of the verification could not be written");
     }
     let result = json!({

@@ -513,6 +513,30 @@ suite = "observability"
 statement = "Each theorem of src/Observability.lex.tex that carries a claim rejects its planted defect under lexlean verify: a free-text field kept without redaction, an alert threshold off by one, a malformed traceparent accepted, a tracestate kept after a refused traceparent, and notifications/message added to the emitted set; OBSERVABILITY.md records the command, the diagnostic and the restore of each."
 
 [[id]]
+id = "OB-11"
+level = "build"
+suite = "observability"
+statement = "Every service level indicator S1 to S8 is emitted by the host as OpenTelemetry metrics (OTLP/JSON) under the names of sliDefs: tool outcomes by class from the Engine tools and the verifier, protocol errors by code, check latency, verify duration and outcome, queue wait, child group ends, profile drift and signing failures."
+
+[[id]]
+id = "OB-12"
+level = "build"
+suite = "observability"
+statement = "Each alert of the model (classes 2, 3 and 70, a failed child group end, a profile drift and a signing failure) fires as an error log record on its planted condition inside the window of its objective, fires on no healthy condition, and a lost verifier raises the class 70 alert."
+
+[[id]]
+id = "OB-13"
+level = "build"
+suite = "observability"
+statement = "No telemetry record the host emits contains module text, call arguments or a lexicon search query: the text passes through redact, which keeps nothing, and a profile label that is not a profile name is other; a span carries the trace of the request's _meta."
+
+[[id]]
+id = "OB-14"
+level = "build"
+suite = "observability"
+statement = "The host reads traceparent, tracestate and baggage from _meta as the model's extract does, restarting the trace on a malformed traceparent and dropping tracestate over 512 and baggage over 8192 bytes, and it emits no notification: the set it emits is notifications/progress alone."
+
+[[id]]
 id = "PF-01"
 level = "build"
 suite = "profiles"

@@ -25,6 +25,7 @@ pub mod signer;
 mod store;
 mod sweep;
 mod taskhost;
+pub mod telemetry;
 mod verifier;
 
 pub use config::{
@@ -33,6 +34,7 @@ pub use config::{
 };
 pub use engine::{Answer, Call, Unavailable};
 pub use taskhost::{iso, Clock};
+pub use telemetry::Telemetry;
 pub use verifier::{conclude, Facts, Job, Outcome, Report, State, Verifier};
 
 use std::sync::Arc;
@@ -53,6 +55,7 @@ pub struct Native {
     counter: rate::Counter,
     clock: Clock,
     tasks: Vec<u8>,
+    telemetry: Telemetry,
 }
 
 impl Default for Native {
@@ -64,14 +67,26 @@ impl Default for Native {
 impl Native {
     /// A host with this configuration.
     pub fn new(config: Config) -> Native {
-        let verifier = Verifier::new(&config);
+        Native::with_telemetry(config, Telemetry::from_environment())
+    }
+
+    /// A host with this configuration that reports to `telemetry`.
+    pub fn with_telemetry(config: Config, telemetry: Telemetry) -> Native {
+        let verifier = Verifier::new(&config).with_telemetry(telemetry.clone());
         Native {
             config,
             verifier,
             counter: rate::Counter::default(),
             clock: Clock::default(),
             tasks: Vec::new(),
+            telemetry,
         }
+    }
+
+    /// The telemetry of the host. The driver ends a request's span with it (`begin_request`) and
+    /// exports the metrics with `flush`.
+    pub fn telemetry(&self) -> &Telemetry {
+        &self.telemetry
     }
 
     /// The configuration of the host.
@@ -96,14 +111,32 @@ impl Native {
         files: &str,
         call: Call,
     ) -> Result<engine::Answer, EngineRefusal> {
-        let resolved = project::resolve(&self.config.store, project, self.config.blob_max_bytes)
-            .ok_or(EngineRefusal::Project)?;
-        engine::run(
+        let resolved = project::resolve(
+            &self.config.store,
+            project,
+            self.config.blob_max_bytes,
+            &self.telemetry,
+        )
+        .ok_or(EngineRefusal::Project)?;
+        let started = Instant::now();
+        let answered = engine::run(
             resolved.directory(),
             project::selection(selection, files),
             call,
-        )
-        .map_err(|Unavailable| EngineRefusal::Engine)
+        );
+        // A refused project is the client's mistake and no tool outcome; what ran is one.
+        let class = match &answered {
+            Ok(answer) => telemetry::ErrorClass::from_number(answer.class),
+            Err(Unavailable) => Some(telemetry::ErrorClass::Environment),
+        };
+        self.telemetry.tool_outcome(class);
+        if matches!(call, Call::Check) {
+            let profile =
+                materialize::split_handle(project).map_or("other", |(profile, _)| profile);
+            let elapsed = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            self.telemetry.check_latency(profile, elapsed);
+        }
+        answered.map_err(|Unavailable| EngineRefusal::Engine)
     }
 }
 
@@ -363,6 +396,7 @@ impl Host for Native {
             &self.config.store,
             &request.project,
             self.config.blob_max_bytes,
+            &self.telemetry,
         ) else {
             return Err(HostError::Failed(verify_start::Failure::ProjectRefused));
         };
@@ -372,8 +406,12 @@ impl Host for Native {
         };
         // A verification that could not be signed is not begun.
         let unavailable = || HostError::Failed(verify_start::Failure::VerifierUnavailable);
-        let key = self.config.signing_key.as_deref().ok_or_else(unavailable)?;
-        let signer = Signer::load(key, self.config.history_path()).map_err(|_| unavailable())?;
+        let unsigned = || {
+            self.telemetry.signing_failure();
+            unavailable()
+        };
+        let key = self.config.signing_key.as_deref().ok_or_else(unsigned)?;
+        let signer = Signer::load(key, self.config.history_path()).map_err(|_| unsigned())?;
         if !self
             .config
             .verifier_program
@@ -385,12 +423,17 @@ impl Host for Native {
         // The verification outlives this call: its directory is kept, and the `builds` area is
         // a cache that the lifecycle of the store drops.
         let directory = resolved.keep();
-        let (task, state) = self.verifier.start(Job {
-            directory,
-            selection,
-            store: self.config.store.clone(),
-            signer: Arc::new(signer),
-        });
+        let profile =
+            materialize::split_handle(&request.project).map_or("other", |(profile, _)| profile);
+        let (task, state) = self.verifier.start_as(
+            Job {
+                directory,
+                selection,
+                store: self.config.store.clone(),
+                signer: Arc::new(signer),
+            },
+            profile,
+        );
         Ok(verify_start::Completed {
             task,
             state: state as u32,
