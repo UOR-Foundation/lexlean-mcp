@@ -198,7 +198,8 @@ fn pairs(cell: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// GW-01: the gateway declares the ten effects of the model, in its order, and then the frame effect.
+/// GW-01: the gateway declares the ten effects of the model, in its order, and then the rate
+/// counter and the four entries of the tasks (TASKHOST.md).
 #[test]
 fn the_gateway_declares_the_ten_effects_in_order_gw_01() {
     let declared: Vec<String> = declared_effects(&application())
@@ -209,8 +210,8 @@ fn the_gateway_declares_the_ten_effects_in_order_gw_01() {
     assert_eq!(model.len(), 10, "src/Effects.lex.tex declares ten effects");
     assert_eq!(
         declared.len(),
-        11,
-        "the host protocol declares the ten effects and the frame effect"
+        15,
+        "the host protocol declares the ten effects, the rate counter and the four entries of the tasks"
     );
     assert_eq!(
         declared[..10],
@@ -218,11 +219,12 @@ fn the_gateway_declares_the_ten_effects_in_order_gw_01() {
         "the host protocol lists the effects of src/Effects.lex.tex first, so the tag of an effect is its position"
     );
     assert_eq!(
-        declared[10], FRAME_EFFECT,
-        "the eleventh effect is the frame effect"
+        declared[10..],
+        HOST_ENTRIES,
+        "the entries after the ten are the rate counter and the entries of the tasks"
     );
     let distinct: BTreeSet<&String> = declared.iter().collect();
-    assert_eq!(distinct.len(), 11, "no effect is declared twice");
+    assert_eq!(distinct.len(), 15, "no effect is declared twice");
     let document = read("GATEWAY.md");
     let tabled: Vec<String> = table(&document, "The effects")
         .into_iter()
@@ -263,8 +265,18 @@ fn the_gateway_declares_the_ten_effects_in_order_gw_01() {
     );
 }
 
-/// The frame effect: the adapter, not the core, asks for it.
+/// The rate counter: the adapter, not the core, asks for it.
 const FRAME_EFFECT: &str = "rate.calls";
+
+/// The entries after the effects of the model: four the adapter asks for (`rate.calls`,
+/// `clock.now`, `task.id`, `task.table`) and one the core asks for (`task.store`).
+const HOST_ENTRIES: [&str; 5] = [
+    "rate.calls",
+    "clock.now",
+    "task.id",
+    "task.table",
+    "task.store",
+];
 
 /// GW-02: request, result and failures are those of the table.
 #[test]
@@ -352,7 +364,7 @@ fn each_effect_has_typed_fields_and_closed_failures_gw_02() {
     );
     assert_eq!(
         declared_effects(&application()).len(),
-        11,
+        15,
         "the closed fields add no effect"
     );
     // The bounds follow the owner values: a draft is at most draft.max_bytes.
@@ -481,9 +493,13 @@ fn every_effect_is_exercised_by_an_acceptance_vector_gw_04() {
         .map(|part| part.split('"').next().expect("an effect").to_string())
         .collect();
     let model: BTreeSet<String> = model_effect_names().into_iter().collect();
+    // The core asks for the ten effects of the model and for task.store; the adapter asks for the
+    // rest (HOST_ENTRIES), so they are in no transcript.
+    let mut asked = model.clone();
+    asked.insert("task.store".to_string());
     assert_eq!(
-        exercised, model,
-        "the transcripts request exactly the ten effects"
+        exercised, asked,
+        "the transcripts request exactly the ten effects and task.store"
     );
     let vectors = read("gateway/vectors/exchanges.json");
     for name in &model {

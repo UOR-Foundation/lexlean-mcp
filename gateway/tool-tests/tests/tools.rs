@@ -4,8 +4,9 @@
 
 use gateway_binding::Native;
 use gateway_host_api::protocol::{
-    attestation_lookup, engine_build, engine_check, engine_format, engine_snapshot, lexicon_read,
-    rate_calls, store_get, store_put, verify_control, verify_start, Host, HostError,
+    attestation_lookup, clock_now, engine_build, engine_check, engine_format, engine_snapshot,
+    lexicon_read, rate_calls, store_get, store_put, task_id, task_store, task_table,
+    verify_control, verify_start, Host, HostError,
 };
 use gateway_tool_tests::{fixture, tiny, Gateway, Reply, TOOLS};
 use serde_json::{json, Value};
@@ -384,6 +385,10 @@ impl Host for Forge {
     delegated!(lexicon_read, lexicon_read);
     delegated!(attestation_lookup, attestation_lookup);
     delegated!(rate_calls, rate_calls);
+    delegated!(clock_now, clock_now);
+    delegated!(task_id, task_id);
+    delegated!(task_table, task_table);
+    delegated!(task_store, task_store);
 }
 
 fn forge(gateway: &Gateway, class: u32, result: &[u8]) -> Forge {

@@ -24,6 +24,7 @@ mod rate;
 pub mod signer;
 mod store;
 mod sweep;
+mod taskhost;
 mod verifier;
 
 pub use config::{
@@ -31,6 +32,7 @@ pub use config::{
     SIGNING_KEY_VARIABLE, VERIFY_CONCURRENCY, VERIFY_MEMORY_KIB, VERIFY_WIDTH,
 };
 pub use engine::{Answer, Call, Unavailable};
+pub use taskhost::{iso, Clock};
 pub use verifier::{conclude, Facts, Job, Outcome, Report, State, Verifier};
 
 use std::sync::Arc;
@@ -39,15 +41,18 @@ use std::time::Instant;
 use crate::signer::Signer;
 
 use gateway_host_api::protocol::{
-    attestation_lookup, engine_build, engine_check, engine_format, engine_snapshot, lexicon_read,
-    rate_calls, store_get, store_put, verify_control, verify_start, Host, HostError,
+    attestation_lookup, clock_now, engine_build, engine_check, engine_format, engine_snapshot,
+    lexicon_read, rate_calls, store_get, store_put, task_id, task_store, task_table,
+    verify_control, verify_start, Host, HostError,
 };
 
-/// The host: a store, a verifier and a rate counter.
+/// The host: a store, a verifier, a rate counter, a clock and the table of tasks.
 pub struct Native {
     config: Config,
     verifier: Verifier,
     counter: rate::Counter,
+    clock: Clock,
+    tasks: Vec<u8>,
 }
 
 impl Default for Native {
@@ -64,6 +69,8 @@ impl Native {
             config,
             verifier,
             counter: rate::Counter::default(),
+            clock: Clock::default(),
+            tasks: Vec::new(),
         }
     }
 
@@ -75,6 +82,11 @@ impl Native {
     /// The rate counter, answered at `now`.
     pub fn count(&mut self, counted: bool, now: Instant) -> u32 {
         self.counter.answer(counted, now, self.config.rate_window)
+    }
+
+    /// The counter of milliseconds and the ISO 8601 text of the instant `at`.
+    pub fn clock(&self, at: Instant) -> (u64, String) {
+        self.clock.at(at)
     }
 
     fn engine_call(
@@ -445,6 +457,40 @@ impl Host for Native {
         Ok(rate_calls::Completed {
             calls: self.count(request.counted, Instant::now()),
         })
+    }
+
+    fn clock_now(
+        &mut self,
+        _request: clock_now::Request,
+    ) -> Result<clock_now::Completed, HostError<clock_now::Failure>> {
+        let (ms, iso) = self.clock(Instant::now());
+        Ok(clock_now::Completed { ms, iso })
+    }
+
+    fn task_id(
+        &mut self,
+        _request: task_id::Request,
+    ) -> Result<task_id::Completed, HostError<task_id::Failure>> {
+        taskhost::fresh_id()
+            .map(|id| task_id::Completed { id })
+            .ok_or(HostError::Fault)
+    }
+
+    fn task_table(
+        &mut self,
+        _request: task_table::Request,
+    ) -> Result<task_table::Completed, HostError<task_table::Failure>> {
+        Ok(task_table::Completed {
+            table: self.tasks.clone(),
+        })
+    }
+
+    fn task_store(
+        &mut self,
+        request: task_store::Request,
+    ) -> Result<task_store::Completed, HostError<task_store::Failure>> {
+        self.tasks = request.table;
+        Ok(task_store::Completed {})
     }
 }
 

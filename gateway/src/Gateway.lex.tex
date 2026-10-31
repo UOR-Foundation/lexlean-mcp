@@ -10,7 +10,9 @@
 \importmodule{Json}
 \importmodule{Methods}
 \importmodule{Refusal}
+\importmodule{TaskServe}
 \importmodule{StepServe}
+\importmodule{TaskTools}
 \importmodule{Tools}
 \importmodule{Vocabulary}
 \title{LexLean MCP gateway}
@@ -27,7 +29,7 @@ definition{
   name: gatewayCapabilities,
   parameters: [],
   result: Capabilities::ServerCapabilities,
-  body: (record Capabilities::ServerCapabilities {experimental := (ctor Option.none [Json::JsonObject]), logging := (ctor Option.none [Json::JsonObject]), completions := (ctor Option.some [Json::JsonObject] (record Json::JsonObject {members := (nil (String * Json::Json))})), prompts := (ctor Option.none [Capabilities::ListChangedCapability]), resources := (ctor Option.some [Capabilities::ResourcesCapability] (record Capabilities::ResourcesCapability {subscribe := (ctor Option.none [Bool]), listChanged := (ctor Option.none [Bool])})), tools := (ctor Option.some [Capabilities::ListChangedCapability] (record Capabilities::ListChangedCapability {listChanged := (ctor Option.none [Bool])})), extensions := (ctor Option.none [Json::JsonObject])}),
+  body: (record Capabilities::ServerCapabilities {experimental := (ctor Option.none [Json::JsonObject]), logging := (ctor Option.none [Json::JsonObject]), completions := (ctor Option.some [Json::JsonObject] (record Json::JsonObject {members := (nil (String * Json::Json))})), prompts := (ctor Option.none [Capabilities::ListChangedCapability]), resources := (ctor Option.some [Capabilities::ResourcesCapability] (record Capabilities::ResourcesCapability {subscribe := (ctor Option.none [Bool]), listChanged := (ctor Option.none [Bool])})), tools := (ctor Option.some [Capabilities::ListChangedCapability] (record Capabilities::ListChangedCapability {listChanged := (ctor Option.none [Bool])})), extensions := (ctor Option.some [Json::JsonObject] (record Json::JsonObject {members := (cons ((Capabilities::tasksExtensionId), (ctor Json::Json.object (nil (String * Json::Json)))) (nil (String * Json::Json)))}))}),
   executable: true
 }
 
@@ -53,7 +55,7 @@ definition{
   name: gatewayInfo,
   parameters: [],
   result: Extension::ProviderInfo,
-  body: (record Extension::ProviderInfo {serverInfo := (gatewayServerInfo), instructions := (ctor Option.none [String]), capabilities := (gatewayCapabilities), discoverCache := (gatewayCache), paramRules := (Admission::rulesOf (GatewayTools::gatewayTools)), toolCallLimit := (callLimit), requestStateKey := 0x}),
+  body: (record Extension::ProviderInfo {serverInfo := (gatewayServerInfo), instructions := (ctor Option.none [String]), capabilities := (gatewayCapabilities), discoverCache := (gatewayCache), paramRules := (Admission::rulesOf (GatewayTools::gatewayTools)), toolCallLimit := (callLimit), requestStateKey := 0x, taskStoreTag := 14}),
   axioms: [Quot.sound, propext],
   executable: true
 }
@@ -74,7 +76,7 @@ definition{
     | Option.some refusal => (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] refusal)
     | Option.none => (match (project asked request)
       | Methods::ClientRequest.toolsList params => (Tools::answerList (gatewayCache) (GatewayTools::gatewayTools) params)
-      | Methods::ClientRequest.toolsCall params => (Tools::answerCall (GatewayTools::gatewayTools) (fun [asked] (call : Methods::CallToolParams) => (Vocabulary::behave (project asked completed) call)) params)
+      | Methods::ClientRequest.toolsCall params => (TaskTools::verifyAnswer asked params (Tools::answerCall (GatewayTools::gatewayTools) (fun [asked] (call : Methods::CallToolParams) => (Vocabulary::behave (TaskTools::withoutStore (project asked completed)) call)) params))
       | Methods::ClientRequest.serverDiscover params => (toolsOnly)
       | Methods::ClientRequest.resourcesList params => (Vocabulary::listResources (project asked completed) (resourceCache) params)
       | Methods::ClientRequest.resourcesRead params => (Vocabulary::readResource (project asked completed) (resourceCache) params)
@@ -82,9 +84,9 @@ definition{
       | Methods::ClientRequest.promptsList params => (toolsOnly)
       | Methods::ClientRequest.promptsGet params => (toolsOnly)
       | Methods::ClientRequest.completionComplete params => (Vocabulary::complete (project asked completed) params)
-      | Methods::ClientRequest.tasksGet params => (toolsOnly)
-      | Methods::ClientRequest.tasksUpdate params => (toolsOnly)
-      | Methods::ClientRequest.tasksCancel params => (toolsOnly))),
+      | Methods::ClientRequest.tasksGet params => (TaskTools::getTask asked params)
+      | Methods::ClientRequest.tasksUpdate params => (TaskServe::serveUpdate (project asked host) params)
+      | Methods::ClientRequest.tasksCancel params => (TaskTools::cancelTask asked params))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
