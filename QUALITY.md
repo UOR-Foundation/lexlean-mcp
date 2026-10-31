@@ -175,9 +175,13 @@ tests run in the gateway workspace and `QM-07` checks that each cited row has a 
 
 Q5 (the MCP oracles), Q6 (modularity) and Q7 (the same `build_id` on both platforms) stay
 `Pending`: Q5 needs all 50 scenarios to pass and the waiting list is not empty (#45, #17),
-Q6 needs the generated host adapter, and Q7 needs a run on `linux/arm64`, which the gateway
-job does not make; each says in the model which issue executes it. The gateway job runs on `linux/amd64` only, so no run yet observes a `build_id`
-on `linux/arm64`. Q1's clause for `lexlean_verify` waits for #11. Issue #15 stays open for
+Q6 needs the generated host adapter, and Q7 cannot be reached by `just vv`: the root
+workspace has no `lexlean` dependency and `build_id` comes only from the engine, which the
+gateway workspace links and the gateway job runs on `linux/amd64` only. `bootstrap.yml` does
+run `just vv` on `linux/amd64` and `linux/arm64`, so Q7 can be executed there at no extra CI
+cost once a committed `build_id` is recomputed by a test of the gateway workspace that `just vv`
+reaches (#10); until then no run observes a `build_id` on `linux/arm64`. Each says in the model
+which issue executes it. Q1's clause for `lexlean_verify` waits for #11. Issue #15 stays open for
 the three pending measures and that clause.
 
 ## Planted defects
