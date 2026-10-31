@@ -10,9 +10,12 @@ evidence; the register is `model/ids.toml` and `CONFORMANCE.md` is generated fro
 
 | Risk | Measurement | Status | Evidence |
 | --- | --- | --- | --- |
+| R1 | every envelope validates under the key history | `Executed` | `SM-03`: `SG-03`, `SG-10`, `SG-11` |
 | R2 | no profile served without a review record per package digest | `Executed` | `SM-02` |
+| R3 | `dns-rebinding-protection` passes; the adapter refuses a foreign `Origin` | `Executed` | `SM-04`: `GW-12`, `GW-13` |
 | R5 | a planted `..` path refused before any `Engine` call | `Executed` | `SM-01` |
-| R1, R3, R4, R6 to R9 | as stated in `Security` | `Pending` | the issue named in each status (#7 to #13, #17) |
+| R8 | an envelope under a revoked key fails validation | `Executed` | `SM-05`: `SG-04`, `SG-05`, `SG-07` |
+| R4, R6, R7, R9 | as stated in `Security` | `Pending` | the issue named in each status (#7 to #13, #17, #45) |
 | R10 | recorded as a residual risk of `mcp-loopback` | `Residual` | none in this release |
 
 The symlink clause of control K5 (materialization refuses symlinks in a profile
@@ -134,3 +137,35 @@ pendingClauses records a clause, and DR-08 executes the symlink clause of K5
 
 Restored: `src/Security.lex.tex` is the committed one, and `lexlean verify src/Security.lex.tex`
 verifies 5 modules, with `noClauseIsPending` among its theorems.
+
+### 5. R3 flipped back to `Pending` (also R1, R8)
+
+Defect: in `src/Security.lex.tex`, `ctor MeasureStatus.Executed` in the measurement of R3
+replaced by `ctor MeasureStatus.Pending`. The same flip of R1 or R8 is reported the same way
+(`the measurement of R1 is not Executed`), and `SM-03` to `SM-05` also plant, in memory, the
+first cited row removed from the register and its test removed from the test names.
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p repo-conformance --test security` | `SM-04` fails, and `SM-01` fails on its count of Executed measurements |
+
+Diagnostics:
+
+```
+SM-04 does not hold:
+the measurement of R3 is not Executed
+```
+
+```
+SM-01 does not hold:
+exactly five measurements must be Executed
+```
+
+Restored: `src/Security.lex.tex` is the committed one. The theorems
+`measurementsPendingAreR4R6R7AndR9` and `executedMeasurementsAreR1R2R3R5AndR8` are checked
+by `lexlean verify src/Security.lex.tex`, which CI runs; it was not run in this change's
+environment, which has no `lexlean`.
+
+R9 stays `Pending` (#45): the conformance scenario `input-required-result-tampered-state`
+waits because no tool of the gateway asks the client for input, so the core issues no
+`requestState`. `SM-05` requires the status to name #45.

@@ -1,4 +1,4 @@
-//! `QM-07`: the measures of Q1, Q2, Q4 and Q8 are executed.
+//! `QM-07`: the measures of Q1 to Q4 and Q8 are executed.
 //!
 //! `src/Quality.lex.tex` records the status of each measure. A status of
 //! `Executed` is a claim about rows of the register, and LexLean cannot see the
@@ -17,14 +17,16 @@ use repo_model::{Level, Model};
 mod common;
 use common::{root, workspace_test_names};
 
-/// The rows `QM-07` is expected to cite, by measure: Q1 (index 0), Q2 (1), Q4 (3) and Q8 (7).
+/// The rows `QM-07` is expected to cite, by measure: Q1 (index 0), Q2 (1), Q3 (2), Q4 (3) and Q8 (7).
 /// The last row of each is the row of the tools suite that runs its clause where the tools are
 /// built: `TL-06` the build of every example beside the CLI for Q1, `TL-15` a tool that runs for
 /// each in-scope function for Q2, `TL-08` the host process accounting across each call for Q4,
-/// and `TL-13` the running `lexlean_explain` for Q8.
-const CITED: [(u32, &[&str]); 4] = [
+/// and `TL-13` the running `lexlean_explain` for Q8. Q3 is observed by the fault cases of the
+/// verifier (`VP-04`, `VP-05`) and of the signed record (`SG-07`, `SG-12`).
+const CITED: [(u32, &[&str]); 5] = [
     (0, &["TL-03", "TL-06"]),
     (1, &["QM-01", "QM-02", "QM-03", "TL-15"]),
+    (2, &["VP-04", "VP-05", "SG-07", "SG-12"]),
     (3, &["TL-08"]),
     (7, &["QM-04", "QM-05", "QM-06", "TL-13"]),
 ];
@@ -34,7 +36,7 @@ const CITED: [(u32, &[&str]); 4] = [
 const KEEPS_A_CLAUSE: u32 = 0;
 
 /// The measures that stay pending, each naming what executes it.
-const PENDING: [u32; 4] = [2, 4, 5, 6];
+const PENDING: [u32; 3] = [4, 5, 6];
 
 const EXECUTED: &str = "ctor EvidenceStatus.Executed";
 const PENDING_CTOR: &str = "ctor EvidenceStatus.Pending";
@@ -125,10 +127,11 @@ fn violations(i: &Inputs) -> Vec<String> {
             out.push(format!("{id} is cited and is not in model/ids.toml"));
             continue;
         };
-        let suite = if id.starts_with("TL-") {
-            "tools"
-        } else {
-            "quality"
+        let suite = match &id[..2] {
+            "TL" => "tools",
+            "VP" => "verifier",
+            "SG" => "signing",
+            _ => "quality",
         };
         if cited_row.suite != suite {
             out.push(format!(
@@ -154,7 +157,7 @@ fn violations(i: &Inputs) -> Vec<String> {
         ));
     }
 
-    // Q1, Q2, Q4 and Q8 are Executed, each naming its rows; only Q1 points at a pending clause.
+    // Q1 to Q4 and Q8 are Executed, each naming its rows; only Q1 points at a pending clause.
     for (measure, ids) in CITED {
         match evidence_of(quality, measure) {
             None => out.push(format!("Quality has no evidence for measure {measure}")),
@@ -201,8 +204,8 @@ fn violations(i: &Inputs) -> Vec<String> {
     }
 
     for name in [
-        "executedMeasuresAreQ1Q2Q4AndQ8",
-        "measuresPendingAreQ3AndQ5ToQ7",
+        "executedMeasuresAreQ1ToQ4AndQ8",
+        "measuresPendingAreQ5ToQ7",
         "onlyTheVerifyClauseOfQ1IsPending",
     ] {
         if block(quality, "theorem", name).is_none() {
@@ -300,7 +303,7 @@ fn the_check_rejects_a_pending_measure_a_missing_row_and_a_wrong_count_qm_07() {
     let base = inputs();
     let reported = |i: &Inputs, needle: &str| violations(i).iter().any(|v| v.contains(needle));
 
-    // Q1, Q2, Q4 and Q8 each flipped back to Pending.
+    // Q1 to Q4 and Q8 each flipped back to Pending.
     for (measure, _) in CITED {
         let at = base
             .quality
@@ -326,6 +329,7 @@ fn the_check_rejects_a_pending_measure_a_missing_row_and_a_wrong_count_qm_07() {
         (7, "Q8 running explain", "TL-13"),
         (1, "Q2 tools exist", "TL-15"),
         (3, "Q4 no child process", "TL-08"),
+        (2, "Q3 no record on a fault", "SG-12"),
     ] {
         let at = base
             .quality
@@ -357,7 +361,7 @@ fn the_check_rejects_a_pending_measure_a_missing_row_and_a_wrong_count_qm_07() {
     }
 
     // A measure pointing at pendingClauses again, with the clause gone.
-    for (index, last) in [(7, "QM-06"), (1, "QM-03"), (3, "TL-08")] {
+    for (index, last) in [(7, "QM-06"), (1, "QM-03"), (3, "TL-08"), (2, "SG-12")] {
         let at = base
             .quality
             .find(&format!("record MeasureEvidence {{measure := {index},"))
@@ -456,12 +460,23 @@ fn the_check_rejects_a_pending_measure_a_missing_row_and_a_wrong_count_qm_07() {
         ..clone(&base)
     };
     assert!(reported(&planted, "QM-07 cites"), "Q1 without TL-06");
+    let mut model = base.model.clone();
+    for item in &mut model.ids.id {
+        if item.id == "QM-07" {
+            item.statement = item.statement.replace("SG-07 and SG-12", "SG-07");
+        }
+    }
+    let planted = Inputs {
+        model,
+        ..clone(&base)
+    };
+    assert!(reported(&planted, "QM-07 cites"), "Q3 without SG-12");
 
     // A measure the register does not execute flipped to Executed.
     let at = base
         .quality
-        .find("record MeasureEvidence {measure := 2,")
-        .expect("Q3");
+        .find("record MeasureEvidence {measure := 4,")
+        .expect("Q5");
     let flipped = format!(
         "{}{}",
         &base.quality[..at],
@@ -471,7 +486,7 @@ fn the_check_rejects_a_pending_measure_a_missing_row_and_a_wrong_count_qm_07() {
         quality: flipped,
         ..clone(&base)
     };
-    assert!(reported(&planted, "exactly 4 measures must be Executed"));
+    assert!(reported(&planted, "exactly 5 measures must be Executed"));
 
     // A cited row removed from the register.
     let mut model = base.model.clone();

@@ -323,6 +323,42 @@ fn a_verification_that_cannot_be_signed_leaves_no_record_sg_12() {
 }
 
 #[test]
+fn the_record_keeps_its_evidence_sg_14() {
+    answered_by(
+        "SG-14",
+        &["the_record_keeps_the_manifest_the_renderings_and_the_sources_sg_14"],
+    );
+    // The order in `record`: the subject, then the evidence, then the envelope.
+    let source = read("gateway/bindings/gateway-binding/src/attestation.rs");
+    let record = &source[source.find("pub fn record(").expect("record")..];
+    let subject = record.find("attestation.json").expect("the subject");
+    let evidence = record
+        .find("for (key, bytes) in evidence")
+        .expect("the evidence");
+    let envelope = record.find("{attestation}.json").expect("the envelope");
+    assert!(
+        subject < evidence && evidence < envelope,
+        "the subject, then the evidence, then the envelope"
+    );
+}
+
+#[test]
+fn evidence_that_cannot_be_kept_leaves_no_record_sg_15() {
+    answered_by(
+        "SG-15",
+        &["evidence_that_cannot_be_kept_whole_leaves_no_record_sg_15"],
+    );
+    // The evidence is gathered before the subject is signed.
+    let verifier = read(VERIFIER);
+    let conclude = &verifier[verifier.find("pub fn conclude(").expect("conclude")..];
+    let gather = conclude
+        .find("evidence::gather(")
+        .expect("conclude gathers the evidence");
+    let sign = conclude.find("job.signer.sign(").expect("conclude signs");
+    assert!(gather < sign, "gather, then sign");
+}
+
+#[test]
 fn each_gate_of_the_signed_record_rejects_its_planted_defect_sg_13() {
     let document = read("SIGNING.md");
     let section = document
@@ -335,6 +371,10 @@ fn each_gate_of_the_signed_record_rejects_its_planted_defect_sg_13() {
         "the envelope stored without its attestation.json",
         "the predicate without the digests of the source files",
         "the lookup answering the unsigned record again",
+        "the manifest kept without its digest checked",
+        "a rendering kept without its digest checked",
+        "the evidence not written",
+        "evidence that cannot be gathered ignored",
     ] {
         let row = section
             .lines()

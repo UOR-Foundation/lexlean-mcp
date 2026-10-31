@@ -2,21 +2,21 @@
 
 Issue #15 models the quality requirements Q1 to Q8 as chains with an
 all-or-none measure. `src/Quality.lex.tex` records, for each measure, whether it
-is `Executed` or `Pending`. This file states which four are `Executed` now, what
+is `Executed` or `Pending`. This file states which five are `Executed` now, what
 the evidence is, what it does not show, and the defects planted in its gates.
 
 | Measure | Requirement | Status | Rows |
 | --- | --- | --- | --- |
 | Q1 | a tool result equals the engine's result | **Executed** for check and build; the verify clause is pending (#11) | TL-03, TL-06 |
 | Q2 | each in-scope API function is reached by exactly one tool | **Executed** | QM-01 to QM-03, TL-15 |
-| Q3 | no record for a verification that did not end `verified` | Pending | needs verification as tasks (#11) and the store (#13) |
+| Q3 | no record for a verification that did not end `verified` | **Executed** | VP-04, VP-05, SG-07, SG-12 |
 | Q4 | check, snapshot, format, build start no child process | **Executed** | TL-08 |
 | Q5 | the MCP implementation conforms to 2026-07-28 | Pending | needs the deployed core (#17) |
 | Q6 | protocol and tool semantics live only in `.lex.tex` | Pending | needs the host adapter (#7) |
 | Q7 | the same `build_id` on `linux/amd64` and `linux/arm64` | Pending | needs `build` as a tool (#10), on both platforms |
 | Q8 | every diagnostic code in a result resolves through F11 | **Executed** | QM-04 to QM-06 |
 
-`measuresPendingAreQ3AndQ5ToQ7` pins the pending list, `executedMeasuresAreQ1Q2Q4AndQ8`
+`measuresPendingAreQ5ToQ7` pins the pending list, `executedMeasuresAreQ1ToQ4AndQ8`
 pins the executed one, and `onlyTheVerifyClauseOfQ1IsPending` pins the list of clauses that
 still wait: one, the clause of Q1 for `lexlean_verify`. `qualityValid` requires that the
 measure of each clause in `pendingClauses` is an executed one. `QM-07` ties the statuses to
@@ -159,14 +159,30 @@ and an unused registered one, SPEC 26.1), cited here and not re-run. The fixture
 return only some of the 86 codes; the others are explained but not observed in a
 result.
 
+## Q3: fault tolerance
+
+**Evidence.** Each fault case of the measure leaves no record: a cancelled task (`VP-04`), a
+verifier lost by exiting or by a signal (`VP-05`, `verifier-lost`, its session killed), and a
+record that cannot be written, a key history or an `attestation.json` the host cannot store
+(`SG-07`, `SG-12`: class 5, no envelope, no `attestation.json`, no index entry). A
+verification that ends failed leaves none either (`SG-12`).
+
+**What it does not show.** "Store full" is observed as a store that cannot be written, not as
+a disk with no room left (`ENOSPC`); the host reports both as the same write failure. The
+tests run in the gateway workspace and `QM-07` checks that each cited row has a test.
+
 ## What is not met
 
-Q3 (fault tolerance), Q5 (the MCP oracles), Q6 (modularity) and Q7 (the same `build_id`
-on both platforms) stay `Pending`: each needs verification as tasks, the deployed service,
-the generated host adapter or a run on `linux/arm64`, and each says in the model which issue
-executes it. The gateway job runs on `linux/amd64` only, so no run yet observes a `build_id`
-on `linux/arm64`. Q1's clause for `lexlean_verify` waits for #11. Issue #15 stays open for
-the four pending measures and that clause.
+Q5 (the MCP oracles), Q6 (modularity) and Q7 (the same `build_id` on both platforms) stay
+`Pending`: Q5 needs all 50 scenarios to pass and the waiting list is not empty (#45, #17),
+Q6 needs the generated host adapter, and Q7 cannot be reached by `just vv`: the root
+workspace has no `lexlean` dependency and `build_id` comes only from the engine, which the
+gateway workspace links and the gateway job runs on `linux/amd64` only. `bootstrap.yml` does
+run `just vv` on `linux/amd64` and `linux/arm64`, so Q7 can be executed there at no extra CI
+cost once a committed `build_id` is recomputed by a test of the gateway workspace that `just vv`
+reaches (#10); until then no run observes a `build_id` on `linux/arm64`. Each says in the model
+which issue executes it. Q1's clause for `lexlean_verify` waits for #11. Issue #15 stays open for
+the three pending measures and that clause.
 
 ## Planted defects
 
@@ -205,8 +221,8 @@ record the clause of Q1 for lexlean_verify`), and the count of Q1 put back to 27
 counts Some(273) negative fixtures and the register holds 285 in scope`).
 
 Not run on the working tree: a flip of Q2 in `src/Quality.lex.tex` through `lexlean
-verify`, which would make `measuresPendingAreQ3AndQ5ToQ7` and
-`executedMeasuresAreQ1Q2Q4AndQ8` fail with `LLV7002`. The local verification runs once,
+verify`, which would make `measuresPendingAreQ5ToQ7` and
+`executedMeasuresAreQ1ToQ4AndQ8` fail with `LLV7002`. The local verification runs once,
 on the final state, to keep to the shared memory budget; CI runs it on every push.
 
 ## Reproducing
@@ -216,3 +232,8 @@ cargo test -p quality-map -p repo-conformance        # QM-01 to QM-08
 cargo run -q -p xtask -- check-model                 # CONFORMANCE.md equals the model
 lexlean verify                                       # the new theorems of Quality
 ```
+
+Q3 adds `QM-07` plants, in memory: Q3 flipped back to `Pending` (`the measure 2 is not Executed`,
+checked on the working tree as well), `SG-12` removed from the statement of `QM-07`, the
+running clause of Q3 put back into `pendingClauses`, and Q5 flipped to `Executed` without rows
+(`exactly 5 measures must be Executed`).

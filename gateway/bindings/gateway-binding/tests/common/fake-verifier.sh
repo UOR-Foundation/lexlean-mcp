@@ -34,8 +34,17 @@ gate=$2
 
 verified() {
   id=$(printf '%s' "$dir" | sha256sum | cut -c1-64)
-  mkdir -p "$dir/verified"
-  printf '{"attestation_id":"%s","toolchain":{"lean":"fake"}}' "$id" > "$dir/verified/attestation.json"
+  mkdir -p "$dir/verified/modules/Fake"
+  # The evidence a real verification leaves (SIGNING.md, SG-14): a rendering, a manifest that names
+  # it and the first source file of the project, and an attestation.json that names the manifest.
+  printf '%s\n' '\documentclass{article}' > "$dir/verified/modules/Fake/Fake.tex"
+  tex=$(sha256sum < "$dir/verified/modules/Fake/Fake.tex" | cut -c1-64)
+  src=$(cd "$dir" && find src -name '*.lex.tex' 2>/dev/null | sort | head -n 1)
+  srcsum=$(sha256sum < "$dir/$src" | cut -c1-64)
+  printf '{"inputs":[{"kind":"source","path":"%s","sha256":"%s"}],"outputs":[{"kind":"tex","path":"modules/Fake/Fake.tex","sha256":"%s"}]}' \
+    "$src" "$srcsum" "$tex" > "$dir/verified/build-manifest.json"
+  manifest=$(sha256sum < "$dir/verified/build-manifest.json" | cut -c1-64)
+  printf '{"attestation_id":"%s","build_manifest":{"sha256":"%s"},"toolchain":{"lean":"fake"}}' "$id" "$manifest" > "$dir/verified/attestation.json"
   printf '{"event":"verified","attestation_id":"%s","build_id":"%s","source_id":"%s","semantic_id":"%s","modules":["Tiny"],"root":"%s/verified"}\n' \
     "$id" "$id" "$id" "$id" "$dir"
 }
