@@ -911,7 +911,7 @@ fn verify_differences(fixture: &Fixture, cli: &Cli, gateway: &mut Gateway) -> Ve
 }
 
 #[test]
-#[ignore = "runs real verifications, which need the Lean toolchain, and a checkout of LexLean at the pin: the gateway job of .github/workflows/lexlean.yml runs it with --ignored and requires the count"]
+#[ignore = "another job: `gateway / verify fixtures` of .github/workflows/lexlean.yml runs it by name with --ignored and requires that it ran, because it takes about 55 minutes"]
 fn the_verify_fixtures_give_the_result_of_the_cli_vp_07() {
     let sources = lexlean_sources();
     let fixtures = fixtures_of(&sources, "#11");

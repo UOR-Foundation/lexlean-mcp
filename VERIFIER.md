@@ -101,7 +101,8 @@ sets the variables of the fixture and starts the real `gateway-verifier`. The 12
 a `toolchain/` get an elan home that overlays their programs on the pinned toolchain, as LexLean's
 own harness does (`fake_elan_home`); `PATH` does not reach the programs the engine starts.
 
-The whole test takes about 55 minutes on a development host, about two thirds of it in five
+The job `gateway / verify fixtures` runs it (CI.md), not the gateway job. The whole test takes about
+55 minutes on a development host, about two thirds of it in five
 certificate fixtures (6 to 9 minutes each).
 
 ## Planted defects

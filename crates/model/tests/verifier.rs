@@ -223,6 +223,27 @@ fn the_verify_fixtures_give_the_result_of_the_cli_vp_07() {
         read("VERIFIER.md").contains("VP-07"),
         "VERIFIER.md does not name VP-07"
     );
+    // A job of its own runs it, by name, gated on its own inputs; the gateway job skips it.
+    let workflow = read(".github/workflows/lexlean.yml");
+    assert!(
+        workflow.contains("name: gateway / verify fixtures")
+            && workflow.contains("needs.scope.outputs.verify_fixtures == 'true'")
+            && workflow.contains("gateway_verify_fixtures"),
+        "the job of the verify fixtures runs on its own scope"
+    );
+    assert!(
+        workflow.contains(
+            "gateway_ignored_tests gateway-tool-tests 10 the_verify_fixtures_give_the_result_of_the_cli_vp_07"
+        ),
+        "the gateway job skips the verify fixtures"
+    );
+    let lib = read(".github/lexlean-ci/lib.sh");
+    assert!(
+        lib.contains("VERIFY_FIXTURES_INPUTS=(")
+            && lib
+                .contains("--ignored --exact the_verify_fixtures_give_the_result_of_the_cli_vp_07"),
+        "the job names the test and has its own inputs"
+    );
     // The result is the function the CLI calls, and not a shape of the host's own.
     let engine = read("gateway/bindings/gateway-binding/src/engine.rs");
     let verify = &engine[engine.find("pub fn verify_result(").expect("verify_result")..];

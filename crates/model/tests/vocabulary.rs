@@ -661,11 +661,13 @@ fn an_atlas_profile_serves_all_293_entries_vo_14() {
         + &read("gateway/tool-tests/tests/q4.rs")
         + &read("gateway/tool-tests/tests/taskhost.rs")
         + &read("gateway/tool-tests/tests/tools.rs");
-    let ignored = tests.matches("#[ignore").count();
+    // The verify fixtures have a job of their own (VP-07).
+    let ignored =
+        tests.matches("#[ignore").count() - tests.matches("#[ignore = \"another job:").count();
     let lib = read(".github/workflows/lexlean.yml");
     assert!(
         lib.contains(&format!(
-            "gateway_ignored_tests gateway-tool-tests {ignored}"
+            "gateway_ignored_tests gateway-tool-tests {ignored} "
         )),
         "the gateway job expects the {ignored} ignored tests of gateway-tool-tests"
     );
