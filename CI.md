@@ -44,6 +44,14 @@ the one in `lexlean.lock`; `lexlean lock --check` (LLC0102) then repeats the
 comparison in the `verify` job. Move `.github/lexlean.rev` and `lexlean.lock` in
 one commit.
 
+The root pin is the LexLean v0.4.0 release (`e0b74b81`, published to crates.io as
+`lexlean` 0.4.0 on 2026-10-26), as release policy asks (#6); it moved from the
+`release/v0.4` commit `9796067` together with the vendored fixtures and API
+surface (`negative-fixtures`, `quality-map`). No root crate links `lexlean`, so
+there is no Cargo dependency to lock yet; the first one is added with `cargo
+deny check sources` passing. The gateway keeps MCP's pin (`gateway/mcp/lexlean.rev`),
+which is unreleased.
+
 Every third-party action is pinned by its full commit SHA, and the elan and
 cargo-deny archives are pinned by version and SHA-256 and checked before they
 are unpacked.

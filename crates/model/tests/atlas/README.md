@@ -1,8 +1,8 @@
 # The Atlas profile of the pinned LexLean
 
 Derived extracts that PF-07 and PF-08 are held against. They are facts of
-UOR-Foundation/LexLean at commit 97960679736e960e84a98f5c43981e1f2c70d6d7
-(release/v0.4 at 9796067, the revision `.github/lexlean.rev` pins), not
+UOR-Foundation/LexLean at commit e0b74b81e6f49c83596a957d232c8383a5db1a25
+(v0.4.0 at `e0b74b8`, the revision `.github/lexlean.rev` pins), not
 claims made here; `model/authorities.toml` names them as `A-LEXLEAN-ATLAS`.
 
 | File | What it is | Source at the pin |

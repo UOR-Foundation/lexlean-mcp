@@ -104,8 +104,26 @@ EFFECTS = [
      [("found", "Flag"), ("envelope", "Bytes")],
      ["value-refused"], 4 + 4 + 128, 1_048_576 + 64),
     ("rate.calls", [("counted", "Flag")], [("calls", "U32")], [], 8, 16),
+    # The entries that the protocol core needs to serve tasks (TASKHOST.md). The core keeps no state:
+    # the adapter gives it the time, an identifier a task may take and the table of tasks in the frame
+    # (the three frame effects), and the core asks the host to keep the table it changed (the effect
+    # task.store, whose tag is the `taskStoreTag` of src/Gateway.lex.tex). The maximums are those of
+    # MCP's own conformance declaration.
+    ("clock.now", [], [("ms", "U64"), ("iso", "Text")], [], 8, 64),
+    ("task.id", [], [("id", "Text")], [], 8, 128),
+    ("task.table", [], [("table", "Bytes")], [], 8, 524_296),
+    ("task.store", [("table", "Bytes")], [], [], 524_296, 8),
 ]
 FRAME_EFFECT = "rate.calls"
+# The sections of the request frame after the body, in the order the core reads them (MCP's
+# LIFECYCLE.md, "The boundary encoding"): name, kind, the effect that fills it, its field.
+FRAME_SECTIONS = [
+    ("tool_calls", "U32", "rate.calls", "calls"),
+    ("now_ms", "U64", "clock.now", "ms"),
+    ("now", "Text", "clock.now", "iso"),
+    ("fresh_task_id", "Text", "task.id", "id"),
+    ("task_table", "Bytes", "task.table", "table"),
+]
 
 REQUEST_MAXIMUM = 20_971_520
 RESPONSE_MAXIMUM = 20_971_520
@@ -124,8 +142,11 @@ VERIFY_BUILD_TIMEOUT_SECONDS = 1800
 DESCRIPTION = (
     "The gateway asks its host for the store, the four calls of the LexLean Engine, the "
     "verifier, the lexicon of a profile and the lookup of an attestation (ten effects the "
-    "core requests), and for one more that only the adapter asks for: how many tools/call "
-    "requests the client has made in the current window, not counting the one being served.\n"
+    "core requests), for one that only the adapter asks for: how many tools/call "
+    "requests the client has made in the current window, not counting the one being served, "
+    "for the three that give the core what it cannot compute for the tasks it serves (the "
+    "time, an identifier and the table of tasks), and for the one the core asks to keep that "
+    "table (task.store).\n"
 )
 
 
@@ -202,6 +223,7 @@ def render(vectors: list) -> str:
             ("response", hexed(bytes.fromhex(v["http_response"]))),
         ])
         for index, v in enumerate(vectors)
+        if v["name"] not in NOT_SERVED
     ]
     transcripts = []
     for index, v in enumerate(vectors):
@@ -225,13 +247,16 @@ def render(vectors: list) -> str:
         for scheme in ("http", "https")
         for host in ("localhost", "127.0.0.1", "[::1]")
     ]
-    frame = record("FrameSection", [
-        ("name", text("tool_calls")),
-        ("kind", ctor("FrameKind", "U32")),
-        ("effect", text(FRAME_EFFECT)),
-        ("field", text("calls")),
-        ("values", "(nil String)"),
-    ])
+    frames = [
+        record("FrameSection", [
+            ("name", text(name)),
+            ("kind", ctor("FrameKind", kind)),
+            ("effect", text(effect)),
+            ("field", text(field)),
+            ("values", "(nil String)"),
+        ])
+        for name, kind, effect, field in FRAME_SECTIONS
+    ]
     serving = record("ServerServing", [
         ("address", text("127.0.0.1")),
         ("port", word(PORT)),
@@ -248,7 +273,7 @@ def render(vectors: list) -> str:
         ("enforcedMethods", lst("String", [text("POST")])),
         ("countedField", text("Mcp-Method")),
         ("countedValue", text("tools/call")),
-        ("frame", lst(f"{MODEL}::FrameSection", [frame])),
+        ("frame", lst(f"{MODEL}::FrameSection", frames)),
         ("vectors", lst(f"{MODEL}::ServedVector", served)),
     ])
     host = record("HostProtocol", [
@@ -323,6 +348,34 @@ META = {
     "io.modelcontextprotocol/protocolVersion": "2026-07-28",
     "io.modelcontextprotocol/clientInfo": {"name": "gateway-vectors", "version": "1.0.0"},
     "io.modelcontextprotocol/clientCapabilities": {},
+}
+
+# The instant of the vectors (the host's clock, given in the frame) and the tasks that the
+# vectors of the task methods find in the table the host gives (TASKHOST.md). The task `t-lost`
+# is one that the verifier does not know, as after a restart of the verifier.
+NOW_MS = 1_800_000_000_000
+NOW_ISO = "2027-01-15T08:00:00.000Z"
+CREATED_ISO = "2027-01-15T07:59:00.000Z"
+TASKS_META = dict(META)
+TASKS_META["io.modelcontextprotocol/clientCapabilities"] = {
+    "extensions": {"io.modelcontextprotocol/tasks": {}}}
+LOST_TABLE = json.dumps([{
+    "task": {"taskId": "t-lost", "status": "working", "createdAt": CREATED_ISO,
+             "lastUpdatedAt": CREATED_ISO, "ttlMs": 86_400_000, "pollIntervalMs": 5_000},
+    "createdMs": NOW_MS - 60_000,
+    "plan": {"parkAfterMs": 10 ** 15, "parked": {}, "finishAfterMs": 10 ** 15,
+             "outcome": {"completes": {}}},
+}], separators=(",", ":")).encode()
+# The vectors that are not served. A served vector is sent to a fresh program, whose adapter asks
+# its own host for the clock and the table; the response of these depends on the table and the
+# clock their frame gives, so only their frame is replayed (through the binding, by `prismpm
+# verify`), and that is where their transcript, the only one of task.store, is held (TASKHOST.md).
+NOT_SERVED = {"task.store: a task that the verifier lost is recorded"}
+# For each vector that is given a table or a client that declares the tasks extension: its _meta
+# and its table.
+TASK_VECTORS = {
+    "task.store: a task that the verifier lost is recorded": (TASKS_META, LOST_TABLE),
+    "tasks/get: a task that the table lacks": (TASKS_META, LOST_TABLE),
 }
 
 # The profile `tiny` of the vectors is provisioned by `gateway-provision install`, as an operator
@@ -544,6 +597,14 @@ def spec() -> list:
         ("store.get: the profiles are completed", "method", "completion/complete", None,
          {"ref": {"type": "ref/resource", "uri": TEMPLATE},
           "argument": {"name": "profile", "value": "v"}}),
+        # The tasks (TASKHOST.md): a task that the table holds as working and that the verifier no
+        # longer knows is asked for (verify.control), found lost, and the table is kept (task.store).
+        ("task.store: a task that the verifier lost is recorded", "method", "tasks/get", "t-lost",
+         {"taskId": "t-lost"}),
+        ("tasks/get: a task that the table lacks", "method", "tasks/get", "t-absent",
+         {"taskId": "t-absent"}),
+        ("tasks/get: a client that does not declare the tasks extension", "method", "tasks/get", "t-lost",
+         {"taskId": "t-lost"}),
     ]
     return out
 
@@ -556,7 +617,7 @@ def chunk(value: bytes) -> bytes:
     return len(value).to_bytes(4, "big") + value
 
 
-def http_request(index: int, method: str, tool, arguments) -> tuple:
+def http_request(index: int, method: str, tool, arguments, name: str = "") -> tuple:
     """The request of one vector. A call of a tool names it and gives its arguments; any other
     method is given its parameters whole in `arguments`, and `tool` is then the value of its
     Mcp-Name header when the method has one (`resources/read` names the URI)."""
@@ -568,7 +629,8 @@ def http_request(index: int, method: str, tool, arguments) -> tuple:
                 params["arguments"] = arguments
     elif arguments is not None:
         params.update(arguments)
-    params["_meta"] = META
+    meta, table = TASK_VECTORS.get(name, (META, b""))
+    params["_meta"] = meta
     body = json.dumps(
         {"jsonrpc": "2.0", "id": 100 + index, "method": method, "params": params},
         separators=(",", ":"), ensure_ascii=True,
@@ -588,6 +650,9 @@ def http_request(index: int, method: str, tool, arguments) -> tuple:
     for n, v in fields:
         frame += chunk(n.encode()) + chunk(v.encode())
     frame += chunk(body) + (0).to_bytes(4, "big")
+    # The host sections after the count of the tool calls (the request frame of the core): the
+    # clock, an identifier a task may take, and the table.
+    frame += NOW_MS.to_bytes(8, "big") + chunk(NOW_ISO.encode()) + chunk(b"") + chunk(table)
     return head.encode("ascii") + body, frame
 
 
@@ -622,7 +687,7 @@ def http_response(frame: bytes) -> bytes:
 
 def record_vectors(runner: str, binary: pathlib.Path = PROVISION) -> list:
     requests = spec()
-    built = [http_request(i, m, t, a) for i, (_, _, m, t, a) in enumerate(requests)]
+    built = [http_request(i, m, t, a, n) for i, (n, _, m, t, a) in enumerate(requests)]
     with tempfile.TemporaryDirectory() as store:
         provision(pathlib.Path(store), binary)
         environment = {"LEXLEAN_MCP_STORE": store, "PATH": "/usr/bin:/bin"}

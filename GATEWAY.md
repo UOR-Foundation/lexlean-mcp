@@ -50,7 +50,8 @@ lexicon has the tree hash MCP's lock records, and the two locks record one compi
 
 ## The effects
 
-The ten effects of the model, in tag order, and the frame effect. A field is `name:Kind`;
+The ten effects of the model, in tag order, then the rate counter and the four entries of the
+tasks (TASKHOST.md). A field is `name:Kind`;
 the kinds are `Flag`, `U32`, `U64`, `Text` and `Bytes`; a failure is a declared name.
 
 | Effect | Request | Result | Failures |
@@ -66,10 +67,16 @@ the kinds are `Flag`, `U32`, `U64`, `Text` and `Bytes`; a failure is a declared 
 | `lexicon.read` | `profile:Text`, `entry:Text` | `found:Flag`, `content:Bytes` | `profile-unknown`, `key-refused` |
 | `attestation.lookup` | `by:U32`, `value:Text` | `found:Flag`, `envelope:Bytes` | `value-refused` |
 | `rate.calls` | `counted:Flag` | `calls:U32` | none |
+| `clock.now` | none | `ms:U64`, `iso:Text` | none |
+| `task.id` | none | `id:Text` | none |
+| `task.table` | none | `table:Bytes` | none |
+| `task.store` | `table:Bytes` | none | none |
 
 The first ten rows are `src/Effects.lex.tex` (GW-01 holds the names to the model and the
-order to the table). `rate.calls` is the eleventh and is not the core's: EFFECTS.md, "The
-frame effect". A `class` is `0` for a result, `1` for a language error of the draft, `2`
+order to the table). `rate.calls`, `clock.now`, `task.id` and `task.table` (the tags 10 to
+13) are the frame's: the adapter asks for them, not the core (EFFECTS.md, "The frame
+effect"; TASKHOST.md). `task.store` (the tag 14) is the one entry past the ten that the
+core asks for. A `class` is `0` for a result, `1` for a language error of the draft, `2`
 for a configuration or selection error and `4` for a limit; an environment or internal
 error of the Engine is not a class, it is the failure `engine-unavailable`. A `class` is
 the exit code of the CLI, and the `result` of `engine.check`, `engine.format` and
@@ -83,7 +90,7 @@ of a directory in the store (`profiles`, `drafts`, `builds`, `verifications`, `i
 
 `store.get` and `store.put` carry the closed fields of EF-09 (`src/Effects.lex.tex`: `View`,
 `Form`, `Class`, each with a total decoder and a typed refusal for a number past its last
-constructor), and no eleventh effect carries them. `view` is `0` for the bytes as stored, `1` for
+constructor), and no other effect carries them. `view` is `0` for the bytes as stored, `1` for
 the module of `sdk::read_module` as JSON and `2` for the byte ranges of `sdk::declaration_spans`
 as JSON (`null` for a module written as data); `path`, when it is not empty, names the file of
 the draft at `key` that the view reads, and when it is empty the view reads the bytes at `key`.
@@ -140,7 +147,9 @@ with `vectors/runner`, on a store that starts empty; `generate.py render` writes
 `src/Application.lex.tex` from it, and CI fails when the committed file is not that
 rendering. `prismpm verify` replays every vector three ways (a script of the recorded
 outcomes, the real binding through `gateway-host run`, and the served program over a socket)
-and requires the same bytes each time.
+and requires the same bytes each time, but for the one vector that `NOT_SERVED` of
+`generate.py` names: its response depends on the table and the clock its frame gives, which a
+fresh served program answers from its own host, so only its frame is replayed (TASKHOST.md).
 
 Five vectors ask for no effect (`tools-list`, `invalid-arguments`, `unknown-tool`, and two
 `explain` calls, one of a registered code and one of a code with a quotation mark and a reverse

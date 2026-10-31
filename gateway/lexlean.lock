@@ -62,7 +62,7 @@ version = "1.0.0"
 kind = "path"
 source = "language/mcp.core"
 revision = "none"
-tree_sha256 = "f0bf89f184cf989033a23eecb95f8379c387bb5de0ef5c92070b4d492bca409b"
+tree_sha256 = "bdb67e48c1abcf6796b839c501e7b72c87b72e19319be44458927c3efa57604a"
 manifest_sha256 = "c8b68cb900f4132e59a3031dc9c5be12cd8504ba8c331ae163485d12351522d4"
 imports = ["lexlean.core@1.2.0", "lexlean.std.bool@1.2.0", "lexlean.std.nat@1.2.0"]
 

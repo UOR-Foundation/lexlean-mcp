@@ -48,7 +48,7 @@ spec = "template/1"
 id = "NF-01"
 level = "build"
 suite = "nfc"
-statement = "The pinned Unicode Character Database files (UnicodeData.txt, CompositionExclusions.txt, DerivedNormalizationProps.txt, NormalizationTest.txt) are the Unicode 17.0.0 files whose SHA-256 digests the authorities record, and 17.0.0 is the Unicode version of unicode-normalization 0.1.25, the crate LexLean release/v0.4 at 9796067 pins."
+statement = "The pinned Unicode Character Database files (UnicodeData.txt, CompositionExclusions.txt, DerivedNormalizationProps.txt, NormalizationTest.txt) are the Unicode 17.0.0 files whose SHA-256 digests the authorities record, and 17.0.0 is the Unicode version of unicode-normalization 0.1.25, the crate LexLean v0.4.0 at `e0b74b8` pins."
 
 [[id]]
 id = "NF-02"
@@ -192,7 +192,7 @@ statement = "The measurement of R8 (key compromise) is executed by SG-04, SG-05 
 id = "FX-01"
 level = "some-true"
 suite = "fixtures"
-statement = "LexLean release/v0.4 at 9796067 (commit 97960679736e960e84a98f5c43981e1f2c70d6d7) holds in tests/negative the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864 with 297 fixtures, of which 256 run the command check, 1 build, 32 verify, 4 lock and 4 production."
+statement = "LexLean v0.4.0 at `e0b74b8` (commit e0b74b81e6f49c83596a957d232c8383a5db1a25) holds in tests/negative the git tree f5a43991dec0c604c8647c5dd050f183a16832a6 with 298 fixtures, of which 256 run the command check, 1 build, 1 migrate, 32 verify, 4 lock and 4 production."
 
 [[id]]
 id = "FX-02"
@@ -222,7 +222,7 @@ statement = "Every fixture of the pinned tree is classified exactly once: no nam
 id = "FX-06"
 level = "build"
 suite = "fixtures"
-statement = "The register has 297 fixtures: 252 for F4, 1 for F7, 32 for #11 and 12 excluded, so 285 reach a tool; every sum is recomputed from the rows, so a hand edit of a row or of a sum fails."
+statement = "The register has 298 fixtures: 252 for F4, 1 for F7, 32 for #11 and 13 excluded, so 285 reach a tool; every sum is recomputed from the rows, so a hand edit of a row or of a sum fails."
 
 [[id]]
 id = "FX-07"
@@ -366,7 +366,7 @@ statement = "Each law of the store model rejects its planted defect: an attestat
 id = "QM-01"
 level = "some-true"
 suite = "quality"
-statement = "LexLean release/v0.4 at 9796067 declares 33 public functions in the files of its stable API surface: 7 methods of Engine, 8 functions of lexlean::sdk, 11 of lexlean::api::production with the methods of its request, result and report, 5 free functions of lexlean::api and the 2 lifecycle functions of lexlean::verify; the vendored copies of crates/lexlean/src/api.rs, api/production.rs, sdk.rs and verify/lifeline.rs are the files of that commit, each with the git blob id the table records."
+statement = "LexLean v0.4.0 at `e0b74b8` declares 33 public functions in the files of its stable API surface: 7 methods of Engine, 8 functions of lexlean::sdk, 11 of lexlean::api::production with the methods of its request, result and report, 5 free functions of lexlean::api and the 2 lifecycle functions of lexlean::verify; the vendored copies of crates/lexlean/src/api.rs, api/production.rs, sdk.rs and verify/lifeline.rs are the files of that commit, each with the git blob id the table records."
 
 [[id]]
 id = "QM-02"
@@ -384,7 +384,7 @@ statement = "Q2 is measured: every one of the 33 public functions reaches exactl
 id = "QM-04"
 level = "some-true"
 suite = "quality"
-statement = "LexLean release/v0.4 at 9796067 registers 86 diagnostic codes in model/errors.toml, each with a class, an exit status, a title and a statement, and generates ERRORS.md from the registry, one entry per code, which lexlean explain prints; the vendored copies are the files of that commit."
+statement = "LexLean v0.4.0 at `e0b74b8` registers 86 diagnostic codes in model/errors.toml, each with a class, an exit status, a title and a statement, and generates ERRORS.md from the registry, one entry per code, which lexlean explain prints; the vendored copies are the files of that commit."
 
 [[id]]
 id = "QM-05"
@@ -396,7 +396,7 @@ statement = "Every one of the 86 registered codes is explained: its row has a we
 id = "QM-06"
 level = "build"
 suite = "quality"
-statement = "Every diagnostic code that the 297 negative fixtures of AC-07 return is a registered code with an entry in ERRORS.md, so a code in a result resolves through explain."
+statement = "Every diagnostic code that the 298 negative fixtures of AC-07 return is a registered code with an entry in ERRORS.md, so a code in a result resolves through explain."
 
 [[id]]
 id = "QM-07"
@@ -474,7 +474,7 @@ statement = "FEATURES.md states one row for each of F1 to F13 and J1 to J6, in o
 id = "OB-01"
 level = "some-true"
 suite = "observability"
-statement = "LexLean release/v0.4 at 9796067 maps the five variants of ErrorClass, Language, CliOrConfiguration, Environment, SecurityOrLimit and Internal, to the CLI exit codes 1, 2, 3, 4 and 70 (SPEC 24.5 and 23.6), so that the classes 2, 3 and 70 of issue #16 are CliOrConfiguration, Environment and Internal."
+statement = "LexLean v0.4.0 at `e0b74b8` maps the five variants of ErrorClass, Language, CliOrConfiguration, Environment, SecurityOrLimit and Internal, to the CLI exit codes 1, 2, 3, 4 and 70 (SPEC 24.5 and 23.6), so that the classes 2, 3 and 70 of issue #16 are CliOrConfiguration, Environment and Internal."
 
 [[id]]
 id = "OB-02"
@@ -1057,3 +1057,57 @@ id = "VP-06"
 level = "build"
 suite = "verifier"
 statement = "Each gate of the verifier process rejects its planted defect: the key left in the environment of the process, a record made for a task that is being cancelled, the session of a lost verifier not killed, the slots ignored so that every task starts at once, and a process that ignores cancel left running; VERIFIER.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "TH-01"
+level = "build"
+suite = "taskhost"
+statement = "The gateway declares the entries that the protocol core needs to serve tasks at the pin of MCP: after the ten effects of src/Effects.lex.tex and the frame effect rate.calls at the tag 10, the declaration lists the frame effects clock.now (result ms and iso), task.id (result id) and task.table (result table) at the tags 11 to 13, and the core effect task.store (request table, no result) at the tag 14, which the provider information of the core names as taskStoreTag; the serving frame sections tool_calls, now_ms, now, fresh_task_id and task_table take the fields calls, ms, iso, id and table of those effects, in the order that the frame of the core reads them, and the declaration states the maximums of MCP's own conformance declaration for them."
+
+[[id]]
+id = "TH-02"
+level = "build"
+suite = "taskhost"
+statement = "clock.now answers a millisecond counter that never goes back and the same instant as ISO 8601 text in UTC with three digits of milliseconds: the text of 0 is 1970-01-01T00:00:00.000Z, of 1700000000123 is 2023-11-14T22:13:20.123Z, of 951782400000 is 2000-02-29T00:00:00.000Z and of 1709164799999 is 2024-02-28T23:59:59.999Z, and the text of a later answer is the text of the start of the host plus the difference of the counters."
+
+[[id]]
+id = "TH-03"
+level = "build"
+suite = "taskhost"
+statement = "task.id answers 32 lowercase hexadecimal digits, a different value at every call and at every host, made from the operating system's source of randomness and not from the clock or from a counter, so that no client can guess the identifier of a task it did not create."
+
+[[id]]
+id = "TH-04"
+level = "build"
+suite = "taskhost"
+statement = "task.table answers the bytes that the last task.store gave and nothing before any: a store replaces the whole table, the host hands back exactly what it was given byte for byte, bytes of every value and a table of the 524296 bytes that the declaration allows included, and a store of an empty table empties it."
+
+[[id]]
+id = "TH-05"
+level = "build"
+suite = "taskhost"
+statement = "The production core serves the vectors at the pin of MCP with the new frame: every request of gateway/vectors/exchanges.json is answered with the response recorded for it by the core of this commit, the adapter asks for the three frame effects of the time, the identifier and the table once for each request that reaches the core, and an exchange that creates or touches no task asks the core for no task.store."
+
+[[id]]
+id = "TH-06"
+level = "build"
+suite = "taskhost"
+statement = "Each gate of the task host rejects its planted defect: the text of the time disagreeing with its counter, an identifier made from the counter, a store that appends to the table instead of replacing it, and a provider that names the wrong tag for the store; TASKHOST.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "TH-07"
+level = "build"
+suite = "taskhost"
+statement = "lexlean_verify called by a client that declares the tasks extension creates a task: the core asks verify.start as before, and when the host has started the verification the result is a task handle whose taskId is the task name the verifier gave, in the status working, with a time to live of 86400000 ms and a poll interval of 5000 ms, and the core asks task.store with a table that holds the task as working; a client that does not declare the extension is answered as before, with the task name in the result of the call and no task.store, and a verification that the host refuses to start creates no task."
+
+[[id]]
+id = "TH-08"
+level = "build"
+suite = "taskhost"
+statement = "tasks/get on a task the table holds as working asks verify.control once for its status and settles the entry from the answer: queued and running leave it working with no notification, verified and failed complete it with the result of the tool, cancelled cancels it, and a verifier that no longer knows the task fails it with the code -32603; each answer about a task is followed by task.store with the table, and a notification of the new status is streamed before the response only when the task changed; a task that is already terminal is answered from the table without asking verify.control, and a task the table does not hold is the protocol's unknown task."
+
+[[id]]
+id = "TH-09"
+level = "build"
+suite = "taskhost"
+statement = "tasks/cancel on a working task asks verify.control to cancel it, answers with the empty acknowledgement, streams a notification of the status cancelled and stores the task as cancelled; asked again, or on a task that is already terminal, it is answered from the table without asking verify.control, and on a task the table does not hold it is the protocol's unknown task."

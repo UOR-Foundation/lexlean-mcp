@@ -241,7 +241,7 @@ fn the_check_and_build_fixtures_are_the_registers_and_the_tool_is_run_beside_the
     let (f4, f7, total) = register_counts();
     assert_eq!(
         (f4, f7, total),
-        (252, 1, 297),
+        (252, 1, 298),
         "the register is the one of FX-06"
     );
     let library = read("gateway/tool-tests/src/lib.rs");

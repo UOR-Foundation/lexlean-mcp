@@ -23,10 +23,10 @@ use sha1::Sha1;
 use sha2::{Digest, Sha256};
 
 /// The LexLean commit the fixtures are pinned to: `.github/lexlean.rev`.
-pub const PIN_COMMIT: &str = "97960679736e960e84a98f5c43981e1f2c70d6d7";
+pub const PIN_COMMIT: &str = "e0b74b81e6f49c83596a957d232c8383a5db1a25";
 
 /// The git tree of `tests/negative` at [`PIN_COMMIT`].
-pub const PIN_TREE: &str = "200e4d920b5efae7d34915c617c75f8c0cb46864";
+pub const PIN_TREE: &str = "f5a43991dec0c604c8647c5dd050f183a16832a6";
 
 /// The schema tag of `register.toml`.
 pub const SPEC: &str = "lexlean-mcp/fixture-register/1";
@@ -41,7 +41,7 @@ pub const VERIFY: &str = "#11";
 pub const EXCLUDED: &str = "excluded";
 
 /// The fixtures issue #10 leaves out of AC-07, each with the reason it gives.
-pub const ISSUE_EXCLUSIONS: [(&str, &str); 12] = [
+pub const ISSUE_EXCLUSIONS: [(&str, &str); 13] = [
     ("check-unknown-flag", "CLI argument parsing"),
     ("check-duplicate-selection", "CLI argument parsing"),
     ("path-symlink", "symlinks"),
@@ -54,6 +54,10 @@ pub const ISSUE_EXCLUSIONS: [(&str, &str); 12] = [
     ("production-request-malformed", "outside the product"),
     ("production-root-unknown", "outside the product"),
     ("production-target-unregistered", "outside the product"),
+    (
+        "migrate-module-without-notation",
+        "migration, which no tool runs",
+    ),
 ];
 
 /// One row of the register.

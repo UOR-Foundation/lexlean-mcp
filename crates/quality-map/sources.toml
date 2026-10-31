@@ -4,7 +4,7 @@
 # recomputed by the tests (QM-01, QM-04) from the vendored bytes.
 
 spec = "lexlean-mcp/quality-sources/1"
-commit = "97960679736e960e84a98f5c43981e1f2c70d6d7"
+commit = "e0b74b81e6f49c83596a957d232c8383a5db1a25"
 
 [[source]]
 path = "ERRORS.md"
@@ -17,9 +17,9 @@ role = "entries"
 [[source]]
 path = "crates/lexlean/src/api.rs"
 vendored = "api.rs.txt"
-git_blob = "2fac21e5cd0f18c59947e212ad2dc1626475d925"
-sha256 = "fb51e43fc71db5f2d77e45c13bbd70a6385887bece09d3e1331b0c3452e34168"
-bytes = 59888
+git_blob = "d6cf1b74c73e4adf32d3faeab5a8d5095bb3b436"
+sha256 = "68577d9a52bef8ca7ac093c09fa224176020009b31bd681715bd4d5710adf651"
+bytes = 60054
 role = "surface"
 module = "api"
 
@@ -35,9 +35,9 @@ module = "api::production"
 [[source]]
 path = "crates/lexlean/src/sdk.rs"
 vendored = "sdk.rs.txt"
-git_blob = "55f53e7960062c627b25a79945c5b372584af66f"
-sha256 = "4f04334ca4843783bdbfc2859f86d6bab5badeba6003c261af987b8f2cf76b81"
-bytes = 16213
+git_blob = "7b398a58009880eecc7ff7796d822290b5c48127"
+sha256 = "c9b9aaf3cd9c703c8b104ac2e186505f1c163242bc263a542eeb6687c5c7caa3"
+bytes = 17350
 role = "surface"
 module = "sdk"
 
