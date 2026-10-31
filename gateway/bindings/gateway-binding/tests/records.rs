@@ -425,7 +425,12 @@ fn the_lookup_returns_the_envelope_by_id_and_by_file_digest_sg_11() {
     let mut host = Native::new(config);
     for (by, value) in [(0, id()), (1, tiny_digest())] {
         let found = host
-            .attestation_lookup(attestation_lookup::Request { by, value })
+            .attestation_lookup(attestation_lookup::Request {
+                by,
+                value,
+                want: 0,
+                module: String::new(),
+            })
             .map_err(failure)
             .expect("a lookup");
         assert!(found.found, "by {by}");

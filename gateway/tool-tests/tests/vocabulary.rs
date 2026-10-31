@@ -594,8 +594,8 @@ fn the_schema_of_lexlean_lexicon_search_is_closed_vo_10() {
         .collect();
     assert_eq!(
         names_listed.len(),
-        14,
-        "the twelve tools before issue 8 and the two of issue 8"
+        16,
+        "the twelve tools before issue 8, the two of issue 8, and lexlean_present and lexlean_export of issue 12"
     );
 }
 

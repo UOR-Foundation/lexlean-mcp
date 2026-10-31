@@ -61,6 +61,8 @@ fn one_of_each() -> Vec<Request> {
         Request::AttestationLookup(attestation_lookup::Request {
             by: 0,
             value: "0".repeat(64),
+            want: 0,
+            module: String::new(),
         }),
         Request::RateCalls(rate_calls::Request { counted: true }),
         Request::ClockNow(clock_now::Request {}),

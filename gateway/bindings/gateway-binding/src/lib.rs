@@ -19,6 +19,7 @@ pub mod identity;
 mod lexicon;
 pub mod materialize;
 pub mod modules;
+mod presentation;
 mod project;
 pub mod provision;
 mod rate;
@@ -482,14 +483,30 @@ impl Host for Native {
         &mut self,
         request: attestation_lookup::Request,
     ) -> Result<attestation_lookup::Completed, HostError<attestation_lookup::Failure>> {
-        match attestation::lookup(&self.config.store, request.by, &request.value) {
-            Ok(envelope) => Ok(attestation_lookup::Completed {
-                found: envelope.is_some(),
-                envelope: envelope.unwrap_or_default(),
-            }),
+        match attestation::find(
+            &self.config.store,
+            request.by,
+            &request.value,
+            request.want,
+            &request.module,
+        ) {
+            Ok(found) => {
+                let found = found.unwrap_or_default();
+                Ok(attestation_lookup::Completed {
+                    found: !found.id.is_empty(),
+                    envelope: found.envelope,
+                    id: found.id,
+                    module: found.module,
+                    rendering: found.rendering,
+                    bundle: found.bundle,
+                })
+            }
             Err(attestation::Refused::Value) => {
                 Err(HostError::Failed(attestation_lookup::Failure::ValueRefused))
             }
+            Err(attestation::Refused::Module) => Err(HostError::Failed(
+                attestation_lookup::Failure::ModuleUnknown,
+            )),
             Err(attestation::Refused::Store) => Err(HostError::Fault),
         }
     }

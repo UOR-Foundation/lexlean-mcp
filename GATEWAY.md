@@ -65,7 +65,7 @@ the kinds are `Flag`, `U32`, `U64`, `Text` and `Bytes`; a failure is a declared 
 | `verify.start` | `project:Text`, `selection:U32`, `files:Text` | `task:Text`, `state:U32` | `project-refused`, `verifier-unavailable` |
 | `verify.control` | `task:Text`, `action:U32` | `state:U32`, `class:U32`, `result:Bytes`, `groups_ended:U32`, `groups_failed:U32` | `unknown-task` |
 | `lexicon.read` | `profile:Text`, `entry:Text` | `found:Flag`, `content:Bytes` | `profile-unknown`, `key-refused` |
-| `attestation.lookup` | `by:U32`, `value:Text` | `found:Flag`, `envelope:Bytes` | `value-refused` |
+| `attestation.lookup` | `by:U32`, `value:Text`, `want:U32`, `module:Text` | `found:Flag`, `envelope:Bytes`, `id:Text`, `module:Text`, `rendering:Bytes`, `bundle:Text` | `value-refused`, `module-unknown` |
 | `rate.calls` | `counted:Flag` | `calls:U32` | none |
 | `clock.now` | none | `ms:U64`, `iso:Text` | none |
 | `task.id` | none | `id:Text` | none |

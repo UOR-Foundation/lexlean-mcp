@@ -552,6 +552,32 @@ fn a_real_verification_runs_as_a_task_to_completed_th_11() {
         .expect("the history");
     gateway_binding::signer::validate(found.text().as_bytes(), &history, &subject)
         .expect("a valid envelope");
+    // The same record is presented and exported (issue 12): the resource is the canonical LaTeX the
+    // verification wrote, and the bundle holds it beside the files that let a reader check it.
+    let presented = gateway.call("lexlean_present", json!({"by": "id", "value": attestation}));
+    assert!(!presented.is_error(), "{}", presented.body);
+    let module = presented.structured()["module"].as_str().expect("a path");
+    let resource = &presented.result()["content"][0]["resource"];
+    let rendering = std::fs::read(
+        gateway
+            .store()
+            .join("verifications")
+            .join(attestation)
+            .join(module),
+    )
+    .expect("the rendering");
+    assert_eq!(
+        resource["text"].as_str().expect("text").as_bytes(),
+        rendering
+    );
+    let exported = gateway.call("lexlean_export", json!({"by": "id", "value": attestation}));
+    assert!(!exported.is_error(), "{}", exported.body);
+    let bundle = gateway.store().join("exports").join(attestation);
+    assert_eq!(
+        std::fs::read(bundle.join(module)).expect("in the bundle"),
+        rendering
+    );
+    assert!(bundle.join("envelope.json").is_file() && bundle.join("keys.json").is_file());
 }
 
 /// Whether a program of the Lean toolchain is running in the store of this gateway: the child

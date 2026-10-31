@@ -29,7 +29,7 @@ pub const FILES_MAXIMUM: usize = 1024;
 /// they are written: the manifest, the renderings, then the sources.
 pub type Evidence = Vec<(String, Vec<u8>)>;
 
-fn digest_of(bytes: &[u8]) -> String {
+pub(crate) fn digest_of(bytes: &[u8]) -> String {
     Sha256Digest::of(bytes).to_hex()
 }
 
@@ -45,7 +45,11 @@ fn read_below(directory: &Path, path: &str, what: &str) -> Result<Vec<u8>, Strin
 }
 
 /// The rows of `field` in the manifest whose `kind` is `kind`, as their path and their digest.
-fn rows(manifest: &Value, field: &str, kind: &str) -> Result<Vec<(String, String)>, String> {
+pub(crate) fn rows(
+    manifest: &Value,
+    field: &str,
+    kind: &str,
+) -> Result<Vec<(String, String)>, String> {
     let Some(all) = manifest[field].as_array() else {
         return Err(format!("the build manifest has no {field}"));
     };
