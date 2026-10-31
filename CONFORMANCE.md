@@ -18,6 +18,16 @@ The three honesty levels (R2):
 `cargo xtask audit-limits` fails if any code path returns an error the
 model does not sanction.
 
+## attestation
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `AT-01` | `build` | lexlean_attestation by attestation ID returns the signed envelope: for the record of a concluded verification the tool asks attestation.lookup once and answers found true with the envelope as its text, byte for byte the envelope in the store, and those bytes validate against keys/history and the stored attestation.json. |
+| `AT-02` | `build` | lexlean_attestation by the SHA-256 of a source file that the verification covered returns the same envelope as by the attestation ID. |
+| `AT-03` | `build` | A lookup that finds nothing is not an error and a malformed value is refused: an attestation ID or a digest that names no record, and an empty store, answer found false with the text not found; a value that is not 64 lowercase hexadecimal digits is the host's refusal value-refused; an empty value is refused by the core as bad arguments and the host is not asked. |
+| `AT-04` | `build` | A lookup writes nothing: the store holds the same files with the same bytes after lookups that find, that miss and that are refused. |
+| `AT-05` | `build` | Each gate of the tool rejects its planted defect: the lookup reading the file that the envelope signs instead of the envelope, the digest read as an attestation ID, the check of the value dropped, and a lookup that writes to the store; ATTESTATION.md records the command, the diagnostic and the restore of each. |
+
 ## draft
 
 | ID | Level | Statement |
