@@ -54,7 +54,10 @@ pub const ISSUE_EXCLUSIONS: [(&str, &str); 13] = [
     ("production-request-malformed", "outside the product"),
     ("production-root-unknown", "outside the product"),
     ("production-target-unregistered", "outside the product"),
-    ("migrate-module-without-notation", "migration, which no tool runs"),
+    (
+        "migrate-module-without-notation",
+        "migration, which no tool runs",
+    ),
 ];
 
 /// One row of the register.
