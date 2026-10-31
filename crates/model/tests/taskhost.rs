@@ -246,6 +246,56 @@ fn a_task_is_cancelled_with_tasks_cancel_th_09() {
 }
 
 #[test]
+fn a_cancel_says_what_became_of_the_child_groups_th_10() {
+    answered_by(
+        "TH-10",
+        &[
+            "a_cancel_reports_the_child_groups_that_ended_th_10",
+            "a_cancel_reports_a_child_group_that_failed_to_end_th_10",
+        ],
+    );
+}
+
+#[test]
+fn the_task_path_runs_with_the_real_verifier_th_11() {
+    answered_by(
+        "TH-11",
+        &[
+            "a_real_verification_runs_as_a_task_to_completed_th_11",
+            "a_real_verification_is_cancelled_through_the_task_th_11",
+        ],
+    );
+    // The gateway job requires the count of the ignored tests that ran, which includes these two.
+    let workflow = read(".github/workflows/lexlean.yml");
+    assert!(
+        workflow.contains("gateway_ignored_tests gateway-tool-tests 10"),
+        "the job requires the ten ignored tests of the tool tests"
+    );
+}
+
+#[test]
+fn each_gate_of_the_task_path_rejects_its_planted_defect_th_11() {
+    let document = read("TASKHOST.md");
+    let section = document
+        .split("## Planted defects")
+        .nth(1)
+        .expect("TASKHOST.md has a section Planted defects");
+    for defect in [
+        "the counts dropped",
+        "an ended group counted as failed",
+        "an ended group not counted",
+        "a cancel that ends no group",
+    ] {
+        assert!(
+            section
+                .lines()
+                .any(|line| line.starts_with('|') && line.contains(defect)),
+            "TASKHOST.md records no planted defect: {defect}"
+        );
+    }
+}
+
+#[test]
 fn each_gate_of_the_task_host_rejects_its_planted_defect_th_06() {
     let document = read("TASKHOST.md");
     let section = document

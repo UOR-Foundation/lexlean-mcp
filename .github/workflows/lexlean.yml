@@ -388,7 +388,7 @@ jobs:
           gate "gateway/lay-out-lexlean.sh" gateway/lay-out-lexlean.sh "$RUNNER_TEMP/lexlean-at-the-pin" &&
             export LEXLEAN_SOURCES="$RUNNER_TEMP/lexlean-at-the-pin" &&
             gate "gateway/explain/generate.py check" python3 -I gateway/explain/generate.py check &&
-            gate "gateway-tool-tests ignored tests" gateway_ignored_tests gateway-tool-tests 8
+            gate "gateway-tool-tests ignored tests" gateway_ignored_tests gateway-tool-tests 10
       - name: 7i. the generated host source names no tool or method (Q6)
         run: |
           . .github/lexlean-ci/lib.sh

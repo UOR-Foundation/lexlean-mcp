@@ -55,3 +55,15 @@ Feature: The task host of the gateway
     Given a working task in the table
     When the client cancels it with tasks/cancel, and cancels it again
     Then the verifier cancels it once, the table holds it as cancelled, one notification of that status is streamed, the second cancel asks nothing, and a handle the table lacks is the unknown task
+
+  @TH-10 @build
+  Scenario: A cancel says what became of the child groups (AC-12): tasks/cancel on a working task settles it with the status message child groups ended: E failed: F, the counts that verify.control gave, which the status notification, a later tasks/get and the table all carry, so a cancel with a group that failed to end is not reported as a clean one.
+    Given a working task and a verifier that ended some child groups and failed to end others
+    When the client cancels it with tasks/cancel, and polls it
+    Then the notification, the poll and the table all give the counts
+
+  @TH-11 @build
+  Scenario: The task path runs with the real verifier and the Lean toolchain: lexlean_verify by a client that declares the tasks extension, polled with tasks/get, ends completed with the state verified, and its record is found by its ID and validates; tasks/cancel while a program of the toolchain runs reports at least one child group ended and none failed, and leaves no record.
+    Given the real verifier and the Lean toolchain
+    When a verification is polled to its end, and another is cancelled while a program of the toolchain runs
+    Then the first is completed with a record that validates, and the second reports a group ended, none failed and no record

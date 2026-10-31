@@ -18,6 +18,8 @@ as before, with the verifier's task name and state in the result of the call.
 | `TH-07` | `lexlean_verify` by a client that declares the tasks extension creates a task named by the verifier's task name; any other client is answered as before. |
 | `TH-08` | `tasks/get` settles a working task from `verify.control`; a terminal task is answered from the table without asking the verifier. |
 | `TH-09` | `tasks/cancel` cancels a working task through `verify.control` and stores it as cancelled; asked again it is answered from the table. |
+| `TH-10` | A cancel says what became of the child groups (AC-12): the status message gives the counts. |
+| `TH-11` | The task path runs with the real verifier and Lean: a verification polled to `completed` with a record that validates, and a cancel that ends a child group, fails none and leaves no record. |
 
 ## The entries
 
@@ -43,8 +45,12 @@ time to live of 24 hours and a poll interval of 5000 ms, and the core stores it 
 
 `tasks/get` and `tasks/cancel` on a task the table holds as `working` ask `verify.control` once
 (status or cancel) and settle the entry from the answer: `queued` and `running` leave it
-working, `verified` and `failed` complete it with the result of the tool, `cancelled` cancels it,
-and a verifier that no longer knows the task fails it. A task that is already terminal is
+working, `verified` and `failed` complete it with the result of the tool, `cancelled` cancels it
+with the status message `child groups ended: E failed: F`, and a verifier that no longer knows the
+task fails it. The acknowledgement of `tasks/cancel` is empty, as the protocol has it: the counts are
+in the status notification streamed with it, in a later `tasks/get` and in the table. `E` is 0 when
+the cancel lands between two programs of the toolchain, since no child group is then alive: that is
+true, not a failure; `F` above 0 is the case a client must see. A task that is already terminal is
 answered from the table without asking the verifier. A handle the table does not hold (never made, expired, or
 lost by a restart) is the protocol's unknown task.
 
@@ -74,6 +80,18 @@ A gate is evidence only after a planted defect shows that it can fail (AGENTS.md
 | a provider that names the wrong tag for the store: `taskStoreTag := 13` in `gatewayInfo` (`gateway/src/Gateway.lex.tex`) | `cargo test -p repo-model --test taskhost` | `the_declaration_lists_the_entries_the_core_needs_at_the_tags_th_01` | the test fails: "taskStoreTag is the tag of task.store" | `git checkout -- gateway/src/Gateway.lex.tex`: the command passes again || a store that keeps nothing: `task_store` drops the table (`src/lib.rs` of gateway-binding) | `cargo test -p gateway-tool-tests --test taskhost` | the tests of TH-07 to TH-09 that read or poll a task: 8 of 11 (`th_07`, `th_08`, `th_09`) | each fails on the effects or the table: a created task is not in the table (`left: Some(0)`, `right: Some(1)`), and a poll or cancel asks no `verify.control` (`left: []`, `right: ["verify.control", "task.store"]`); the other three do not touch the table and pass | `git checkout -- gateway/bindings/gateway-binding/src/lib.rs`: the command passes again |
 
 The mapping itself (`gateway/src/TaskTools.lex.tex`) has no planted defect recorded: a change there takes a `prismpm build` (about an hour) to apply. The tests of TH-07 to TH-09 take the verifier behind the host as their oracle, and `Verdict` (`gateway/tool-tests/tests/taskhost.rs`) makes it say verified, failed or lost.
+
+The gates of TH-10 and TH-11, each run with the command given and restored:
+
+| Defect | Command | Gate | Diagnostic | Restore |
+| --- | --- | --- | --- | --- |
+| the counts dropped: the generated core of the commit before this fix, which keeps only the status, in place of `gateway/lexlean_mcp_gateway_core/src/lib.rs` | `cargo test -p gateway-tool-tests --test taskhost th_10` | `a_cancel_reports_the_child_groups_that_ended_th_10`, `a_cancel_reports_a_child_group_that_failed_to_end_th_10` | both fail: `left: Null`, `right: "child groups ended: 2 failed: 0"` | copy `gateway/generated/lexlean_mcp_gateway_core/src/lib.rs` back |
+| an ended group counted as failed: `end_groups` of `child.rs` adds to `failed` | `cargo build -p gateway-binding`, then `cargo test -p gateway-tool-tests --test taskhost -- --ignored a_real_verification_is_cancelled` | `a_real_verification_is_cancelled_through_the_task_th_11` | fails: "no child group failed to end: child groups ended: 0 failed: 1" | `git checkout -- gateway/bindings/gateway-binding/src/child.rs` and build again |
+| an ended group not counted: `end_groups` drops `Ended` | the same | the same | fails after eight attempts: "no cancel ended a child group" | the same |
+| a cancel that ends no group: `end_groups` looks at none of them | the same | the same | fails after eight attempts: "no cancel ended a child group" | the same |
+
+The first row stands in for a planted change to `gateway/src/TaskTools.lex.tex`, which takes a
+`prismpm build` (about an hour) to apply, and it is the exact defect: the core before the fix.
 
 ## Not met
 

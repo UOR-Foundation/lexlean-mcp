@@ -12,6 +12,7 @@
 \importmodule{JsonRpc}
 \importmodule{JsonText}
 \importmodule{Methods}
+\importmodule{Numeric}
 \importmodule{Refusal}
 \importmodule{ResultJson}
 \importmodule{StepServe}
@@ -166,10 +167,38 @@ definition{
 }
 
 definition{
+  name: countText,
+  parameters: [count : Nat],
+  result: String,
+  body: (prim format_decimal (Numeric::natToInt count (0 : Int)) : String),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: groupsReport,
+  parameters: [outcome : Bytes],
+  result: (Option String),
+  body: (match (Frame::chunkAt outcome 12)
+    | Option.none => (ctor Option.none [String])
+    | Option.some chunk => (ctor Option.some [String] (prim join (cons "child groups ended:" (cons (countText (GatewayTools::wordAt outcome (project chunk next))) (cons "failed:" (cons (countText (GatewayTools::wordAt outcome ((project chunk next) + 4))) (nil String))))) " " : String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: withMessage,
+  parameters: [fields : Tasks::TaskFields, message : (Option String)],
+  result: Tasks::TaskFields,
+  body: (record Tasks::TaskFields {taskId := (project fields taskId), statusMessage := message, createdAt := (project fields createdAt), lastUpdatedAt := (project fields lastUpdatedAt), ttlMs := (project fields ttlMs), pollIntervalMs := (project fields pollIntervalMs)}),
+  executable: true
+}
+
+definition{
   name: advanced,
   parameters: [found : Tasks::TaskEntry, outcome : Bytes, now : String],
   result: Tasks::Stepped,
-  body: (let fields : Tasks::TaskFields := (Tasks::touch (Tasks::fieldsOf (project found task)) now); (if ((GatewayTools::wordAt outcome 0) =? 1) then (moved found (ctor Tasks::DetailedTask.failed fields (lost))) else (let state : Nat := (GatewayTools::wordAt outcome 4); (if (state <? 2) then (Tasks::kept found) else (if (state =? 4) then (moved found (ctor Tasks::DetailedTask.cancelled fields)) else (moved found (ctor Tasks::DetailedTask.completed fields (record Json::JsonObject {members := (membersOrNone (ResultJson::callToolMembers (project (GatewayTools::controlReply outcome) result)))})))))))),
+  body: (let fields : Tasks::TaskFields := (Tasks::touch (Tasks::fieldsOf (project found task)) now); (if ((GatewayTools::wordAt outcome 0) =? 1) then (moved found (ctor Tasks::DetailedTask.failed fields (lost))) else (let state : Nat := (GatewayTools::wordAt outcome 4); (if (state <? 2) then (Tasks::kept found) else (if (state =? 4) then (moved found (ctor Tasks::DetailedTask.cancelled (withMessage fields (groupsReport outcome)))) else (moved found (ctor Tasks::DetailedTask.completed fields (record Json::JsonObject {members := (membersOrNone (ResultJson::callToolMembers (project (GatewayTools::controlReply outcome) result)))})))))))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
