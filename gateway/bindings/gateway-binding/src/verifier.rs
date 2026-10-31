@@ -26,6 +26,7 @@ use serde_json::{json, Value};
 
 use crate::attestation;
 use crate::config::{Config, SIGNING_KEY_VARIABLE};
+use crate::evidence;
 use crate::signer::Signer;
 use crate::sweep;
 use crate::telemetry::{ErrorClass, GroupEnd, Telemetry, VerifyOutcome};
@@ -682,14 +683,26 @@ pub struct Facts {
 ///
 /// The subject is the `attestation.json` of the verified directory, byte for byte; the predicate
 /// carries the IDs, the modules and the digest of each source file, so the envelope binds the
-/// record to the files it covers. The envelope is written last, after the history that names its
-/// key (the signer's) and the subject, so a verification that could not be signed has no record.
+/// record to the files it covers. The evidence that the subject binds (the build manifest, the
+/// renderings and the sources, `evidence`) is gathered and checked first: a verification whose
+/// evidence cannot be kept whole has no record. The envelope is written last, after the history
+/// that names its key (the signer's), the subject and the evidence, so a verification that could
+/// not be signed has no record.
 pub fn conclude(job: &Job, facts: &Facts) -> Outcome {
     let Ok(subject) = std::fs::read(facts.root.join("attestation.json")) else {
         return failure(
             5,
             "the attestation.json of the verification could not be read",
         );
+    };
+    let evidence = match evidence::gather(&facts.root, &job.directory, &subject) {
+        Ok(evidence) => evidence,
+        Err(reason) => {
+            return failure(
+                5,
+                &format!("the evidence of the verification could not be kept: {reason}"),
+            );
+        }
     };
     let digests = attestation::source_digests(&job.directory);
     let predicate = json!({
@@ -715,6 +728,7 @@ pub fn conclude(job: &Job, facts: &Facts) -> Outcome {
         &facts.attestation_id,
         &digests,
         &subject,
+        &evidence,
         &envelope,
     )
     .is_err()

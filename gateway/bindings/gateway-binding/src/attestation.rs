@@ -2,8 +2,9 @@
 //!
 //! A verification that succeeds leaves a record in the `verifications` area: the signed envelope
 //! `<attestation ID>.json` and the `attestation.json` it signs, `<attestation ID>/attestation.json`,
-//! and an entry of the `index` area for the digest of each source file it verified, whose content
-//! is the attestation ID. The lookup returns the envelope, which a reader validates against the
+//! the evidence that `attestation.json` binds below `<attestation ID>/` (`evidence`: the build
+//! manifest, the canonical LaTeX of each module and the source files), and an entry of the `index`
+//! area for the digest of each source file it verified, whose content is the attestation ID. The lookup returns the envelope, which a reader validates against the
 //! key history (`signer`).
 
 use std::path::Path;
@@ -63,15 +64,17 @@ pub fn source_digests(directory: &Path) -> Vec<String> {
         .collect()
 }
 
-/// Write the record of a verification: the `attestation.json` that was verified, then the signed
-/// envelope that names it, then the index entry of each source file in `digests`. The envelope is
-/// written after its subject, so a lookup never finds an envelope without the file it signs; a
-/// failure leaves no envelope, and the caller reports the verification as failed.
+/// Write the record of a verification: the `attestation.json` that was verified, then the
+/// `evidence` it binds, then the signed envelope that names it, then the index entry of each
+/// source file in `digests`. The envelope is written after its subject and its evidence, so a
+/// lookup never finds an envelope without the files it binds; a failure leaves no envelope, and
+/// the caller reports the verification as failed.
 pub fn record(
     root: &Path,
     attestation: &str,
     digests: &[String],
     subject: &[u8],
+    evidence: &[(String, Vec<u8>)],
     envelope: &[u8],
 ) -> Result<(), ()> {
     if !is_digest(attestation) {
@@ -85,6 +88,16 @@ pub fn record(
         RECORD_MAXIMUM,
     )
     .map_err(|_| ())?;
+    for (key, bytes) in evidence {
+        store::write(
+            root,
+            3,
+            &format!("{attestation}/{key}"),
+            bytes,
+            RECORD_MAXIMUM,
+        )
+        .map_err(|_| ())?;
+    }
     store::write(
         root,
         3,

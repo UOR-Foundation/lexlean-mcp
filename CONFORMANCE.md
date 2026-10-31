@@ -18,6 +18,16 @@ The three honesty levels (R2):
 `cargo xtask audit-limits` fails if any code path returns an error the
 model does not sanction.
 
+## attestation
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `AT-01` | `build` | lexlean_attestation by attestation ID returns the signed envelope: for the record of a concluded verification the tool asks attestation.lookup once and answers found true with the envelope as its text, byte for byte the envelope in the store, and those bytes validate against keys/history and the stored attestation.json. |
+| `AT-02` | `build` | lexlean_attestation by the SHA-256 of a source file that the verification covered returns the same envelope as by the attestation ID. |
+| `AT-03` | `build` | A lookup that finds nothing is not an error and a malformed value is refused: an attestation ID or a digest that names no record, and an empty store, answer found false with the text not found; a value that is not 64 lowercase hexadecimal digits is the host's refusal value-refused; an empty value is refused by the core as bad arguments and the host is not asked. |
+| `AT-04` | `build` | A lookup writes nothing: the store holds the same files with the same bytes after lookups that find, that miss and that are refused. |
+| `AT-05` | `build` | Each gate of the tool rejects its planted defect: the lookup reading the file that the envelope signs instead of the envelope, the digest read as an attestation ID, the check of the value dropped, and a lookup that writes to the store; ATTESTATION.md records the command, the diagnostic and the restore of each. |
+
 ## draft
 
 | ID | Level | Statement |
@@ -209,6 +219,8 @@ model does not sanction.
 | `SG-11` | `build` | attestation.lookup returns the signed envelope: by attestation ID and by the SHA-256 of a source file the verification covered, the lookup of a concluded verification returns exactly the bytes of the envelope in the store, and those bytes validate against keys/history and the stored attestation.json. |
 | `SG-12` | `build` | A verification that cannot be signed leaves no record: when the key's history cannot be written, or the attestation.json of the verified directory cannot be read, the task ends failed with class 5, and the store holds no envelope, no attestation.json and no index entry for it; a verification that failed leaves none either. |
 | `SG-13` | `build` | Each gate of the signed record rejects its planted defect: verify.start accepting a verification without a key, the failure to sign ignored and an unsigned record written, the envelope stored without its attestation.json, the predicate without the digests of the source files, and the lookup answering the unsigned record again; SIGNING.md records the command, the diagnostic and the restore of each. |
+| `SG-14` | `build` | A verified record keeps the evidence its attestation.json binds: below verifications/<attestation ID>/ the store holds build-manifest.json, the manifest whose SHA-256 attestation.json names as build_manifest, each output of kind tex that the manifest names (the canonical LaTeX of a module) at its path, and each input of kind source at sources/<its path>, every file byte for byte with the digest the manifest gives, written after attestation.json and before the envelope; a real verification of the tiny project leaves such a record. |
+| `SG-15` | `build` | A verification whose evidence cannot be kept whole leaves no record: when the build manifest is missing or is not the one attestation.json names, attestation.json names no manifest, a rendering or a source file is missing or differs from the digest the manifest gives, the manifest names no rendering or no source, or a path the manifest names is not a key of the store, the task ends failed with class 5 and the store holds no envelope, no attestation.json, no evidence, no index entry and no key entry for it. |
 
 ## store
 

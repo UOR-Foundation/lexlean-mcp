@@ -14,6 +14,7 @@ mod attestation;
 pub mod child;
 mod config;
 mod engine;
+mod evidence;
 pub mod identity;
 mod lexicon;
 pub mod materialize;

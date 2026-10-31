@@ -79,3 +79,15 @@ Feature: The signer of the verification records
     Given the host with one defect planted at a time
     When the tests of SG-09 to SG-12 run
     Then each defect makes the test that answers it fail, with the diagnostic SIGNING.md records
+
+  @SG-14 @build
+  Scenario: A verified record keeps the evidence its attestation.json binds: below verifications/<attestation ID>/ the store holds build-manifest.json, the manifest whose SHA-256 attestation.json names as build_manifest, each output of kind tex that the manifest names (the canonical LaTeX of a module) at its path, and each input of kind source at sources/<its path>, every file byte for byte with the digest the manifest gives, written after attestation.json and before the envelope; a real verification of the tiny project leaves such a record.
+    Given a verification that ended verified, whose verified directory holds the manifest that attestation.json names and the rendering it names, and whose project holds the source it names
+    When the host concludes it
+    Then the record holds the manifest, the rendering and the source byte for byte, and the digests lead from attestation.json to each
+
+  @SG-15 @build
+  Scenario: A verification whose evidence cannot be kept whole leaves no record: when the build manifest is missing or is not the one attestation.json names, attestation.json names no manifest, a rendering or a source file is missing or differs from the digest the manifest gives, the manifest names no rendering or no source, or a path the manifest names is not a key of the store, the task ends failed with class 5 and the store holds no envelope, no attestation.json, no evidence, no index entry and no key entry for it.
+    Given verified directories and projects each spoiled in one way
+    When the host concludes each
+    Then each task fails with class 5 and the store holds nothing for it
