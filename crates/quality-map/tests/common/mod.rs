@@ -68,7 +68,7 @@ pub fn authority(id: &str) -> AuthorityRow {
         .unwrap_or_else(|| panic!("{id} is not in model/authorities.toml"))
 }
 
-/// The diagnostic codes of the command results of the 297 negative fixtures.
+/// The diagnostic codes of the command results of the 298 negative fixtures.
 pub fn returned_codes() -> BTreeSet<String> {
     let register = Register::load(&root().join("crates/negative-fixtures/register.toml"))
         .expect("the fixture register loads");

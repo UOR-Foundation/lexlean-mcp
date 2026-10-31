@@ -488,7 +488,7 @@ fn the_atlas_data_is_the_pinned_lexleans_pf_07() {
     );
     assert!(authority
         .citation
-        .contains("97960679736e960e84a98f5c43981e1f2c70d6d7"));
+        .contains("e0b74b81e6f49c83596a957d232c8383a5db1a25"));
     assert_eq!(
         std::fs::read_to_string(root().join(".github/lexlean.rev"))
             .unwrap()
@@ -496,7 +496,7 @@ fn the_atlas_data_is_the_pinned_lexleans_pf_07() {
             .find_map(|line| line.strip_prefix("rev = "))
             .unwrap()
             .trim(),
-        "97960679736e960e84a98f5c43981e1f2c70d6d7",
+        "e0b74b81e6f49c83596a957d232c8383a5db1a25",
         "the authority is the revision this repository pins"
     );
 

@@ -48,7 +48,7 @@ spec = "template/1"
 id = "NF-01"
 level = "build"
 suite = "nfc"
-statement = "The pinned Unicode Character Database files (UnicodeData.txt, CompositionExclusions.txt, DerivedNormalizationProps.txt, NormalizationTest.txt) are the Unicode 17.0.0 files whose SHA-256 digests the authorities record, and 17.0.0 is the Unicode version of unicode-normalization 0.1.25, the crate LexLean release/v0.4 at 9796067 pins."
+statement = "The pinned Unicode Character Database files (UnicodeData.txt, CompositionExclusions.txt, DerivedNormalizationProps.txt, NormalizationTest.txt) are the Unicode 17.0.0 files whose SHA-256 digests the authorities record, and 17.0.0 is the Unicode version of unicode-normalization 0.1.25, the crate LexLean v0.4.0 at `e0b74b8` pins."
 
 [[id]]
 id = "NF-02"
@@ -174,7 +174,7 @@ statement = "The measurement of R2 (a lexicon entry renders words that misstate 
 id = "FX-01"
 level = "some-true"
 suite = "fixtures"
-statement = "LexLean release/v0.4 at 9796067 (commit 97960679736e960e84a98f5c43981e1f2c70d6d7) holds in tests/negative the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864 with 297 fixtures, of which 256 run the command check, 1 build, 32 verify, 4 lock and 4 production."
+statement = "LexLean v0.4.0 at `e0b74b8` (commit e0b74b81e6f49c83596a957d232c8383a5db1a25) holds in tests/negative the git tree f5a43991dec0c604c8647c5dd050f183a16832a6 with 298 fixtures, of which 256 run the command check, 1 build, 1 migrate, 32 verify, 4 lock and 4 production."
 
 [[id]]
 id = "FX-02"
@@ -204,7 +204,7 @@ statement = "Every fixture of the pinned tree is classified exactly once: no nam
 id = "FX-06"
 level = "build"
 suite = "fixtures"
-statement = "The register has 297 fixtures: 252 for F4, 1 for F7, 32 for #11 and 12 excluded, so 285 reach a tool; every sum is recomputed from the rows, so a hand edit of a row or of a sum fails."
+statement = "The register has 298 fixtures: 252 for F4, 1 for F7, 32 for #11 and 13 excluded, so 285 reach a tool; every sum is recomputed from the rows, so a hand edit of a row or of a sum fails."
 
 [[id]]
 id = "FX-07"
@@ -348,7 +348,7 @@ statement = "Each law of the store model rejects its planted defect: an attestat
 id = "QM-01"
 level = "some-true"
 suite = "quality"
-statement = "LexLean release/v0.4 at 9796067 declares 33 public functions in the files of its stable API surface: 7 methods of Engine, 8 functions of lexlean::sdk, 11 of lexlean::api::production with the methods of its request, result and report, 5 free functions of lexlean::api and the 2 lifecycle functions of lexlean::verify; the vendored copies of crates/lexlean/src/api.rs, api/production.rs, sdk.rs and verify/lifeline.rs are the files of that commit, each with the git blob id the table records."
+statement = "LexLean v0.4.0 at `e0b74b8` declares 33 public functions in the files of its stable API surface: 7 methods of Engine, 8 functions of lexlean::sdk, 11 of lexlean::api::production with the methods of its request, result and report, 5 free functions of lexlean::api and the 2 lifecycle functions of lexlean::verify; the vendored copies of crates/lexlean/src/api.rs, api/production.rs, sdk.rs and verify/lifeline.rs are the files of that commit, each with the git blob id the table records."
 
 [[id]]
 id = "QM-02"
@@ -366,7 +366,7 @@ statement = "Q2 is measured: every one of the 33 public functions reaches exactl
 id = "QM-04"
 level = "some-true"
 suite = "quality"
-statement = "LexLean release/v0.4 at 9796067 registers 86 diagnostic codes in model/errors.toml, each with a class, an exit status, a title and a statement, and generates ERRORS.md from the registry, one entry per code, which lexlean explain prints; the vendored copies are the files of that commit."
+statement = "LexLean v0.4.0 at `e0b74b8` registers 86 diagnostic codes in model/errors.toml, each with a class, an exit status, a title and a statement, and generates ERRORS.md from the registry, one entry per code, which lexlean explain prints; the vendored copies are the files of that commit."
 
 [[id]]
 id = "QM-05"
@@ -378,7 +378,7 @@ statement = "Every one of the 86 registered codes is explained: its row has a we
 id = "QM-06"
 level = "build"
 suite = "quality"
-statement = "Every diagnostic code that the 297 negative fixtures of AC-07 return is a registered code with an entry in ERRORS.md, so a code in a result resolves through explain."
+statement = "Every diagnostic code that the 298 negative fixtures of AC-07 return is a registered code with an entry in ERRORS.md, so a code in a result resolves through explain."
 
 [[id]]
 id = "QM-07"
@@ -456,7 +456,7 @@ statement = "FEATURES.md states one row for each of F1 to F13 and J1 to J6, in o
 id = "OB-01"
 level = "some-true"
 suite = "observability"
-statement = "LexLean release/v0.4 at 9796067 maps the five variants of ErrorClass, Language, CliOrConfiguration, Environment, SecurityOrLimit and Internal, to the CLI exit codes 1, 2, 3, 4 and 70 (SPEC 24.5 and 23.6), so that the classes 2, 3 and 70 of issue #16 are CliOrConfiguration, Environment and Internal."
+statement = "LexLean v0.4.0 at `e0b74b8` maps the five variants of ErrorClass, Language, CliOrConfiguration, Environment, SecurityOrLimit and Internal, to the CLI exit codes 1, 2, 3, 4 and 70 (SPEC 24.5 and 23.6), so that the classes 2, 3 and 70 of issue #16 are CliOrConfiguration, Environment and Internal."
 
 [[id]]
 id = "OB-02"

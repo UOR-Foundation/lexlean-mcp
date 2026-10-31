@@ -20,7 +20,7 @@ planted defects.
 
 The authority rule of `model/authorities.toml` asks for a citation and a
 checksum, not for the bytes. The bytes are here because a digest nobody can
-recompute is a claim nobody can check: with the 1188 expected files and 297
+recompute is a claim nobody can check: with the 1188 expected files and 298
 `case.toml` files (about 390 kB) in this repository, a test recomputes every
 digest, reads every exit status and diagnostic code from the result itself, and
 recomputes the git tree of every fixture directory and of `tests/negative`.
@@ -37,7 +37,7 @@ from LexLean at the pinned commit.
 
 ```sh
 git clone --filter=blob:none --no-checkout https://github.com/UOR-Foundation/LexLean <dir>
-git -C <dir> checkout 97960679736e960e84a98f5c43981e1f2c70d6d7
+git -C <dir> checkout e0b74b81e6f49c83596a957d232c8383a5db1a25
 cargo run -p negative-fixtures --example import -- <dir>
 ```
 

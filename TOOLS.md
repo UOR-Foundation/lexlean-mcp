@@ -93,7 +93,7 @@ protocol errors, the instrument for Q4) run in every `cargo test`.
 
 ### The pin of the register and the pin of the gateway
 
-The register is bound to LexLean `9796067` (297 fixtures); the gateway is compiled by the
+The register is bound to LexLean v0.4.0 (298 fixtures); the gateway is compiled by the
 LexLean commit MCP names (`gateway/mcp/lexlean.rev`, SM-37 `0b0c95d96`), whose
 `tests/negative` has 298. The extra fixture, `induction-nested-type`, is not in the
 register (`NOT_IN_THE_REGISTER` in `gateway/tool-tests/src/lib.rs`, with the counts asserted
