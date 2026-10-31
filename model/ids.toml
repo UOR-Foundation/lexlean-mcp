@@ -1189,3 +1189,75 @@ id = "AT-05"
 level = "build"
 suite = "attestation"
 statement = "Each gate of the tool rejects its planted defect: the lookup reading the file that the envelope signs instead of the envelope, the digest read as an attestation ID, the check of the value dropped, and a lookup that writes to the store; ATTESTATION.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "PT-01"
+level = "build"
+suite = "present"
+statement = "lexlean_present by attestation ID returns the attested canonical LaTeX of the record as one embedded resource whose text is the rendering in the store byte for byte, at the uri lexlean://attestation/<ID>/<path of the rendering> with the type application/x-tex, and its structured content is found true, the attestation ID, the path of the rendering and the envelope as JSON, which validates against keys/history and the stored attestation.json; the tool asks attestation.lookup once."
+
+[[id]]
+id = "PT-02"
+level = "build"
+suite = "present"
+statement = "AC-06: for the record of nat-add-zero, J1 ends in an embedded resource whose bytes equal the expected canonical LaTeX of the example, and the SHA-256 of those bytes is the digest the attested build manifest names for the rendering."
+
+[[id]]
+id = "PT-03"
+level = "build"
+suite = "present"
+statement = "lexlean_present by the SHA-256 of a source file the verification covered returns the same resource as by ID; the argument module, a path of the build manifest, selects one rendering of a record that has several, an empty module is the only rendering of a record that has one, and an empty module on several or a module the manifest does not name is the host's refusal module-unknown."
+
+[[id]]
+id = "PT-04"
+level = "build"
+suite = "present"
+statement = "A record that does not exist is found false with the text not found, a value that is not 64 lowercase hexadecimal digits is value-refused, an empty value is refused by the core before the host is asked, and a present writes nothing to the store."
+
+[[id]]
+id = "PT-05"
+level = "build"
+suite = "present"
+statement = "The tool presents only what is attested: a rendering of the record that differs from the digest the build manifest names, or a manifest that differs from the digest attestation.json names, is not presented; the host faults and the tool answers an error without the bytes."
+
+[[id]]
+id = "PT-06"
+level = "build"
+suite = "present"
+statement = "Each gate of lexlean_present rejects its planted defect: the rendering read from the wrong file, the digest of the rendering not checked, the module not selected, and a present that writes to the store; PRESENT.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "EX-01"
+level = "build"
+suite = "present"
+statement = "lexlean_export by attestation ID writes the bundle of the record below exports/<ID>/ and answers found true with the attestation ID and the bundle key exports/<ID>: attestation.json, envelope.json (the envelope in the store), keys.json (the key history), build-manifest.json, each rendering at its path and each source file at sources/<its path>, every file byte for byte as the record holds it; the tool asks attestation.lookup once."
+
+[[id]]
+id = "EX-02"
+level = "build"
+suite = "present"
+statement = "J4: a reader checks the bundle offline from its files alone, with the store gone: envelope.json validates against keys.json and attestation.json, the digest of build-manifest.json is the one attestation.json names, and every rendering and source file has the digest the manifest names."
+
+[[id]]
+id = "EX-03"
+level = "build"
+suite = "present"
+statement = "The renderings digest of an exported bundle matches the attested build manifest: the SHA-256 of each rendering in the bundle equals the digest of its row of the manifest of the bundle, the bundle holds exactly the renderings and sources the manifest names, and its renderings equal what lexlean_present returns for the record."
+
+[[id]]
+id = "EX-04"
+level = "build"
+suite = "present"
+statement = "A record that does not exist, a malformed value and an empty value are answered as for lexlean_present and write nothing; a record whose evidence differs from its digests is refused with a host fault and no file of its bundle is written."
+
+[[id]]
+id = "EX-05"
+level = "build"
+suite = "present"
+statement = "An export is repeatable: exporting a record again writes the same bytes, the record itself is not changed, and the bundles of two records are in directories of their own."
+
+[[id]]
+id = "EX-06"
+level = "build"
+suite = "present"
+statement = "Each gate of lexlean_export rejects its planted defect: a rendering left out of the bundle, the key history left out, the envelope replaced by attestation.json, and the evidence not checked before the first write; PRESENT.md records the command, the diagnostic and the restore of each."

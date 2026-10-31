@@ -938,6 +938,8 @@ fn verify_start_runs_a_real_verification_and_leaves_a_record() {
         .attestation_lookup(attestation_lookup::Request {
             by: 0,
             value: attestation.clone(),
+            want: 0,
+            module: String::new(),
         })
         .expect("lookup");
     assert!(by_id.found);
@@ -947,6 +949,8 @@ fn verify_start_runs_a_real_verification_and_leaves_a_record() {
         .attestation_lookup(attestation_lookup::Request {
             by: 1,
             value: digest,
+            want: 0,
+            module: String::new(),
         })
         .expect("lookup");
     assert!(by_file.found);
@@ -1182,6 +1186,8 @@ fn lookup(
     host.attestation_lookup(attestation_lookup::Request {
         by,
         value: value.into(),
+        want: 0,
+        module: String::new(),
     })
     .map(|done| (done.found, done.envelope))
     .map_err(failure)
@@ -1273,6 +1279,8 @@ fn attestation_lookup_faults_when_the_index_names_something_that_is_not_an_id() 
         .attestation_lookup(attestation_lookup::Request {
             by: 1,
             value: DIGEST.into(),
+            want: 0,
+            module: String::new(),
         })
         .map(|_| ());
     assert_eq!(error, Err(HostError::Fault));
