@@ -503,6 +503,9 @@ fn an_atom_outside_the_profile_gives_lll1004_with_its_span_tl_07() {
 
 // ---- TL-16 -----------------------------------------------------------------------------
 
+/// A defect planted in a result: what it is, and the change that makes it.
+type Plant = (&'static str, Box<dyn Fn(&mut Value)>);
+
 /// The tools that `tools/list` gives an output schema, and for which this test has a call. A
 /// tool listed with a schema that is not here fails the first assertion until it has a call.
 const WITH_AN_OUTPUT_SCHEMA: [&str; 5] = [
@@ -577,7 +580,7 @@ fn every_result_validates_against_the_output_schema_of_its_tool_tl_16() {
     let good = structured(&seen[0].1).clone();
     assert_eq!(seen[0].0, "lexlean_check");
     validate(check, &good).expect("the unplanted result validates");
-    let plants: [(&str, Box<dyn Fn(&mut Value)>); 6] = [
+    let plants: [Plant; 6] = [
         (
             "a required member removed",
             Box::new(|v| {
