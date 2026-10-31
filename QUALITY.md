@@ -2,7 +2,7 @@
 
 Issue #15 models the quality requirements Q1 to Q8 as chains with an
 all-or-none measure. `src/Quality.lex.tex` records, for each measure, whether it
-is `Executed` or `Pending`. This file states which five are `Executed` now, what
+is `Executed` or `Pending`. This file states which seven are `Executed` now, what
 the evidence is, what it does not show, and the defects planted in its gates.
 
 | Measure | Requirement | Status | Rows |
@@ -12,11 +12,11 @@ the evidence is, what it does not show, and the defects planted in its gates.
 | Q3 | no record for a verification that did not end `verified` | **Executed** | VP-04, VP-05, SG-07, SG-12 |
 | Q4 | check, snapshot, format, build start no child process | **Executed** | TL-08 |
 | Q5 | the MCP implementation conforms to 2026-07-28 | Pending | needs the deployed core (#17) |
-| Q6 | protocol and tool semantics live only in `.lex.tex` | Pending | needs the host adapter (#7) |
-| Q7 | the same `build_id` on `linux/amd64` and `linux/arm64` | Pending | needs `build` as a tool (#10), on both platforms |
+| Q6 | protocol and tool semantics live only in `.lex.tex` | **Executed** | EF-06, GW-06 |
+| Q7 | the same `build_id` on `linux/amd64` and `linux/arm64` | **Executed** | QM-09 |
 | Q8 | every diagnostic code in a result resolves through F11 | **Executed** | QM-04 to QM-06 |
 
-`measuresPendingAreQ5ToQ7` pins the pending list, `executedMeasuresAreQ1ToQ4AndQ8`
+`measuresPendingAreQ5` pins the pending list, `executedMeasuresAreQ1ToQ4AndQ6ToQ8`
 pins the executed one, and `onlyTheVerifyClauseOfQ1IsPending` pins the list of clauses that
 still wait: one, the clause of Q1 for `lexlean_verify`. `qualityValid` requires that the
 measure of each clause in `pendingClauses` is an executed one. `QM-07` ties the statuses to
@@ -173,16 +173,40 @@ tests run in the gateway workspace and `QM-07` checks that each cited row has a 
 
 ## What is not met
 
-Q5 (the MCP oracles), Q6 (modularity) and Q7 (the same `build_id` on both platforms) stay
-`Pending`: Q5 needs all 50 scenarios to pass and the waiting list is not empty (#45, #17),
-Q6 needs the generated host adapter, and Q7 cannot be reached by `just vv`: the root
-workspace has no `lexlean` dependency and `build_id` comes only from the engine, which the
-gateway workspace links and the gateway job runs on `linux/amd64` only. `bootstrap.yml` does
-run `just vv` on `linux/amd64` and `linux/arm64`, so Q7 can be executed there at no extra CI
-cost once a committed `build_id` is recomputed by a test of the gateway workspace that `just vv`
-reaches (#10); until then no run observes a `build_id` on `linux/arm64`. Each says in the model
-which issue executes it. Q1's clause for `lexlean_verify` waits for #11. Issue #15 stays open for
-the three pending measures and that clause.
+Q5 (the MCP oracles) stays `Pending`: it needs all 50 scenarios to pass and the waiting list is
+not empty (#45, #17); the model says which issue executes it. Q1's clause for `lexlean_verify`
+waits for #11. Issue #15 stays open for Q5 and that clause.
+
+## Q6: modularity
+
+**Evidence.** `GW-06` (`crates/model/tests/gateway.rs`) reads every tool name of `gateway/src` and
+every method name of the MCP sources at the pin, and finds none in `gateway/bindings`, the host
+adapter source the repository writes; in the gateway job, which lays out the generated `host-api`
+and `host` packages, it finds none there either, but the one method the application declares as
+the counted value of its frame section (`tools/call`). It plants a tool name in a scratch directory
+and requires the search to find it. `EF-06` requires that no effect name contain a tool or method
+name. The adapter is generated (#41), so the claim is about the source the repository writes and
+what `prismpm build` generates from the declaration.
+
+**What it does not show.** The search is for names; it does not show that no other protocol or
+tool semantics is written in Rust beside them. The one method name the generated surface carries
+is allowed by `GW-06` and recorded in GATEWAY.md.
+
+## Q7: the same `build_id` on both platforms
+
+**Evidence.** `crates/build-id` holds a fixed project (`fixture/`, language 1.2, the lock made by
+`lexlean` 0.4.0) and the IDs of its build in `fixture/expected`. `QM-09` builds it with the
+`Engine` of the pinned release (`lexlean = "=0.4.0"`, a dev dependency) in a temporary directory,
+and requires the source ID, the semantic ID and the `build_id` to equal the recorded ones; built in
+a second directory it gives the same; a source changed by one byte gives another. `just vv` runs
+`cargo test --workspace`, and `bootstrap.yml` runs `just vv` on `linux/amd64` for a pull request and
+on `linux/amd64` and `linux/arm64` for `main` and tags, so every platform is held to one recorded
+value, and so to each other. No job is added.
+
+**What it does not show.** The recorded value was measured on `linux/amd64` when the crate was
+written, and nothing has run the test on `linux/arm64` yet: the first observation is the bootstrap
+run on `main` after the merge, and a difference there turns that run red. It is one project; the
+build ID hashes only the source and semantic IDs (SPEC 21.5), which the test does not recompute.
 
 ## Planted defects
 
@@ -207,6 +231,9 @@ that the check runs on every `cargo test`.
 | the evidence of Q8 pointing at `pendingClauses` again | `cargo test -p repo-conformance --test quality` | `the Executed status of measure 7 points at pendingClauses, and its running clause is executed` |
 | `TL-13` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
 | `TL-15` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
+| Q6 flipped back to `Pending` | `cargo test -p repo-conformance --test quality` | `the measure 5 is not Executed`; `exactly 7 measures must be Executed` |
+| Q7 flipped back to `Pending` | same | `the measure 6 is not Executed` |
+| the `build_id` recorded in `crates/build-id/fixture/expected` changed in one digit | `cargo test -p build-id` | `the build of the fixture on x86_64`, left `dab4dfd2...`, right `dab5dfd2...` |
 | `CONFORMANCE.md` edited by hand | `cargo run -p xtask -- check-model` | `CONFORMANCE.md is stale: it disagrees with model/ids.toml` |
 
 The planted-in-memory set is wider: a function with neither tool nor reason, a function
@@ -221,8 +248,8 @@ record the clause of Q1 for lexlean_verify`), and the count of Q1 put back to 27
 counts Some(273) negative fixtures and the register holds 285 in scope`).
 
 Not run on the working tree: a flip of Q2 in `src/Quality.lex.tex` through `lexlean
-verify`, which would make `measuresPendingAreQ5ToQ7` and
-`executedMeasuresAreQ1ToQ4AndQ8` fail with `LLV7002`. The local verification runs once,
+verify`, which would make `measuresPendingAreQ5` and
+`executedMeasuresAreQ1ToQ4AndQ6ToQ8` fail with `LLV7002`. The local verification runs once,
 on the final state, to keep to the shared memory budget; CI runs it on every push.
 
 ## Reproducing

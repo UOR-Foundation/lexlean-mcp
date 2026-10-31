@@ -21,7 +21,7 @@ use gateway_host_api::protocol::{
     lexicon_read, rate_calls, store_get, store_put, task_id, task_store, task_table,
     verify_control, verify_start, Host, HostError,
 };
-use gateway_tool_tests::{list_http_request, tiny, Gateway, Reply};
+use gateway_tool_tests::{call_http_request, fixture, list_http_request, tiny, Gateway, Reply};
 use serde_json::{json, Value};
 
 /// A host that notes the name of every effect that is asked of it.
@@ -633,4 +633,103 @@ fn a_real_verification_is_cancelled_through_the_task_th_11() {
         seen.push(message.to_owned());
     }
     panic!("AC-12: no cancel ended a child group: {seen:?}");
+}
+
+// ---- TH-12: calls over the rate ------------------------------------------------------------------
+
+/// `rate.tool_calls` (OWNER-VALUES.md): the calls one window admits.
+const RATE_TOOL_CALLS: u64 = 100;
+
+#[test]
+fn calls_over_the_rate_are_refused_before_any_tool_runs_th_12() {
+    // `lexlean_check` of an absent project asks the host for exactly one effect, `engine.check`,
+    // so a call that ran is told from one that was refused by that effect alone.
+    let requests: Vec<Vec<u8>> = (1..=RATE_TOOL_CALLS + 2)
+        .map(|id| call_http_request("lexlean_check", json!({"project": "absent"}), id))
+        .collect();
+    let answered = served(&requests);
+    assert_eq!(answered.len() as u64, RATE_TOOL_CALLS + 2);
+    for (index, (status, names)) in answered.iter().enumerate() {
+        let number = index as u64 + 1;
+        if number <= RATE_TOOL_CALLS {
+            assert_eq!(*status, 200, "call {number}: {names:?}");
+            assert!(names.contains(&"engine_check"), "call {number}: {names:?}");
+        } else {
+            assert_eq!(*status, 429, "call {number} is over the rate: {names:?}");
+            assert!(
+                !names.contains(&"engine_check"),
+                "call {number} was refused and still ran: {names:?}"
+            );
+        }
+        assert!(
+            names.contains(&"rate_calls"),
+            "call {number}: the adapter counted it: {names:?}"
+        );
+    }
+}
+
+// ---- TH-13: a limit that a verification exceeds --------------------------------------------------
+
+/// Poll `task` until it is no longer working, for at most fifteen minutes.
+fn polled_to_its_end(gateway: &mut Gateway, task: &str) -> Reply {
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(900);
+    loop {
+        let reply = gateway.task_rpc("tasks/get", task);
+        if reply.result()["status"] != "working" {
+            return reply;
+        }
+        assert!(
+            std::time::Instant::now() < until,
+            "the verification did not end"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+}
+
+#[test]
+#[ignore = "runs a real verification, which needs the Lean toolchain: the gateway job of .github/workflows/lexlean.yml runs it with --ignored and requires the count"]
+fn a_draft_over_the_limit_fails_with_lls8002_and_no_other_task_is_affected_th_13() {
+    let mut gateway = Gateway::with_real_verifier();
+    gateway.install("dir", &tiny());
+    gateway.install("limited", &fixture("over-limit"));
+    // The sound task starts first, so that it is running when the other one fails.
+    let sound = created(&mut gateway);
+    let started = gateway.task_call("lexlean_verify", json!({"project": "limited", "files": []}));
+    let limited = started.result()["taskId"]
+        .as_str()
+        .expect("a task handle")
+        .to_string();
+    assert_ne!(sound, limited);
+
+    let over = polled_to_its_end(&mut gateway, &limited);
+    assert_eq!(over.result()["status"], "completed", "{}", over.body);
+    let result = &over.result()["result"];
+    assert_eq!(result["isError"], true, "{result}");
+    assert_eq!(result["structuredContent"]["state"], "failed", "{result}");
+    assert!(
+        result.to_string().contains("LLS8002"),
+        "the limit is named: {result}"
+    );
+
+    // The task that exceeded nothing is not affected: it is verified, and its record is the only one.
+    let done = polled_to_its_end(&mut gateway, &sound);
+    assert_eq!(done.result()["status"], "completed", "{}", done.body);
+    assert_eq!(
+        done.result()["result"]["structuredContent"]["state"],
+        "verified",
+        "{}",
+        done.body
+    );
+    let records = std::fs::read_dir(gateway.store().join("verifications"))
+        .map(|entries| entries.count())
+        .unwrap_or(0);
+    assert!(records >= 1, "the sound task left its record");
+    let table = table_of(&mut gateway);
+    let statuses: Vec<&str> = table
+        .as_array()
+        .expect("a table")
+        .iter()
+        .filter_map(|entry| entry["task"]["status"].as_str())
+        .collect();
+    assert_eq!(statuses, ["completed", "completed"], "{table}");
 }
