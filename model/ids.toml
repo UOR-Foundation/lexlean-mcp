@@ -1095,6 +1095,12 @@ suite = "verifier"
 statement = "Each gate of the verifier process rejects its planted defect: the key left in the environment of the process, a record made for a task that is being cancelled, the session of a lost verifier not killed, the slots ignored so that every task starts at once, and a process that ignores cancel left running; VERIFIER.md records the command, the diagnostic and the restore of each."
 
 [[id]]
+id = "VP-07"
+level = "build"
+suite = "verifier"
+statement = "The 32 verify fixtures of AC-07 give the command result of the CLI: for each negative fixture of class #11 in crates/negative-fixtures/register.toml, run in its own environment and, when it carries a toolchain directory, with an elan home that overlays those programs on the pinned toolchain, lexlean_verify and lexlean_verify_control end the task failed with the class equal to the exit status of lexlean verify, and a result equal to the lexlean/command-result/1 the CLI prints on the same bytes, and they leave no record."
+
+[[id]]
 id = "TH-01"
 level = "build"
 suite = "taskhost"

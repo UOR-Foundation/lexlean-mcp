@@ -12,9 +12,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use gateway_tool_tests::{
-    copy_tree, fixtures_of, lexlean_sources, register, run_cli, tree, Cli, Fixture, Gateway, Reply,
-    EXAMPLES_OFF_THE_EXPECTED_TREE, F4_FIXTURES, F7_FIXTURES, NOT_IN_THE_REGISTER,
-    SNAPSHOTS_OVER_THE_LIMIT,
+    copy_tree, fixtures_of, lexlean_sources, real_verifier, register, run_cli, run_cli_in, tree,
+    Cli, Fixture, Gateway, Reply, EXAMPLES_OFF_THE_EXPECTED_TREE, F4_FIXTURES, F7_FIXTURES,
+    NOT_IN_THE_REGISTER, SNAPSHOTS_OVER_THE_LIMIT,
 };
 use serde_json::{json, Value};
 
@@ -765,4 +765,186 @@ fn every_code_in_a_tool_result_resolves_through_explain_tl_13() {
         "TL-13: {} distinct codes in the results of the tools, every one resolved",
         seen.len()
     );
+}
+
+// ---- VP-07: the verify fixtures (AC-07) --------------------------------------------------------
+
+/// An elan home for a fixture that carries a `toolchain/`: the pinned toolchain with the fixture's
+/// executables over its `bin/`, as LexLean's own harness makes it (`fake_elan_home`).
+fn overlaid_elan_home(overlay: &Path, home: &Path) {
+    use std::os::unix::fs::{symlink, PermissionsExt};
+    let elan = std::env::var_os("ELAN_HOME").map_or_else(
+        || PathBuf::from(std::env::var_os("HOME").expect("a home")).join(".elan"),
+        PathBuf::from,
+    );
+    let mangled = lexlean::LEAN_TOOLCHAIN
+        .replace('/', "--")
+        .replace(':', "---");
+    let real = elan.join("toolchains").join(&mangled);
+    let toolchain = home.join("toolchains").join(&mangled);
+    std::fs::create_dir_all(toolchain.join("bin")).expect("a directory");
+    for entry in std::fs::read_dir(&real)
+        .expect("the pinned toolchain")
+        .flatten()
+    {
+        if entry.file_name() != "bin" {
+            symlink(entry.path(), toolchain.join(entry.file_name())).expect("a link");
+        }
+    }
+    for entry in std::fs::read_dir(real.join("bin"))
+        .expect("its bin")
+        .flatten()
+    {
+        if !overlay.join(entry.file_name()).exists() {
+            symlink(entry.path(), toolchain.join("bin").join(entry.file_name())).expect("a link");
+        }
+    }
+    for entry in std::fs::read_dir(overlay).expect("the overlay").flatten() {
+        let target = toolchain.join("bin").join(entry.file_name());
+        std::fs::copy(entry.path(), &target).expect("a program");
+        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755)).expect("a mode");
+    }
+}
+
+/// The variables a fixture runs under: its `[environment]`, and for a fixture that carries a
+/// toolchain an elan home below `scratch` that overlays it on the pinned one.
+fn environment_of(fixture: &Fixture, scratch: &Path) -> Vec<(String, String)> {
+    let mut out = fixture.environment.clone();
+    let overlay = fixture.directory.join("toolchain/bin");
+    if overlay.is_dir() {
+        let home = scratch.join("elan-home");
+        overlaid_elan_home(&overlay, &home);
+        out.push(("ELAN_HOME".to_string(), home.display().to_string()));
+    }
+    out
+}
+
+/// A program that starts the real verifier under `environment`: the host starts its verifier with
+/// the settings of the owner values, and a fixture's own come after them.
+fn verifier_under(environment: &[(String, String)], directory: &Path) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    let mut script = String::from("#!/bin/sh\n");
+    for (name, value) in environment {
+        script.push_str(&format!("{name}='{value}'\nexport {name}\n"));
+    }
+    script.push_str(&format!("exec '{}'\n", real_verifier().display()));
+    let path = directory.join("verifier-under-the-environment");
+    std::fs::write(&path, script).expect("a script");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("a mode");
+    path
+}
+
+/// The report of the task `task` once it has ended.
+fn ended(gateway: &mut Gateway, task: &str) -> Result<Reply, String> {
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(900);
+    loop {
+        let reply = gateway.call(
+            "lexlean_verify_control",
+            json!({"task": task, "action": "status"}),
+        );
+        let state = reply.structured()["state"].as_str().unwrap_or_default();
+        if !matches!(state, "queued" | "running") {
+            return Ok(reply);
+        }
+        if std::time::Instant::now() > until {
+            return Err("the verification did not end".to_string());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
+/// The ways the tool's answer on `fixture` differs from the CLI's `cli`, as sentences.
+fn verify_differences(fixture: &Fixture, cli: &Cli, gateway: &mut Gateway) -> Vec<String> {
+    let mut out = Vec::new();
+    if cli.status != fixture.expected_exit {
+        out.push(format!(
+            "the CLI exited {}, the fixture expects {}",
+            cli.status, fixture.expected_exit
+        ));
+    }
+    let printed: Value = serde_json::from_slice(&cli.stdout).unwrap_or(Value::Null);
+    let codes: Vec<&str> = printed["diagnostics"]
+        .as_array()
+        .map(|all| all.iter().filter_map(|d| d["code"].as_str()).collect())
+        .unwrap_or_default();
+    if codes != fixture.expected_codes {
+        out.push(format!(
+            "the CLI gave the codes {codes:?}, the fixture expects {:?}",
+            fixture.expected_codes
+        ));
+    }
+    let started = gateway.call("lexlean_verify", project_arguments(&fixture.name));
+    let Some(task) = started.structured()["task"].as_str().map(str::to_string) else {
+        out.push(format!("the tool started no task: {}", started.body));
+        return out;
+    };
+    let report = match ended(gateway, &task) {
+        Ok(report) => report,
+        Err(message) => {
+            out.push(message);
+            return out;
+        }
+    };
+    let structured = report.structured();
+    if structured["state"] != "failed" {
+        out.push(format!("the task ended {}", structured["state"]));
+    }
+    if structured["class"] != json!(cli.status) {
+        out.push(format!(
+            "the class is {}, the CLI exited {}",
+            structured["class"], cli.status
+        ));
+    }
+    let answered: Value = serde_json::from_str(report.text()).unwrap_or(Value::Null);
+    if answered != printed {
+        out.push(format!(
+            "the result is {answered}, the CLI printed {printed}"
+        ));
+    }
+    let records = std::fs::read_dir(gateway.store().join("verifications"))
+        .map(|entries| entries.count())
+        .unwrap_or(0);
+    if records != 0 {
+        out.push(format!("{records} records were left"));
+    }
+    out
+}
+
+#[test]
+#[ignore = "runs real verifications, which need the Lean toolchain, and a checkout of LexLean at the pin: the gateway job of .github/workflows/lexlean.yml runs it with --ignored and requires the count"]
+fn the_verify_fixtures_give_the_result_of_the_cli_vp_07() {
+    let sources = lexlean_sources();
+    let fixtures = fixtures_of(&sources, "#11");
+    assert_eq!(
+        fixtures.len(),
+        32,
+        "the verify fixtures of AC-07 at the pin"
+    );
+    let mut failures = Vec::new();
+    for fixture in &fixtures {
+        assert_eq!(fixture.command, "verify", "{}", fixture.name);
+        assert_eq!(fixture.args, "[]", "{}", fixture.name);
+        let begun = std::time::Instant::now();
+        let staged = stage_fixture(fixture);
+        let scratch = tempfile::tempdir().expect("a directory");
+        let environment = environment_of(fixture, scratch.path());
+        let side = scratch.path().join("workspace");
+        copy_tree(&staged.root, &side);
+        let cli = run_cli_in(&side.join(&staged.name), &["verify"], &environment);
+        let mut gateway =
+            Gateway::with_verifier_program(verifier_under(&environment, scratch.path()));
+        copy_tree(&staged.root, &gateway.drafts());
+        let found = verify_differences(fixture, &cli, &mut gateway);
+        eprintln!(
+            "{}: {} differences in {:?}",
+            fixture.name,
+            found.len(),
+            begun.elapsed()
+        );
+        for difference in &found {
+            eprintln!("{}: {difference}", fixture.name);
+        }
+        failures.extend(found.into_iter().map(|d| format!("{}: {d}", fixture.name)));
+    }
+    finish("VP-07", fixtures.len(), &failures);
 }

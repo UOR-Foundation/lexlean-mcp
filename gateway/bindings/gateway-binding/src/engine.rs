@@ -76,17 +76,19 @@ pub fn class_number(class: ErrorClass) -> u32 {
     }
 }
 
-/// The result of an error of the verifier: its diagnostics, in canonical JSON.
-pub fn diagnostics(error: &LexLeanError) -> Vec<u8> {
-    let rendered: Vec<serde_json::Value> = error
-        .diagnostics
-        .iter()
-        .map(|diagnostic| {
-            serde_json::from_str(&diagnostic.to_json().to_canonical_string())
-                .unwrap_or_else(|_| serde_json::json!({"message": diagnostic.message}))
-        })
-        .collect();
-    serde_json::to_vec(&serde_json::json!({"diagnostics": rendered})).unwrap_or_default()
+/// The result of an error of the verifier: the bytes `lexlean verify` prints with
+/// `--diagnostic-format json`, the command result the other tools answer with (AC-07).
+pub fn verify_result(error: &LexLeanError) -> Vec<u8> {
+    command_result_json(
+        "verify",
+        error.class.exit_code(),
+        &BTreeSet::new(),
+        &[],
+        &error.diagnostics,
+        &CommandIds::default(),
+        None,
+    )
+    .to_file_bytes()
 }
 
 /// What a command reports besides its diagnostics (the `Outcome` of the CLI).
