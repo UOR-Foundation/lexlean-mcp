@@ -16,12 +16,61 @@ holds the module, this file and the authorities to one statement.
 | Alert predicates on classes 2, 3 and 70, a failed child group end, a drift and a signing failure | `firing` | modeled, planted and healthy instances (OB-06) |
 | `traceparent`, `tracestate`, `baggage` from a request's `_meta` | `parseTraceparent`, `extract` | modeled (OB-07, OB-08) |
 | The server notifications that can be emitted | `Emitted` | modeled (OB-09) |
-| Emission through OpenTelemetry, the collector, alerts firing in a running service | none | not built: needs the verify task (#11) and the host (#17) |
+| Emission as OpenTelemetry logs, metrics and spans, the alerts, redaction and the trace context in the host | `gateway/bindings/gateway-binding/src/telemetry.rs` | built, tested without Lean (OB-11 to OB-14, below) |
+| Spans of the requests, and the protocol errors by code | `Telemetry::begin_request`, `RequestScope::end` | built; the driver of the gateway binary calls them (below) |
+| A collector receiving the file, alert routing | the operator's | not built here |
 
-The definition of done of #16, "every SLI is emitted, and every alert fires on
-its planted condition", is therefore not met. What is met is that the shape of
-what is emitted, the predicates that are evaluated and the context that is read
-are fixed and checked before the service exists.
+## The runtime
+
+`telemetry.rs` in the gateway binding emits what the model fixes. The records are
+OTLP/JSON, one line each, appended to the file that `LEXLEAN_MCP_TELEMETRY` names
+(`stderr` writes them to standard error; unset exports nothing and the alerts still
+count). A collector reads the file with its `otlpjsonfile` receiver. The model's
+names are the metric names; `lexlean_mcp.requests` is the denominator of S2.
+
+| Indicator | Emitted where |
+| --- | --- |
+| S1 tool outcome by class | the four Engine tools in `engine_call`, and a verification when it ends (`verifier::end_telemetry`); class 5 of the host is exit code 70 |
+| S2 protocol errors by code | `RequestScope::end` |
+| S3 check latency | `engine_call` for `check`, labelled by the profile of the draft handle |
+| S4 verify duration and outcome | `verifier::end_telemetry` |
+| S5 queue wait | `verifier::launch`, from the queueing to the start of the process |
+| S6 child group ends | `verifier::settle`, from the groups a cancelled process reports |
+| S7 profile drift | `materialize_noting`: the profile record no longer names the identity a draft was made for |
+| S8 signing failures | `verify_start` when the key does not load, and `verifier::conclude_with` when a verified task cannot be signed or recorded |
+
+An alert is an `ERROR` log record whose `alert` attribute names it and whose `count`
+is the number of its events inside the window of its objective (300 s; 3600 s for
+drift). The thresholds are zero, so one event fires it. Nothing else is emitted as
+a log: the body of every record is `[redacted]`, and the arguments, query and status
+of a span are the same. No entry point keeps the text of a module, an argument or a
+lexicon search query. A profile label that is not a profile name is `other`.
+`notifications/message` is never emitted: nothing in the module is a JSON-RPC
+message, which the tests check (`no_log_message_notification_is_emitted_ob_14`); the
+model's `Emitted` is the set of notifications the server may send.
+
+The driver of the gateway binary (PrismPM's generated host) reads the request, calls
+`Native::telemetry().begin_request(meta)` with the `_meta` of the request, and ends
+the scope with the method, the class of a failed tool and the protocol error code of
+the answer; it calls `flush` to export the metrics. That driver is generated and
+not in this repository, so the call is the one thing this change does not make
+(it needs a per-request hook in the generated host, UOR-Foundation/PrismPM#429): the
+request span and S2 are emitted when it does. Every other indicator is emitted by
+the host as it acts.
+
+### Planted defects of the runtime
+
+Each defect was applied to `telemetry.rs` and the tests of
+`gateway/bindings/gateway-binding/tests/telemetry.rs` that do not need Lean were
+run (the rest run in the gateway job). Restoring the file passes all of them.
+
+| Row | Plant | Test that rejects it |
+| --- | --- | --- |
+| OB-11 | the counter of S8 is not incremented | `every_indicator_is_emitted_ob_11` |
+| OB-12 | `firing` compares with `>=` the threshold | `the_predicates_are_zero_tolerance_ob_12` |
+| OB-13 | a profile label is kept as given | `no_telemetry_record_contains_module_text_ob_13` |
+| OB-14 | the forbidden version `ff` is accepted | `a_malformed_traceparent_restarts_the_trace_and_drops_tracestate_ob_14` |
+| OB-14 | `tracestate` is kept after a refused `traceparent` | `a_malformed_traceparent_restarts_the_trace_and_drops_tracestate_ob_14` |
 
 ## Decisions the model makes
 
