@@ -1,4 +1,4 @@
-//! `QM-07`: the measures of Q1 to Q4 and Q8 are executed.
+//! `QM-07`: the measures of Q1 to Q4 and Q6 to Q8 are executed.
 //!
 //! `src/Quality.lex.tex` records the status of each measure. A status of
 //! `Executed` is a claim about rows of the register, and LexLean cannot see the
@@ -17,17 +17,22 @@ use repo_model::{Level, Model};
 mod common;
 use common::{root, workspace_test_names};
 
-/// The rows `QM-07` is expected to cite, by measure: Q1 (index 0), Q2 (1), Q3 (2), Q4 (3) and Q8 (7).
+/// The rows `QM-07` is expected to cite, by measure: Q1 (index 0), Q2 (1), Q3 (2), Q4 (3), Q6 (5),
+/// Q7 (6) and Q8 (7).
 /// The last row of each is the row of the tools suite that runs its clause where the tools are
 /// built: `TL-06` the build of every example beside the CLI for Q1, `TL-15` a tool that runs for
 /// each in-scope function for Q2, `TL-08` the host process accounting across each call for Q4,
 /// and `TL-13` the running `lexlean_explain` for Q8. Q3 is observed by the fault cases of the
-/// verifier (`VP-04`, `VP-05`) and of the signed record (`SG-07`, `SG-12`).
-const CITED: [(u32, &[&str]); 5] = [
+/// verifier (`VP-04`, `VP-05`) and of the signed record (`SG-07`, `SG-12`). Q6 is observed by the
+/// search of the host adapter source for a tool or method name (`GW-06`, and `EF-06` for the
+/// effect names), Q7 by the build of a fixed project in every run of `just vv` (`QM-09`).
+const CITED: [(u32, &[&str]); 7] = [
     (0, &["TL-03", "TL-06"]),
     (1, &["QM-01", "QM-02", "QM-03", "TL-15"]),
     (2, &["VP-04", "VP-05", "SG-07", "SG-12"]),
     (3, &["TL-08"]),
+    (5, &["EF-06", "GW-06"]),
+    (6, &["QM-09"]),
     (7, &["QM-04", "QM-05", "QM-06", "TL-13"]),
 ];
 
@@ -36,7 +41,7 @@ const CITED: [(u32, &[&str]); 5] = [
 const KEEPS_A_CLAUSE: u32 = 0;
 
 /// The measures that stay pending, each naming what executes it.
-const PENDING: [u32; 3] = [4, 5, 6];
+const PENDING: [u32; 1] = [4];
 
 const EXECUTED: &str = "ctor EvidenceStatus.Executed";
 const PENDING_CTOR: &str = "ctor EvidenceStatus.Pending";
@@ -129,6 +134,8 @@ fn violations(i: &Inputs) -> Vec<String> {
         };
         let suite = match &id[..2] {
             "TL" => "tools",
+            "EF" => "effects",
+            "GW" => "gateway",
             "VP" => "verifier",
             "SG" => "signing",
             _ => "quality",
@@ -157,7 +164,7 @@ fn violations(i: &Inputs) -> Vec<String> {
         ));
     }
 
-    // Q1 to Q4 and Q8 are Executed, each naming its rows; only Q1 points at a pending clause.
+    // Q1 to Q4 and Q6 to Q8 are Executed, each naming its rows; only Q1 points at a pending clause.
     for (measure, ids) in CITED {
         match evidence_of(quality, measure) {
             None => out.push(format!("Quality has no evidence for measure {measure}")),
@@ -204,8 +211,8 @@ fn violations(i: &Inputs) -> Vec<String> {
     }
 
     for name in [
-        "executedMeasuresAreQ1ToQ4AndQ8",
-        "measuresPendingAreQ5ToQ7",
+        "executedMeasuresAreQ1ToQ4AndQ6ToQ8",
+        "measuresPendingAreQ5",
         "onlyTheVerifyClauseOfQ1IsPending",
     ] {
         if block(quality, "theorem", name).is_none() {
@@ -287,7 +294,7 @@ fn inputs() -> Inputs {
 
 /// `QM-07`: the claim holds on the repository as it is.
 #[test]
-fn the_measures_of_q1_q2_q4_and_q8_are_executed_by_their_rows_qm_07() {
+fn the_measures_of_q1_to_q4_and_q6_to_q8_are_executed_by_their_rows_qm_07() {
     let found = violations(&inputs());
     assert!(
         found.is_empty(),
@@ -303,7 +310,7 @@ fn the_check_rejects_a_pending_measure_a_missing_row_and_a_wrong_count_qm_07() {
     let base = inputs();
     let reported = |i: &Inputs, needle: &str| violations(i).iter().any(|v| v.contains(needle));
 
-    // Q1 to Q4 and Q8 each flipped back to Pending.
+    // Each Executed measure flipped back to Pending.
     for (measure, _) in CITED {
         let at = base
             .quality
@@ -486,7 +493,10 @@ fn the_check_rejects_a_pending_measure_a_missing_row_and_a_wrong_count_qm_07() {
         quality: flipped,
         ..clone(&base)
     };
-    assert!(reported(&planted, "exactly 5 measures must be Executed"));
+    assert!(reported(
+        &planted,
+        &format!("exactly {} measures must be Executed", CITED.len())
+    ));
 
     // A cited row removed from the register.
     let mut model = base.model.clone();

@@ -1,0 +1,18 @@
+[package]
+name = "build-id"
+description = "The executable measure of Q7 (the same build_id on linux/amd64 and linux/arm64) of issue #15, run by `just vv` on both architectures. Dev and CI only; never a dependency of a shipped crate."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dev-dependencies]
+camino = "1"
+# The release the repository pins (`.github/lexlean.rev`), exactly: a build ID that moved with
+# the engine is a different measurement.
+lexlean = "=0.4.0"
+tempfile = "3"
+
+[lints]
+workspace = true

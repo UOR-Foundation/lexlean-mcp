@@ -189,6 +189,18 @@ suite = "security"
 statement = "The measurement of R8 (key compromise) is executed by SG-04, SG-05 and SG-07, whose tests pass, and Security records it as Executed: an envelope under a revoked key fails with KeyRevoked, a revoked key signs nothing, and a history that cannot be written gives no envelope; the measurement of R9 stays Pending, naming #45, because no tool of the gateway issues a requestState."
 
 [[id]]
+id = "SM-06"
+level = "build"
+suite = "security"
+statement = "The measurement of R4 (exhaustion) is executed by TH-12 and TH-13, whose tests pass, and Security records it as Executed: a draft over a limit fails with LLS8002 and no other task is affected, and calls over rate.tool_calls are refused with 429 before a tool runs."
+
+[[id]]
+id = "SM-07"
+level = "build"
+suite = "security"
+statement = "The measurement of R7 (returned content steering the agent) is executed by TL-16, whose test passes, and Security records it as Executed: the structured content of every result of a tool that lists an output schema validates against that schema; the tools that list none are not measured by it."
+
+[[id]]
 id = "FX-01"
 level = "some-true"
 suite = "fixtures"
@@ -402,13 +414,19 @@ statement = "Every diagnostic code that the 298 negative fixtures of AC-07 retur
 id = "QM-07"
 level = "build"
 suite = "quality"
-statement = "The measures of Q1 to Q4 and Q8 are Executed in src/Quality.lex.tex, whose tests pass: Q1 by TL-03 and TL-06, which run lexlean_check and lexlean_build beside the CLI, while its clause for lexlean_verify stays in pendingClauses until verification runs as tasks (#11); Q2 by QM-01, QM-02 and QM-03 (Q2, whose running clause TL-15 executes); Q4 by the host process accounting (Q4, whose running clause TL-08 executes); and Q8 by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes). Q3 by the fault cases of the verifier and the signed record (VP-04 and VP-05, a cancelled or lost verifier, and SG-07 and SG-12, a record that cannot be written, each leaving no record); Q5 to Q7 stay Pending, each naming the issue that executes it, pendingClauses holds only the clause of Q1 for lexlean_verify, and the counts the model states (285 negative fixtures, 9 functions, 86 codes) are those of the pinned files."
+statement = "The measures of Q1 to Q4 and Q6 to Q8 are Executed in src/Quality.lex.tex, whose tests pass: Q1 by TL-03 and TL-06, which run lexlean_check and lexlean_build beside the CLI, while its clause for lexlean_verify stays in pendingClauses until verification runs as tasks (#11); Q2 by QM-01, QM-02 and QM-03 (Q2, whose running clause TL-15 executes); Q4 by the host process accounting (Q4, whose running clause TL-08 executes); and Q8 by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes). Q3 by the fault cases of the verifier and the signed record (VP-04 and VP-05, a cancelled or lost verifier, and SG-07 and SG-12, a record that cannot be written, each leaving no record); Q6 by EF-06 and GW-06, which find no tool or method name in the source of the host adapter, and Q7 by QM-09, which builds a fixed project to the recorded build_id in every run of just vv; Q5 stays Pending, naming the issue that executes it, pendingClauses holds only the clause of Q1 for lexlean_verify, and the counts the model states (285 negative fixtures, 9 functions, 86 codes) are those of the pinned files."
 
 [[id]]
 id = "QM-08"
 level = "build"
 suite = "quality"
 statement = "Each gate of Q2 and Q8 rejects its planted defect: a function removed from the map, a tool name misspelled, a function with no tool and no reason, a function both mapped and not exposed, a function added or re-signed upstream, a vendored byte altered or removed, a pin moved without a new import, a code returned that the registry lacks, a code with no statement, an entry removed from ERRORS.md or altered, an exit status that disagrees with its class, rows out of order, Q2 or Q8 flipped back to Pending, the running clause of Q8 left in pendingClauses once TL-13 executes it, the clause of Q2 left in pendingClauses once TL-15 executes it, a measure flipped to Executed without rows, a cited row missing and a count that disagrees; QUALITY.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "QM-09"
+level = "build"
+suite = "quality"
+statement = "The same build_id on linux/amd64 and linux/arm64 (Q7): the build of the fixed project of crates/build-id/fixture by lexlean 0.4.0 has the source ID, the semantic ID and the build_id recorded in fixture/expected, in whichever directory it is built, and a changed source does not have them; just vv runs the test on linux/amd64 for a pull request and on both architectures for main, so both platforms equal one recorded value."
 
 [[id]]
 id = "FJ-01"
@@ -769,6 +787,12 @@ id = "TL-15"
 level = "build"
 suite = "tools"
 statement = "Q2, the running clause: each of the nine in-scope functions of crates/quality-map/map.toml is reached by a tool that tools/list of the production core shows and that runs, lexlean_check, lexlean_snapshot, lexlean_format, lexlean_build and lexlean_verify for the Engine calls, and lexlean_draft_assemble and lexlean_draft_read for sdk::assemble, sdk::write_module, sdk::read_module and sdk::declaration_spans, whose results equal what those functions give on the same text."
+
+[[id]]
+id = "TL-16"
+level = "build"
+suite = "tools"
+statement = "Every result of a tool that lists an output schema validates against it (R7): lexlean_check, lexlean_snapshot, lexlean_format, lexlean_build and lexlean_explain are called for a success, a refused selection (class 2) and a project over a limit (class 4), the structured content of each result is judged by a validator of the test that is independent of the core, a tool that lists an output schema and has no call fails the test, and the validator rejects a required member removed, an integer given as a string, a constant that differs, a member the schema does not list, a value that is not an array and a diagnostic without its message."
 
 [[id]]
 id = "GW-13"
@@ -1165,6 +1189,18 @@ id = "TH-11"
 level = "build"
 suite = "taskhost"
 statement = "The task path runs with the real verifier and the Lean toolchain: lexlean_verify by a client that declares the tasks extension, polled with tasks/get, ends completed with the state verified, and its record is found by its ID and validates; tasks/cancel while a program of the toolchain runs reports at least one child group ended and none failed, and leaves no record."
+
+[[id]]
+id = "TH-12"
+level = "build"
+suite = "taskhost"
+statement = "Calls over the rate are refused (R4): through the generated adapter over a socket with the real host, the first 100 tools/call requests of a window run and the 101st and the 102nd, which rate.tool_calls does not admit, are answered with status 429 without the tool running, while the adapter counted each of them."
+
+[[id]]
+id = "TH-13"
+level = "build"
+suite = "taskhost"
+statement = "A draft over a limit fails alone (R4): with the real verifier and the Lean toolchain, lexlean_verify of a project whose module exceeds a limit of its lexlean.toml, by a client that declares the tasks extension, ends completed with an error result of state failed that names LLS8002, while a verification started before it ends verified with its record and the table holds both tasks as completed."
 
 [[id]]
 id = "AT-01"

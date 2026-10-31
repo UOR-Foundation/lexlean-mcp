@@ -406,6 +406,133 @@ pub fn list_http_request(id: u64, origins: &[&str]) -> Vec<u8> {
     out
 }
 
+/// The bytes of an HTTP `POST /mcp` for `tools/call` as a client sends it to the served adapter.
+pub fn call_http_request(tool: &str, arguments: Value, id: u64) -> Vec<u8> {
+    let body = serde_json::to_vec(&json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "tools/call",
+        "params": {"name": tool, "arguments": arguments, "_meta": meta()},
+    }))
+    .expect("JSON");
+    let mut out = format!(
+        "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\n\
+         Accept: application/json, text/event-stream\r\nMCP-Protocol-Version: 2026-07-28\r\n\
+         Mcp-Method: tools/call\r\nMcp-Name: {tool}\r\nContent-Length: {}\r\n\r\n",
+        body.len()
+    )
+    .into_bytes();
+    out.extend(body);
+    out
+}
+
+/// Whether `value` satisfies `schema`, for the keywords the output schemas of the tools use
+/// (`type`, `const`, `enum`, `properties`, `required`, `additionalProperties`, `items`,
+/// `minLength`, `minimum`, `maximum`). The core validates a result with its own validator; this
+/// one is independent of it, so that a result the core lets through is judged twice. A keyword
+/// it does not know is an error, not a pass: a schema that grew a keyword must not be judged by
+/// a validator that ignores it.
+pub fn validate(schema: &Value, value: &Value) -> Result<(), String> {
+    let Some(schema) = schema.as_object() else {
+        return Err(format!("the schema {schema} is not an object"));
+    };
+    for (keyword, rule) in schema {
+        match keyword.as_str() {
+            "type" => {
+                let name = rule.as_str().ok_or("`type` is not a name")?;
+                let holds = match name {
+                    "object" => value.is_object(),
+                    "array" => value.is_array(),
+                    "string" => value.is_string(),
+                    "boolean" => value.is_boolean(),
+                    "null" => value.is_null(),
+                    "integer" => value.is_i64() || value.is_u64(),
+                    "number" => value.is_number(),
+                    other => return Err(format!("the type {other} is unknown")),
+                };
+                if !holds {
+                    return Err(format!("{value} is not of type {name}"));
+                }
+            }
+            "const" => {
+                if value != rule {
+                    return Err(format!("{value} is not the constant {rule}"));
+                }
+            }
+            "enum" => {
+                if !rule.as_array().is_some_and(|all| all.contains(value)) {
+                    return Err(format!("{value} is not one of {rule}"));
+                }
+            }
+            "minLength" => {
+                let least = rule.as_u64().ok_or("`minLength` is not a count")?;
+                if value
+                    .as_str()
+                    .is_some_and(|text| (text.chars().count() as u64) < least)
+                {
+                    return Err(format!("{value} is shorter than {least}"));
+                }
+            }
+            "minimum" | "maximum" => {
+                let bound = rule.as_f64().ok_or("a bound is not a number")?;
+                if let Some(number) = value.as_f64() {
+                    if (keyword == "minimum" && number < bound)
+                        || (keyword == "maximum" && number > bound)
+                    {
+                        return Err(format!("{value} is outside the {keyword} {bound}"));
+                    }
+                }
+            }
+            "properties" => {
+                let properties = rule.as_object().ok_or("`properties` is not an object")?;
+                if let Some(members) = value.as_object() {
+                    for (name, member) in members {
+                        if let Some(inner) = properties.get(name) {
+                            validate(inner, member).map_err(|error| format!("{name}: {error}"))?;
+                        }
+                    }
+                }
+            }
+            "required" => {
+                let names = rule.as_array().ok_or("`required` is not a list")?;
+                if let Some(members) = value.as_object() {
+                    for name in names.iter().filter_map(Value::as_str) {
+                        if !members.contains_key(name) {
+                            return Err(format!("{name} is required and absent"));
+                        }
+                    }
+                }
+            }
+            "additionalProperties" => match (rule.as_bool(), value.as_object()) {
+                (Some(false), Some(members)) => {
+                    let known = schema.get("properties").and_then(Value::as_object);
+                    if let Some(extra) = members
+                        .keys()
+                        .find(|name| !known.is_some_and(|known| known.contains_key(*name)))
+                    {
+                        return Err(format!("{extra} is not a property of the schema"));
+                    }
+                }
+                (Some(_), _) => {}
+                (None, _) => return Err("`additionalProperties` is not a flag".to_string()),
+            },
+            "items" => {
+                if let Some(items) = value.as_array() {
+                    for (at, item) in items.iter().enumerate() {
+                        validate(rule, item).map_err(|error| format!("[{at}]: {error}"))?;
+                    }
+                }
+            }
+            other => {
+                return Err(format!(
+                    "the keyword {other} is not one this validator knows"
+                ))
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Run `work` on a thread with the stack the core needs and return what it returns.
 pub fn on_big_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
     std::thread::scope(|scope| {

@@ -265,11 +265,37 @@ fn the_task_path_runs_with_the_real_verifier_th_11() {
             "a_real_verification_is_cancelled_through_the_task_th_11",
         ],
     );
-    // The gateway job requires the count of the ignored tests that ran, which includes these two.
+    // The gateway job requires the count of the ignored tests that ran, which includes these two
+    // and the one of TH-13.
     let workflow = read(".github/workflows/lexlean.yml");
     assert!(
-        workflow.contains("gateway_ignored_tests gateway-tool-tests 10 "),
-        "the job requires the ten ignored tests of the tool tests that it runs"
+        workflow.contains("gateway_ignored_tests gateway-tool-tests 11 "),
+        "the job requires the eleven ignored tests of the tool tests that it runs"
+    );
+}
+
+#[test]
+fn calls_over_the_rate_are_refused_th_12() {
+    answered_by(
+        "TH-12",
+        &["calls_over_the_rate_are_refused_before_any_tool_runs_th_12"],
+    );
+    let test = read("gateway/tool-tests/tests/taskhost.rs");
+    assert!(
+        test.contains("const RATE_TOOL_CALLS: u64 = 100;"),
+        "the test counts the calls the owner value admits"
+    );
+    assert!(
+        read("OWNER-VALUES.md").contains("| `rate.tool_calls` | `100` |"),
+        "the count is the owner value rate.tool_calls"
+    );
+}
+
+#[test]
+fn a_draft_over_the_limit_fails_alone_th_13() {
+    answered_by(
+        "TH-13",
+        &["a_draft_over_the_limit_fails_with_lls8002_and_no_other_task_is_affected_th_13"],
     );
 }
 

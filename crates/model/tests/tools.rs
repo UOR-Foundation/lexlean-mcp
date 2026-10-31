@@ -362,8 +362,8 @@ fn no_child_process_is_started_by_a_tool_tl_08() {
 fn the_gateway_job_runs_the_ignored_tests_of_the_tools_and_counts_them_tl_03() {
     let ignored = ignored_in_tool_tests();
     assert_eq!(
-        ignored, 11,
-        "TL-03 to TL-06, TL-12 and TL-13, the two Atlas tests of VO-14, the two of TH-11 and VP-07, which a job of its own runs, are the ignored tests of the tools"
+        ignored, 12,
+        "TL-03 to TL-06, TL-12 and TL-13, the two Atlas tests of VO-14, the two of TH-11, the one of TH-13 and VP-07, which a job of its own runs, are the ignored tests of the tools"
     );
     for (name, reason) in tests_in("gateway/tool-tests") {
         if !reason.is_empty() {
@@ -599,6 +599,39 @@ fn the_running_clause_of_q2_is_a_tool_per_in_scope_function_tl_15() {
     assert!(
         quality.contains("TL-15"),
         "the quality model names the row that runs the clause of Q2"
+    );
+}
+
+/// TL-16: every result of a tool that lists an output schema validates against it (R7).
+#[test]
+fn every_result_validates_against_its_output_schema_tl_16() {
+    needs(
+        "TL-16",
+        &["every_result_validates_against_the_output_schema_of_its_tool_tl_16"],
+    );
+    // The tools that list an output schema are the engine tools: a tool added with one is a
+    // tool the test must call, and a tool the model gives one must be among the test's five.
+    let tools = read("gateway/src/GatewayTools.lex.tex");
+    let listed: Vec<&str> = tools
+        .split("(engineTool \"")
+        .skip(1)
+        .filter_map(|rest| rest.split('"').next())
+        .collect();
+    let test = read("gateway/tool-tests/tests/tools.rs");
+    assert_eq!(
+        listed.len(),
+        5,
+        "the tools with an output schema: {listed:?}"
+    );
+    for tool in listed {
+        assert!(
+            test.contains(&format!("\"{tool}\",")),
+            "the test of TL-16 has a call for {tool}"
+        );
+    }
+    assert!(
+        read("SECURITY.md").contains("TL-16"),
+        "the threat model evidence names the row"
     );
 }
 

@@ -145,7 +145,7 @@ release step is:
 
 The defects planted in the gateway and what rejects each are in GATEWAY.md, "Planted defects"; those planted in the tools of F4 to F7 and in `lexlean_explain` are in TOOLS.md.
 
-The gateway job also runs the tests that put each tool beside the `lexlean` CLI (step 7h2): it lays LexLean out at the pin with `gateway/lay-out-lexlean.sh` (the `LEXLEAN_SOURCES` the tests read, with the diagnostic registry `model/errors.toml`), requires that `gateway/explain/generate.py check` finds `gateway/src/Explain.lex.tex` to be the rendering of that registry (the explanations compiled into the core, TOOLS.md), runs ten ignored tests of `gateway-tool-tests` with `--ignored`, and requires that exactly ten ran (`gateway_ignored_tests gateway-tool-tests 10 the_verify_fixtures_give_the_result_of_the_cli_vp_07`). The ordinary tests of the same crate (step 7h) include `tests/origin.rs`, which runs the served adapter over a socket (GW-13).
+The gateway job also runs the tests that put each tool beside the `lexlean` CLI (step 7h2): it lays LexLean out at the pin with `gateway/lay-out-lexlean.sh` (the `LEXLEAN_SOURCES` the tests read, with the diagnostic registry `model/errors.toml`), requires that `gateway/explain/generate.py check` finds `gateway/src/Explain.lex.tex` to be the rendering of that registry (the explanations compiled into the core, TOOLS.md), runs eleven ignored tests of `gateway-tool-tests` with `--ignored`, and requires that exactly eleven ran (`gateway_ignored_tests gateway-tool-tests 11 the_verify_fixtures_give_the_result_of_the_cli_vp_07`). The ordinary tests of the same crate (step 7h) include `tests/origin.rs`, which runs the served adapter over a socket (GW-13).
 
 ## Reading a failure
 
