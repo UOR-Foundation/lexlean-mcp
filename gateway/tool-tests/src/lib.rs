@@ -422,6 +422,7 @@ pub fn on_big_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
 pub struct Gateway {
     host: Native,
     store: PathBuf,
+    verifier: PathBuf,
     next: u64,
     _directory: tempfile::TempDir,
 }
@@ -433,8 +434,31 @@ impl Default for Gateway {
 }
 
 impl Gateway {
-    /// A gateway whose store starts empty.
+    /// A gateway whose store starts empty and whose verifier is a stand-in that says it has
+    /// started and then waits.
     pub fn new() -> Gateway {
+        Gateway::with_verifier(None)
+    }
+
+    /// A gateway whose verifier is the real `gateway-verifier`, which needs the Lean toolchain.
+    /// Cargo does not build the program of a dependency for these tests: the gateway job builds it
+    /// by testing the binding first, and it is looked for beside the directory of this test.
+    pub fn with_real_verifier() -> Gateway {
+        let test = std::env::current_exe().expect("the path of the test");
+        let program = test
+            .parent()
+            .and_then(Path::parent)
+            .expect("the directory of the build")
+            .join("gateway-verifier");
+        assert!(
+            program.is_file(),
+            "{} is missing: build it with `cargo build -p gateway-binding`",
+            program.display()
+        );
+        Gateway::with_verifier(Some(program))
+    }
+
+    fn with_verifier(program: Option<PathBuf>) -> Gateway {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let store = directory.path().join("store");
         // A verification is not started without a key and a verifier program.
@@ -443,13 +467,18 @@ impl Gateway {
             format!("{}\n", "44".repeat(32)),
         )
         .expect("a key file");
-        stand_in_verifier(&directory.path().join("verifier"));
+        let verifier = program.unwrap_or_else(|| {
+            let stand_in = directory.path().join("verifier");
+            stand_in_verifier(&stand_in);
+            stand_in
+        });
         let config = Config::at(store.clone())
             .with_signing_key(directory.path().join("signing.key"))
-            .with_verifier(directory.path().join("verifier"));
+            .with_verifier(verifier.clone());
         Gateway {
             host: Native::new(config),
             store,
+            verifier,
             next: 100,
             _directory: directory,
         }
@@ -619,7 +648,7 @@ impl Gateway {
     pub fn config(&self) -> Config {
         Config::at(self.store.clone())
             .with_signing_key(self._directory.path().join("signing.key"))
-            .with_verifier(self._directory.path().join("verifier"))
+            .with_verifier(self.verifier.clone())
     }
 }
 

@@ -1149,6 +1149,18 @@ suite = "taskhost"
 statement = "tasks/cancel on a working task asks verify.control to cancel it, answers with the empty acknowledgement, streams a notification of the status cancelled and stores the task as cancelled; asked again, or on a task that is already terminal, it is answered from the table without asking verify.control, and on a task the table does not hold it is the protocol's unknown task."
 
 [[id]]
+id = "TH-10"
+level = "build"
+suite = "taskhost"
+statement = "A cancel says what became of the child groups (AC-12): tasks/cancel on a working task settles it with the status message child groups ended: E failed: F, the counts that verify.control gave, which the status notification, a later tasks/get and the table all carry, so a cancel with a group that failed to end is not reported as a clean one."
+
+[[id]]
+id = "TH-11"
+level = "build"
+suite = "taskhost"
+statement = "The task path runs with the real verifier and the Lean toolchain: lexlean_verify by a client that declares the tasks extension, polled with tasks/get, ends completed with the state verified, and its record is found by its ID and validates; tasks/cancel while a program of the toolchain runs reports at least one child group ended and none failed, and leaves no record."
+
+[[id]]
 id = "AT-01"
 level = "build"
 suite = "attestation"

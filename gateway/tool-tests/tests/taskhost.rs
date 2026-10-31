@@ -212,6 +212,8 @@ struct Verdict {
     state: u32,
     class: u32,
     result: Vec<u8>,
+    groups_ended: u32,
+    groups_failed: u32,
 }
 
 macro_rules! delegated {
@@ -249,8 +251,8 @@ impl Host for Verdict {
             state: self.state,
             class: self.class,
             result: self.result.clone(),
-            groups_ended: 1,
-            groups_failed: u32::from(self.class != 0),
+            groups_ended: self.groups_ended,
+            groups_failed: self.groups_failed,
         })
     }
 }
@@ -262,8 +264,25 @@ fn polled_when(gateway: &mut Gateway, task: &str, state: u32, class: u32, result
         state,
         class,
         result: result.to_vec(),
+        groups_ended: 1,
+        groups_failed: u32::from(class != 0),
     };
     let reply = gateway.task_rpc_with(&mut verdict, "tasks/get", task);
+    gateway.put_host(verdict.inner);
+    reply
+}
+
+/// Cancel `task` with a verifier that ended `ended` child groups and failed to end `failed`.
+fn cancelled_when(gateway: &mut Gateway, task: &str, ended: u32, failed: u32) -> Reply {
+    let mut verdict = Verdict {
+        inner: gateway.take_host(),
+        state: CANCELLED,
+        class: 0,
+        result: Vec::new(),
+        groups_ended: ended,
+        groups_failed: failed,
+    };
+    let reply = gateway.task_rpc_with(&mut verdict, "tasks/cancel", task);
     gateway.put_host(verdict.inner);
     reply
 }
@@ -449,4 +468,143 @@ fn cancelling_a_task_that_the_table_does_not_hold_is_refused_th_09() {
     let reply = gateway.task_rpc("tasks/cancel", "no-such-task");
     assert!(reply.effects.is_empty(), "{:?}", reply.effects);
     assert_eq!(reply.error()["code"], UNKNOWN_TASK);
+}
+
+// ---- TH-10: a cancel says what became of the child groups (AC-12) --------------------------------
+
+#[test]
+fn a_cancel_reports_the_child_groups_that_ended_th_10() {
+    let mut gateway = with_project();
+    let handle = created(&mut gateway);
+    let reply = cancelled_when(&mut gateway, &handle, 2, 0);
+    assert_eq!(effects(&reply), ["verify.control", "task.store"]);
+    assert_eq!(reply.notifications.len(), 1, "{:?}", reply.notifications);
+    let notified = &reply.notifications[0]["params"];
+    assert_eq!(notified["status"], "cancelled");
+    assert_eq!(notified["statusMessage"], "child groups ended: 2 failed: 0");
+    // The poll that follows and the table say the same.
+    let polled = gateway.task_rpc("tasks/get", &handle);
+    assert_eq!(polled.result()["status"], "cancelled");
+    assert_eq!(
+        polled.result()["statusMessage"],
+        "child groups ended: 2 failed: 0"
+    );
+    assert_eq!(
+        table_of(&mut gateway)[0]["task"]["statusMessage"],
+        "child groups ended: 2 failed: 0"
+    );
+}
+
+#[test]
+fn a_cancel_reports_a_child_group_that_failed_to_end_th_10() {
+    let mut gateway = with_project();
+    let handle = created(&mut gateway);
+    let reply = cancelled_when(&mut gateway, &handle, 1, 1);
+    assert_eq!(
+        reply.notifications[0]["params"]["statusMessage"], "child groups ended: 1 failed: 1",
+        "{:?}",
+        reply.notifications
+    );
+}
+
+// ---- TH-11: the task path with the real verifier -------------------------------------------------
+
+#[test]
+#[ignore = "runs a real verification, which needs the Lean toolchain: the gateway job of .github/workflows/lexlean.yml runs it with --ignored and requires the count"]
+fn a_real_verification_runs_as_a_task_to_completed_th_11() {
+    let mut gateway = Gateway::with_real_verifier();
+    gateway.install("dir", &tiny());
+    let handle = created(&mut gateway);
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(900);
+    let done = loop {
+        let reply = gateway.task_rpc("tasks/get", &handle);
+        if reply.result()["status"] != "working" {
+            break reply;
+        }
+        assert!(
+            std::time::Instant::now() < until,
+            "the verification did not end"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    };
+    assert_eq!(done.result()["status"], "completed", "{}", done.body);
+    let result = &done.result()["result"];
+    assert_eq!(result["structuredContent"]["state"], "verified", "{result}");
+    assert_eq!(done.notifications[0]["params"]["status"], "completed");
+    // The result of the tool names the record, which is signed and found by its ID.
+    let text = result["content"][0]["text"].as_str().expect("a text block");
+    let record: Value = serde_json::from_str(text).expect("JSON");
+    let attestation = record["attestation_id"].as_str().expect("an ID");
+    let found = gateway.call(
+        "lexlean_attestation",
+        json!({"by": "id", "value": attestation}),
+    );
+    assert_eq!(found.structured()["found"], true, "{}", found.body);
+    let subject = std::fs::read(
+        gateway
+            .store()
+            .join("verifications")
+            .join(attestation)
+            .join("attestation.json"),
+    )
+    .expect("the subject");
+    let history = gateway_binding::signer::read_history(&gateway.config().history_path())
+        .expect("the history");
+    gateway_binding::signer::validate(found.text().as_bytes(), &history, &subject)
+        .expect("a valid envelope");
+}
+
+/// Whether a program of the Lean toolchain is running in the store of this gateway: the child
+/// group that a cancel has to end. Its working directory is the copy of the project.
+fn lean_is_running(store: &std::path::Path) -> bool {
+    let Ok(store) = store.canonicalize() else {
+        return false;
+    };
+    let Ok(processes) = std::fs::read_dir("/proc") else {
+        return false;
+    };
+    processes.flatten().any(|process| {
+        let path = process.path();
+        let program = std::fs::read_to_string(path.join("comm")).unwrap_or_default();
+        (program.starts_with("lean") || program.starts_with("lake"))
+            && std::fs::read_link(path.join("cwd")).is_ok_and(|cwd| cwd.starts_with(&store))
+    })
+}
+
+#[test]
+#[ignore = "runs a real verification, which needs the Lean toolchain: the gateway job of .github/workflows/lexlean.yml runs it with --ignored and requires the count"]
+fn a_real_verification_is_cancelled_through_the_task_th_11() {
+    // A child lives for moments, and a cancel between two children has nothing to end (it reports
+    // 0, which is true): each attempt cancels when one is seen, until a cancel ends one.
+    let mut seen = Vec::new();
+    for _ in 0..8 {
+        let mut gateway = Gateway::with_real_verifier();
+        gateway.install("dir", &tiny());
+        let handle = created(&mut gateway);
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while !lean_is_running(gateway.store()) && std::time::Instant::now() < until {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let reply = gateway.task_rpc("tasks/cancel", &handle);
+        let notified = &reply.notifications[0]["params"];
+        if notified["status"] != "cancelled" {
+            seen.push(format!("{}", notified["status"]));
+            continue;
+        }
+        assert_eq!(effects(&reply), ["verify.control", "task.store"]);
+        let records = std::fs::read_dir(gateway.store().join("verifications"))
+            .map(|entries| entries.count())
+            .unwrap_or(0);
+        assert_eq!(records, 0, "a cancelled verification leaves no record");
+        let message = notified["statusMessage"].as_str().expect("a message");
+        assert!(
+            message.ends_with(" failed: 0"),
+            "AC-12: no child group failed to end: {message}"
+        );
+        if message != "child groups ended: 0 failed: 0" {
+            return;
+        }
+        seen.push(message.to_owned());
+    }
+    panic!("AC-12: no cancel ended a child group: {seen:?}");
 }

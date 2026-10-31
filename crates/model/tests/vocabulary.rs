@@ -659,6 +659,7 @@ fn an_atlas_profile_serves_all_293_entries_vo_14() {
         + &read("gateway/tool-tests/tests/origin.rs")
         + &read("gateway/tool-tests/tests/q2.rs")
         + &read("gateway/tool-tests/tests/q4.rs")
+        + &read("gateway/tool-tests/tests/taskhost.rs")
         + &read("gateway/tool-tests/tests/tools.rs");
     let ignored = tests.matches("#[ignore").count();
     let lib = read(".github/workflows/lexlean.yml");
