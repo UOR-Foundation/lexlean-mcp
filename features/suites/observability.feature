@@ -3,7 +3,7 @@ Feature: Observability
   Issue #16 asks for logs, metrics and traces whose records hold no module text, service level indicators with alerts on their planted conditions, trace context taken from each request, and no log notification. This suite holds the model: the record types with redaction as a type, the indicators and alert predicates, the trace context extraction and the closed set of emitted notifications. Emitting through OpenTelemetry and firing alerts in a running service need the verify task (#11) and the host (#17), and are not claimed here.
 
   @OB-01 @some-true
-  Scenario: LexLean release/v0.4 at 9796067 maps the five variants of ErrorClass, Language, CliOrConfiguration, Environment, SecurityOrLimit and Internal, to the CLI exit codes 1, 2, 3, 4 and 70 (SPEC 24.5 and 23.6), so that the classes 2, 3 and 70 of issue #16 are CliOrConfiguration, Environment and Internal.
+  Scenario: LexLean v0.4.0 at `e0b74b8` maps the five variants of ErrorClass, Language, CliOrConfiguration, Environment, SecurityOrLimit and Internal, to the CLI exit codes 1, 2, 3, 4 and 70 (SPEC 24.5 and 23.6), so that the classes 2, 3 and 70 of issue #16 are CliOrConfiguration, Environment and Internal.
     Given the cited authority A-LEXLEAN-SPEC and the definitions exitCode and alerting of src/Observability.lex.tex
     When the five variants of ErrorClass are mapped to their exit codes
     Then the codes are 1, 2, 3, 4 and 70 in the order of SPEC 24.5, and the codes that raise an alert are 2, 3 and 70

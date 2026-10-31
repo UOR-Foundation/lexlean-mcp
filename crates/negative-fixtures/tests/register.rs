@@ -79,10 +79,11 @@ fn by_reason(register: &Register, reason: &str) -> usize {
 /// The sentence FX-01 states, from the register.
 fn commands_sentence(register: &Register) -> String {
     format!(
-        "{} fixtures, of which {} run the command check, {} build, {} verify, {} lock and {} production",
+        "{} fixtures, of which {} run the command check, {} build, {} migrate, {} verify, {} lock and {} production",
         register.fixture.len(),
         by_command(register, "check"),
         by_command(register, "build"),
+        by_command(register, "migrate"),
         by_command(register, "verify"),
         by_command(register, "lock"),
         by_command(register, "production"),

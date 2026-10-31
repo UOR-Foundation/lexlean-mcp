@@ -10,7 +10,7 @@ issue #10 and #11.
 
 | ID | Level | Claim |
 | --- | --- | --- |
-| FX-01 | some-true | the pinned `tests/negative` is the git tree `200e4d9` with 297 fixtures |
+| FX-01 | some-true | the pinned `tests/negative` is the git tree `f5a4399` with 298 fixtures |
 | FX-02 | some-true | the expected result of each is the canonical command result of the CLI |
 | FX-03 | build | the vendored files and the recorded trees recompute to the pinned tree |
 | FX-04 | build | every row is what the vendored bytes give |
@@ -25,11 +25,11 @@ commit; this repository records the results and does not run the CLI.
 
 ## The counts differ from the issue
 
-The pinned LexLean, `release/v0.4` at `97960679736e960e84a98f5c43981e1f2c70d6d7`
-(`.github/lexlean.rev`), has 297 negative fixtures. Issue #10 counts 285, with
+The pinned LexLean, v0.4.0, commit `e0b74b81e6f49c83596a957d232c8383a5db1a25`
+(`.github/lexlean.rev`), has 298 negative fixtures. Issue #10 counts 285, with
 273 in scope and 240 for F4. Those are the counts of LexLean `main` and
 `release/v0.5` (285 fixtures, observed on 2026-10-23 at `main` `6bcc8d5`).
-`release/v0.4` has the same fixtures and twelve more, all of the command
+`v0.4.0` has the same fixtures and twelve more, all of the command
 `check`: `cases-bool-branch-binder`, `cases-bool-branch-repeated`,
 `cases-bool-induction`, `cases-bool-language-11`, `cases-bool-missing-branch`,
 `term-cases-definition-absent`, `term-cases-definition-repeated`,
@@ -40,22 +40,23 @@ The pinned LexLean, `release/v0.4` at `97960679736e960e84a98f5c43981e1f2c70d6d7`
 The register applies the issue's rules to the pinned tree and does not force
 its numbers:
 
-| | Pinned (297) | Issue |
+| | Pinned (298) | Issue |
 | --- | --- | --- |
 | `check` through F4 | 252 | 240 |
 | `build` through F7 | 1 | 1 |
 | `verify` in #11 | 32 | 32 |
 | in scope | 285 | 273 |
-| excluded | 12 | 12 |
-| total | 297 | 285 |
+| excluded | 13 | 12 |
+| total | 298 | 285 |
 
-By command the 297 fixtures are 256 `check`, 1 `build`, 32 `verify`, 4 `lock`
-and 4 `production`. The four `check` fixtures that are excluded are
+By command the 298 fixtures are 256 `check`, 1 `build`, 1 `migrate`, 32 `verify`,
+4 `lock` and 4 `production`. The four `check` fixtures that are excluded are
 `check-unknown-flag` and `check-duplicate-selection` (CLI argument parsing) and
 `path-symlink` and `model-artifact-symlink` (symlinks); 256 - 4 = 252.
 
-The excluded fixtures are exactly the twelve the issue names, and every name
-exists at the pinned tree:
+The excluded fixtures are the twelve the issue names and `migrate-module-without-notation`,
+the one fixture of the command `migrate`, which no tool runs (added with the move to v0.4.0).
+Every name exists at the pinned tree:
 
 | Reason | Fixtures |
 | --- | --- |
@@ -83,7 +84,7 @@ reaches them. `stale-lock` runs `lock` twice; its row holds the final result.
 
 `project/` is not vendored, and neither are the `toolchain/` and `overlay/`
 directories. The authority rule asks for a citation and a checksum; the
-expected files are vendored in addition, 1485 files of about 390 kB, because
+expected files are vendored in addition, 1490 files of about 390 kB, because
 then the digests, the exit statuses, the codes and the git trees are recomputed
 from bytes in this repository and a hand edit of any of them fails. The
 checksum of `A-LEXLEAN-NEGATIVE` is the SHA-256 over the lines
@@ -106,7 +107,7 @@ tests.
 | an exclusion the issue does not make | `application-arity` excluded with a reason | FX-04, FX-05, FX-06, FX-07, FX-08 | `application-arity: class is excluded, its command check and the issue's exclusions give F4` |
 | a name listed twice | the first row repeated | FX-01, FX-03, FX-05, FX-06, FX-08 | `the register names 298 fixtures and 297 are vendored, or their names differ` and `listed twice` |
 | a fixture missing | the row of `application-arity` deleted | FX-01, FX-03, FX-05, FX-06, FX-08 | `the register names 296 fixtures and 297 are vendored, or their names differ` and `the rows make the tree b519e8a6... for tests/negative, the pin is 200e4d92...` |
-| a hand-edited count | `252 for F4` in the FX-06 statement changed to `253 for F4` | FX-06 | `FX-06 states other counts than the register has: 297 fixtures: 252 for F4, 1 for F7, 32 for #11 and 12 excluded, so 285 reach a tool` |
+| a hand-edited count | `252 for F4` in the FX-06 statement changed to `253 for F4` | FX-06 | `FX-06 states other counts than the register has: 297 fixtures: 252 for F4, 1 for F7, 32 for #11 and 13 excluded, so 285 reach a tool` |
 
 Restore: put the file back (`git checkout` for `model/ids.toml`, the committed
 copy for the others); the run after the restore passes.
