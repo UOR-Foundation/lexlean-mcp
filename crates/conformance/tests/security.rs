@@ -115,10 +115,10 @@ fn violations(
         out.push("src/Admission.lex.tex is not the Admission module".to_string());
     }
 
-    // R1, R2, R3, R5 and R8 are the Executed measurements (SM-03, SM-02, SM-04, SM-01, SM-05),
-    // and the status of R5 is the Executed one.
-    if security.matches(EXECUTED).count() != 5 {
-        out.push("exactly five measurements must be Executed".to_string());
+    // R1, R2, R3, R4, R5, R7 and R8 are the Executed measurements (SM-03, SM-02, SM-04, SM-06,
+    // SM-01, SM-07, SM-05), and the status of R5 is the Executed one.
+    if security.matches(EXECUTED).count() != 7 {
+        out.push("exactly seven measurements must be Executed".to_string());
     }
     match security.find(R5_MEASUREMENT) {
         None => out.push("Security has no measurement of R5".to_string()),
@@ -145,9 +145,9 @@ fn violations(
         out.push("Admission has no theorem admittedPathHasNoDotDot".to_string());
     }
     for name in [
-        "executedMeasurementsAreR1R2R3R5AndR8",
+        "executedMeasurementsAreR1ToR5R7AndR8",
         "noClauseIsPending",
-        "measurementsPendingAreR4R6R7AndR9",
+        "measurementsPendingAreR6AndR9",
     ] {
         if block(security, "theorem", name).is_none() {
             out.push(format!("Security has no theorem {name}"));
@@ -376,8 +376,9 @@ struct Executed {
     words: &'static [&'static str],
 }
 
-/// `SM-03`, `SM-04` and `SM-05`: the risks measured by the signed record and the adapter.
-const MEASURED: [Executed; 3] = [
+/// `SM-03`, `SM-04`, `SM-05`, `SM-06` and `SM-07`: the risks measured by the signed record, the
+/// adapter, the task host and the results of the tools.
+const MEASURED: [Executed; 5] = [
     Executed {
         risk: 0,
         label: "R1",
@@ -398,6 +399,20 @@ const MEASURED: [Executed; 3] = [
         row: "SM-05",
         cited: &["SG-04", "SG-05", "SG-07"],
         words: &["KeyRevoked", "SG-04", "SG-05", "SG-07"],
+    },
+    Executed {
+        risk: 3,
+        label: "R4",
+        row: "SM-06",
+        cited: &["TH-12", "TH-13"],
+        words: &["TH-12", "TH-13", "LLS8002", "429"],
+    },
+    Executed {
+        risk: 6,
+        label: "R7",
+        row: "SM-07",
+        cited: &["TL-16"],
+        words: &["TL-16", "output schema"],
     },
 ];
 
@@ -491,7 +506,19 @@ fn the_measurement_of_r8_is_executed_by_the_key_history_rows_sm_05() {
     holds(&MEASURED[2]);
 }
 
-/// `SM-03`, `SM-04`, `SM-05`: the checks can fail, with the planted defects `SECURITY.md` records.
+/// `SM-06`: the measurement of R4 is executed by the task host.
+#[test]
+fn the_measurement_of_r4_is_executed_by_the_rate_and_limit_rows_sm_06() {
+    holds(&MEASURED[3]);
+}
+
+/// `SM-07`: the measurement of R7 is executed by the validation of the results of the tools.
+#[test]
+fn the_measurement_of_r7_is_executed_by_the_output_schema_row_sm_07() {
+    holds(&MEASURED[4]);
+}
+
+/// `SM-03` to `SM-07`: the checks can fail, with the planted defects `SECURITY.md` records.
 #[test]
 fn the_check_rejects_a_pending_measure_and_a_missing_row_sm_03() {
     let (model, tests, security, _) = inputs();

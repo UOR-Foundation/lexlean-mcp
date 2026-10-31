@@ -8,8 +8,9 @@ use gateway_host_api::protocol::{
     lexicon_read, rate_calls, store_get, store_put, task_id, task_store, task_table,
     verify_control, verify_start, Host, HostError,
 };
-use gateway_tool_tests::{fixture, tiny, Gateway, Reply, TOOLS};
+use gateway_tool_tests::{fixture, tiny, validate, Gateway, Reply, TOOLS};
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 
 const INVALID_PARAMS: i64 = -32602;
 const INTERNAL_ERROR: i64 = -32603;
@@ -498,4 +499,119 @@ fn an_atom_outside_the_profile_gives_lll1004_with_its_span_tl_07() {
             "column_end": column + "banana".len(),
         })
     );
+}
+
+// ---- TL-16 -----------------------------------------------------------------------------
+
+/// The tools that `tools/list` gives an output schema, and for which this test has a call. A
+/// tool listed with a schema that is not here fails the first assertion until it has a call.
+const WITH_AN_OUTPUT_SCHEMA: [&str; 5] = [
+    "lexlean_build",
+    "lexlean_check",
+    "lexlean_explain",
+    "lexlean_format",
+    "lexlean_snapshot",
+];
+
+#[test]
+fn every_result_validates_against_the_output_schema_of_its_tool_tl_16() {
+    let mut gateway = with_tiny();
+    gateway.install("limited", &fixture("over-limit"));
+    let listed = gateway.list().result()["tools"]
+        .as_array()
+        .expect("tools")
+        .clone();
+    let schemas: BTreeMap<&str, &Value> = listed
+        .iter()
+        .filter_map(|tool| Some((tool["name"].as_str()?, tool.get("outputSchema")?)))
+        .collect();
+    assert_eq!(
+        schemas.keys().copied().collect::<Vec<_>>(),
+        WITH_AN_OUTPUT_SCHEMA,
+        "the tools that list an output schema"
+    );
+
+    // One result of each class a tool returns with a command result: a success (class 0), and
+    // the refusals of a selection (class 2) and of a limit (class 4).
+    let mut seen: Vec<(String, Reply)> = Vec::new();
+    for tool in TOOLS {
+        for arguments in [
+            json!({"project": "tiny"}),
+            json!({"project": "tiny", "files": ["src/Nope.lex.tex"]}),
+            json!({"project": "limited"}),
+        ] {
+            seen.push((tool.to_string(), gateway.call(tool, arguments)));
+        }
+    }
+    for code in ["LLL1004", "LLX9999"] {
+        seen.push((
+            "lexlean_explain".to_string(),
+            gateway.call("lexlean_explain", json!({"code": code})),
+        ));
+    }
+    let mut per_tool: BTreeMap<String, usize> = BTreeMap::new();
+    for (tool, reply) in &seen {
+        let content = structured(reply);
+        let schema = schemas[tool.as_str()];
+        validate(schema, content)
+            .unwrap_or_else(|error| panic!("{tool}: {error}\n{content}\nunder {schema}"));
+        *per_tool.entry(tool.clone()).or_default() += 1;
+    }
+    // A result of every class is among them, so the check is not one over successes alone.
+    for tool in WITH_AN_OUTPUT_SCHEMA {
+        assert!(per_tool[tool] >= 2, "{tool}: {per_tool:?}");
+        assert!(
+            seen.iter()
+                .any(|(name, reply)| name == tool && is_error(reply.result())),
+            "{tool} has an error result among them"
+        );
+        assert!(
+            seen.iter()
+                .any(|(name, reply)| name == tool && !is_error(reply.result())),
+            "{tool} has a success among them"
+        );
+    }
+
+    // The validator rejects each defect a result could carry: the plants, in memory.
+    let check = schemas["lexlean_check"];
+    let good = structured(&seen[0].1).clone();
+    assert_eq!(seen[0].0, "lexlean_check");
+    validate(check, &good).expect("the unplanted result validates");
+    let plants: [(&str, Box<dyn Fn(&mut Value)>); 6] = [
+        (
+            "a required member removed",
+            Box::new(|v| {
+                v.as_object_mut().expect("an object").remove("diagnostics");
+            }),
+        ),
+        (
+            "an integer that is a string",
+            Box::new(|v| v["exit_code"] = json!("0")),
+        ),
+        (
+            "a constant that differs",
+            Box::new(|v| v["command"] = json!("fmt")),
+        ),
+        (
+            "a member the schema does not list",
+            Box::new(|v| v["steer"] = json!("do this")),
+        ),
+        (
+            "modules that are not an array",
+            Box::new(|v| v["modules"] = json!("Tiny")),
+        ),
+        (
+            "a diagnostic without its message",
+            Box::new(|v| {
+                v["diagnostics"] = json!([{"code": "LLL1004"}]);
+            }),
+        ),
+    ];
+    for (label, plant) in plants {
+        let mut planted = good.clone();
+        plant(&mut planted);
+        assert!(validate(check, &planted).is_err(), "not rejected: {label}");
+    }
+    // A schema keyword the validator does not know is refused, not passed over.
+    assert!(validate(&json!({"oneOf": []}), &good).is_err());
 }

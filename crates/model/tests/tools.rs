@@ -598,6 +598,39 @@ fn the_running_clause_of_q2_is_a_tool_per_in_scope_function_tl_15() {
     );
 }
 
+/// TL-16: every result of a tool that lists an output schema validates against it (R7).
+#[test]
+fn every_result_validates_against_its_output_schema_tl_16() {
+    needs(
+        "TL-16",
+        &["every_result_validates_against_the_output_schema_of_its_tool_tl_16"],
+    );
+    // The tools that list an output schema are the engine tools: a tool added with one is a
+    // tool the test must call, and a tool the model gives one must be among the test's five.
+    let tools = read("gateway/src/GatewayTools.lex.tex");
+    let listed: Vec<&str> = tools
+        .split("(engineTool \"")
+        .skip(1)
+        .filter_map(|rest| rest.split('"').next())
+        .collect();
+    let test = read("gateway/tool-tests/tests/tools.rs");
+    assert_eq!(
+        listed.len(),
+        5,
+        "the tools with an output schema: {listed:?}"
+    );
+    for tool in listed {
+        assert!(
+            test.contains(&format!("\"{tool}\",")),
+            "the test of TL-16 has a call for {tool}"
+        );
+    }
+    assert!(
+        read("SECURITY.md").contains("TL-16"),
+        "the threat model evidence names the row"
+    );
+}
+
 /// TL-14: the planted defects of lexlean_explain are recorded.
 #[test]
 fn the_planted_defects_of_lexlean_explain_are_recorded_tl_14() {

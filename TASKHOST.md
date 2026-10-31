@@ -20,6 +20,8 @@ as before, with the verifier's task name and state in the result of the call.
 | `TH-09` | `tasks/cancel` cancels a working task through `verify.control` and stores it as cancelled; asked again it is answered from the table. |
 | `TH-10` | A cancel says what became of the child groups (AC-12): the status message gives the counts. |
 | `TH-11` | The task path runs with the real verifier and Lean: a verification polled to `completed` with a record that validates, and a cancel that ends a child group, fails none and leaves no record. |
+| `TH-12` | Calls over `rate.tool_calls` are refused (R4): of 102 `tools/call` requests in one window the first 100 run, and the 101st and the 102nd are answered 429 without the tool running. |
+| `TH-13` | A draft over a limit fails alone (R4): `lexlean_verify` of a project over a limit of its `lexlean.toml` ends `failed` with `LLS8002` while a verification started before it ends `verified` with its record. |
 
 ## The entries
 
@@ -92,6 +94,35 @@ The gates of TH-10 and TH-11, each run with the command given and restored:
 
 The first row stands in for a planted change to `gateway/src/TaskTools.lex.tex`, which takes a
 `prismpm build` (about an hour) to apply, and it is the exact defect: the core before the fix.
+
+## R4: exhaustion (TH-12, TH-13)
+
+`TH-12` (`gateway/tool-tests/tests/taskhost.rs`) serves the generated adapter over a socket with
+the real host, as `served` does for TH-05, and sends 102 `tools/call` requests of `lexlean_check`
+for an absent project. That call asks the host for one effect, `engine.check`, so a call that ran
+is told from one that was refused by that effect alone. The first 100 are answered 200 and ask for
+it; the 101st and the 102nd are answered 429 (`rateLimited`, MCP TOOLS.md) and ask for none, and
+the adapter asked `rate.calls` for every one of them. The limit is the owner value
+`rate.tool_calls` (OWNER-VALUES.md), which the test names as `RATE_TOOL_CALLS`, and a model test
+holds the two equal. The window of the host (`rate.window_ms`, 60 s) does not close in the test.
+
+`TH-13` is an ignored test of the gateway job, as TH-11 is: with the real verifier and the Lean
+toolchain it starts `lexlean_verify` as a task for the tiny project and then for the project
+`gateway/tool-tests/fixture/over-limit`, whose module exceeds a limit of its `lexlean.toml`
+(the project TL-02 uses for class 4). The second ends `completed` with an error result of state
+`failed` that names `LLS8002`; the first ends `verified`, leaves its record, and the table holds
+both as completed. The values of the limits are owner-set (#19).
+
+Not run where this was written: the gateway workspace is built by `prismpm build`, which that
+environment lacks, so neither test has been run, and no defect has been planted in them; the
+gateway job (CI.md) runs both, and the planted defects below are those to apply to it. The root
+gates that tie them to the threat model (`SM-06`) ran, with the defects of SECURITY.md.
+
+| Defect to plant | Command | Gate | Expected diagnostic |
+| --- | --- | --- | --- |
+| the rate gate off: `callLimit` of `gateway/src/Gateway.lex.tex` made 1000000 (a `prismpm build` to apply) | `cargo test -p gateway-tool-tests --test taskhost th_12` | `calls_over_the_rate_are_refused_before_any_tool_runs_th_12` | `call 101 is over the rate`, left 200, right 429 |
+| the counter never counts: `Counter::answer` of `rate.rs` stores `calls` without adding one | the same | the same | the same |
+| a verification of the over-limit project that is not failed: `limits` of `fixture/over-limit/lexlean.toml` raised | `cargo test -p gateway-tool-tests --test taskhost -- --ignored th_13` | `a_draft_over_the_limit_fails_with_lls8002_and_no_other_task_is_affected_th_13` | `verified` where `failed` is required |
 
 ## Not met
 

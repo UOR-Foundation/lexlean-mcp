@@ -171,6 +171,20 @@ error and no effect. `TL-13` (in `equality.rs`) collects the codes in the result
 `lexlean_check` and `lexlean_build` on the fixtures of `TL-03`, requires them to be the codes the
 fixtures expect, and resolves each through the tool: Q8's running clause.
 
+## R7: results validate against their output schemas (TL-16)
+
+Five tools list an output schema: the four engine tools and `lexlean_explain`. `TL-16`
+(`gateway/tool-tests/tests/tools.rs`) calls each for a success, a refused selection (class 2) and a
+project over a limit (class 4), and judges the structured content of every result by
+`gateway_tool_tests::validate`, a validator of the keywords the schemas use (`type`, `const`,
+`enum`, `properties`, `required`, `additionalProperties`, `items`, `minLength`, `minimum`,
+`maximum`) that is independent of the core's and refuses a keyword it does not know. The set of
+tools that list a schema must equal the five the test has calls for, so a tool added with one
+fails the test until it has a call. The test also plants, in memory, a required member removed,
+an integer given as a string, a constant that differs, a member the schema does not list, a value
+that is not an array and a diagnostic without its message, and requires each to be rejected.
+The other tools list no output schema (SECURITY.md, R7). The test runs in the gateway job.
+
 ## Q4: no child process
 
 `TL-08` is the instrument that shows that no tool starts a child process: the process's

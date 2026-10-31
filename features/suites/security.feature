@@ -31,3 +31,15 @@ Feature: Executed measurements of the threat model
     Given the register, the test names of the workspace and src/Security.lex.tex
     When the rows that observe the revocation of a key and the measurements of R8 and R9 are read
     Then each cited row is registered at the build level with a test, Security records the measurement of R8 as Executed with a status that names KeyRevoked and its rows, the measurement of R9 is still unexecuted and names #45, and the same checks reject a measurement of R8 flipped back to unexecuted and a cited row that is missing
+
+  @SM-06 @build
+  Scenario: The measurement of R4 (exhaustion) is executed by TH-12 and TH-13, whose tests pass, and Security records it as Executed: a draft over a limit fails with LLS8002 and no other task is affected, and calls over rate.tool_calls are refused with 429 before a tool runs.
+    Given the register, the test names of the workspace and src/Security.lex.tex
+    When the rows that observe the refusal over the rate and the failure of a draft over a limit and the measurement of R4 are read
+    Then each cited row is registered at the build level with a test, Security records the measurement of R4 as Executed with a status that names LLS8002, 429 and its rows, and the same checks reject a measurement of R4 flipped back to unexecuted and a cited row that is missing
+
+  @SM-07 @build
+  Scenario: The measurement of R7 (returned content steering the agent) is executed by TL-16, whose test passes, and Security records it as Executed: the structured content of every result of a tool that lists an output schema validates against that schema; the tools that list none are not measured by it.
+    Given the register, the test names of the workspace and src/Security.lex.tex
+    When the row that observes the validation of results against their output schemas and the measurement of R7 are read
+    Then the cited row is registered at the build level with a test, Security records the measurement of R7 as Executed with a status that names TL-16 and the tools it leaves out, and the same checks reject a measurement of R7 flipped back to unexecuted and a cited row that is missing
