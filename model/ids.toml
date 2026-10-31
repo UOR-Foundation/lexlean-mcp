@@ -171,6 +171,24 @@ suite = "security"
 statement = "The measurement of R2 (a lexicon entry renders words that misstate its denotation) is executed by VO-06, VO-07 and VO-15, whose tests pass, and Security records it as Executed: no profile is installed, and so none served, whose path or Git package has no review record naming its ID, version and tree digest."
 
 [[id]]
+id = "SM-03"
+level = "build"
+suite = "security"
+statement = "The measurement of R1 (a forged attestation) is executed by SG-03, SG-10 and SG-11, whose tests pass, and Security records it as Executed: an envelope of a verification, or one the lookup returns, validates only under the key history and the bytes of attestation.json."
+
+[[id]]
+id = "SM-04"
+level = "build"
+suite = "security"
+statement = "The measurement of R3 (a web origin or another host acting on the loopback gateway) is executed by GW-12 and GW-13, whose tests pass, and Security records it as Executed: dns-rebinding-protection passes against the served gateway and the adapter refuses a foreign Origin before the core is called."
+
+[[id]]
+id = "SM-05"
+level = "build"
+suite = "security"
+statement = "The measurement of R8 (key compromise) is executed by SG-04, SG-05 and SG-07, whose tests pass, and Security records it as Executed: an envelope under a revoked key fails with KeyRevoked, a revoked key signs nothing, and a history that cannot be written gives no envelope; the measurement of R9 stays Pending, naming #45, because no tool of the gateway issues a requestState."
+
+[[id]]
 id = "FX-01"
 level = "some-true"
 suite = "fixtures"
@@ -384,7 +402,7 @@ statement = "Every diagnostic code that the 298 negative fixtures of AC-07 retur
 id = "QM-07"
 level = "build"
 suite = "quality"
-statement = "The measures of Q1, Q2, Q4 and Q8 are Executed in src/Quality.lex.tex, whose tests pass: Q1 by TL-03 and TL-06, which run lexlean_check and lexlean_build beside the CLI, while its clause for lexlean_verify stays in pendingClauses until verification runs as tasks (#11); Q2 by QM-01, QM-02 and QM-03 (Q2, whose running clause TL-15 executes); Q4 by the host process accounting (Q4, whose running clause TL-08 executes); and Q8 by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes). Q3 and Q5 to Q7 stay Pending, each naming the issue that executes it, pendingClauses holds only the clause of Q1 for lexlean_verify, and the counts the model states (285 negative fixtures, 9 functions, 86 codes) are those of the pinned files."
+statement = "The measures of Q1 to Q4 and Q8 are Executed in src/Quality.lex.tex, whose tests pass: Q1 by TL-03 and TL-06, which run lexlean_check and lexlean_build beside the CLI, while its clause for lexlean_verify stays in pendingClauses until verification runs as tasks (#11); Q2 by QM-01, QM-02 and QM-03 (Q2, whose running clause TL-15 executes); Q4 by the host process accounting (Q4, whose running clause TL-08 executes); and Q8 by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes). Q3 by the fault cases of the verifier and the signed record (VP-04 and VP-05, a cancelled or lost verifier, and SG-07 and SG-12, a record that cannot be written, each leaving no record); Q5 to Q7 stay Pending, each naming the issue that executes it, pendingClauses holds only the clause of Q1 for lexlean_verify, and the counts the model states (285 negative fixtures, 9 functions, 86 codes) are those of the pinned files."
 
 [[id]]
 id = "QM-08"
