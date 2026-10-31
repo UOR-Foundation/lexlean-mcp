@@ -46,13 +46,15 @@ a log: the body of every record is `[redacted]`, and the arguments, query and st
 of a span are the same. No entry point keeps the text of a module, an argument or a
 lexicon search query. A profile label that is not a profile name is `other`.
 `notifications/message` is never emitted: nothing in the module is a JSON-RPC
-message, and `EMITTED` is `notifications/progress` alone.
+message, which the tests check (`no_log_message_notification_is_emitted_ob_14`); the
+model's `Emitted` is the set of notifications the server may send.
 
 The driver of the gateway binary (PrismPM's generated host) reads the request, calls
 `Native::telemetry().begin_request(meta)` with the `_meta` of the request, and ends
 the scope with the method, the class of a failed tool and the protocol error code of
 the answer; it calls `flush` to export the metrics. That driver is generated and
-not in this repository, so the call is the one thing this change does not make: the
+not in this repository, so the call is the one thing this change does not make
+(it needs a per-request hook in the generated host, UOR-Foundation/PrismPM#429): the
 request span and S2 are emitted when it does. Every other indicator is emitted by
 the host as it acts.
 
@@ -69,7 +71,6 @@ run (the rest run in the gateway job). Restoring the file passes all of them.
 | OB-13 | a profile label is kept as given | `no_telemetry_record_contains_module_text_ob_13` |
 | OB-14 | the forbidden version `ff` is accepted | `a_malformed_traceparent_restarts_the_trace_and_drops_tracestate_ob_14` |
 | OB-14 | `tracestate` is kept after a refused `traceparent` | `a_malformed_traceparent_restarts_the_trace_and_drops_tracestate_ob_14` |
-| OB-14 | `notifications/message` is added to `EMITTED` | `no_log_message_notification_is_emitted_ob_14` |
 
 ## Decisions the model makes
 

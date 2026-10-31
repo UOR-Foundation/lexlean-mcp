@@ -5,7 +5,7 @@
 //! The model fixes what is emitted; this module emits it. The records are OTLP/JSON, one line each,
 //! written to a sink: a file for the operator's collector (`otlpjsonfile` receiver), standard
 //! error, or memory for a test. MCP Logging is deprecated, so nothing here is a JSON-RPC
-//! notification and `notifications/message` is never emitted (OB-09: `EMITTED` is the whole set).
+//! notification: no log message is ever emitted (OB-09 holds the model to the same).
 //!
 //! **Redaction is a type.** No entry point takes the text of a module, an argument or a lexicon
 //! search query and keeps it. The few places a caller has such text accept it only to turn it into
@@ -21,10 +21,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use rustix::rand::{getrandom, GetRandomFlags};
 use serde_json::{json, Map, Value};
-
-/// The notifications the server emits (OB-09): `notifications/progress` and no other. A log
-/// message is never among them.
-pub const EMITTED: &[&str] = &["notifications/progress"];
 
 /// The environment variable that names the telemetry sink: `stderr`, or the file that OTLP/JSON
 /// lines are appended to. Unset, nothing is exported (the alerts still count).

@@ -10,7 +10,7 @@ use std::sync::Arc;
 use common::{config, fake_verifier, install_draft, install_named, start_named, wait_for};
 use gateway_binding::telemetry::{
     extract, firing, names, redact, Alert, ErrorClass, GroupEnd, MemorySink, Redacted, Sample,
-    Telemetry, VerifyOutcome, BAGGAGE_LIMIT, EMITTED, TRACESTATE_LIMIT,
+    Telemetry, VerifyOutcome, BAGGAGE_LIMIT, TRACESTATE_LIMIT,
 };
 use gateway_binding::{Native, State};
 use serde_json::{json, Value};
@@ -256,7 +256,7 @@ fn no_telemetry_record_contains_module_text_ob_13() {
     let mut scope = telemetry.begin_request(Some(&meta));
     scope.arguments(SECRET);
     scope.query(SECRET);
-    scope.end("tools/call", Some(ErrorClass::Language), None);
+    scope.end("request", Some(ErrorClass::Language), None);
     // Free text that reaches a label is not a profile name.
     telemetry.check_latency(SECRET, 5);
     telemetry.verify_duration(SECRET, VerifyOutcome::Failed, 5);
@@ -276,7 +276,7 @@ fn a_span_carries_the_context_of_the_request_ob_13() {
     let meta = json!({"traceparent": TRACEPARENT, "tracestate": "congo=t61rcWkgMzE"});
     telemetry
         .begin_request(Some(&meta))
-        .end("tools/list", None, Some(-32601));
+        .end("request", None, Some(-32601));
     let span = &parsed(&sink)[0]["resourceSpans"][0]["scopeSpans"][0]["spans"][0];
     assert_eq!(span["traceId"], "4bf92f3577b34da6a3ce929d0e0e4736");
     assert_eq!(span["parentSpanId"], "00f067aa0ba902b7");
@@ -347,12 +347,11 @@ fn state_and_baggage_over_their_limits_are_dropped_whole_ob_14() {
 
 #[test]
 fn no_log_message_notification_is_emitted_ob_14() {
-    assert_eq!(EMITTED, &["notifications/progress"]);
     let (telemetry, sink) = memory();
     for alert in Alert::ALL {
         plant(&telemetry, alert);
     }
-    telemetry.begin_request(None).end("tools/call", None, None);
+    telemetry.begin_request(None).end("request", None, None);
     telemetry.flush();
     for line in sink.lines() {
         assert!(!line.contains("notifications/"), "{line}");

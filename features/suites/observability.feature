@@ -81,7 +81,7 @@ Feature: Observability
     Then no line holds the marker
 
   @OB-14 @build
-  Scenario: The host reads traceparent, tracestate and baggage from _meta as the model's extract does, restarting the trace on a malformed traceparent and dropping tracestate over 512 and baggage over 8192 bytes, and it emits no notification: the set it emits is notifications/progress alone.
+  Scenario: The host reads traceparent, tracestate and baggage from _meta as the model's extract does, restarting the trace on a malformed traceparent and dropping tracestate over 512 and baggage over 8192 bytes, and it emits no notification or log message.
     Given _meta entries with valid and malformed headers
     When the trace context is extracted and every record is read
     Then the context is carried or dropped as the model gives and no record is a notification

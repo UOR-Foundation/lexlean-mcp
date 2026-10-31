@@ -571,9 +571,11 @@ fn settle(shared: &Shared, name: &str, verdict: Option<Value>, log: &str) {
     match (task.phase, event, &verdict) {
         (Phase::Running, Some("verified"), Some(verdict)) => match facts_of(verdict) {
             Some(facts) => {
-                let outcome = conclude_with(&task.job, &facts, || {
+                let outcome = conclude(&task.job, &facts);
+                // A verified task that cannot be recorded is a signing failure (`slo.S8`).
+                if outcome.class != 0 {
                     shared.telemetry.signing_failure();
-                });
+                }
                 task.phase = if outcome.class == 0 {
                     Phase::Verified
                 } else {
@@ -683,12 +685,6 @@ pub struct Facts {
 /// record to the files it covers. The envelope is written last, after the history that names its
 /// key (the signer's) and the subject, so a verification that could not be signed has no record.
 pub fn conclude(job: &Job, facts: &Facts) -> Outcome {
-    conclude_with(job, facts, || {})
-}
-
-/// `conclude`, calling `unsigned` when the record could not be made after the verification
-/// verified (`slo.S8`).
-fn conclude_with(job: &Job, facts: &Facts, unsigned: impl Fn()) -> Outcome {
     let Ok(subject) = std::fs::read(facts.root.join("attestation.json")) else {
         return failure(
             5,
@@ -711,7 +707,6 @@ fn conclude_with(job: &Job, facts: &Facts, unsigned: impl Fn()) -> Outcome {
     let envelope = match job.signer.sign(&subject, &predicate, now) {
         Ok(envelope) => envelope,
         Err(error) => {
-            unsigned();
             return failure(5, &format!("the verification could not be signed: {error}"));
         }
     };
@@ -724,7 +719,6 @@ fn conclude_with(job: &Job, facts: &Facts, unsigned: impl Fn()) -> Outcome {
     )
     .is_err()
     {
-        unsigned();
         return failure(5, "the record of the verification could not be written");
     }
     let result = json!({
