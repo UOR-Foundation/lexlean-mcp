@@ -418,6 +418,22 @@ pub fn on_big_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
     })
 }
 
+/// The real `gateway-verifier`, beside the directory of this test.
+pub fn real_verifier() -> PathBuf {
+    let test = std::env::current_exe().expect("the path of the test");
+    let program = test
+        .parent()
+        .and_then(Path::parent)
+        .expect("the directory of the build")
+        .join("gateway-verifier");
+    assert!(
+        program.is_file(),
+        "{} is missing: build it with `cargo build -p gateway-binding`",
+        program.display()
+    );
+    program
+}
+
 /// The gateway: the production core and the real host over a store in a temporary directory.
 pub struct Gateway {
     host: Native,
@@ -444,17 +460,11 @@ impl Gateway {
     /// Cargo does not build the program of a dependency for these tests: the gateway job builds it
     /// by testing the binding first, and it is looked for beside the directory of this test.
     pub fn with_real_verifier() -> Gateway {
-        let test = std::env::current_exe().expect("the path of the test");
-        let program = test
-            .parent()
-            .and_then(Path::parent)
-            .expect("the directory of the build")
-            .join("gateway-verifier");
-        assert!(
-            program.is_file(),
-            "{} is missing: build it with `cargo build -p gateway-binding`",
-            program.display()
-        );
+        Gateway::with_verifier(Some(real_verifier()))
+    }
+
+    /// A gateway whose verifier is `program`.
+    pub fn with_verifier_program(program: PathBuf) -> Gateway {
         Gateway::with_verifier(Some(program))
     }
 
@@ -736,11 +746,17 @@ pub fn cli_path() -> PathBuf {
 
 /// Run `lexlean --diagnostic-format json --color never <arguments>` in `directory`.
 pub fn run_cli(directory: &Path, arguments: &[&str]) -> Cli {
+    run_cli_in(directory, arguments, &[])
+}
+
+/// [`run_cli`] with these variables set.
+pub fn run_cli_in(directory: &Path, arguments: &[&str], environment: &[(String, String)]) -> Cli {
     let output = Command::new(cli_path())
         .args(["--diagnostic-format", "json", "--color", "never"])
         .args(arguments)
         .current_dir(directory)
         .env_remove("LEXLEAN_VERIFY_WIDTH")
+        .envs(environment.iter().map(|(name, value)| (name, value)))
         .output()
         .unwrap_or_else(|error| panic!("{}: {error}", cli_path().display()));
     Cli {
@@ -784,6 +800,10 @@ pub struct Fixture {
     pub expected_exit: i32,
     /// The `project/` directory.
     pub project: PathBuf,
+    /// The directory of the fixture.
+    pub directory: PathBuf,
+    /// The `[environment]` of `case.toml`.
+    pub environment: Vec<(String, String)>,
     /// The codes of `expected/diagnostics.json`, in order.
     pub expected_codes: Vec<String>,
 }
@@ -794,6 +814,22 @@ fn case_value(case: &str, key: &str) -> Option<String> {
         .filter_map(|line| line.split_once('='))
         .find(|(name, _)| name.trim() == key)
         .map(|(_, value)| value.trim().to_string())
+}
+
+/// The variables of the `[environment]` table of a `case.toml`.
+fn case_environment(case: &str) -> Vec<(String, String)> {
+    case.lines()
+        .skip_while(|line| line.trim() != "[environment]")
+        .skip(1)
+        .take_while(|line| !line.trim_start().starts_with('['))
+        .filter_map(|line| line.split_once('='))
+        .map(|(name, value)| {
+            (
+                name.trim().to_string(),
+                value.trim().trim_matches('"').to_string(),
+            )
+        })
+        .collect()
 }
 
 /// The `code` of each diagnostic of `expected/diagnostics.json`.
@@ -835,7 +871,9 @@ pub fn fixtures(sources: &Path) -> Vec<Fixture> {
                     .and_then(|value| value.parse().ok())
                     .unwrap_or(-1),
                 project: directory.join("project"),
+                environment: case_environment(&case),
                 expected_codes: expected_codes(&directory),
+                directory,
                 name,
             }
         })

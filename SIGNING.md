@@ -120,7 +120,7 @@ digest binds; they are not repeated in the predicate.
   the tiny fixture was verified and signed.
 - **One verifier process per task**, the queue, the cancel race and the lock that Q3 needs, the
   tasks mapping and the pin move to MCP's tasks extension are afflom's design on #11 and are not
-  here. AC-05, AC-07, AC-11, AC-12 and AC-13 are not addressed.
+  here. AC-05 is not addressed (VERIFIER.md).
 - **No operator command** revokes a key or makes one; `revoke` is a function.
 - **The key file's mode is not checked** (a mounted secret is often world-readable inside its
   container), and the text of the key file is read into a string that is not wiped. The library's

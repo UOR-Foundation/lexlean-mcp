@@ -207,6 +207,53 @@ fn a_lost_verifier_leaves_nothing_vp_05() {
 }
 
 #[test]
+fn the_verify_fixtures_give_the_result_of_the_cli_vp_07() {
+    // The test is a test of the tool, beside the other equality tests.
+    let equality = read("gateway/tool-tests/tests/equality.rs");
+    assert!(
+        equality.contains("fn the_verify_fixtures_give_the_result_of_the_cli_vp_07()"),
+        "the equality tests hold the verify fixtures"
+    );
+    assert!(
+        equality.contains("fixtures_of(&sources, \"#11\")")
+            && equality.contains("the verify fixtures of AC-07 at the pin"),
+        "the test takes the fixtures of the register and requires their count"
+    );
+    assert!(
+        read("VERIFIER.md").contains("VP-07"),
+        "VERIFIER.md does not name VP-07"
+    );
+    // A job of its own runs it, by name, gated on its own inputs; the gateway job skips it.
+    let workflow = read(".github/workflows/lexlean.yml");
+    assert!(
+        workflow.contains("name: gateway / verify fixtures")
+            && workflow.contains("needs.scope.outputs.verify_fixtures == 'true'")
+            && workflow.contains("gateway_verify_fixtures"),
+        "the job of the verify fixtures runs on its own scope"
+    );
+    assert!(
+        workflow.contains(
+            "gateway_ignored_tests gateway-tool-tests 10 the_verify_fixtures_give_the_result_of_the_cli_vp_07"
+        ),
+        "the gateway job skips the verify fixtures"
+    );
+    let lib = read(".github/lexlean-ci/lib.sh");
+    assert!(
+        lib.contains("VERIFY_FIXTURES_INPUTS=(")
+            && lib
+                .contains("--ignored --exact the_verify_fixtures_give_the_result_of_the_cli_vp_07"),
+        "the job names the test and has its own inputs"
+    );
+    // The result is the function the CLI calls, and not a shape of the host's own.
+    let engine = read("gateway/bindings/gateway-binding/src/engine.rs");
+    let verify = &engine[engine.find("pub fn verify_result(").expect("verify_result")..];
+    assert!(
+        verify[..verify.find("\n}\n").expect("its end")].contains("command_result_json("),
+        "the verdict of a failed verification is the command result of the CLI"
+    );
+}
+
+#[test]
 fn each_gate_of_the_verifier_process_rejects_its_planted_defect_vp_06() {
     let document = read("VERIFIER.md");
     let section = document
@@ -219,6 +266,8 @@ fn each_gate_of_the_verifier_process_rejects_its_planted_defect_vp_06() {
         "the session of a lost verifier not killed",
         "the slots ignored so that every task starts at once",
         "a process that ignores cancel left running",
+        "a verdict that carries only the diagnostics",
+        "a class that is not the exit status",
     ] {
         let row = section
             .lines()

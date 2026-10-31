@@ -37,3 +37,9 @@ Feature: The verifier process
     Given the host with one defect planted at a time
     When the tests of VP-02 to VP-05 run
     Then each defect makes the test that answers it fail, with the diagnostic VERIFIER.md records
+
+  @VP-07 @build
+  Scenario: The 32 verify fixtures of AC-07 give the command result of the CLI: for each negative fixture of class #11 in crates/negative-fixtures/register.toml, run in its own environment and, when it carries a toolchain directory, with an elan home that overlays those programs on the pinned toolchain, lexlean_verify and lexlean_verify_control end the task failed with the class equal to the exit status of lexlean verify, and a result equal to the lexlean/command-result/1 the CLI prints on the same bytes, and they leave no record.
+    Given the 32 verify fixtures of LexLean at the pin, each in its own environment and toolchain
+    When the CLI verifies one copy and the tool verifies another
+    Then the class is the exit status, the result is the command result of the CLI, and no record is left

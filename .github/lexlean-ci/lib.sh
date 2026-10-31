@@ -178,24 +178,42 @@ GATEWAY_INPUTS=(
   '^(CI|EFFECTS|GATEWAY|GATEWAY-CONFORMANCE)\.md$'
 )
 
-# output_gateway_scope: publish `gateway=true` unless BASE names a pull request's base and no
-# file changed since it is a gateway input.
-output_gateway_scope() {
-  local changed pattern reach=false
+# VERIFY_FIXTURES_INPUTS: what can change the answer of the job that runs the verify fixtures
+# (VP-07): the verifier, the engine and the program, the tests, the LexLean commit they compare
+# with, and the job itself. `gateway/mcp/lexlean.rev` is laid out from `.github/mcp.rev` and is not
+# committed, so the commit is reached through the pin.
+VERIFY_FIXTURES_INPUTS=(
+  '^gateway/bindings/gateway-binding/src/(verifier|engine|child)\.rs$'
+  '^gateway/tool-tests/'
+  '^gateway/mcp/lexlean\.rev$'
+  '^\.github/(mcp\.rev$|lexlean-ci/lib\.sh$|workflows/lexlean\.yml$)'
+)
+
+# scope_of NAME PATTERN...: publish `NAME=true` unless BASE names a pull request's base and no file
+# changed since it matches a pattern.
+scope_of() {
+  local name=$1 changed pattern reach=false
+  shift
   if [[ -z ${BASE:-} ]]; then
     reach=true
   else
     changed=$(git diff --name-only "$BASE"...HEAD)
-    for pattern in "${GATEWAY_INPUTS[@]}"; do
+    for pattern in "$@"; do
       if grep -Eq "$pattern" <<<"$changed"; then
-        echo "reached by: $(grep -E "$pattern" <<<"$changed" | head -n 1)"
+        echo "$name reached by: $(grep -E "$pattern" <<<"$changed" | head -n 1)"
         reach=true
         break
       fi
     done
   fi
-  echo "gateway=$reach"
-  echo "gateway=$reach" >>"${GITHUB_OUTPUT:?}"
+  echo "$name=$reach"
+  echo "$name=$reach" >>"${GITHUB_OUTPUT:?}"
+}
+
+# output_gateway_scope: whether the gateway job and the job of the verify fixtures run.
+output_gateway_scope() {
+  scope_of gateway "${GATEWAY_INPUTS[@]}"
+  scope_of verify_fixtures "${VERIFY_FIXTURES_INPUTS[@]}"
 }
 
 # output_matrix: publish the jobs that need `lexlean` as the step output
@@ -464,17 +482,33 @@ gateway_build() {
   fi
 }
 
-# gateway_ignored_tests PACKAGE EXPECTED: run the ignored tests of PACKAGE and require that
-# exactly EXPECTED of them ran and passed (an ignored test that is filtered out proves nothing).
+# gateway_ignored_tests PACKAGE EXPECTED [SKIP]: run the ignored tests of PACKAGE, but for the test
+# SKIP that another job runs, and require that exactly EXPECTED of them ran and passed (an ignored
+# test that is filtered out proves nothing).
 gateway_ignored_tests() {
-  local package=$1 expected=$2 log
+  local package=$1 expected=$2 skip=${3:-} log
   log=$(mktemp)
-  gateway_cargo test -p "$package" --locked --offline -- --ignored 2>&1 | tee "$log"
+  gateway_cargo test -p "$package" --locked --offline -- --ignored ${skip:+--skip "$skip"} 2>&1 | tee "$log"
   local passed
   passed=$(sed -n 's/^test result: ok\. \([0-9]*\) passed.*/\1/p' "$log" | paste -sd+ | bc)
   rm -f "$log"
   if [[ ${passed:-0} != "$expected" ]]; then
     echo "$package: $passed ignored tests passed, expected $expected" >&2
+    return 1
+  fi
+}
+
+# gateway_verify_fixtures: the verify fixtures (VP-07), by name, and require that the test ran: a
+# name that matches nothing passes with no test.
+gateway_verify_fixtures() {
+  local log passed
+  log=$(mktemp)
+  gateway_cargo test -p gateway-tool-tests --test equality --locked --offline -- \
+    --ignored --exact the_verify_fixtures_give_the_result_of_the_cli_vp_07 2>&1 | tee "$log"
+  passed=$(sed -n 's/^test result: ok\. \([0-9]*\) passed.*/\1/p' "$log")
+  rm -f "$log"
+  if [[ $passed != 1 ]]; then
+    echo "the verify fixtures: ${passed:-no} tests passed, expected 1" >&2
     return 1
   fi
 }

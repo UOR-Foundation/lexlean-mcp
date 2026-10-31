@@ -31,7 +31,7 @@ use lexlean::verify::{end_live_children, GroupEnd};
 use lexlean::{Engine, LexLeanError, VerifyRequest};
 use serde_json::{json, Value};
 
-use crate::engine::{class_number, diagnostics};
+use crate::engine::{class_number, verify_result};
 use crate::project;
 
 /// The job on the first line of the input.
@@ -77,7 +77,7 @@ fn failed(class: u32, message: &str) -> Value {
 }
 
 fn from_error(error: &LexLeanError) -> Value {
-    let result = serde_json::from_slice(&diagnostics(error)).unwrap_or(Value::Null);
+    let result = serde_json::from_slice(&verify_result(error)).unwrap_or(Value::Null);
     json!({"event": "failed", "class": class_number(error.class), "result": result})
 }
 
