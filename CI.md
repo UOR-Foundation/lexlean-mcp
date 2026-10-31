@@ -15,6 +15,7 @@ acceptance boundary (`VERIFICATION.md`); until the SDK binding lands it fails at
 | `lexlean / verify` | `lexlean fmt --check`, `lexlean lock --check`, `lexlean check`, `lexlean verify` |
 | `lexlean / export <crate>` | one job per `crates/*/generated/request.json`, found by `find` and never listed: `lexlean production build --request <it>` in a clean `.lexlean/production`, then every exported `rust-std` package is compared with `diff -r` against the package committed beside the request, in both directions (a committed package the request no longer exports, or an export nobody committed, fails by name) |
 | `gateway / prismpm build and verify` | builds the gateway of #7 against the registry that `gateway/registry.sh` assembles from the pins: the MCP sources at `.github/mcp.rev` (`gateway/lay-out-mcp.sh`) and their byte equality to the pin (`gateway/mcp-identities.sh`, AC-03 a); the `prism.arch` lexicon of PrismPM at `.github/prismpm.rev`, laid out whole (`gateway/lay-out-sdk.sh`, not committed), and the two whole-file copies of PrismPM's standard library (`sdk_copies_agree`); `lexlean lock --check` and `check`, and every module that is not a copy canonical; the registry; `prismpm build`, whose exported core must equal `gateway/generated/lexlean_mcp_gateway_core` (`diff -r`); `cargo fmt`, `clippy` and the tests of the binding, with its ignored tests run by count; the generated host source free of tool and method names (Q6); `gateway/vectors/generate.py check`; `gateway-host` built and served under MCP's server suite and schema oracle, whose failing scenarios must be exactly `gateway/waiting.json` (GATEWAY-CONFORMANCE.md, `GW-12`); and `prismpm verify` |
+| `scope / does the change reach the gateway` | publishes whether the gateway job runs: on a pull request, only when a changed file matches `GATEWAY_INPUTS` in `.github/lexlean-ci/lib.sh` (the files that job reads); on a push to `main`, always |
 | `prepare / compiler and toolchains` | builds `lexlean`, installs the Lean toolchain, checks that the compiler is the one `lexlean.lock` was made with, and publishes the job matrix |
 
 ## Not run here
@@ -49,6 +50,13 @@ cargo-deny archives are pinned by version and SHA-256 and checked before they
 are unpacked.
 
 ## The gateway job
+
+The job takes about three hours, so a pull request that changes none of its inputs skips it
+(`scope`). `main` runs it on every push, so an input missing from `GATEWAY_INPUTS` fails there
+rather than passing unseen. Planted defect: with `'^gateway/'` removed from the list, a change to
+`gateway/Cargo.lock` alone published `gateway=false`; restored, it publishes `gateway=true`.
+The job saves the `lexlean` it builds at MCP's pin under that pin's key: `prepare` saves only the
+root pin's, and without the save every run rebuilt it (about five minutes).
 
 `gateway/` is its own Cargo workspace with its own `Cargo.lock`, because the binding links
 `lexlean`, which is not on crates.io yet. The root workspace, `cargo deny` and the SDK's

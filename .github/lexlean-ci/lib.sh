@@ -166,6 +166,38 @@ output_pin() {
   echo "rev=$rev" >>"${GITHUB_OUTPUT:?}"
 }
 
+# GATEWAY_INPUTS: every path the gateway job reads, as extended regular expressions over
+# repository paths. A pull request that changes none of them skips the job; a push to main
+# always runs it, so an input missing here is still caught on main.
+GATEWAY_INPUTS=(
+  '^gateway/'
+  '^\.github/(lexlean-ci/|mcp\.rev$|prismpm\.rev$|workflows/lexlean\.yml$)'
+  '^crates/model/(Cargo\.toml$|src/|tests/gateway(_conformance)?\.rs$)'
+  '^(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|lean-toolchain|prismpm\.lock|deny\.toml)$'
+  '^src/(Effects|OwnerValues)\.lex\.tex$'
+  '^(CI|EFFECTS|GATEWAY|GATEWAY-CONFORMANCE)\.md$'
+)
+
+# output_gateway_scope: publish `gateway=true` unless BASE names a pull request's base and no
+# file changed since it is a gateway input.
+output_gateway_scope() {
+  local changed pattern reach=false
+  if [[ -z ${BASE:-} ]]; then
+    reach=true
+  else
+    changed=$(git diff --name-only "$BASE"...HEAD)
+    for pattern in "${GATEWAY_INPUTS[@]}"; do
+      if grep -Eq "$pattern" <<<"$changed"; then
+        echo "reached by: $(grep -E "$pattern" <<<"$changed" | head -n 1)"
+        reach=true
+        break
+      fi
+    done
+  fi
+  echo "gateway=$reach"
+  echo "gateway=$reach" >>"${GITHUB_OUTPUT:?}"
+}
+
 # output_matrix: publish the jobs that need `lexlean` as the step output
 # `matrix`: one that runs the project gates, and one for every production
 # request the repository commits, found here and never listed twice.
