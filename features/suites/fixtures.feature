@@ -3,7 +3,7 @@ Feature: The AC-07 fixture register
   Issue #10 asks that 273 of LexLean's negative fixtures give the CLI's command result through the tools of F4 to F7 and #11. The register is the checked table those tools start from: the fixtures of the pinned LexLean commit, each classified once, with the expected command result and the digests that bind it to the pinned tree. Nothing here runs a LexLean command.
 
   @FX-01 @some-true
-  Scenario: LexLean release/v0.4 at 9796067 (commit 97960679736e960e84a98f5c43981e1f2c70d6d7) holds in tests/negative the git tree 200e4d920b5efae7d34915c617c75f8c0cb46864 with 297 fixtures, of which 256 run the command check, 1 build, 32 verify, 4 lock and 4 production.
+  Scenario: LexLean v0.4.0 at `e0b74b8` (commit e0b74b81e6f49c83596a957d232c8383a5db1a25) holds in tests/negative the git tree f5a43991dec0c604c8647c5dd050f183a16832a6 with 298 fixtures, of which 256 run the command check, 1 build, 1 migrate, 32 verify, 4 lock and 4 production.
     Given the cited authority A-LEXLEAN-NEGATIVE and .github/lexlean.rev
     When the pinned commit, the pinned tree and the commands of the rows are read
     Then the commit is the one lexlean.rev pins, the trees of the rows make the pinned tree, and the counts by command are the ones the statement gives
@@ -33,7 +33,7 @@ Feature: The AC-07 fixture register
     Then no name repeats, the names are the vendored ones, and each class is the one the command and the exclusions give
 
   @FX-06 @build
-  Scenario: The register has 297 fixtures: 252 for F4, 1 for F7, 32 for #11 and 12 excluded, so 285 reach a tool; every sum is recomputed from the rows, so a hand edit of a row or of a sum fails.
+  Scenario: The register has 298 fixtures: 252 for F4, 1 for F7, 32 for #11 and 13 excluded, so 285 reach a tool; every sum is recomputed from the rows, so a hand edit of a row or of a sum fails.
     Given the register
     When the fixtures are counted by class
     Then the sums are the ones the statement gives and the classes add up to the total

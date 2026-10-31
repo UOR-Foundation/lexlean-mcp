@@ -7,5 +7,5 @@
 # Move this line together with `lexlean lock`, in one commit: the lock is made by
 # the compiler this line names.
 #
-# Currently: UOR-Foundation/LexLean release/v0.4 at 9796067.
-rev = 97960679736e960e84a98f5c43981e1f2c70d6d7
+# Currently: UOR-Foundation/LexLean v0.4.0 (released 2026-10-26, on crates.io).
+rev = e0b74b81e6f49c83596a957d232c8383a5db1a25

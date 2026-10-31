@@ -8,6 +8,7 @@ use lexlean::Selection;
 
 use crate::materialize;
 use crate::store::{self, StoreError};
+use crate::telemetry::Telemetry;
 
 /// A project that has been resolved to a directory.
 ///
@@ -46,14 +47,17 @@ impl Drop for Resolved {
 /// refused when the draft or the profile is absent or the bundle holds a symbolic link. Any
 /// other name is a directory of the `drafts` area, reached through no link, that holds
 /// `lexlean.toml` as a file. `limit` is the most bytes a stored draft may have.
-pub fn resolve(root: &Path, name: &str, limit: usize) -> Option<Resolved> {
+pub fn resolve(root: &Path, name: &str, limit: usize, telemetry: &Telemetry) -> Option<Resolved> {
     if let Some((profile, id)) = materialize::split_handle(name) {
-        return materialize::materialize(root, profile, id, limit)
-            .ok()
-            .map(|directory| Resolved {
-                directory,
-                ephemeral: true,
-            });
+        let mut drifted = false;
+        let materialized = materialize::materialize_noting(root, profile, id, limit, &mut drifted);
+        if drifted {
+            telemetry.profile_drift(profile);
+        }
+        return materialized.ok().map(|directory| Resolved {
+            directory,
+            ephemeral: true,
+        });
     }
     directory_project(root, name).map(|directory| Resolved {
         directory,

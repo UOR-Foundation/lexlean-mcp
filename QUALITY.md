@@ -37,7 +37,7 @@ tree for tree. Both run in the gateway job with `--ignored`, which requires thei
 workspace gate checks that the rows and their tests exist.
 
 **The count.** The model stated 273 fixtures, the count of issue #10 at an older LexLean. The
-register at `9796067` holds 297: 252 F4, 1 F7, 32 verify and 12 excluded, so 285 are in
+register at v0.4.0 holds 297: 252 F4, 1 F7, 32 verify and 13 excluded, so 285 are in
 scope. The model now states 285, and `QM-07` recomputes it from the register.
 
 **What it does not show.** `lexlean_verify` against the CLI, on the 32 verify fixtures and
@@ -62,7 +62,7 @@ not every fixture.
 ## Q2: the API-to-tool map
 
 **Evidence.** `crates/quality-map/lexlean/` holds, byte-identical to LexLean
-`release/v0.4` at `9796067` (`.github/lexlean.rev`), the four source files of the
+v0.4.0 at `e0b74b8` (`.github/lexlean.rev`), the four source files of the
 stable surface: `crates/lexlean/src/api.rs`, `api/production.rs`, `sdk.rs` and
 `verify/lifeline.rs` (with a `.txt` suffix, so that no tool of this workspace reads
 them as code). `sources.toml` records the git blob id of each, and a test recomputes it
@@ -124,7 +124,7 @@ functions the model names *should* have a tool; that is the model's scope.
 
 ## Q8: every diagnostic code explained
 
-**Where the explanations live.** At `9796067` they exist as data. `model/errors.toml`
+**Where the explanations live.** At v0.4.0 they exist as data. `model/errors.toml`
 is the closed registry (SPEC 26.1): 86 codes, each with a class, an exit status, a title
 and a statement. `ERRORS.md` is generated from it with one entry per code, and
 `lexlean explain <CODE>` prints the entry (SPEC 23.4; `explain_text` in
@@ -179,7 +179,7 @@ that the check runs on every `cargo test`.
 | --- | --- | --- |
 | `Engine::snapshot` removed from `map.toml` | `cargo test -p quality-map --test surface` | `Engine::snapshot is public in the pinned source and is not in map.toml` |
 | tool name `lexlean_check` misspelled `lexlean_chek` | same | `Engine::check is mapped to lexlean_chek, which no issue defines` |
-| `pub fn export` added to the vendored `api.rs.txt` | same | `Engine::export is public in the pinned source and is not in map.toml`; `api.rs.txt: the git blob id is 8bcf705d... and the table records 2fac21e5...` |
+| `pub fn export` added to the vendored `api.rs.txt` | same | `Engine::export is public in the pinned source and is not in map.toml`; `api.rs.txt: the git blob id is 8bcf705d... and the table records d6cf1b74...` |
 | the entry of `LLB6002` removed from the vendored `ERRORS.md` | `cargo test -p quality-map --test explain` | `LLB6002 is registered and has no entry in ERRORS.md`; `ERRORS.md: the git blob id is c09fd5d1... and the table records 9a995e31...` |
 | a fixture returns `LLX9999`, a code the registry lacks (`register.toml`) | same | `LLX9999 is returned and the registry does not explain it` |
 | the count of codes in the model changed from 86 to 85 | `cargo test -p repo-conformance --test quality` | `the model counts Some(85) diagnostic codes and the registry holds 86` |

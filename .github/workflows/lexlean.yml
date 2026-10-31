@@ -242,8 +242,30 @@ jobs:
           . .github/lexlean-ci/lib.sh
           gate "export of $REQUEST" export_matches "$REQUEST"
 
+  scope:
+    name: scope / does the change reach the gateway
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      gateway: ${{ steps.scope.outputs.gateway }}
+    steps:
+      - name: Check out the exact event revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The files the gateway job reads
+        id: scope
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway scope" output_gateway_scope
+
   gateway:
     name: gateway / prismpm build and verify
+    needs: scope
+    if: needs.scope.outputs.gateway == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     steps:
@@ -277,6 +299,7 @@ jobs:
           . .github/lexlean-ci/lib.sh
           gate "install Rust" install_rust
       - name: Restore lexlean built at the pinned revision
+        id: lexlean-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.lexlean-bin
@@ -285,6 +308,13 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "install lexlean" install_lexlean
+      # MCP's pin is not the root pin, so `prepare` never saves this one.
+      - name: Save lexlean built at the pinned revision
+        if: steps.lexlean-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.lexlean-bin
+          key: lexlean-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.rev }}
       - name: Restore prismpm built at the pinned revisions
         id: prismpm-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

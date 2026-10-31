@@ -33,7 +33,7 @@ names the release (`# NormalizationTest-17.0.0.txt`, `# DerivedNormalizationProp
 ## How the copies were shown to be the 17.0.0 originals
 
 The Rust crate `unicode-normalization` 0.1.25 is what LexLean `release/v0.4` at
-`9796067` decides NFC with (its `Cargo.lock`), and its `src/tables.rs` states
+`e0b74b8` decides NFC with (its `Cargo.lock`), and its `src/tables.rs` states
 `UNICODE_VERSION = (17, 0, 0)`. The crate publishes the script that generated its
 tables, `scripts/unicode.py` (identical in the crates.io package and at the commit
 `5a69b3bafb625caccdec7871a42bed0d9a6604d1` the package's `.cargo_vcs_info.json`

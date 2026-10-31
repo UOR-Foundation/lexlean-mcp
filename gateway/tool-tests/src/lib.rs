@@ -41,8 +41,8 @@ pub const TOOLS: [&str; 4] = [
 ];
 
 /// The fixtures of the pinned LexLean that the register (`crates/negative-fixtures`) does not
-/// hold: the register is bound to `release/v0.4` at 9796067, and the commit of
-/// `gateway/mcp/lexlean.rev` has these names besides its 297.
+/// hold: the register is bound to v0.4.0 at e0b74b8, and the commit of
+/// `gateway/mcp/lexlean.rev` has these names besides its 298.
 pub const NOT_IN_THE_REGISTER: [&str; 1] = ["induction-nested-type"];
 
 /// The examples whose `expected/build` the CLI at the pin does not reproduce (measured with the
