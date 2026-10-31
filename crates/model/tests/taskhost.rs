@@ -269,8 +269,8 @@ fn the_task_path_runs_with_the_real_verifier_th_11() {
     // and the one of TH-13.
     let workflow = read(".github/workflows/lexlean.yml");
     assert!(
-        workflow.contains("gateway_ignored_tests gateway-tool-tests 11"),
-        "the job requires the eleven ignored tests of the tool tests"
+        workflow.contains("gateway_ignored_tests gateway-tool-tests 11 "),
+        "the job requires the eleven ignored tests of the tool tests that it runs"
     );
 }
 

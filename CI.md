@@ -15,6 +15,7 @@ acceptance boundary (`VERIFICATION.md`); until the SDK binding lands it fails at
 | `lexlean / verify` | `lexlean fmt --check`, `lexlean lock --check`, `lexlean check`, `lexlean verify` |
 | `lexlean / export <crate>` | one job per `crates/*/generated/request.json`, found by `find` and never listed: `lexlean production build --request <it>` in a clean `.lexlean/production`, then every exported `rust-std` package is compared with `diff -r` against the package committed beside the request, in both directions (a committed package the request no longer exports, or an export nobody committed, fails by name) |
 | `gateway / prismpm build and verify` | builds the gateway of #7 against the registry that `gateway/registry.sh` assembles from the pins: the MCP sources at `.github/mcp.rev` (`gateway/lay-out-mcp.sh`) and their byte equality to the pin (`gateway/mcp-identities.sh`, AC-03 a); the `prism.arch` lexicon of PrismPM at `.github/prismpm.rev`, laid out whole (`gateway/lay-out-sdk.sh`, not committed), and the two whole-file copies of PrismPM's standard library (`sdk_copies_agree`); `lexlean lock --check` and `check`, and every module that is not a copy canonical; the registry; `prismpm build`, whose exported core must equal `gateway/generated/lexlean_mcp_gateway_core` (`diff -r`); `cargo fmt`, `clippy` and the tests of the binding, with its ignored tests run by count; the generated host source free of tool and method names (Q6); `gateway/vectors/generate.py check`; `gateway-host` built and served under MCP's server suite and schema oracle, whose failing scenarios must be exactly `gateway/waiting.json` (GATEWAY-CONFORMANCE.md, `GW-12`); and `prismpm verify` |
+| `gateway / verify fixtures` | runs VP-07 by name and requires that it ran: the 32 `verify` fixtures through the tool beside the CLI (AC-07). It runs `prismpm build` for the generated packages the tests link, and none of the gateway job's other gates. |
 | `scope / does the change reach the gateway` | publishes whether the gateway job runs: on a pull request, only when a changed file matches `GATEWAY_INPUTS` in `.github/lexlean-ci/lib.sh` (the files that job reads); on a push to `main`, always |
 | `prepare / compiler and toolchains` | builds `lexlean`, installs the Lean toolchain, checks that the compiler is the one `lexlean.lock` was made with, and publishes the job matrix |
 
@@ -63,6 +64,15 @@ The job takes about three hours, so a pull request that changes none of its inpu
 (`scope`). `main` runs it on every push, so an input missing from `GATEWAY_INPUTS` fails there
 rather than passing unseen. Planted defect: with `'^gateway/'` removed from the list, a change to
 `gateway/Cargo.lock` alone published `gateway=false`; restored, it publishes `gateway=true`.
+
+The verify fixtures take about 55 minutes, so they have a job of their own, in parallel, gated on
+the second output of `scope` (`verify_fixtures`, `VERIFY_FIXTURES_INPUTS`). `main` runs it on every
+push. The gateway job skips the test by name, and the job names it and requires that it ran, so a
+renamed test fails. It is measured on scratch commits: a tool test, the verifier and the pin of MCP
+publish `verify_fixtures=true`; the signer publishes `gateway=true verify_fixtures=false`; `README.md`
+publishes both false; a push to `main` publishes both true. Planted defect: with `'^gateway/tool-tests/'`
+removed from `VERIFY_FIXTURES_INPUTS`, a change to `gateway/tool-tests/tests/equality.rs` alone published
+`verify_fixtures=false`; restored, it publishes `verify_fixtures=true`.
 The job saves the `lexlean` it builds at MCP's pin under that pin's key: `prepare` saves only the
 root pin's, and without the save every run rebuilt it (about five minutes).
 
@@ -135,7 +145,7 @@ release step is:
 
 The defects planted in the gateway and what rejects each are in GATEWAY.md, "Planted defects"; those planted in the tools of F4 to F7 and in `lexlean_explain` are in TOOLS.md.
 
-The gateway job also runs the tests that put each tool beside the `lexlean` CLI (step 7h2): it lays LexLean out at the pin with `gateway/lay-out-lexlean.sh` (the `LEXLEAN_SOURCES` the tests read, with the diagnostic registry `model/errors.toml`), requires that `gateway/explain/generate.py check` finds `gateway/src/Explain.lex.tex` to be the rendering of that registry (the explanations compiled into the core, TOOLS.md), runs the eleven ignored tests of `gateway-tool-tests` with `--ignored`, and requires that exactly eleven ran (`gateway_ignored_tests gateway-tool-tests 11`). The ordinary tests of the same crate (step 7h) include `tests/origin.rs`, which runs the served adapter over a socket (GW-13).
+The gateway job also runs the tests that put each tool beside the `lexlean` CLI (step 7h2): it lays LexLean out at the pin with `gateway/lay-out-lexlean.sh` (the `LEXLEAN_SOURCES` the tests read, with the diagnostic registry `model/errors.toml`), requires that `gateway/explain/generate.py check` finds `gateway/src/Explain.lex.tex` to be the rendering of that registry (the explanations compiled into the core, TOOLS.md), runs eleven ignored tests of `gateway-tool-tests` with `--ignored`, and requires that exactly eleven ran (`gateway_ignored_tests gateway-tool-tests 11 the_verify_fixtures_give_the_result_of_the_cli_vp_07`). The ordinary tests of the same crate (step 7h) include `tests/origin.rs`, which runs the served adapter over a socket (GW-13).
 
 ## Reading a failure
 

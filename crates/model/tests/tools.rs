@@ -362,8 +362,8 @@ fn no_child_process_is_started_by_a_tool_tl_08() {
 fn the_gateway_job_runs_the_ignored_tests_of_the_tools_and_counts_them_tl_03() {
     let ignored = ignored_in_tool_tests();
     assert_eq!(
-        ignored, 11,
-        "TL-03 to TL-06, TL-12 and TL-13, the two Atlas tests of VO-14, the two of TH-11 and the one of TH-13 are the ignored tests of the tools"
+        ignored, 12,
+        "TL-03 to TL-06, TL-12 and TL-13, the two Atlas tests of VO-14, the two of TH-11, the one of TH-13 and VP-07, which a job of its own runs, are the ignored tests of the tools"
     );
     for (name, reason) in tests_in("gateway/tool-tests") {
         if !reason.is_empty() {
@@ -374,9 +374,13 @@ fn the_gateway_job_runs_the_ignored_tests_of_the_tools_and_counts_them_tl_03() {
         }
     }
     let workflow = workflow();
+    // The verify fixtures have a job of their own, which requires that the test ran (VP-07).
+    let in_the_job = ignored - 1;
     assert!(
-        workflow.contains(&format!("gateway_ignored_tests gateway-tool-tests {ignored}")),
-        "the gateway job runs the {ignored} ignored tests of gateway-tool-tests and requires the count"
+        workflow.contains(&format!(
+            "gateway_ignored_tests gateway-tool-tests {in_the_job} "
+        )),
+        "the gateway job runs {in_the_job} ignored tests of gateway-tool-tests and requires the count"
     );
     assert!(
         workflow.contains("gateway/lay-out-lexlean.sh") && workflow.contains("LEXLEAN_SOURCES"),
