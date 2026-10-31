@@ -49,3 +49,9 @@ Feature: The executed measures of the quality model
     Given the map, the vendored files and the model, and a copy of each with one defect planted
     When every gate reads the copy
     Then each gate reports the defect it exists to catch, and reports nothing on the unplanted files
+
+  @QM-09 @build
+  Scenario: The same build_id on linux/amd64 and linux/arm64 (Q7): the build of the fixed project of crates/build-id/fixture by lexlean 0.4.0 has the source ID, the semantic ID and the build_id recorded in fixture/expected, in whichever directory it is built, and a changed source does not have them; just vv runs the test on linux/amd64 for a pull request and on both architectures for main, so both platforms equal one recorded value.
+    Given the fixed project, the recorded IDs and the Engine of the pinned release
+    When the project is built in two directories and once with a source changed
+    Then the IDs equal the recorded ones in both directories and the changed source gives another build_id

@@ -67,3 +67,15 @@ Feature: The task host of the gateway
     Given the real verifier and the Lean toolchain
     When a verification is polled to its end, and another is cancelled while a program of the toolchain runs
     Then the first is completed with a record that validates, and the second reports a group ended, none failed and no record
+
+  @TH-12 @build
+  Scenario: Calls over the rate are refused (R4): through the generated adapter over a socket with the real host, the first 100 tools/call requests of a window run and the 101st and the 102nd, which rate.tool_calls does not admit, are answered with status 429 without the tool running, while the adapter counted each of them.
+    Given the generated adapter served over a socket with the real host behind a recorder
+    When 102 tools/call requests are sent one after the other in one window
+    Then the first 100 are answered 200 and ask the host for the Engine, and the 101st and the 102nd are answered 429 and ask the host for no Engine effect
+
+  @TH-13 @build
+  Scenario: A draft over a limit fails alone (R4): with the real verifier and the Lean toolchain, lexlean_verify of a project whose module exceeds a limit of its lexlean.toml, by a client that declares the tasks extension, ends completed with an error result of state failed that names LLS8002, while a verification started before it ends verified with its record and the table holds both tasks as completed.
+    Given the real verifier and the Lean toolchain, a sound project and a project over a limit
+    When a verification of the sound project and one of the project over the limit are polled to their ends
+    Then the second fails with LLS8002, the first is verified with a record, and the table holds both as completed
