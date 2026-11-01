@@ -1,9 +1,9 @@
 //! The closed set of effects: what the generated decoder admits, and what the core may ask.
 
 use gateway_host_api::protocol::{
-    attestation_lookup, engine_build, engine_check, engine_format, engine_snapshot, lexicon_read,
-    rate_calls, store_get, store_put, verify_control, verify_start, Request, CORE, EFFECTS,
-    REQUEST_MAXIMA, RESULT_MAXIMA,
+    attestation_lookup, clock_now, engine_build, engine_check, engine_format, engine_snapshot,
+    lexicon_read, rate_calls, store_get, store_put, task_id, task_store, task_table,
+    verify_control, verify_start, Request, CORE, EFFECTS, REQUEST_MAXIMA, RESULT_MAXIMA,
 };
 use gateway_host_api::wire::Refusal;
 
@@ -61,8 +61,16 @@ fn one_of_each() -> Vec<Request> {
         Request::AttestationLookup(attestation_lookup::Request {
             by: 0,
             value: "0".repeat(64),
+            want: 0,
+            module: String::new(),
         }),
         Request::RateCalls(rate_calls::Request { counted: true }),
+        Request::ClockNow(clock_now::Request {}),
+        Request::TaskId(task_id::Request {}),
+        Request::TaskTable(task_table::Request {}),
+        Request::TaskStore(task_store::Request {
+            table: b"[]".to_vec(),
+        }),
     ]
 }
 
@@ -81,6 +89,10 @@ fn tag_of(request: &Request) -> u32 {
         Request::LexiconRead(_) => 8,
         Request::AttestationLookup(_) => 9,
         Request::RateCalls(_) => 10,
+        Request::ClockNow(_) => 11,
+        Request::TaskId(_) => 12,
+        Request::TaskTable(_) => 13,
+        Request::TaskStore(_) => 14,
     }
 }
 
@@ -92,8 +104,8 @@ fn the_first_tag_past_the_set_is_undeclared() {
         Refusal::Undeclared
     );
     assert_eq!(
-        first, 11,
-        "the set is the ten effects of the core and the frame effect"
+        first, 15,
+        "the set is the ten effects of the core, the four of the tasks and the frame effect"
     );
 }
 
@@ -150,6 +162,10 @@ fn the_decoder_has_one_variant_per_effect() {
             "lexicon.read",
             "attestation.lookup",
             "rate.calls",
+            "clock.now",
+            "task.id",
+            "task.table",
+            "task.store",
         ],
         "the tag of an effect is its position, in the order of src/Effects.lex.tex"
     );
@@ -161,8 +177,8 @@ fn the_frame_effect_is_not_the_cores() {
     for (tag, core) in CORE.iter().enumerate() {
         assert_eq!(
             *core,
-            tag < 10,
-            "{}: only the tags 0 to 9 are effects the core may ask for",
+            tag < 10 || tag == 14,
+            "{}: only the tags 0 to 9 and 14 are effects the core may ask for",
             EFFECTS[tag]
         );
     }

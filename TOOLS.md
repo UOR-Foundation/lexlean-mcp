@@ -93,7 +93,7 @@ protocol errors, the instrument for Q4) run in every `cargo test`.
 
 ### The pin of the register and the pin of the gateway
 
-The register is bound to LexLean `9796067` (297 fixtures); the gateway is compiled by the
+The register is bound to LexLean v0.4.0 (298 fixtures); the gateway is compiled by the
 LexLean commit MCP names (`gateway/mcp/lexlean.rev`, SM-37 `0b0c95d96`), whose
 `tests/negative` has 298. The extra fixture, `induction-nested-type`, is not in the
 register (`NOT_IN_THE_REGISTER` in `gateway/tool-tests/src/lib.rs`, with the counts asserted
@@ -170,6 +170,20 @@ that hold a character of the sanitizer and no registered code), `isError` equal 
 error and no effect. `TL-13` (in `equality.rs`) collects the codes in the results of
 `lexlean_check` and `lexlean_build` on the fixtures of `TL-03`, requires them to be the codes the
 fixtures expect, and resolves each through the tool: Q8's running clause.
+
+## R7: results validate against their output schemas (TL-16)
+
+Five tools list an output schema: the four engine tools and `lexlean_explain`. `TL-16`
+(`gateway/tool-tests/tests/tools.rs`) calls each for a success, a refused selection (class 2) and a
+project over a limit (class 4), and judges the structured content of every result by
+`gateway_tool_tests::validate`, a validator of the keywords the schemas use (`type`, `const`,
+`enum`, `properties`, `required`, `additionalProperties`, `items`, `minLength`, `minimum`,
+`maximum`) that is independent of the core's and refuses a keyword it does not know. The set of
+tools that list a schema must equal the five the test has calls for, so a tool added with one
+fails the test until it has a call. The test also plants, in memory, a required member removed,
+an integer given as a string, a constant that differs, a member the schema does not list, a value
+that is not an array and a diagnostic without its message, and requires each to be rejected.
+The other tools list no output schema (SECURITY.md, R7). The test runs in the gateway job.
 
 ## Q4: no child process
 

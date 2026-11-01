@@ -2,21 +2,21 @@
 
 Issue #15 models the quality requirements Q1 to Q8 as chains with an
 all-or-none measure. `src/Quality.lex.tex` records, for each measure, whether it
-is `Executed` or `Pending`. This file states which four are `Executed` now, what
+is `Executed` or `Pending`. This file states which seven are `Executed` now, what
 the evidence is, what it does not show, and the defects planted in its gates.
 
 | Measure | Requirement | Status | Rows |
 | --- | --- | --- | --- |
 | Q1 | a tool result equals the engine's result | **Executed** for check and build; the verify clause is pending (#11) | TL-03, TL-06 |
 | Q2 | each in-scope API function is reached by exactly one tool | **Executed** | QM-01 to QM-03, TL-15 |
-| Q3 | no record for a verification that did not end `verified` | Pending | needs verification as tasks (#11) and the store (#13) |
+| Q3 | no record for a verification that did not end `verified` | **Executed** | VP-04, VP-05, SG-07, SG-12 |
 | Q4 | check, snapshot, format, build start no child process | **Executed** | TL-08 |
 | Q5 | the MCP implementation conforms to 2026-07-28 | Pending | needs the deployed core (#17) |
-| Q6 | protocol and tool semantics live only in `.lex.tex` | Pending | needs the host adapter (#7) |
-| Q7 | the same `build_id` on `linux/amd64` and `linux/arm64` | Pending | needs `build` as a tool (#10), on both platforms |
+| Q6 | protocol and tool semantics live only in `.lex.tex` | **Executed** | EF-06, GW-06 |
+| Q7 | the same `build_id` on `linux/amd64` and `linux/arm64` | **Executed** | QM-09 |
 | Q8 | every diagnostic code in a result resolves through F11 | **Executed** | QM-04 to QM-06 |
 
-`measuresPendingAreQ3AndQ5ToQ7` pins the pending list, `executedMeasuresAreQ1Q2Q4AndQ8`
+`measuresPendingAreQ5` pins the pending list, `executedMeasuresAreQ1ToQ4AndQ6ToQ8`
 pins the executed one, and `onlyTheVerifyClauseOfQ1IsPending` pins the list of clauses that
 still wait: one, the clause of Q1 for `lexlean_verify`. `qualityValid` requires that the
 measure of each clause in `pendingClauses` is an executed one. `QM-07` ties the statuses to
@@ -37,7 +37,7 @@ tree for tree. Both run in the gateway job with `--ignored`, which requires thei
 workspace gate checks that the rows and their tests exist.
 
 **The count.** The model stated 273 fixtures, the count of issue #10 at an older LexLean. The
-register at `9796067` holds 297: 252 F4, 1 F7, 32 verify and 12 excluded, so 285 are in
+register at v0.4.0 holds 297: 252 F4, 1 F7, 32 verify and 13 excluded, so 285 are in
 scope. The model now states 285, and `QM-07` recomputes it from the register.
 
 **What it does not show.** `lexlean_verify` against the CLI, on the 32 verify fixtures and
@@ -62,7 +62,7 @@ not every fixture.
 ## Q2: the API-to-tool map
 
 **Evidence.** `crates/quality-map/lexlean/` holds, byte-identical to LexLean
-`release/v0.4` at `9796067` (`.github/lexlean.rev`), the four source files of the
+v0.4.0 at `e0b74b8` (`.github/lexlean.rev`), the four source files of the
 stable surface: `crates/lexlean/src/api.rs`, `api/production.rs`, `sdk.rs` and
 `verify/lifeline.rs` (with a `.txt` suffix, so that no tool of this workspace reads
 them as code). `sources.toml` records the git blob id of each, and a test recomputes it
@@ -124,7 +124,7 @@ functions the model names *should* have a tool; that is the model's scope.
 
 ## Q8: every diagnostic code explained
 
-**Where the explanations live.** At `9796067` they exist as data. `model/errors.toml`
+**Where the explanations live.** At v0.4.0 they exist as data. `model/errors.toml`
 is the closed registry (SPEC 26.1): 86 codes, each with a class, an exit status, a title
 and a statement. `ERRORS.md` is generated from it with one entry per code, and
 `lexlean explain <CODE>` prints the entry (SPEC 23.4; `explain_text` in
@@ -159,14 +159,54 @@ and an unused registered one, SPEC 26.1), cited here and not re-run. The fixture
 return only some of the 86 codes; the others are explained but not observed in a
 result.
 
+## Q3: fault tolerance
+
+**Evidence.** Each fault case of the measure leaves no record: a cancelled task (`VP-04`), a
+verifier lost by exiting or by a signal (`VP-05`, `verifier-lost`, its session killed), and a
+record that cannot be written, a key history or an `attestation.json` the host cannot store
+(`SG-07`, `SG-12`: class 5, no envelope, no `attestation.json`, no index entry). A
+verification that ends failed leaves none either (`SG-12`).
+
+**What it does not show.** "Store full" is observed as a store that cannot be written, not as
+a disk with no room left (`ENOSPC`); the host reports both as the same write failure. The
+tests run in the gateway workspace and `QM-07` checks that each cited row has a test.
+
 ## What is not met
 
-Q3 (fault tolerance), Q5 (the MCP oracles), Q6 (modularity) and Q7 (the same `build_id`
-on both platforms) stay `Pending`: each needs verification as tasks, the deployed service,
-the generated host adapter or a run on `linux/arm64`, and each says in the model which issue
-executes it. The gateway job runs on `linux/amd64` only, so no run yet observes a `build_id`
-on `linux/arm64`. Q1's clause for `lexlean_verify` waits for #11. Issue #15 stays open for
-the four pending measures and that clause.
+Q5 (the MCP oracles) stays `Pending`: it needs all 50 scenarios to pass and the waiting list is
+not empty (#45, #17); the model says which issue executes it. Q1's clause for `lexlean_verify`
+waits for #11. Issue #15 stays open for Q5 and that clause.
+
+## Q6: modularity
+
+**Evidence.** `GW-06` (`crates/model/tests/gateway.rs`) reads every tool name of `gateway/src` and
+every method name of the MCP sources at the pin, and finds none in `gateway/bindings`, the host
+adapter source the repository writes; in the gateway job, which lays out the generated `host-api`
+and `host` packages, it finds none there either, but the one method the application declares as
+the counted value of its frame section (`tools/call`). It plants a tool name in a scratch directory
+and requires the search to find it. `EF-06` requires that no effect name contain a tool or method
+name. The adapter is generated (#41), so the claim is about the source the repository writes and
+what `prismpm build` generates from the declaration.
+
+**What it does not show.** The search is for names; it does not show that no other protocol or
+tool semantics is written in Rust beside them. The one method name the generated surface carries
+is allowed by `GW-06` and recorded in GATEWAY.md.
+
+## Q7: the same `build_id` on both platforms
+
+**Evidence.** `crates/build-id` holds a fixed project (`fixture/`, language 1.2, the lock made by
+`lexlean` 0.4.0) and the IDs of its build in `fixture/expected`. `QM-09` builds it with the
+`Engine` of the pinned release (`lexlean = "=0.4.0"`, a dev dependency) in a temporary directory,
+and requires the source ID, the semantic ID and the `build_id` to equal the recorded ones; built in
+a second directory it gives the same; a source changed by one byte gives another. `just vv` runs
+`cargo test --workspace`, and `bootstrap.yml` runs `just vv` on `linux/amd64` for a pull request and
+on `linux/amd64` and `linux/arm64` for `main` and tags, so every platform is held to one recorded
+value, and so to each other. No job is added.
+
+**What it does not show.** The recorded value was measured on `linux/amd64` when the crate was
+written, and nothing has run the test on `linux/arm64` yet: the first observation is the bootstrap
+run on `main` after the merge, and a difference there turns that run red. It is one project; the
+build ID hashes only the source and semantic IDs (SPEC 21.5), which the test does not recompute.
 
 ## Planted defects
 
@@ -179,7 +219,7 @@ that the check runs on every `cargo test`.
 | --- | --- | --- |
 | `Engine::snapshot` removed from `map.toml` | `cargo test -p quality-map --test surface` | `Engine::snapshot is public in the pinned source and is not in map.toml` |
 | tool name `lexlean_check` misspelled `lexlean_chek` | same | `Engine::check is mapped to lexlean_chek, which no issue defines` |
-| `pub fn export` added to the vendored `api.rs.txt` | same | `Engine::export is public in the pinned source and is not in map.toml`; `api.rs.txt: the git blob id is 8bcf705d... and the table records 2fac21e5...` |
+| `pub fn export` added to the vendored `api.rs.txt` | same | `Engine::export is public in the pinned source and is not in map.toml`; `api.rs.txt: the git blob id is 8bcf705d... and the table records d6cf1b74...` |
 | the entry of `LLB6002` removed from the vendored `ERRORS.md` | `cargo test -p quality-map --test explain` | `LLB6002 is registered and has no entry in ERRORS.md`; `ERRORS.md: the git blob id is c09fd5d1... and the table records 9a995e31...` |
 | a fixture returns `LLX9999`, a code the registry lacks (`register.toml`) | same | `LLX9999 is returned and the registry does not explain it` |
 | the count of codes in the model changed from 86 to 85 | `cargo test -p repo-conformance --test quality` | `the model counts Some(85) diagnostic codes and the registry holds 86` |
@@ -191,6 +231,9 @@ that the check runs on every `cargo test`.
 | the evidence of Q8 pointing at `pendingClauses` again | `cargo test -p repo-conformance --test quality` | `the Executed status of measure 7 points at pendingClauses, and its running clause is executed` |
 | `TL-13` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
 | `TL-15` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
+| Q6 flipped back to `Pending` | `cargo test -p repo-conformance --test quality` | `the measure 5 is not Executed`; `exactly 7 measures must be Executed` |
+| Q7 flipped back to `Pending` | same | `the measure 6 is not Executed` |
+| the `build_id` recorded in `crates/build-id/fixture/expected` changed in one digit | `cargo test -p build-id` | `the build of the fixture on x86_64`, left `dab4dfd2...`, right `dab5dfd2...` |
 | `CONFORMANCE.md` edited by hand | `cargo run -p xtask -- check-model` | `CONFORMANCE.md is stale: it disagrees with model/ids.toml` |
 
 The planted-in-memory set is wider: a function with neither tool nor reason, a function
@@ -205,8 +248,8 @@ record the clause of Q1 for lexlean_verify`), and the count of Q1 put back to 27
 counts Some(273) negative fixtures and the register holds 285 in scope`).
 
 Not run on the working tree: a flip of Q2 in `src/Quality.lex.tex` through `lexlean
-verify`, which would make `measuresPendingAreQ3AndQ5ToQ7` and
-`executedMeasuresAreQ1Q2Q4AndQ8` fail with `LLV7002`. The local verification runs once,
+verify`, which would make `measuresPendingAreQ5` and
+`executedMeasuresAreQ1ToQ4AndQ6ToQ8` fail with `LLV7002`. The local verification runs once,
 on the final state, to keep to the shared memory budget; CI runs it on every push.
 
 ## Reproducing
@@ -216,3 +259,8 @@ cargo test -p quality-map -p repo-conformance        # QM-01 to QM-08
 cargo run -q -p xtask -- check-model                 # CONFORMANCE.md equals the model
 lexlean verify                                       # the new theorems of Quality
 ```
+
+Q3 adds `QM-07` plants, in memory: Q3 flipped back to `Pending` (`the measure 2 is not Executed`,
+checked on the working tree as well), `SG-12` removed from the statement of `QM-07`, the
+running clause of Q3 put back into `pendingClauses`, and Q5 flipped to `Executed` without rows
+(`exactly 5 measures must be Executed`).

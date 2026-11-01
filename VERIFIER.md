@@ -22,6 +22,7 @@ the rows and this file.
 | VP-04 | A cancel ends one task: a queued one never starts, a running one reports its groups and leaves no record, a verdict that races the cancel leaves no record, and a process that ignores the cancel is killed with its session. |
 | VP-05 | A lost verifier fails its task as `verifier-lost` with no record, and everything left in its session is killed. |
 | VP-06 | Each gate rejects its planted defect (below). |
+| VP-07 | AC-07: the 32 `verify` fixtures give the command result of the CLI through `lexlean_verify` and `lexlean_verify_control`, with the class equal to its exit status, and leave no record. |
 
 ## The protocol
 
@@ -83,13 +84,26 @@ The host asks the process whether it is alive, and not the pipe.
 - **`gateway-verifier` must be next to the host.** CI step 7k builds only `gateway-host`; the
   images of #17 must ship both programs. Without it `lexlean_verify` is `verifier-unavailable`,
   and the conformance suite does not call it.
-- **No tasks-extension mapping.** The tools still return a task name, and `lexlean_verify_control`
-  reads and cancels it. The mapping to MCP's tasks, the pin move and the four host entries of the
-  core are slice 4; AC-07 (the 32 verify fixtures) and AC-05 (the examples) are slice 5.
+- **AC-05 is not met.** Each example verifying, with its observed axioms equal to the committed
+  records, is not tested. The mapping to MCP's tasks is in TASKHOST.md.
 - **The queue is in memory.** A task of an earlier host is unknown after a restart; its process
   ends itself when the host's end of its input closes.
 - **Q3, R1, R4 and R8 stay `Pending`** in the model; no module of `src/` changes. Only the tiny
   fixture was verified through the process, with Lean, and one real cancel was made.
+
+## The verify fixtures
+
+A failed verdict carries the result the CLI prints, `lexlean/command-result/1`, made by the function
+the CLI calls (`command_result_json`); the other tools answer the same way. VP-07 holds it to the CLI
+on all 32 fixtures (`gateway/tool-tests/tests/equality.rs`, ignored, with `LEXLEAN_SOURCES`). Each
+fixture runs in its own conditions, with nothing global: the verifier program is a small script that
+sets the variables of the fixture and starts the real `gateway-verifier`. The 12 fixtures that carry
+a `toolchain/` get an elan home that overlays their programs on the pinned toolchain, as LexLean's
+own harness does (`fake_elan_home`); `PATH` does not reach the programs the engine starts.
+
+The job `gateway / verify fixtures` runs it (CI.md), not the gateway job. The whole test takes about
+55 minutes on a development host, about two thirds of it in five
+certificate fixtures (6 to 9 minutes each).
 
 ## Planted defects
 
@@ -103,6 +117,8 @@ Each defect was planted in `gateway/bindings/gateway-binding/src/verifier.rs`, t
 | a record made for a task that is being cancelled: `settle` concludes a `verified` verdict in phase `Cancelling` too | `cargo test -p gateway-binding --test verifier_tasks` | 10 passed, 1 failed: `a_process_that_verifies_while_the_cancel_is_pending_leaves_no_record_vp_04` finds the task Verified (2) where Cancelled (4) is required | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
 | the session of a lost verifier not killed: `watch` does not call `kill_session` | `cargo test -p gateway-binding --test verifier_tasks` | 10 passed, 1 failed after 5 s: `the_session_of_a_lost_verifier_is_swept_vp_05` finds the child that outlived its verifier still alive | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
 | the slots ignored so that every task starts at once: `pump` runs while the queue is not empty | `cargo test -p gateway-binding --test verifier_tasks` | 8 passed, 3 failed: `one_slot_runs_one_task_at_a_time_and_the_others_wait_vp_03`, `two_slots_run_two_tasks_at_once_vp_03` and `a_queued_task_leaves_the_queue_and_its_process_is_never_started_vp_04` find the second task Running where Queued is required | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
+| a verdict that carries only the diagnostics: `verify_result` of `engine.rs` renders the diagnostics and not the command result | `cargo build -p gateway-binding`, then `cargo test -p gateway-tool-tests --test equality -- --ignored vp_07` | `the_verify_fixtures_give_the_result_of_the_cli_vp_07` reports "the result is {"diagnostics":...}, the CLI printed {"artifacts":[],"command":"verify",...}" (measured on `axiom-policy-excess`) | `git checkout -- gateway/bindings/gateway-binding/src/engine.rs` and build again |
+| a class that is not the exit status: `from_error` of `child.rs` adds one to the class | `cargo build -p gateway-binding`, then `cargo test -p gateway-tool-tests --test equality -- --ignored vp_07` | `the_verify_fixtures_give_the_result_of_the_cli_vp_07` reports "the class is 2, the CLI exited 1" (measured on `axiom-policy-excess`) | `git checkout -- gateway/bindings/gateway-binding/src/child.rs` and build again |
 | a process that ignores cancel left running: `cancel` neither kills the process nor its session | `cargo test -p gateway-binding --test verifier_tasks` | 10 passed, 1 failed after 10 s: `a_process_that_ignores_the_cancel_is_killed_after_the_grace_vp_04` finds the process still alive | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
 
 ## Reproducing

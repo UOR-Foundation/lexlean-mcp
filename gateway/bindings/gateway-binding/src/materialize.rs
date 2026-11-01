@@ -183,6 +183,18 @@ fn copy_file(source: &Path, target: &Path) -> Result<(), Refused> {
 /// Materialize the draft `<profile>/<id>` of the store at `root` as a directory of the `builds`
 /// area, and return it. `limit` is the most bytes a draft may have.
 pub fn materialize(root: &Path, profile: &str, id: &str, limit: usize) -> Result<PathBuf, Refused> {
+    materialize_noting(root, profile, id, limit, &mut false)
+}
+
+/// `materialize`, setting `drifted` when the draft names a profile identity that the installed
+/// profile no longer has: the profile moved under the draft (`slo.S7`).
+pub fn materialize_noting(
+    root: &Path,
+    profile: &str,
+    id: &str,
+    limit: usize,
+    drifted: &mut bool,
+) -> Result<PathBuf, Refused> {
     let blob = store::read(root, 1, &format!("{profile}/{id}"), limit)
         .map_err(|_| Refused::Draft)?
         .ok_or(Refused::Draft)?;
@@ -200,6 +212,7 @@ pub fn materialize(root: &Path, profile: &str, id: &str, limit: usize) -> Result
         .map_err(|_| Refused::Profile)?
         .ok_or(Refused::Profile)?;
     if record_id(&record) != Some(hex(&profile_id).as_str()) {
+        *drifted = true;
         return Err(Refused::Profile);
     }
     let bundle = store::area_directory(root, 0)

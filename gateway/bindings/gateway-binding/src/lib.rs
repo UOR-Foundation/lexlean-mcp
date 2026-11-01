@@ -14,16 +14,20 @@ mod attestation;
 pub mod child;
 mod config;
 mod engine;
+mod evidence;
 pub mod identity;
 mod lexicon;
 pub mod materialize;
 pub mod modules;
+mod presentation;
 mod project;
 pub mod provision;
 mod rate;
 pub mod signer;
 mod store;
 mod sweep;
+mod taskhost;
+pub mod telemetry;
 mod verifier;
 
 pub use config::{
@@ -31,6 +35,8 @@ pub use config::{
     SIGNING_KEY_VARIABLE, VERIFY_CONCURRENCY, VERIFY_MEMORY_KIB, VERIFY_WIDTH,
 };
 pub use engine::{Answer, Call, Unavailable};
+pub use taskhost::{iso, Clock};
+pub use telemetry::Telemetry;
 pub use verifier::{conclude, Facts, Job, Outcome, Report, State, Verifier};
 
 use std::sync::Arc;
@@ -39,15 +45,19 @@ use std::time::Instant;
 use crate::signer::Signer;
 
 use gateway_host_api::protocol::{
-    attestation_lookup, engine_build, engine_check, engine_format, engine_snapshot, lexicon_read,
-    rate_calls, store_get, store_put, verify_control, verify_start, Host, HostError,
+    attestation_lookup, clock_now, engine_build, engine_check, engine_format, engine_snapshot,
+    lexicon_read, rate_calls, store_get, store_put, task_id, task_store, task_table,
+    verify_control, verify_start, Host, HostError,
 };
 
-/// The host: a store, a verifier and a rate counter.
+/// The host: a store, a verifier, a rate counter, a clock and the table of tasks.
 pub struct Native {
     config: Config,
     verifier: Verifier,
     counter: rate::Counter,
+    clock: Clock,
+    tasks: Vec<u8>,
+    telemetry: Telemetry,
 }
 
 impl Default for Native {
@@ -59,12 +69,26 @@ impl Default for Native {
 impl Native {
     /// A host with this configuration.
     pub fn new(config: Config) -> Native {
-        let verifier = Verifier::new(&config);
+        Native::with_telemetry(config, Telemetry::from_environment())
+    }
+
+    /// A host with this configuration that reports to `telemetry`.
+    pub fn with_telemetry(config: Config, telemetry: Telemetry) -> Native {
+        let verifier = Verifier::new(&config).with_telemetry(telemetry.clone());
         Native {
             config,
             verifier,
             counter: rate::Counter::default(),
+            clock: Clock::default(),
+            tasks: Vec::new(),
+            telemetry,
         }
+    }
+
+    /// The telemetry of the host. The driver ends a request's span with it (`begin_request`) and
+    /// exports the metrics with `flush`.
+    pub fn telemetry(&self) -> &Telemetry {
+        &self.telemetry
     }
 
     /// The configuration of the host.
@@ -77,6 +101,11 @@ impl Native {
         self.counter.answer(counted, now, self.config.rate_window)
     }
 
+    /// The counter of milliseconds and the ISO 8601 text of the instant `at`.
+    pub fn clock(&self, at: Instant) -> (u64, String) {
+        self.clock.at(at)
+    }
+
     fn engine_call(
         &self,
         project: &str,
@@ -84,14 +113,32 @@ impl Native {
         files: &str,
         call: Call,
     ) -> Result<engine::Answer, EngineRefusal> {
-        let resolved = project::resolve(&self.config.store, project, self.config.blob_max_bytes)
-            .ok_or(EngineRefusal::Project)?;
-        engine::run(
+        let resolved = project::resolve(
+            &self.config.store,
+            project,
+            self.config.blob_max_bytes,
+            &self.telemetry,
+        )
+        .ok_or(EngineRefusal::Project)?;
+        let started = Instant::now();
+        let answered = engine::run(
             resolved.directory(),
             project::selection(selection, files),
             call,
-        )
-        .map_err(|Unavailable| EngineRefusal::Engine)
+        );
+        // A refused project is the client's mistake and no tool outcome; what ran is one.
+        let class = match &answered {
+            Ok(answer) => telemetry::ErrorClass::from_number(answer.class),
+            Err(Unavailable) => Some(telemetry::ErrorClass::Environment),
+        };
+        self.telemetry.tool_outcome(class);
+        if matches!(call, Call::Check) {
+            let profile =
+                materialize::split_handle(project).map_or("other", |(profile, _)| profile);
+            let elapsed = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            self.telemetry.check_latency(profile, elapsed);
+        }
+        answered.map_err(|Unavailable| EngineRefusal::Engine)
     }
 }
 
@@ -351,6 +398,7 @@ impl Host for Native {
             &self.config.store,
             &request.project,
             self.config.blob_max_bytes,
+            &self.telemetry,
         ) else {
             return Err(HostError::Failed(verify_start::Failure::ProjectRefused));
         };
@@ -360,8 +408,12 @@ impl Host for Native {
         };
         // A verification that could not be signed is not begun.
         let unavailable = || HostError::Failed(verify_start::Failure::VerifierUnavailable);
-        let key = self.config.signing_key.as_deref().ok_or_else(unavailable)?;
-        let signer = Signer::load(key, self.config.history_path()).map_err(|_| unavailable())?;
+        let unsigned = || {
+            self.telemetry.signing_failure();
+            unavailable()
+        };
+        let key = self.config.signing_key.as_deref().ok_or_else(unsigned)?;
+        let signer = Signer::load(key, self.config.history_path()).map_err(|_| unsigned())?;
         if !self
             .config
             .verifier_program
@@ -373,12 +425,17 @@ impl Host for Native {
         // The verification outlives this call: its directory is kept, and the `builds` area is
         // a cache that the lifecycle of the store drops.
         let directory = resolved.keep();
-        let (task, state) = self.verifier.start(Job {
-            directory,
-            selection,
-            store: self.config.store.clone(),
-            signer: Arc::new(signer),
-        });
+        let profile =
+            materialize::split_handle(&request.project).map_or("other", |(profile, _)| profile);
+        let (task, state) = self.verifier.start_as(
+            Job {
+                directory,
+                selection,
+                store: self.config.store.clone(),
+                signer: Arc::new(signer),
+            },
+            profile,
+        );
         Ok(verify_start::Completed {
             task,
             state: state as u32,
@@ -426,14 +483,30 @@ impl Host for Native {
         &mut self,
         request: attestation_lookup::Request,
     ) -> Result<attestation_lookup::Completed, HostError<attestation_lookup::Failure>> {
-        match attestation::lookup(&self.config.store, request.by, &request.value) {
-            Ok(envelope) => Ok(attestation_lookup::Completed {
-                found: envelope.is_some(),
-                envelope: envelope.unwrap_or_default(),
-            }),
+        match attestation::find(
+            &self.config.store,
+            request.by,
+            &request.value,
+            request.want,
+            &request.module,
+        ) {
+            Ok(found) => {
+                let found = found.unwrap_or_default();
+                Ok(attestation_lookup::Completed {
+                    found: !found.id.is_empty(),
+                    envelope: found.envelope,
+                    id: found.id,
+                    module: found.module,
+                    rendering: found.rendering,
+                    bundle: found.bundle,
+                })
+            }
             Err(attestation::Refused::Value) => {
                 Err(HostError::Failed(attestation_lookup::Failure::ValueRefused))
             }
+            Err(attestation::Refused::Module) => Err(HostError::Failed(
+                attestation_lookup::Failure::ModuleUnknown,
+            )),
             Err(attestation::Refused::Store) => Err(HostError::Fault),
         }
     }
@@ -445,6 +518,40 @@ impl Host for Native {
         Ok(rate_calls::Completed {
             calls: self.count(request.counted, Instant::now()),
         })
+    }
+
+    fn clock_now(
+        &mut self,
+        _request: clock_now::Request,
+    ) -> Result<clock_now::Completed, HostError<clock_now::Failure>> {
+        let (ms, iso) = self.clock(Instant::now());
+        Ok(clock_now::Completed { ms, iso })
+    }
+
+    fn task_id(
+        &mut self,
+        _request: task_id::Request,
+    ) -> Result<task_id::Completed, HostError<task_id::Failure>> {
+        taskhost::fresh_id()
+            .map(|id| task_id::Completed { id })
+            .ok_or(HostError::Fault)
+    }
+
+    fn task_table(
+        &mut self,
+        _request: task_table::Request,
+    ) -> Result<task_table::Completed, HostError<task_table::Failure>> {
+        Ok(task_table::Completed {
+            table: self.tasks.clone(),
+        })
+    }
+
+    fn task_store(
+        &mut self,
+        request: task_store::Request,
+    ) -> Result<task_store::Completed, HostError<task_store::Failure>> {
+        self.tasks = request.table;
+        Ok(task_store::Completed {})
     }
 }
 

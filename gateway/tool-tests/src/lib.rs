@@ -41,8 +41,8 @@ pub const TOOLS: [&str; 4] = [
 ];
 
 /// The fixtures of the pinned LexLean that the register (`crates/negative-fixtures`) does not
-/// hold: the register is bound to `release/v0.4` at 9796067, and the commit of
-/// `gateway/mcp/lexlean.rev` has these names besides its 297.
+/// hold: the register is bound to v0.4.0 at e0b74b8, and the commit of
+/// `gateway/mcp/lexlean.rev` has these names besides its 298.
 pub const NOT_IN_THE_REGISTER: [&str; 1] = ["induction-nested-type"];
 
 /// The examples whose `expected/build` the CLI at the pin does not reproduce (measured with the
@@ -151,6 +151,8 @@ pub struct Reply {
     pub body: Value,
     /// The names of the effects the core asked for, in order.
     pub effects: Vec<String>,
+    /// The notifications streamed before the response, in order.
+    pub notifications: Vec<Value>,
 }
 
 impl Reply {
@@ -195,7 +197,30 @@ impl Reply {
     }
 }
 
-fn read_response(frame: &[u8]) -> (u32, Value) {
+/// The JSON-RPC messages of a body that is a stream of events (`data: <JSON>` separated by a blank
+/// line), or the one message of a body that is JSON.
+fn messages_of(body: &[u8]) -> Vec<Value> {
+    let Some(text) = std::str::from_utf8(body)
+        .ok()
+        .filter(|text| text.starts_with("data:"))
+    else {
+        return vec![serde_json::from_slice(body).expect("a JSON body")];
+    };
+    text.split("\n\n")
+        .filter(|event| !event.trim().is_empty())
+        .map(|event| {
+            let data = event
+                .lines()
+                .filter_map(|line| line.strip_prefix("data:"))
+                .map(str::trim_start)
+                .collect::<Vec<_>>()
+                .join("\n");
+            serde_json::from_str(&data).expect("a JSON event")
+        })
+        .collect()
+}
+
+fn read_response(frame: &[u8]) -> (u32, Value, Vec<Value>) {
     let mut at = 0;
     let word = |at: &mut usize| {
         let value = u32::from_be_bytes(frame[*at..*at + 4].try_into().expect("a word"));
@@ -219,12 +244,39 @@ fn read_response(frame: &[u8]) -> (u32, Value) {
     }
     let body = take(&mut at);
     assert_eq!(at, frame.len(), "trailing bytes in the response frame");
-    (status, serde_json::from_slice(&body).expect("a JSON body"))
+    let mut messages = messages_of(&body);
+    let response = messages.pop().expect("a message");
+    (status, response, messages)
+}
+
+/// The request frame after the host's sections: the time, an identifier and the table of tasks,
+/// asked of the host as the adapter does before it hands the frame to the core.
+fn with_host_sections<H: gateway_host_api::protocol::Host>(
+    host: &mut H,
+    request: &[u8],
+) -> Vec<u8> {
+    use gateway_host_api::protocol::{clock_now, task_id, task_table, HostError};
+    fn answered<T, F>(result: Result<T, HostError<F>>) -> T {
+        match result {
+            Ok(done) => done,
+            Err(_) => panic!("the host did not answer a frame effect"),
+        }
+    }
+    let now = answered(host.clock_now(clock_now::Request {}));
+    let id = answered(host.task_id(task_id::Request {}));
+    let table = answered(host.task_table(task_table::Request {}));
+    let mut out = request.to_vec();
+    out.extend(now.ms.to_be_bytes());
+    out.extend(chunk(now.iso.as_bytes()));
+    out.extend(chunk(id.id.as_bytes()));
+    out.extend(chunk(&table.table));
+    out
 }
 
 /// Run one exchange: the turns of the core and the effects the host performs, until the core
 /// answers. `host` is whatever implements the host trait of the generated crate.
 fn exchange<H: gateway_host_api::protocol::Host>(host: &mut H, request: &[u8]) -> Reply {
+    let request = &with_host_sections(host, request)[..];
     let mut completed: Vec<(u32, Vec<u8>)> = Vec::new();
     let mut effects = Vec::new();
     loop {
@@ -232,11 +284,12 @@ fn exchange<H: gateway_host_api::protocol::Host>(host: &mut H, request: &[u8]) -
         let output = core(input).expect("the core answers");
         match step(&output).expect("a step") {
             Step::Done(response) => {
-                let (status, body) = read_response(response);
+                let (status, body, notifications) = read_response(response);
                 return Reply {
                     status,
                     body,
                     effects,
+                    notifications,
                 };
             }
             Step::Perform(tag, payload) => {
@@ -259,6 +312,25 @@ fn meta() -> Value {
         "io.modelcontextprotocol/clientInfo": {"name": "gateway-tool-tests", "version": "1.0.0"},
         "io.modelcontextprotocol/clientCapabilities": {},
     })
+}
+
+/// The meta of a client that declares the tasks extension.
+fn task_meta() -> Value {
+    let mut meta = meta();
+    meta["io.modelcontextprotocol/clientCapabilities"] =
+        json!({"extensions": {"io.modelcontextprotocol/tasks": {}}});
+    meta
+}
+
+/// A request for `method` on the task `task` (`tasks/get`, `tasks/cancel`) by a client that
+/// declares the tasks extension, as a frame.
+fn task_frame(method: &str, task: &str, id: u64) -> Vec<u8> {
+    frame(
+        method,
+        Some(task),
+        id,
+        json!({"taskId": task, "_meta": task_meta()}),
+    )
 }
 
 /// A request for `tools/call` with these arguments, as a frame.
@@ -334,6 +406,133 @@ pub fn list_http_request(id: u64, origins: &[&str]) -> Vec<u8> {
     out
 }
 
+/// The bytes of an HTTP `POST /mcp` for `tools/call` as a client sends it to the served adapter.
+pub fn call_http_request(tool: &str, arguments: Value, id: u64) -> Vec<u8> {
+    let body = serde_json::to_vec(&json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "tools/call",
+        "params": {"name": tool, "arguments": arguments, "_meta": meta()},
+    }))
+    .expect("JSON");
+    let mut out = format!(
+        "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\n\
+         Accept: application/json, text/event-stream\r\nMCP-Protocol-Version: 2026-07-28\r\n\
+         Mcp-Method: tools/call\r\nMcp-Name: {tool}\r\nContent-Length: {}\r\n\r\n",
+        body.len()
+    )
+    .into_bytes();
+    out.extend(body);
+    out
+}
+
+/// Whether `value` satisfies `schema`, for the keywords the output schemas of the tools use
+/// (`type`, `const`, `enum`, `properties`, `required`, `additionalProperties`, `items`,
+/// `minLength`, `minimum`, `maximum`). The core validates a result with its own validator; this
+/// one is independent of it, so that a result the core lets through is judged twice. A keyword
+/// it does not know is an error, not a pass: a schema that grew a keyword must not be judged by
+/// a validator that ignores it.
+pub fn validate(schema: &Value, value: &Value) -> Result<(), String> {
+    let Some(schema) = schema.as_object() else {
+        return Err(format!("the schema {schema} is not an object"));
+    };
+    for (keyword, rule) in schema {
+        match keyword.as_str() {
+            "type" => {
+                let name = rule.as_str().ok_or("`type` is not a name")?;
+                let holds = match name {
+                    "object" => value.is_object(),
+                    "array" => value.is_array(),
+                    "string" => value.is_string(),
+                    "boolean" => value.is_boolean(),
+                    "null" => value.is_null(),
+                    "integer" => value.is_i64() || value.is_u64(),
+                    "number" => value.is_number(),
+                    other => return Err(format!("the type {other} is unknown")),
+                };
+                if !holds {
+                    return Err(format!("{value} is not of type {name}"));
+                }
+            }
+            "const" => {
+                if value != rule {
+                    return Err(format!("{value} is not the constant {rule}"));
+                }
+            }
+            "enum" => {
+                if !rule.as_array().is_some_and(|all| all.contains(value)) {
+                    return Err(format!("{value} is not one of {rule}"));
+                }
+            }
+            "minLength" => {
+                let least = rule.as_u64().ok_or("`minLength` is not a count")?;
+                if value
+                    .as_str()
+                    .is_some_and(|text| (text.chars().count() as u64) < least)
+                {
+                    return Err(format!("{value} is shorter than {least}"));
+                }
+            }
+            "minimum" | "maximum" => {
+                let bound = rule.as_f64().ok_or("a bound is not a number")?;
+                if let Some(number) = value.as_f64() {
+                    if (keyword == "minimum" && number < bound)
+                        || (keyword == "maximum" && number > bound)
+                    {
+                        return Err(format!("{value} is outside the {keyword} {bound}"));
+                    }
+                }
+            }
+            "properties" => {
+                let properties = rule.as_object().ok_or("`properties` is not an object")?;
+                if let Some(members) = value.as_object() {
+                    for (name, member) in members {
+                        if let Some(inner) = properties.get(name) {
+                            validate(inner, member).map_err(|error| format!("{name}: {error}"))?;
+                        }
+                    }
+                }
+            }
+            "required" => {
+                let names = rule.as_array().ok_or("`required` is not a list")?;
+                if let Some(members) = value.as_object() {
+                    for name in names.iter().filter_map(Value::as_str) {
+                        if !members.contains_key(name) {
+                            return Err(format!("{name} is required and absent"));
+                        }
+                    }
+                }
+            }
+            "additionalProperties" => match (rule.as_bool(), value.as_object()) {
+                (Some(false), Some(members)) => {
+                    let known = schema.get("properties").and_then(Value::as_object);
+                    if let Some(extra) = members
+                        .keys()
+                        .find(|name| !known.is_some_and(|known| known.contains_key(*name)))
+                    {
+                        return Err(format!("{extra} is not a property of the schema"));
+                    }
+                }
+                (Some(_), _) => {}
+                (None, _) => return Err("`additionalProperties` is not a flag".to_string()),
+            },
+            "items" => {
+                if let Some(items) = value.as_array() {
+                    for (at, item) in items.iter().enumerate() {
+                        validate(rule, item).map_err(|error| format!("[{at}]: {error}"))?;
+                    }
+                }
+            }
+            other => {
+                return Err(format!(
+                    "the keyword {other} is not one this validator knows"
+                ))
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Run `work` on a thread with the stack the core needs and return what it returns.
 pub fn on_big_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
     std::thread::scope(|scope| {
@@ -346,10 +545,27 @@ pub fn on_big_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
     })
 }
 
+/// The real `gateway-verifier`, beside the directory of this test.
+pub fn real_verifier() -> PathBuf {
+    let test = std::env::current_exe().expect("the path of the test");
+    let program = test
+        .parent()
+        .and_then(Path::parent)
+        .expect("the directory of the build")
+        .join("gateway-verifier");
+    assert!(
+        program.is_file(),
+        "{} is missing: build it with `cargo build -p gateway-binding`",
+        program.display()
+    );
+    program
+}
+
 /// The gateway: the production core and the real host over a store in a temporary directory.
 pub struct Gateway {
     host: Native,
     store: PathBuf,
+    verifier: PathBuf,
     next: u64,
     _directory: tempfile::TempDir,
 }
@@ -361,8 +577,25 @@ impl Default for Gateway {
 }
 
 impl Gateway {
-    /// A gateway whose store starts empty.
+    /// A gateway whose store starts empty and whose verifier is a stand-in that says it has
+    /// started and then waits.
     pub fn new() -> Gateway {
+        Gateway::with_verifier(None)
+    }
+
+    /// A gateway whose verifier is the real `gateway-verifier`, which needs the Lean toolchain.
+    /// Cargo does not build the program of a dependency for these tests: the gateway job builds it
+    /// by testing the binding first, and it is looked for beside the directory of this test.
+    pub fn with_real_verifier() -> Gateway {
+        Gateway::with_verifier(Some(real_verifier()))
+    }
+
+    /// A gateway whose verifier is `program`.
+    pub fn with_verifier_program(program: PathBuf) -> Gateway {
+        Gateway::with_verifier(Some(program))
+    }
+
+    fn with_verifier(program: Option<PathBuf>) -> Gateway {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let store = directory.path().join("store");
         // A verification is not started without a key and a verifier program.
@@ -371,13 +604,18 @@ impl Gateway {
             format!("{}\n", "44".repeat(32)),
         )
         .expect("a key file");
-        stand_in_verifier(&directory.path().join("verifier"));
+        let verifier = program.unwrap_or_else(|| {
+            let stand_in = directory.path().join("verifier");
+            stand_in_verifier(&stand_in);
+            stand_in
+        });
         let config = Config::at(store.clone())
             .with_signing_key(directory.path().join("signing.key"))
-            .with_verifier(directory.path().join("verifier"));
+            .with_verifier(verifier.clone());
         Gateway {
             host: Native::new(config),
             store,
+            verifier,
             next: 100,
             _directory: directory,
         }
@@ -438,6 +676,49 @@ impl Gateway {
         let request = call_frame(tool, Some(arguments), self.next);
         let host = &mut self.host;
         on_big_stack(|| exchange(host, &request))
+    }
+
+    /// `tools/call` of `tool` with `arguments`, by a client that declares the tasks extension.
+    pub fn task_call(&mut self, tool: &str, arguments: Value) -> Reply {
+        self.next += 1;
+        let params = json!({"name": tool, "arguments": arguments, "_meta": task_meta()});
+        let request = frame("tools/call", Some(tool), self.next, params);
+        let host = &mut self.host;
+        on_big_stack(|| exchange(host, &request))
+    }
+
+    /// A method of the protocol that names a task (`tasks/get`, `tasks/cancel`) by a client that
+    /// declares the tasks extension: `task` is the `Mcp-Name` of the request, and `taskId` of
+    /// its parameters.
+    pub fn task_rpc(&mut self, method: &str, task: &str) -> Reply {
+        let host = &mut self.host;
+        let request = task_frame(method, task, self.next + 1);
+        self.next += 1;
+        on_big_stack(|| exchange(host, &request))
+    }
+
+    /// [`task_rpc`](Gateway::task_rpc) served by `host` instead of the real one.
+    pub fn task_rpc_with<H: gateway_host_api::protocol::Host + Send>(
+        &mut self,
+        host: &mut H,
+        method: &str,
+        task: &str,
+    ) -> Reply {
+        self.next += 1;
+        let request = task_frame(method, task, self.next);
+        on_big_stack(|| exchange(host, &request))
+    }
+
+    /// Take the real host out of the gateway, to wrap it; [`put_host`](Gateway::put_host) gives
+    /// it back. The gateway holds a fresh host meanwhile.
+    pub fn take_host(&mut self) -> Native {
+        let fresh = Native::new(self.config());
+        std::mem::replace(&mut self.host, fresh)
+    }
+
+    /// Put back the host that [`take_host`](Gateway::take_host) took.
+    pub fn put_host(&mut self, host: Native) {
+        self.host = host;
     }
 
     /// Any method of the protocol with these parameters: `name` is the `Mcp-Name` field the
@@ -504,7 +785,7 @@ impl Gateway {
     pub fn config(&self) -> Config {
         Config::at(self.store.clone())
             .with_signing_key(self._directory.path().join("signing.key"))
-            .with_verifier(self._directory.path().join("verifier"))
+            .with_verifier(self.verifier.clone())
     }
 }
 
@@ -592,11 +873,17 @@ pub fn cli_path() -> PathBuf {
 
 /// Run `lexlean --diagnostic-format json --color never <arguments>` in `directory`.
 pub fn run_cli(directory: &Path, arguments: &[&str]) -> Cli {
+    run_cli_in(directory, arguments, &[])
+}
+
+/// [`run_cli`] with these variables set.
+pub fn run_cli_in(directory: &Path, arguments: &[&str], environment: &[(String, String)]) -> Cli {
     let output = Command::new(cli_path())
         .args(["--diagnostic-format", "json", "--color", "never"])
         .args(arguments)
         .current_dir(directory)
         .env_remove("LEXLEAN_VERIFY_WIDTH")
+        .envs(environment.iter().map(|(name, value)| (name, value)))
         .output()
         .unwrap_or_else(|error| panic!("{}: {error}", cli_path().display()));
     Cli {
@@ -640,6 +927,10 @@ pub struct Fixture {
     pub expected_exit: i32,
     /// The `project/` directory.
     pub project: PathBuf,
+    /// The directory of the fixture.
+    pub directory: PathBuf,
+    /// The `[environment]` of `case.toml`.
+    pub environment: Vec<(String, String)>,
     /// The codes of `expected/diagnostics.json`, in order.
     pub expected_codes: Vec<String>,
 }
@@ -650,6 +941,22 @@ fn case_value(case: &str, key: &str) -> Option<String> {
         .filter_map(|line| line.split_once('='))
         .find(|(name, _)| name.trim() == key)
         .map(|(_, value)| value.trim().to_string())
+}
+
+/// The variables of the `[environment]` table of a `case.toml`.
+fn case_environment(case: &str) -> Vec<(String, String)> {
+    case.lines()
+        .skip_while(|line| line.trim() != "[environment]")
+        .skip(1)
+        .take_while(|line| !line.trim_start().starts_with('['))
+        .filter_map(|line| line.split_once('='))
+        .map(|(name, value)| {
+            (
+                name.trim().to_string(),
+                value.trim().trim_matches('"').to_string(),
+            )
+        })
+        .collect()
 }
 
 /// The `code` of each diagnostic of `expected/diagnostics.json`.
@@ -691,7 +998,9 @@ pub fn fixtures(sources: &Path) -> Vec<Fixture> {
                     .and_then(|value| value.parse().ok())
                     .unwrap_or(-1),
                 project: directory.join("project"),
+                environment: case_environment(&case),
                 expected_codes: expected_codes(&directory),
+                directory,
                 name,
             }
         })

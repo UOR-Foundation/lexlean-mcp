@@ -76,21 +76,70 @@ fn config(dir: &Path) -> Config {
         .with_verifier(common::real_verifier())
 }
 
-/// The attestation.json of a verified directory, as bytes the signer must not alter.
-fn attestation_json() -> Vec<u8> {
+/// The canonical LaTeX of the module of the tiny project, as a verification renders it.
+const RENDERING: &[u8] =
+    b"\\documentclass[11pt]{article}\n\\begin{document}\n\\section*{Semantic declarations}\n\\end{document}\n";
+
+/// Where a verification writes the rendering of the module `Tiny`.
+const RENDERING_PATH: &str = "modules/Tiny/Tiny.tex";
+
+fn sha(bytes: &[u8]) -> String {
+    hex(&Sha256::digest(bytes))
+}
+
+/// A build manifest that names the source of the tiny project and `rendering` as the canonical
+/// LaTeX of its module.
+fn manifest_naming(rendering: &[u8]) -> Vec<u8> {
+    serde_json::to_vec(&serde_json::json!({
+        "inputs": [{"kind": "source", "path": "src/Tiny.lex.tex", "sha256": tiny_digest()}],
+        "outputs": [{"kind": "tex", "path": RENDERING_PATH, "sha256": sha(rendering)}],
+    }))
+    .expect("JSON")
+}
+
+fn manifest() -> Vec<u8> {
+    manifest_naming(RENDERING)
+}
+
+/// The attestation.json of a verified directory whose build manifest is `manifest`, as bytes
+/// the signer must not alter.
+fn attestation_json_naming(manifest: &[u8]) -> Vec<u8> {
     format!(
-        "{{\"attestation_id\":\"{}\",\"toolchain\":{{\"lean\":\"4.32.1\"}}}}",
-        id()
+        "{{\"attestation_id\":\"{}\",\"build_manifest\":{{\"byte_length\":{},\"sha256\":\"{}\"}},\"toolchain\":{{\"lean\":\"4.32.1\"}}}}",
+        id(),
+        manifest.len(),
+        sha(manifest)
     )
     .into_bytes()
 }
 
-/// A verified directory that holds an attestation.json.
-fn verified_root(dir: &Path) -> PathBuf {
+fn attestation_json() -> Vec<u8> {
+    attestation_json_naming(&manifest())
+}
+
+/// A verified directory below `dir` whose attestation.json names `manifest`, and which holds
+/// `manifest` and the `files` given, at their paths.
+fn verified_with(dir: &Path, manifest: &[u8], files: &[(&str, &[u8])]) -> PathBuf {
     let root = dir.join("verified");
     std::fs::create_dir_all(&root).expect("a directory");
-    std::fs::write(root.join("attestation.json"), attestation_json()).expect("a file");
+    std::fs::write(
+        root.join("attestation.json"),
+        attestation_json_naming(manifest),
+    )
+    .expect("a file");
+    std::fs::write(root.join("build-manifest.json"), manifest).expect("a file");
+    for (path, bytes) in files {
+        let at = root.join(path);
+        std::fs::create_dir_all(at.parent().expect("a parent")).expect("a directory");
+        std::fs::write(at, bytes).expect("a file");
+    }
     root
+}
+
+/// A verified directory that holds an attestation.json, the build manifest it names and the
+/// rendering that the manifest names.
+fn verified_root(dir: &Path) -> PathBuf {
+    verified_with(dir, &manifest(), &[(RENDERING_PATH, RENDERING)])
 }
 
 fn facts(root: PathBuf) -> Facts {
@@ -329,12 +378,16 @@ fn a_verification_that_ended_verified_leaves_a_signed_envelope_sg_10() {
         serde_json::json!([tiny_digest()]),
         "the digest of each source file the verification covered"
     );
-    // Nothing else is in the areas: the envelope, its subject, and one index entry for the source.
+    // Nothing else is in the areas: the envelope, its subject, the evidence it binds (SG-14),
+    // and one index entry for the source.
     assert_eq!(
         files_below(&record),
         vec![
             format!("{}.json", id()),
-            format!("{}/attestation.json", id())
+            format!("{}/attestation.json", id()),
+            format!("{}/build-manifest.json", id()),
+            format!("{}/{RENDERING_PATH}", id()),
+            format!("{}/sources/src/Tiny.lex.tex", id()),
         ]
     );
     assert_eq!(
@@ -372,7 +425,12 @@ fn the_lookup_returns_the_envelope_by_id_and_by_file_digest_sg_11() {
     let mut host = Native::new(config);
     for (by, value) in [(0, id()), (1, tiny_digest())] {
         let found = host
-            .attestation_lookup(attestation_lookup::Request { by, value })
+            .attestation_lookup(attestation_lookup::Request {
+                by,
+                value,
+                want: 0,
+                module: String::new(),
+            })
             .map_err(failure)
             .expect("a lookup");
         assert!(found.found, "by {by}");
@@ -464,4 +522,137 @@ fn a_draft_that_does_not_verify_leaves_no_record_and_no_key_entry_sg_12() {
         std::thread::sleep(Duration::from_millis(20));
     }
     nothing_recorded(&host.config().store);
+}
+
+// SG-14
+
+#[test]
+fn the_record_keeps_the_manifest_the_renderings_and_the_sources_sg_14() {
+    let directory = tempfile::tempdir().expect("a directory");
+    let config = config(directory.path());
+    let job = job(directory.path(), &config);
+    let outcome = conclude(&job, &facts(verified_root(directory.path())));
+    assert_eq!(
+        outcome.class,
+        0,
+        "{}",
+        String::from_utf8_lossy(&outcome.result)
+    );
+    let record = config.store.join("verifications").join(id());
+    let read = |path: &str| {
+        std::fs::read(record.join(path)).unwrap_or_else(|error| panic!("{path}: {error}"))
+    };
+    // Each file is kept byte for byte.
+    assert_eq!(read("build-manifest.json"), manifest());
+    assert_eq!(read(RENDERING_PATH), RENDERING);
+    assert_eq!(
+        read("sources/src/Tiny.lex.tex"),
+        std::fs::read(Path::new(TINY).join("src/Tiny.lex.tex")).expect("a source")
+    );
+    // The digests lead from the signed subject to each of them.
+    let subject: Value = serde_json::from_slice(&read("attestation.json")).expect("JSON");
+    assert_eq!(
+        subject["build_manifest"]["sha256"],
+        sha(&read("build-manifest.json"))
+    );
+    let kept: Value = serde_json::from_slice(&read("build-manifest.json")).expect("JSON");
+    assert_eq!(kept["outputs"][0]["sha256"], sha(&read(RENDERING_PATH)));
+    assert_eq!(
+        kept["inputs"][0]["sha256"],
+        sha(&read("sources/src/Tiny.lex.tex"))
+    );
+}
+
+// SG-15
+
+/// What a verification left below `dir`, for the project `project`, changed so that its
+/// evidence cannot be kept whole; the verified directory.
+type Spoil = fn(&Path, &Path) -> PathBuf;
+
+/// A build manifest that names the source of the tiny project and the outputs given.
+fn manifest_with_outputs(outputs: Value) -> Vec<u8> {
+    serde_json::to_vec(&serde_json::json!({
+        "inputs": [{"kind": "source", "path": "src/Tiny.lex.tex", "sha256": tiny_digest()}],
+        "outputs": outputs,
+    }))
+    .expect("JSON")
+}
+
+#[test]
+fn evidence_that_cannot_be_kept_whole_leaves_no_record_sg_15() {
+    let cases: [(&str, Spoil); 10] = [
+        ("no build manifest", |dir, _| {
+            let root = verified_root(dir);
+            std::fs::remove_file(root.join("build-manifest.json")).expect("removed");
+            root
+        }),
+        (
+            "a manifest that is not the one attestation.json names",
+            |dir, _| {
+                let root = verified_root(dir);
+                let mut bytes = manifest();
+                bytes.push(b' ');
+                std::fs::write(root.join("build-manifest.json"), bytes).expect("a file");
+                root
+            },
+        ),
+        ("an attestation.json that names no manifest", |dir, _| {
+            let root = verified_root(dir);
+            std::fs::write(
+                root.join("attestation.json"),
+                format!("{{\"attestation_id\":\"{}\"}}", id()),
+            )
+            .expect("a file");
+            root
+        }),
+        ("a missing rendering", |dir, _| {
+            verified_with(dir, &manifest(), &[])
+        }),
+        (
+            "a rendering that is not the one the manifest names",
+            |dir, _| verified_with(dir, &manifest(), &[(RENDERING_PATH, b"altered")]),
+        ),
+        (
+            "a source that is not the one the manifest names",
+            |dir, project| {
+                std::fs::write(project.join("src/Tiny.lex.tex"), b"altered").expect("a file");
+                verified_root(dir)
+            },
+        ),
+        ("a missing source", |dir, project| {
+            std::fs::remove_file(project.join("src/Tiny.lex.tex")).expect("removed");
+            verified_root(dir)
+        }),
+        ("a manifest that names no source", |dir, _| {
+            let bare = serde_json::to_vec(&serde_json::json!({
+                "inputs": [],
+                "outputs": [{"kind": "tex", "path": RENDERING_PATH, "sha256": sha(RENDERING)}],
+            }))
+            .expect("JSON");
+            verified_with(dir, &bare, &[(RENDERING_PATH, RENDERING)])
+        }),
+        ("a manifest that names no rendering", |dir, _| {
+            verified_with(dir, &manifest_with_outputs(serde_json::json!([])), &[])
+        }),
+        (
+            "a rendering whose path leaves the verified directory",
+            |dir, _| {
+                let escaping = manifest_with_outputs(serde_json::json!([
+                    {"kind": "tex", "path": "../outside.tex", "sha256": sha(RENDERING)}
+                ]));
+                verified_with(dir, &escaping, &[("../outside.tex", RENDERING)])
+            },
+        ),
+    ];
+    for (label, spoil) in cases {
+        let directory = tempfile::tempdir().expect("a directory");
+        let config = config(directory.path());
+        let job = job(directory.path(), &config);
+        let root = spoil(directory.path(), &job.directory);
+        let outcome = conclude(&job, &facts(root));
+        let message = String::from_utf8_lossy(&outcome.result);
+        assert_eq!(outcome.class, 5, "{label}: {message}");
+        assert!(message.contains("evidence"), "{label}: {message}");
+        nothing_recorded(&config.store);
+    }
 }

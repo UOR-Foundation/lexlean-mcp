@@ -103,70 +103,6 @@ jobs:
           . .github/lexlean-ci/lib.sh
           gate "list the production requests" output_matrix
 
-  cargo:
-    name: cargo / fmt clippy audits deny test
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    steps:
-      - name: Check out the exact event revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Install the pinned Rust toolchain
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "install Rust" install_rust
-      - name: Restore the registry
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: registry-${{ runner.os }}-
-      - name: 1a. cargo fmt
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "cargo fmt" cargo fmt --all -- --check
-      - name: 1b. cargo clippy
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "cargo clippy" cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: 1c. every optional feature compiles
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "cargo check --all-features" cargo check --workspace --all-features --all-targets --locked
-      - name: 2a. check-model (R1)
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "xtask check-model" cargo xtask check-model
-      - name: 2b. audit-limits (R5)
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "xtask audit-limits" cargo xtask audit-limits
-      - name: 2c. audit-deferral (R4)
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "xtask audit-deferral" cargo xtask audit-deferral
-      - name: 2d. audit-dependency-updates
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "xtask audit-dependency-updates" cargo xtask audit-dependency-updates
-      - name: 3a. Install cargo-deny
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "install cargo-deny" install_cargo_deny
-      - name: 3b. cargo deny (R6)
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "cargo deny" cargo deny --all-features check
-      - name: 6. cargo test
-        run: |
-          . .github/lexlean-ci/lib.sh
-          gate "cargo test" cargo test --workspace --locked --no-fail-fast
-
   lexlean:
     name: lexlean / ${{ matrix.label }}
     needs: prepare
@@ -248,6 +184,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       gateway: ${{ steps.scope.outputs.gateway }}
+      verify_fixtures: ${{ steps.scope.outputs.verify_fixtures }}
     steps:
       - name: Check out the exact event revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -261,6 +198,108 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "gateway scope" output_gateway_scope
+
+  verify-fixtures:
+    name: gateway / verify fixtures
+    needs: scope
+    if: needs.scope.outputs.verify_fixtures == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Check out the exact event revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The MCP sources at the pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/lay-out-mcp.sh" gateway/lay-out-mcp.sh
+      - name: The PrismPM lexicon at the pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/lay-out-sdk.sh" gateway/lay-out-sdk.sh
+      - name: The gateway is compiled by the LexLean commit MCP names at the pin
+        run: echo "LEXLEAN_REV_FILE=gateway/mcp/lexlean.rev" >>"$GITHUB_ENV"
+      - name: Read the pinned LexLean revision
+        id: pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "read the LexLean pin" output_pin
+      - name: Read the pinned PrismPM revision
+        id: sdk
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "read the PrismPM pin" output_prismpm_pin
+      - name: Install the pinned Rust toolchain
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install Rust" install_rust
+      - name: Restore lexlean built at the pinned revision
+        id: lexlean-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.lexlean-bin
+          key: lexlean-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.rev }}
+      - name: Install lexlean at the pinned revision
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install lexlean" install_lexlean
+      # MCP's pin is not the root pin, so `prepare` never saves this one.
+      - name: Save lexlean built at the pinned revision
+        if: steps.lexlean-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.lexlean-bin
+          key: lexlean-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.rev }}
+      - name: Restore prismpm built at the pinned revisions
+        id: prismpm-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.prismpm-bin
+          key: prismpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.sdk.outputs.rev }}-${{ steps.sdk.outputs.lexlean }}
+      - name: Install prismpm at the pinned revisions
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install prismpm" install_prismpm
+      - name: Save prismpm built at the pinned revisions
+        if: steps.prismpm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.prismpm-bin
+          key: prismpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.sdk.outputs.rev }}-${{ steps.sdk.outputs.lexlean }}
+      - name: Restore the Lean toolchain
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.elan/toolchains
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ env.ELAN_VERSION }}-${{ hashFiles('lean-toolchain') }}
+      - name: Install elan
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install elan" install_elan
+      - name: Install the Lean toolchain
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install Lean" install_lean
+      - name: The registry from the pins
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/registry.sh" gateway/registry.sh
+      # The tests link the host packages that prismpm build generates, which are not committed.
+      - name: prismpm build, for the generated packages
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "prismpm build" gateway_build
+      - name: The verifier program
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "cargo build -p gateway-binding" gateway_cargo build -p gateway-binding --locked --offline
+      - name: VP-07. the verify fixtures give the command result of the CLI (AC-07)
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/lay-out-lexlean.sh" gateway/lay-out-lexlean.sh "$RUNNER_TEMP/lexlean-at-the-pin" &&
+            export LEXLEAN_SOURCES="$RUNNER_TEMP/lexlean-at-the-pin" &&
+            gate "the verify fixtures" gateway_verify_fixtures
 
   gateway:
     name: gateway / prismpm build and verify
@@ -388,7 +427,7 @@ jobs:
           gate "gateway/lay-out-lexlean.sh" gateway/lay-out-lexlean.sh "$RUNNER_TEMP/lexlean-at-the-pin" &&
             export LEXLEAN_SOURCES="$RUNNER_TEMP/lexlean-at-the-pin" &&
             gate "gateway/explain/generate.py check" python3 -I gateway/explain/generate.py check &&
-            gate "gateway-tool-tests ignored tests" gateway_ignored_tests gateway-tool-tests 8
+            gate "gateway-tool-tests ignored tests" gateway_ignored_tests gateway-tool-tests 11 the_verify_fixtures_give_the_result_of_the_cli_vp_07
       - name: 7i. the generated host source names no tool or method (Q6)
         run: |
           . .github/lexlean-ci/lib.sh

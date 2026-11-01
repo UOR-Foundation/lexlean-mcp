@@ -13,3 +13,33 @@ Feature: Executed measurements of the threat model
     Given the register, the test names of the workspace and src/Security.lex.tex
     When the rows that observe the refusal of a profile without a review record and the measurement of R2 are read
     Then each cited row is registered at the build level with a test, Security records the measurement of R2 as Executed with a status that names the review record and the refusals, and the same checks reject a measurement of R2 flipped back to unexecuted and a cited row that is missing
+
+  @SM-03 @build
+  Scenario: The measurement of R1 (a forged attestation) is executed by SG-03, SG-10 and SG-11, whose tests pass, and Security records it as Executed: an envelope of a verification, or one the lookup returns, validates only under the key history and the bytes of attestation.json.
+    Given the register, the test names of the workspace and src/Security.lex.tex
+    When the rows that observe the signed envelope and its validation under the key history and the measurement of R1 are read
+    Then each cited row is registered at the build level with a test, Security records the measurement of R1 as Executed with a status that names its rows, and the same checks reject a measurement of R1 flipped back to unexecuted and a cited row that is missing
+
+  @SM-04 @build
+  Scenario: The measurement of R3 (a web origin or another host acting on the loopback gateway) is executed by GW-12 and GW-13, whose tests pass, and Security records it as Executed: dns-rebinding-protection passes against the served gateway and the adapter refuses a foreign Origin before the core is called.
+    Given the register, the test names of the workspace and src/Security.lex.tex
+    When the rows that observe the refusal of a foreign Host or Origin and the measurement of R3 are read
+    Then each cited row is registered at the build level with a test, Security records the measurement of R3 as Executed with a status that names the scenario and its rows, and the same checks reject a measurement of R3 flipped back to unexecuted and a cited row that is missing
+
+  @SM-05 @build
+  Scenario: The measurement of R8 (key compromise) is executed by SG-04, SG-05 and SG-07, whose tests pass, and Security records it as Executed: an envelope under a revoked key fails with KeyRevoked, a revoked key signs nothing, and a history that cannot be written gives no envelope; the measurement of R9 stays Pending, naming #45, because no tool of the gateway issues a requestState.
+    Given the register, the test names of the workspace and src/Security.lex.tex
+    When the rows that observe the revocation of a key and the measurements of R8 and R9 are read
+    Then each cited row is registered at the build level with a test, Security records the measurement of R8 as Executed with a status that names KeyRevoked and its rows, the measurement of R9 is still unexecuted and names #45, and the same checks reject a measurement of R8 flipped back to unexecuted and a cited row that is missing
+
+  @SM-06 @build
+  Scenario: The measurement of R4 (exhaustion) is executed by TH-12 and TH-13, whose tests pass, and Security records it as Executed: a draft over a limit fails with LLS8002 and no other task is affected, and calls over rate.tool_calls are refused with 429 before a tool runs.
+    Given the register, the test names of the workspace and src/Security.lex.tex
+    When the rows that observe the refusal over the rate and the failure of a draft over a limit and the measurement of R4 are read
+    Then each cited row is registered at the build level with a test, Security records the measurement of R4 as Executed with a status that names LLS8002, 429 and its rows, and the same checks reject a measurement of R4 flipped back to unexecuted and a cited row that is missing
+
+  @SM-07 @build
+  Scenario: The measurement of R7 (returned content steering the agent) is executed by TL-16, whose test passes, and Security records it as Executed: the structured content of every result of a tool that lists an output schema validates against that schema; the tools that list none are not measured by it.
+    Given the register, the test names of the workspace and src/Security.lex.tex
+    When the row that observes the validation of results against their output schemas and the measurement of R7 are read
+    Then the cited row is registered at the build level with a test, Security records the measurement of R7 as Executed with a status that names TL-16 and the tools it leaves out, and the same checks reject a measurement of R7 flipped back to unexecuted and a cited row that is missing

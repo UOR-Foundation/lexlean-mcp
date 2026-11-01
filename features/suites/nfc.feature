@@ -3,7 +3,7 @@ Feature: Unicode normalization decision
   The LexLean module decides whether a scalar sequence is in NFC as Unicode 17.0.0 defines it, and is measured against the pinned Unicode Character Database 17.0.0.
 
   @NF-01 @build
-  Scenario: The pinned Unicode Character Database files (UnicodeData.txt, CompositionExclusions.txt, DerivedNormalizationProps.txt, NormalizationTest.txt) are the Unicode 17.0.0 files whose SHA-256 digests the authorities record, and 17.0.0 is the Unicode version of unicode-normalization 0.1.25, the crate LexLean release/v0.4 at 9796067 pins.
+  Scenario: The pinned Unicode Character Database files (UnicodeData.txt, CompositionExclusions.txt, DerivedNormalizationProps.txt, NormalizationTest.txt) are the Unicode 17.0.0 files whose SHA-256 digests the authorities record, and 17.0.0 is the Unicode version of unicode-normalization 0.1.25, the crate LexLean v0.4.0 at `e0b74b8` pins.
     Given the four pinned Unicode Character Database files and the dev-dependency unicode-normalization 0.1.25
     When the SHA-256 of each file, the version named in its first line and the crate's UNICODE_VERSION are read
     Then each digest equals the recorded authority, each first line names 17.0.0 and the crate's version is (17, 0, 0)

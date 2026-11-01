@@ -91,3 +91,9 @@ Feature: Check, snapshot, format and build agree with the CLI
     Given the map of crates/quality-map/map.toml and the gateway tools
     When tools/list is read and each tool of an in-scope function is called
     Then every tool is listed and runs, and the four results of the sdk functions equal the functions' own
+
+  @TL-16 @build
+  Scenario: Every result of a tool that lists an output schema validates against it (R7): lexlean_check, lexlean_snapshot, lexlean_format, lexlean_build and lexlean_explain are called for a success, a refused selection (class 2) and a project over a limit (class 4), the structured content of each result is judged by a validator of the test that is independent of the core, a tool that lists an output schema and has no call fails the test, and the validator rejects a required member removed, an integer given as a string, a constant that differs, a member the schema does not list, a value that is not an array and a diagnostic without its message.
+    Given the gateway with the tiny project and a project over a limit
+    When tools/list is read and each tool that lists an output schema is called for a success and for two refusals
+    Then the structured content of every result validates against the schema listed for its tool, the set of tools that list one is the set the test has calls for, and each planted defect in a result is rejected

@@ -10,9 +10,14 @@ evidence; the register is `model/ids.toml` and `CONFORMANCE.md` is generated fro
 
 | Risk | Measurement | Status | Evidence |
 | --- | --- | --- | --- |
+| R1 | every envelope validates under the key history | `Executed` | `SM-03`: `SG-03`, `SG-10`, `SG-11` |
 | R2 | no profile served without a review record per package digest | `Executed` | `SM-02` |
+| R3 | `dns-rebinding-protection` passes; the adapter refuses a foreign `Origin` | `Executed` | `SM-04`: `GW-12`, `GW-13` |
 | R5 | a planted `..` path refused before any `Engine` call | `Executed` | `SM-01` |
-| R1, R3, R4, R6 to R9 | as stated in `Security` | `Pending` | the issue named in each status (#7 to #13, #17) |
+| R8 | an envelope under a revoked key fails validation | `Executed` | `SM-05`: `SG-04`, `SG-05`, `SG-07` |
+| R4 | a planted over-limit draft fails with `LLS8002`, no other task affected; calls over the rate refused | `Executed` | `SM-06`: `TH-12`, `TH-13` |
+| R7 | every result validates against its output schema | `Executed` | `SM-07`: `TL-16` |
+| R6, R9 | as stated in `Security` | `Pending` | the issue named in each status (#17, #45) |
 | R10 | recorded as a residual risk of `mcp-loopback` | `Residual` | none in this release |
 
 The symlink clause of control K5 (materialization refuses symlinks in a profile
@@ -134,3 +139,87 @@ pendingClauses records a clause, and DR-08 executes the symlink clause of K5
 
 Restored: `src/Security.lex.tex` is the committed one, and `lexlean verify src/Security.lex.tex`
 verifies 5 modules, with `noClauseIsPending` among its theorems.
+
+### 5. R3 flipped back to `Pending` (also R1, R8)
+
+Defect: in `src/Security.lex.tex`, `ctor MeasureStatus.Executed` in the measurement of R3
+replaced by `ctor MeasureStatus.Pending`. The same flip of R1 or R8 is reported the same way
+(`the measurement of R1 is not Executed`), and `SM-03` to `SM-05` also plant, in memory, the
+first cited row removed from the register and its test removed from the test names.
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p repo-conformance --test security` | `SM-04` fails, and `SM-01` fails on its count of Executed measurements |
+
+Diagnostics:
+
+```
+SM-04 does not hold:
+the measurement of R3 is not Executed
+```
+
+```
+SM-01 does not hold:
+exactly five measurements must be Executed
+```
+
+Restored: `src/Security.lex.tex` is the committed one. The theorems
+`measurementsPendingAreR6AndR9` and `executedMeasurementsAreR1ToR5R7AndR8` are checked
+by `lexlean verify src/Security.lex.tex`, which CI runs; it was not run in this change's
+environment, which has no `lexlean`.
+
+R9 stays `Pending` (#45): the conformance scenario `input-required-result-tampered-state`
+waits because no tool of the gateway asks the client for input, so the core issues no
+`requestState`. `SM-05` requires the status to name #45.
+
+## R4: exhaustion (`SM-06`)
+
+K4 has two controls the measurement observes. **The limits of LexLean** (`LLS8002`): `TH-13`
+verifies, as a task with the real verifier, a project whose module exceeds a limit of its
+`lexlean.toml`; the task ends `failed` with `LLS8002`, and a verification started before it ends
+`verified` with its record, so a draft over a limit takes no other task down with it. **The rate**
+(`rate.tool_calls`): `TH-12` serves 102 `tools/call` requests through the generated adapter with
+the real host, and the 101st and the 102nd are answered 429 without the tool running.
+
+What this does not show:
+
+- The values are the owner's (#19): 100 calls per 60 s window and the limits of the project. The
+  rate counter is one window for the process (`rate.rs`), because the adapter gives a host no
+  client identity.
+- `verify.memory_kib`, `verify.concurrency` and the cancel of a runaway task are K4 controls too.
+  Cancellation is observed by `TH-09`, `TH-10` and `TH-11`; the memory bound and the concurrency
+  limit are not measured by `SM-06`.
+- `TH-12` and `TH-13` run in the gateway job. They were not run where they were written (no
+  PrismPM): CI is their first run.
+
+## R7: returned content steering the agent (`SM-07`)
+
+`TL-16` calls every tool that lists an output schema (`lexlean_check`, `lexlean_snapshot`,
+`lexlean_format`, `lexlean_build`, `lexlean_explain`) for a success, a refused selection and a
+project over a limit, and judges the structured content of each result by a validator that is the
+test's own, beside the core's (`gateway_tool_tests::validate`; a keyword it does not know is an
+error). The core already refuses a result that breaks its schema (`TL-02`); the validator makes
+that judged twice. A tool that lists an output schema and has no call in the test fails it.
+
+What this does not show: the other tools (`lexlean_draft_*`, `lexlean_verify`,
+`lexlean_attestation`, `lexlean_profiles`, `lexlean_lexicon_search`, `lexlean_lexicon_read`)
+list no output schema, so their results are typed records of the host but are not validated
+against one; giving them schemas changes `gateway/src/GatewayTools.lex.tex` and the generated core,
+which needs `prismpm build`. The measurement is Executed for the tools that have a schema.
+
+### Planted defects of R4 and R7
+
+Applied to the working tree, the command run, and the file restored (`cmp` equal).
+
+| Defect | Command | Diagnostic |
+| --- | --- | --- |
+| `ctor MeasureStatus.Executed` of R4 replaced by `Pending` in `src/Security.lex.tex` | `cargo test --locked -p repo-conformance --test security` | `SM-06 does not hold: the measurement of R4 is not Executed`; `SM-01 does not hold: exactly seven measurements must be Executed` |
+| the same for R7 | the same | `SM-07 does not hold: the measurement of R7 is not Executed` |
+| the `TL-16` row deleted from `model/ids.toml` | the same | `SM-07 does not hold: TL-16 is cited and is not in model/ids.toml` |
+
+`lexlean fmt --check` and `lexlean check` (0.4.0) pass on the unplanted tree. `lexlean verify`,
+which checks `measurementsPendingAreR6AndR9` and `executedMeasurementsAreR1ToR5R7AndR8`, was not
+run (no Lean toolchain where this was written); the lists are those of the statuses and the
+CI job `lexlean / verify` runs it. The validator of `TL-16` rejects, in the test, a required
+member removed, an integer given as a string, a constant that differs, a member the schema does not
+list, a value that is not an array and a diagnostic without its message.

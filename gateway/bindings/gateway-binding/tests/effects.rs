@@ -938,6 +938,8 @@ fn verify_start_runs_a_real_verification_and_leaves_a_record() {
         .attestation_lookup(attestation_lookup::Request {
             by: 0,
             value: attestation.clone(),
+            want: 0,
+            module: String::new(),
         })
         .expect("lookup");
     assert!(by_id.found);
@@ -947,6 +949,8 @@ fn verify_start_runs_a_real_verification_and_leaves_a_record() {
         .attestation_lookup(attestation_lookup::Request {
             by: 1,
             value: digest,
+            want: 0,
+            module: String::new(),
         })
         .expect("lookup");
     assert!(by_file.found);
@@ -964,6 +968,45 @@ fn verify_start_runs_a_real_verification_and_leaves_a_record() {
         gateway_binding::signer::read_history(&host.config().history_path()).expect("a history");
     gateway_binding::signer::validate(&by_id.envelope, &history, &subject)
         .expect("a valid envelope");
+    // The record keeps the evidence the subject binds (SG-14), as LexLean wrote it: the manifest
+    // whose digest the subject names, and each rendering and source file the manifest names.
+    let kept = host.config().store.join("verifications").join(&attestation);
+    let sha = |path: &Path| {
+        lexlean::Sha256Digest::of(
+            &std::fs::read(path).unwrap_or_else(|error| panic!("{}: {error}", path.display())),
+        )
+        .to_hex()
+    };
+    let named: serde_json::Value = serde_json::from_slice(&subject).expect("JSON");
+    assert_eq!(
+        named["build_manifest"]["sha256"],
+        sha(&kept.join("build-manifest.json"))
+    );
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(kept.join("build-manifest.json")).expect("a file"))
+            .expect("JSON");
+    let mut renderings = 0;
+    for row in manifest["outputs"].as_array().expect("outputs") {
+        if row["kind"] == "tex" {
+            let path = row["path"].as_str().expect("a path");
+            assert_eq!(row["sha256"], sha(&kept.join(path)), "{path}");
+            renderings += 1;
+        }
+    }
+    assert!(renderings > 0, "a rendering is kept");
+    let mut sources = 0;
+    for row in manifest["inputs"].as_array().expect("inputs") {
+        if row["kind"] == "source" {
+            let path = row["path"].as_str().expect("a path");
+            assert_eq!(
+                row["sha256"],
+                sha(&kept.join("sources").join(path)),
+                "{path}"
+            );
+            sources += 1;
+        }
+    }
+    assert!(sources > 0, "a source is kept");
 }
 
 #[test]
@@ -1143,6 +1186,8 @@ fn lookup(
     host.attestation_lookup(attestation_lookup::Request {
         by,
         value: value.into(),
+        want: 0,
+        module: String::new(),
     })
     .map(|done| (done.found, done.envelope))
     .map_err(failure)
@@ -1234,6 +1279,8 @@ fn attestation_lookup_faults_when_the_index_names_something_that_is_not_an_id() 
         .attestation_lookup(attestation_lookup::Request {
             by: 1,
             value: DIGEST.into(),
+            want: 0,
+            module: String::new(),
         })
         .map(|_| ());
     assert_eq!(error, Err(HostError::Fault));

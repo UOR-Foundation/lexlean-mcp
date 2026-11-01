@@ -2,25 +2,24 @@
 
 default: vv
 
-# The whole gate.
-vv: template-check fmt-check model lint test features bdd deny
+# The whole gate. Each check runs once, the cheapest failure first.
+vv: fmt-check model template-check lint test deny
     @echo "vv: the acceptance gate passed"
 
-# R1, R4, R5 --- the repository gates, each falsifiable.
+# R1, R4, R5, the bootstrap trust root and dependency ownership: every
+# repository gate, each falsifiable, in one `xtask validate`.
 model:
-    cargo run -q -p xtask -- validate
+    cargo run -q --locked -p xtask -- validate
 
-# The hand-reviewed trust root is checked independently of generated project
-# content. PrismPM then validates the canonical contract and both locks.
+# The SDK's own checks of the canonical contract and both locks. The
+# repository gates they complement already ran in `model`.
 template-check:
-    cargo run -q -p xtask -- check-model
-    cargo run -q -p xtask -- audit-bootstrap
     prismpm template check
     prismpm lock check
 
 # Regenerate everything the model owns: CONFORMANCE.md.
 model-write:
-    cargo run -q -p xtask -- check-model --write
+    cargo run -q --locked -p xtask -- check-model --write
 
 fmt:
     cargo fmt --all
@@ -28,25 +27,21 @@ fmt:
 fmt-check:
     cargo fmt --all -- --check
 
+# A feature only its author has built is a feature that does not work, so
+# Clippy compiles and lints every target at every optional feature: a rename
+# upstream of an optional dependency, or a test behind a flag, fails here.
 lint:
-    cargo clippy --workspace --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
+# The workspace suite at its default features, including the R3 meta-gate.
 test:
-    cargo test --workspace
+    cargo test --workspace --locked
 
-# A feature only its author has built is a feature that does not work: nothing
-# else in the gate compiles a crate at anything but its default features, so a
-# rename upstream of an optional dependency fails nowhere until someone turns
-# the flag on. `--all-targets` because the tests behind a flag are code too.
-#
-# Every optional feature compiles, with its tests.
-features:
-    cargo check --workspace --all-features --all-targets
-
-# R3: every capability begins as a Gherkin scenario, and every scenario has a
-# test whose name ends in its ID.
+# R3 alone, while a scenario is being written: every capability begins as a
+# Gherkin scenario, and every scenario has a test whose name ends in its ID.
+# `test` already runs it, so it is not part of `vv`.
 bdd:
-    cargo test -p repo-conformance
+    cargo test --locked -p repo-conformance
 
 # R6: nothing shipped depends on a dev-only crate, no wildcard version
 # requirement, no advisory against anything in the tree. `cargo-deny` is

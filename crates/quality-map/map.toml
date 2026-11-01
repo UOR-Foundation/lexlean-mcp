@@ -1,7 +1,7 @@
 # crates/quality-map/map.toml --- the API-to-tool map of Q2 (issue #15).
 #
-# One row per public function of the stable surface of LexLean release/v0.4 at
-# 9796067, as the vendored sources in lexlean/ declare it (see sources.toml). A
+# One row per public function of the stable surface of LexLean v0.4.0 at
+# e0b74b8, as the vendored sources in lexlean/ declare it (see sources.toml). A
 # function reaches exactly one tool or states why no tool does; the tests (QM-02,
 # QM-03) recompute the function list from the vendored sources and fail when a
 # row is missing, extra, re-signed, unmapped or mapped to a tool no issue defines.
@@ -14,7 +14,7 @@
 # a function reaches a tool exactly when it is in scope there.
 
 spec = "lexlean-mcp/api-map/1"
-commit = "97960679736e960e84a98f5c43981e1f2c70d6d7"
+commit = "e0b74b81e6f49c83596a957d232c8383a5db1a25"
 
 # The tools issues 8 to 12 define, and the issue that defines each.
 

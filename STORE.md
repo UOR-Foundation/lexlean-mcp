@@ -63,7 +63,7 @@ claimed by ST-01 to ST-09:
 ## Planted defects
 
 Each defect was planted in a copy of the tree, `lexlean verify src/Store.lex.tex`
-run (LexLean `release/v0.4` at `9796067`), and the copy
+run (LexLean v0.4.0 at `e0b74b8`), and the copy
 discarded. The unplanted tree passes the same command (baseline below).
 
 | Defect | Law | Planted | Diagnostic | Restore |

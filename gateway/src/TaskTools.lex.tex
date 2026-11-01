@@ -1,0 +1,244 @@
+\begin{lexlean}{TaskTools}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Frame}
+\importmodule{GatewayTools}
+\importmodule{HostEffect}
+\importmodule{HostWire}
+\importmodule{Input}
+\importmodule{Json}
+\importmodule{JsonRead}
+\importmodule{JsonRpc}
+\importmodule{JsonText}
+\importmodule{Methods}
+\importmodule{Numeric}
+\importmodule{Refusal}
+\importmodule{ResultJson}
+\importmodule{StepServe}
+\importmodule{TaskJson}
+\importmodule{TaskServe}
+\importmodule{Tasks}
+\title{LexLean MCP gateway}
+\begin{semanticmodule}
+definition{name: taskTtlMs, parameters: [], result: Int, body: (86400000 : Int), executable: true}
+
+definition{name: taskPollMs, parameters: [], result: Int, body: (5000 : Int), executable: true}
+
+definition{
+  name: neverMs,
+  parameters: [],
+  result: Int,
+  body: (1000000000000000 : Int),
+  executable: true
+}
+
+definition{name: startTag, parameters: [], result: Nat, body: 6, executable: true}
+
+definition{name: controlTag, parameters: [], result: Nat, body: 7, executable: true}
+
+definition{name: storeTag, parameters: [], result: Nat, body: 14, executable: true}
+
+definition{
+  name: withoutStoreOnto,
+  parameters: [completed : (List HostEffect::Completed), kept : (List HostEffect::Completed)],
+  result: (List HostEffect::Completed),
+  body: (match completed
+    | List.nil => (JsonRead::reverseOnto [HostEffect::Completed] kept (nil HostEffect::Completed))
+    | List.cons head rest => (if ((project head tag) =? (storeTag)) then (withoutStoreOnto rest kept) else (withoutStoreOnto rest (cons head kept)))),
+  executable: true,
+  recursive_argument: completed
+}
+
+definition{
+  name: withoutStore,
+  parameters: [completed : (List HostEffect::Completed)],
+  result: (List HostEffect::Completed),
+  body: (withoutStoreOnto completed (nil HostEffect::Completed)),
+  executable: true
+}
+
+definition{
+  name: outcomeOf,
+  parameters: [completed : (List HostEffect::Completed), tag : Nat],
+  result: (Option Bytes),
+  body: (match completed
+    | List.nil => (ctor Option.none [Bytes])
+    | List.cons head rest => (if ((project head tag) =? tag) then (ctor Option.some [Bytes] (project head outcome)) else (outcomeOf rest tag))),
+  executable: true,
+  recursive_argument: completed
+}
+
+definition{
+  name: startedName,
+  parameters: [outcome : Bytes],
+  result: (Option String),
+  body: (if ((GatewayTools::wordAt outcome 0) =? 1) then (ctor Option.none [String]) else (match (Frame::chunkAt outcome 4)
+    | Option.none => (ctor Option.none [String])
+    | Option.some chunk => (prim utf8_decode (project chunk bytes) : (Option String)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: seedFor,
+  parameters: [host : Tasks::TaskHost, name : String],
+  result: Tasks::TaskEntry,
+  body: (record Tasks::TaskEntry {task := (ctor Tasks::DetailedTask.working (record Tasks::TaskFields {taskId := name, statusMessage := (ctor Option.none [String]), createdAt := (project host now), lastUpdatedAt := (project host now), ttlMs := (ctor Option.some [Int] (taskTtlMs)), pollIntervalMs := (ctor Option.some [Int] (taskPollMs))})), createdMs := (project host nowMs), plan := (record Tasks::TaskPlan {parkAfterMs := (neverMs), parked := (nil (String * Input::InputRequest)), finishAfterMs := (neverMs), outcome := (ctor Tasks::PlanOutcome.completes (record Json::JsonObject {members := (nil (String * Json::Json))}))})}),
+  executable: true
+}
+
+definition{
+  name: createdFor,
+  parameters: [host : Tasks::TaskHost, name : String],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (TaskJson::readTable (project host table))
+    | Option.none => (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] (TaskServe::unreadableTable))
+    | Option.some table => (match (Tasks::findEntry name table (project host nowMs))
+      | Option.some taken => (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] (TaskServe::idInUse))
+      | Option.none => (ctor Result.ok [Methods::ResultBody, Refusal::ProviderRefusal] (ctor Methods::ResultBody.taskCreated (record Tasks::CreateTaskResult {status := (ctor Tasks::TaskStatus.working), fields := (Tasks::fieldsOf (project (seedFor host name) task)), entry := (seedFor host name)}))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: verifyAnswer,
+  parameters: [
+    asked : StepServe::Asked,
+    params : Methods::CallToolParams,
+    ordinary : (Result Methods::ResultBody Refusal::ProviderRefusal)
+  ],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match ordinary
+    | Result.error refusal => ordinary
+    | Result.ok body => (if ((GatewayTools::isTool params "lexlean_verify") && (TaskServe::declaredBy params)) then (match (outcomeOf (project asked completed) (startTag))
+      | Option.none => ordinary
+      | Option.some outcome => (match (startedName outcome)
+        | Option.none => ordinary
+        | Option.some name => (createdFor (project asked host) name))) else ordinary)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: working,
+  parameters: [found : Tasks::TaskEntry],
+  result: Bool,
+  body: (match (project found task)
+    | Tasks::DetailedTask.working fields => true
+    | Tasks::DetailedTask.input_required fields requests => false
+    | Tasks::DetailedTask.completed fields result => false
+    | Tasks::DetailedTask.failed fields error => false
+    | Tasks::DetailedTask.cancelled fields => false),
+  executable: true
+}
+
+definition{
+  name: askingControl,
+  parameters: [found : Tasks::TaskEntry, cancel : Nat],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] (ctor Refusal::ProviderRefusal.effectRequested (record HostEffect::EffectRequest {tag := (controlTag), payload := (JsonText::listToBytes (JsonText::emptyBytes) (prim append (HostWire::textList (Tasks::idOf found)) (Frame::u32List cancel) : (List Nat)))}))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: lost,
+  parameters: [],
+  result: JsonRpc::ErrorObject,
+  body: (record JsonRpc::ErrorObject {code := (-32603 : Int), message := "the verifier no longer knows the task", data := (ctor Option.none [Json::Json])}),
+  executable: true
+}
+
+definition{
+  name: moved,
+  parameters: [found : Tasks::TaskEntry, task : Tasks::DetailedTask],
+  result: Tasks::Stepped,
+  body: (record Tasks::Stepped {entry := (record Tasks::TaskEntry {task := task, createdMs := (project found createdMs), plan := (project found plan)}), changed := true}),
+  executable: true
+}
+
+definition{
+  name: membersOrNone,
+  parameters: [found : (Option (List (String * Json::Json)))],
+  result: (List (String * Json::Json)),
+  body: (match found | Option.none => (nil (String * Json::Json)) | Option.some members => members),
+  executable: true
+}
+
+definition{
+  name: countText,
+  parameters: [count : Nat],
+  result: String,
+  body: (prim format_decimal (Numeric::natToInt count (0 : Int)) : String),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: groupsReport,
+  parameters: [outcome : Bytes],
+  result: (Option String),
+  body: (match (Frame::chunkAt outcome 12)
+    | Option.none => (ctor Option.none [String])
+    | Option.some chunk => (ctor Option.some [String] (prim join (cons "child groups ended:" (cons (countText (GatewayTools::wordAt outcome (project chunk next))) (cons "failed:" (cons (countText (GatewayTools::wordAt outcome ((project chunk next) + 4))) (nil String))))) " " : String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: withMessage,
+  parameters: [fields : Tasks::TaskFields, message : (Option String)],
+  result: Tasks::TaskFields,
+  body: (record Tasks::TaskFields {taskId := (project fields taskId), statusMessage := message, createdAt := (project fields createdAt), lastUpdatedAt := (project fields lastUpdatedAt), ttlMs := (project fields ttlMs), pollIntervalMs := (project fields pollIntervalMs)}),
+  executable: true
+}
+
+definition{
+  name: advanced,
+  parameters: [found : Tasks::TaskEntry, outcome : Bytes, now : String],
+  result: Tasks::Stepped,
+  body: (let fields : Tasks::TaskFields := (Tasks::touch (Tasks::fieldsOf (project found task)) now); (if ((GatewayTools::wordAt outcome 0) =? 1) then (moved found (ctor Tasks::DetailedTask.failed fields (lost))) else (let state : Nat := (GatewayTools::wordAt outcome 4); (if (state <? 2) then (Tasks::kept found) else (if (state =? 4) then (moved found (ctor Tasks::DetailedTask.cancelled (withMessage fields (groupsReport outcome)))) else (moved found (ctor Tasks::DetailedTask.completed fields (record Json::JsonObject {members := (membersOrNone (ResultJson::callToolMembers (project (GatewayTools::controlReply outcome) result)))})))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: afterControl,
+  parameters: [
+    asked : StepServe::Asked,
+    found : Tasks::TaskEntry,
+    cancel : Nat,
+    shape : Tasks::StoredShape
+  ],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (outcomeOf (project asked completed) (controlTag))
+    | Option.none => (askingControl found cancel)
+    | Option.some outcome => (ctor Result.ok [Methods::ResultBody, Refusal::ProviderRefusal] (TaskServe::storedBody (advanced found outcome (project (project asked host) now)) shape false))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: getTask,
+  parameters: [asked : StepServe::Asked, params : Methods::GetTaskParams],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (TaskServe::located (project asked host) (project params meta) (project params taskId))
+    | Result.error refusal => (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] refusal)
+    | Result.ok found => (if (working found) then (afterControl asked found 0 (ctor Tasks::StoredShape.read)) else (TaskServe::serveGet (project asked host) params))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: cancelTask,
+  parameters: [asked : StepServe::Asked, params : Methods::CancelTaskParams],
+  result: (Result Methods::ResultBody Refusal::ProviderRefusal),
+  body: (match (TaskServe::located (project asked host) (project params meta) (project params taskId))
+    | Result.error refusal => (ctor Result.error [Methods::ResultBody, Refusal::ProviderRefusal] refusal)
+    | Result.ok found => (if (working found) then (afterControl asked found 1 (ctor Tasks::StoredShape.acked)) else (TaskServe::serveCancel (project asked host) params))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+\end{semanticmodule}
+\end{lexlean}
