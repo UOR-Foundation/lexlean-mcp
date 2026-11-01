@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use gateway_binding::signer_service::Service;
 use gateway_binding::{Config, Native};
 use gateway_host::exchange::{core, step, turn, Step};
 use gateway_host::perform::perform;
@@ -598,19 +599,21 @@ impl Gateway {
     fn with_verifier(program: Option<PathBuf>) -> Gateway {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let store = directory.path().join("store");
-        // A verification is not started without a key and a verifier program.
-        std::fs::write(
-            directory.path().join("signing.key"),
-            format!("{}\n", "44".repeat(32)),
-        )
-        .expect("a key file");
+        // A verification is not started without a signer whose key loads and a verifier program.
+        let key = directory.path().join("signing.key");
+        std::fs::write(&key, format!("{}\n", "44".repeat(32))).expect("a key file");
+        let socket = directory.path().join("signer.sock");
+        Service::new(key, store.join("keys").join("history"))
+            .bind(&socket)
+            .expect("a socket")
+            .spawn();
         let verifier = program.unwrap_or_else(|| {
             let stand_in = directory.path().join("verifier");
             stand_in_verifier(&stand_in);
             stand_in
         });
         let config = Config::at(store.clone())
-            .with_signing_key(directory.path().join("signing.key"))
+            .with_signer(socket)
             .with_verifier(verifier.clone());
         Gateway {
             host: Native::new(config),
@@ -784,7 +787,7 @@ impl Gateway {
     /// The configuration of the real host.
     pub fn config(&self) -> Config {
         Config::at(self.store.clone())
-            .with_signing_key(self._directory.path().join("signing.key"))
+            .with_signer(self._directory.path().join("signer.sock"))
             .with_verifier(self.verifier.clone())
     }
 }

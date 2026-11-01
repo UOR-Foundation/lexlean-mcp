@@ -78,9 +78,9 @@ The host asks the process whether it is alive, and not the pipe.
 
 ## Not met
 
-- **The signer is in the gateway process.** The verifier process no longer holds the key, but
-  OWNER-VALUES and #17 plan a signer service of its own; the `Signer` module can move behind a
-  process boundary and this slice does not do it.
+- **The verifier is a child of the host.** The key has left the host (`gateway-signer`, SIGNING.md),
+  but the host still starts each verification as its child, which a verifier in an image of its own
+  (#17) cannot be.
 - **`gateway-verifier` must be next to the host.** CI step 7k builds only `gateway-host`; the
   images of #17 must ship both programs. Without it `lexlean_verify` is `verifier-unavailable`,
   and the conformance suite does not call it.
