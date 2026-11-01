@@ -232,7 +232,11 @@ fn the_variable_names_the_socket_and_an_empty_one_is_no_path_sg_09() {
         PathBuf::from("/data/store/keys/history"),
         "the history is in the keys area of the store"
     );
-    assert_eq!(Config::at("/s").signer, None, "no signer unless one is named");
+    assert_eq!(
+        Config::at("/s").signer,
+        None,
+        "no signer unless one is named"
+    );
 }
 
 // SG-16
