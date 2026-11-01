@@ -513,6 +513,13 @@ gateway_verify_fixtures() {
   fi
 }
 
+# free_runner_disk: remove toolchains the hosted runner preinstalls and no job here uses, so
+# the SDK image fits beside the builds of the gateway job (main ran out of space pulling it).
+free_runner_disk() {
+  sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+  df -h /
+}
+
 # gateway_verify: `prismpm verify` in the gateway project, on a store that starts empty.
 # gateway_verify: `prismpm verify` of the gateway, run inside the locked SDK image (the
 # `sdk_image` digest of prismpm.lock), as bootstrap.yml runs `just vv`. `prismpm verify` takes

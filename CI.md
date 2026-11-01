@@ -111,6 +111,8 @@ read-only and called by its path, which is not on the image's PATH, and the work
 its own path, so the registry's directory source resolves inside the container. `prismpm build` and
 the rest of the job stay on the runner. PrismPM#342's stack leaves the pins of `tools.lock` and
 `verification.rs` as they are (no hunk of the stack touches an executable digest).
+The step before it removes toolchains the runner preinstalls and no job uses (`free_runner_disk`), so
+the image fits beside the job's builds.
 
 ### The conformance steps (AC-03 b)
 
