@@ -410,12 +410,13 @@ jobs:
       - name: 7g. the binding compiles, is formatted and passes clippy
         run: |
           . .github/lexlean-ci/lib.sh
-          gate "gateway cargo fmt" gateway_cargo fmt -p gateway-binding -p gateway-vectors -p gateway-tool-tests -- --check &&
-            gate "gateway cargo clippy" gateway_cargo clippy -p gateway-binding -p gateway-vectors -p gateway-tool-tests --all-targets --no-deps --locked --offline -- -D warnings
+          gate "gateway cargo fmt" gateway_cargo fmt -p gateway-binding -p gateway-signer -p gateway-vectors -p gateway-tool-tests -- --check &&
+            gate "gateway cargo clippy" gateway_cargo clippy -p gateway-binding -p gateway-signer -p gateway-vectors -p gateway-tool-tests --all-targets --no-deps --locked --offline -- -D warnings
       - name: 7h. the binding tests
         run: |
           . .github/lexlean-ci/lib.sh
           gate "gateway-binding tests" gateway_cargo test -p gateway-binding --locked --offline &&
+            gate "gateway-signer tests" gateway_cargo test -p gateway-signer --locked --offline &&
             gate "gateway-binding ignored tests" gateway_ignored_tests gateway-binding 2 &&
             gate "gateway-tool-tests" gateway_cargo test -p gateway-tool-tests --locked --offline
       - name: 7h2. each tool equals the lexlean CLI of the same commit (AC-07)

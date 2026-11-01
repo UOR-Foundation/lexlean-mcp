@@ -13,6 +13,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use gateway_binding::signer::{self, Signer};
+use gateway_binding::signer_client::SignerClient;
 use gateway_binding::{conclude, Config, Facts, Job, Native, State};
 use gateway_host_api::protocol::{
     attestation_lookup, verify_control, verify_start, Host, HostError,
@@ -69,10 +70,10 @@ fn key_file(dir: &Path) -> PathBuf {
     path
 }
 
-/// A configuration whose store is below `dir` and whose key is a file of `dir`.
+/// A configuration whose store is below `dir` and whose signer has a key file of `dir`.
 fn config(dir: &Path) -> Config {
     Config::at(dir.join("store"))
-        .with_signing_key(key_file(dir))
+        .with_signer(common::signer(dir, &key_file(dir)))
         .with_verifier(common::real_verifier())
 }
 
@@ -210,56 +211,89 @@ fn nothing_recorded(store: &Path) {
 // SG-09
 
 #[test]
-fn the_variable_names_the_key_file_and_an_empty_one_is_no_path_sg_09() {
+fn the_variable_names_the_socket_and_an_empty_one_is_no_path_sg_09() {
     let with = |value: Option<&str>| {
         Config::from_variables(|name| match name {
-            "LEXLEAN_MCP_SIGNING_KEY" => value.map(OsString::from),
+            "LEXLEAN_MCP_SIGNER" => value.map(OsString::from),
             "LEXLEAN_MCP_STORE" => Some(OsString::from("/data/store")),
             _ => None,
         })
     };
     assert_eq!(
-        with(Some("/run/secrets/key")).signing_key,
-        Some(PathBuf::from("/run/secrets/key"))
+        with(Some("/run/signer/socket")).signer,
+        Some(PathBuf::from("/run/signer/socket"))
     );
-    assert_eq!(
-        with(Some("")).signing_key,
-        None,
-        "an empty value is no path"
-    );
-    assert_eq!(with(None).signing_key, None);
-    let configured = with(Some("/run/secrets/key"));
+    assert_eq!(with(Some("")).signer, None, "an empty value is no path");
+    assert_eq!(with(None).signer, None);
+    let configured = with(Some("/run/signer/socket"));
     assert_eq!(configured.store, PathBuf::from("/data/store"));
     assert_eq!(
         configured.history_path(),
         PathBuf::from("/data/store/keys/history"),
         "the history is in the keys area of the store"
     );
-    assert_eq!(
-        Config::at("/s").signing_key,
-        None,
-        "no key unless one is named"
+    assert_eq!(Config::at("/s").signer, None, "no signer unless one is named");
+}
+
+// SG-16
+
+#[test]
+fn a_key_named_to_the_host_signs_nothing_sg_16() {
+    let directory = tempfile::tempdir().expect("a directory");
+    let key = key_file(directory.path());
+    let store = directory.path().join("store");
+    let config = Config::from_variables(|name| match name {
+        "LEXLEAN_MCP_SIGNING_KEY" => Some(key.clone().into_os_string()),
+        "LEXLEAN_MCP_STORE" => Some(store.clone().into_os_string()),
+        _ => None,
+    });
+    assert_eq!(config.signer, None, "the key names no signer");
+    let program = common::fake_verifier(directory.path());
+    let mut host = Native::new(config.with_verifier(program));
+    copy(
+        Path::new(TINY),
+        &host.config().store.join("drafts").join("tiny"),
+    );
+    let refused = host
+        .verify_start(verify_start::Request {
+            project: "tiny".into(),
+            selection: 0,
+            files: String::new(),
+        })
+        .map(|done| done.task)
+        .map_err(failure);
+    assert_eq!(refused, Err(verify_start::Failure::VerifierUnavailable));
+    assert!(
+        !host.config().history_path().exists(),
+        "the host used no key"
     );
 }
 
 #[test]
 fn verify_start_without_a_usable_key_is_unavailable_and_starts_nothing_sg_09() {
-    let unusable: [(&str, Make); 4] = [
-        ("no key", Box::new(|dir| Config::at(dir.join("store")))),
+    let unusable: [(&str, Make); 5] = [
+        ("no signer", Box::new(|dir| Config::at(dir.join("store")))),
+        (
+            "a socket nothing answers",
+            Box::new(|dir| Config::at(dir.join("store")).with_signer(dir.join("absent.sock"))),
+        ),
         (
             "a missing file",
-            Box::new(|dir| Config::at(dir.join("store")).with_signing_key(dir.join("absent"))),
+            Box::new(|dir| {
+                let socket = common::signer(dir, &dir.join("absent"));
+                Config::at(dir.join("store")).with_signer(socket)
+            }),
         ),
         (
             "a directory",
-            Box::new(|dir| Config::at(dir.join("store")).with_signing_key(dir)),
+            Box::new(|dir| Config::at(dir.join("store")).with_signer(common::signer(dir, dir))),
         ),
         (
             "a file that is not a key",
             Box::new(|dir| {
                 let path = dir.join("not-a-key");
                 std::fs::write(&path, b"not a key").expect("a file");
-                Config::at(dir.join("store")).with_signing_key(path)
+                Config::at(dir.join("store")).with_signer(common::signer(dir, &path))
             }),
         ),
     ];
@@ -351,7 +385,7 @@ fn a_verification_that_ended_verified_leaves_a_signed_envelope_sg_10() {
     assert_eq!(result["attestation_id"], id());
     assert_eq!(
         result["keyid"],
-        job.signer.keyid(),
+        Signer::from_seed(SEED, config.history_path()).keyid(),
         "the result names the key"
     );
 
@@ -454,6 +488,59 @@ fn a_history_that_cannot_be_written_leaves_no_record_sg_12() {
     let walled = directory.path().join("walled");
     std::fs::create_dir_all(walled.join("history.tmp")).expect("a directory");
     job.signer = Arc::new(Signer::from_seed(SEED, walled.join("history")));
+    let outcome = conclude(&job, &facts(verified_root(directory.path())));
+    assert_eq!(
+        outcome.class,
+        5,
+        "{}",
+        String::from_utf8_lossy(&outcome.result)
+    );
+    assert!(
+        String::from_utf8_lossy(&outcome.result).contains("could not be signed"),
+        "{}",
+        String::from_utf8_lossy(&outcome.result)
+    );
+    nothing_recorded(&config.store);
+}
+
+// SG-17, SG-18
+
+#[test]
+fn a_verification_concluded_through_the_socket_is_a_valid_record_sg_17() {
+    let directory = tempfile::tempdir().expect("a directory");
+    let config = config(directory.path());
+    let mut job = job(directory.path(), &config);
+    let socket = config.signer.clone().expect("a signer");
+    job.signer = Arc::new(SignerClient::ready(&socket).expect("the signer is ready"));
+    let outcome = conclude(&job, &facts(verified_root(directory.path())));
+    assert_eq!(
+        outcome.class,
+        0,
+        "{}",
+        String::from_utf8_lossy(&outcome.result)
+    );
+    let result: Value = serde_json::from_slice(&outcome.result).expect("JSON");
+    assert_eq!(
+        result["keyid"],
+        Signer::from_seed(SEED, config.history_path()).keyid(),
+        "the result names the key that signed"
+    );
+    let record = config.store.join("verifications");
+    let envelope = std::fs::read(record.join(format!("{}.json", id()))).expect("the envelope");
+    let subject =
+        std::fs::read(record.join(id()).join("attestation.json")).expect("the attestation");
+    let history = signer::read_history(&config.history_path()).expect("the history");
+    signer::validate(&envelope, &history, &subject).expect("the envelope validates");
+}
+
+#[test]
+fn a_signer_lost_before_the_verification_concludes_leaves_no_record_sg_18() {
+    let directory = tempfile::tempdir().expect("a directory");
+    let config = config(directory.path());
+    let mut job = job(directory.path(), &config);
+    let socket = config.signer.clone().expect("a signer");
+    job.signer = Arc::new(SignerClient::ready(&socket).expect("the signer is ready"));
+    std::fs::remove_file(&socket).expect("the signer is gone");
     let outcome = conclude(&job, &facts(verified_root(directory.path())));
     assert_eq!(
         outcome.class,

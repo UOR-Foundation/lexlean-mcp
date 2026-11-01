@@ -41,6 +41,7 @@
 # adapter's own refusal of a foreign Origin (issue #45) registers GW-13. The running clause of Q2 registers TL-15.
 # The draft tools of issue #9 (F3: identity, admission, storage, reading and materialization of drafts)
 # register DR-01..DR-11; lexlean_draft_assemble and the structured read of lexlean_draft_read register DR-12..DR-16.
+# The signer as a program of its own, the first service of issue #17, registers SG-16..SG-19.
 
 spec = "template/1"
 
@@ -1044,7 +1045,7 @@ statement = "Each gate of the signer rejects its planted defect: the lengths of 
 id = "SG-09"
 level = "build"
 suite = "signing"
-statement = "The signing key is configured by the operator and a verification is not started without it: the host reads the path of the key file from LEXLEAN_MCP_SIGNING_KEY (an empty value is no path), keeps its history in the keys area of the store, and verify.start fails with verifier-unavailable, starts no task, runs no verification and leaves nothing in the builds area when no key is configured and when the configured file is missing, unreadable or malformed, while a project that is not one is refused as project-refused whatever the state of the key."
+statement = "A verification is not started without a signer whose key loads: the host reads the socket of the signer from LEXLEAN_MCP_SIGNER (an empty value is no path), reads the key history from the keys area of the store, and verify.start fails with verifier-unavailable, starts no task, runs no verification and leaves nothing in the builds area when no signer is configured, when none answers at the socket and when the key file of the signer is missing, unreadable or malformed, while a project that is not one is refused as project-refused whatever the state of the key."
 
 [[id]]
 id = "SG-10"
@@ -1081,6 +1082,30 @@ id = "SG-15"
 level = "build"
 suite = "signing"
 statement = "A verification whose evidence cannot be kept whole leaves no record: when the build manifest is missing or is not the one attestation.json names, attestation.json names no manifest, a rendering or a source file is missing or differs from the digest the manifest gives, the manifest names no rendering or no source, or a path the manifest names is not a key of the store, the task ends failed with class 5 and the store holds no envelope, no attestation.json, no evidence, no index entry and no key entry for it."
+
+[[id]]
+id = "SG-16"
+level = "build"
+suite = "signing"
+statement = "The signer is a program of its own and the only holder of the key: gateway-signer reads the key file from LEXLEAN_MCP_SIGNING_KEY at each request and answers on the Unix socket LEXLEAN_MCP_SIGNER with mode 0600, it writes the key history below LEXLEAN_MCP_STORE, the crate that holds it links no compiler and no generated package, and the host has no configuration for a key, loads none and links no signature library outside its tests, so that a key named in the environment of the host signs nothing."
+
+[[id]]
+id = "SG-17"
+level = "build"
+suite = "signing"
+statement = "An envelope made through the socket is the envelope the signer makes: its bytes equal those of the signer with the same key, subject and predicate, it validates against the history the program wrote, and a key file put right or rotated while the program runs is used at the next request without a restart."
+
+[[id]]
+id = "SG-18"
+level = "build"
+suite = "signing"
+statement = "Every failure of the signer service is typed and has a negative test: each refusal travels by its name and comes back as the same SignError, a request that is not one or is over MAX_REQUEST_BYTES is RequestRefused, no answer at the socket and an answer that is not one are Unavailable, a verification whose signer is lost before it concludes leaves no record, and each constructor of StartError stops the program with exit status 2 and a message that holds nothing of the key."
+
+[[id]]
+id = "SG-19"
+level = "build"
+suite = "signing"
+statement = "Each gate of the signer service rejects its planted defect: the host loading the key itself, the socket left open to other users, the key cached at the start of the program, a refusal name that comes back as another error, and the bound on a request removed; SIGNING.md records the command, the diagnostic and the restore of each."
 
 [[id]]
 id = "VP-01"

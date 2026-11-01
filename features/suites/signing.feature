@@ -51,8 +51,8 @@ Feature: The signer of the verification records
     Then each defect makes the test that answers it fail, with the diagnostic SIGNING.md records
 
   @SG-09 @build
-  Scenario: The signing key is configured by the operator and a verification is not started without it: the host reads the path of the key file from LEXLEAN_MCP_SIGNING_KEY (an empty value is no path), keeps its history in the keys area of the store, and verify.start fails with verifier-unavailable, starts no task, runs no verification and leaves nothing in the builds area when no key is configured and when the configured file is missing, unreadable or malformed, while a project that is not one is refused as project-refused whatever the state of the key.
-    Given a host with no key, with a path that is missing, with a directory, and with a file that is not a key
+  Scenario: A verification is not started without a signer whose key loads: the host reads the socket of the signer from LEXLEAN_MCP_SIGNER (an empty value is no path), reads the key history from the keys area of the store, and verify.start fails with verifier-unavailable, starts no task, runs no verification and leaves nothing in the builds area when no signer is configured, when none answers at the socket and when the key file of the signer is missing, unreadable or malformed, while a project that is not one is refused as project-refused whatever the state of the key.
+    Given a host with no signer, with a socket nothing answers, and with a signer whose key is a missing path, a directory, or a file that is not a key
     When verify.start is asked for a project that exists
     Then each is verifier-unavailable, the next task is still task-1, nothing is in the builds area and an absent project is project-refused
 
@@ -91,3 +91,27 @@ Feature: The signer of the verification records
     Given verified directories and projects each spoiled in one way
     When the host concludes each
     Then each task fails with class 5 and the store holds nothing for it
+
+  @SG-16 @build
+  Scenario: The signer is a program of its own and the only holder of the key: gateway-signer reads the key file from LEXLEAN_MCP_SIGNING_KEY at each request and answers on the Unix socket LEXLEAN_MCP_SIGNER with mode 0600, it writes the key history below LEXLEAN_MCP_STORE, the crate that holds it links no compiler and no generated package, and the host has no configuration for a key, loads none and links no signature library outside its tests, so that a key named in the environment of the host signs nothing.
+    Given the program gateway-signer with a key file, and a host whose environment names a key file and no signer
+    When the program is asked for its key and the host is asked to start a verification
+    Then the program answers on a socket of mode 0600, and the host is verifier-unavailable and names no signer
+
+  @SG-17 @build
+  Scenario: An envelope made through the socket is the envelope the signer makes: its bytes equal those of the signer with the same key, subject and predicate, it validates against the history the program wrote, and a key file put right or rotated while the program runs is used at the next request without a restart.
+    Given the program gateway-signer running with a key file
+    When a subject is signed, the key file is replaced, and the subject is signed again
+    Then the first envelope equals that of the signer, both validate against the history, and the second names the new key
+
+  @SG-18 @build
+  Scenario: Every failure of the signer service is typed and has a negative test: each refusal travels by its name and comes back as the same SignError, a request that is not one or is over MAX_REQUEST_BYTES is RequestRefused, no answer at the socket and an answer that is not one are Unavailable, a verification whose signer is lost before it concludes leaves no record, and each constructor of StartError stops the program with exit status 2 and a message that holds nothing of the key.
+    Given a service spoiled in each way, a socket that answers nonsense, a verification whose signer has gone, and the program started without each of its settings
+    When each is asked to sign or to start
+    Then each gives its own typed failure, the store holds no record, and the program exits with status 2
+
+  @SG-19 @build
+  Scenario: Each gate of the signer service rejects its planted defect: the host loading the key itself, the socket left open to other users, the key cached at the start of the program, a refusal name that comes back as another error, and the bound on a request removed; SIGNING.md records the command, the diagnostic and the restore of each.
+    Given the signer service with one defect planted at a time
+    When the tests of SG-16 to SG-18 run
+    Then each defect makes the test that answers it fail, with the diagnostic SIGNING.md records

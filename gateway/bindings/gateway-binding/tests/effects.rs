@@ -15,13 +15,13 @@ mod common;
 
 const TINY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../vectors/fixture/tiny");
 
-/// A configuration whose store is below `dir` and whose signing key is a file of `dir`: a
+/// A configuration whose store is below `dir` and whose signer has a key file of `dir`: a
 /// verification is not started without one.
 fn config_in(dir: &Path) -> Config {
     let key = dir.join("signing.key");
     std::fs::write(&key, format!("{}\n", "11".repeat(32))).expect("a key file");
     Config::at(dir.join("store"))
-        .with_signing_key(key)
+        .with_signer(common::signer(dir, &key))
         .with_verifier(common::real_verifier())
 }
 

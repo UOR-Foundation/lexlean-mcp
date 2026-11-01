@@ -23,7 +23,6 @@ mod presentation;
 mod project;
 pub mod provision;
 mod rate;
-pub mod signer;
 mod store;
 mod sweep;
 mod taskhost;
@@ -32,9 +31,10 @@ mod verifier;
 
 pub use config::{
     Config, CANCEL_GRACE, DRAFT_BLOB_HEADROOM, DRAFT_MAX_BYTES, LOG_TAIL_BYTES, RATE_WINDOW,
-    SIGNING_KEY_VARIABLE, VERIFY_CONCURRENCY, VERIFY_MEMORY_KIB, VERIFY_WIDTH,
+    SIGNER_VARIABLE, SIGNING_KEY_VARIABLE, VERIFY_CONCURRENCY, VERIFY_MEMORY_KIB, VERIFY_WIDTH,
 };
 pub use engine::{Answer, Call, Unavailable};
+pub use gateway_signer::{client as signer_client, service as signer_service, signer};
 pub use taskhost::{iso, Clock};
 pub use telemetry::Telemetry;
 pub use verifier::{conclude, Facts, Job, Outcome, Report, State, Verifier};
@@ -42,7 +42,7 @@ pub use verifier::{conclude, Facts, Job, Outcome, Report, State, Verifier};
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::signer::Signer;
+use gateway_signer::client::SignerClient;
 
 use gateway_host_api::protocol::{
     attestation_lookup, clock_now, engine_build, engine_check, engine_format, engine_snapshot,
@@ -412,8 +412,8 @@ impl Host for Native {
             self.telemetry.signing_failure();
             unavailable()
         };
-        let key = self.config.signing_key.as_deref().ok_or_else(unsigned)?;
-        let signer = Signer::load(key, self.config.history_path()).map_err(|_| unsigned())?;
+        let socket = self.config.signer.as_deref().ok_or_else(unsigned)?;
+        let signer = SignerClient::ready(socket).map_err(|_| unsigned())?;
         if !self
             .config
             .verifier_program

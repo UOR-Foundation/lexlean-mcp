@@ -18,9 +18,7 @@ pub const RATE_WINDOW: Duration = Duration::from_millis(60_000);
 /// The most bytes of a verification log that a status carries.
 pub const LOG_TAIL_BYTES: usize = 65_536;
 
-/// The environment variable that names the file of the signing key. The verifier process is
-/// started without it.
-pub const SIGNING_KEY_VARIABLE: &str = "LEXLEAN_MCP_SIGNING_KEY";
+pub use gateway_signer::service::{SIGNER_VARIABLE, SIGNING_KEY_VARIABLE};
 
 /// The tasks that run at once: the owner value `verify.concurrency`.
 pub const VERIFY_CONCURRENCY: usize = 1;
@@ -44,9 +42,10 @@ pub struct Config {
     pub blob_max_bytes: usize,
     /// The length of the rate window.
     pub rate_window: Duration,
-    /// The file that holds the signing key, named by `LEXLEAN_MCP_SIGNING_KEY`. A verification
-    /// is not started without a key that loads, because its record would be unsigned.
-    pub signing_key: Option<PathBuf>,
+    /// The socket of `gateway-signer`, named by `LEXLEAN_MCP_SIGNER`. A verification is not started
+    /// without a signer whose key loads, because its record would be unsigned. There is no setting
+    /// for the key: this process does not hold it.
+    pub signer: Option<PathBuf>,
     /// The program that verifies, one process for each task: `LEXLEAN_MCP_VERIFIER`, else
     /// `gateway-verifier` beside the running executable. A verification is not started without it.
     pub verifier_program: Option<PathBuf>,
@@ -67,7 +66,7 @@ impl Config {
             store: store.into(),
             blob_max_bytes: DRAFT_MAX_BYTES + DRAFT_BLOB_HEADROOM,
             rate_window: RATE_WINDOW,
-            signing_key: None,
+            signer: None,
             verifier_program: None,
             verify_concurrency: VERIFY_CONCURRENCY,
             verify_width: VERIFY_WIDTH,
@@ -94,9 +93,9 @@ impl Config {
         self
     }
 
-    /// This configuration with the key file `key`.
-    pub fn with_signing_key(mut self, key: impl Into<PathBuf>) -> Config {
-        self.signing_key = Some(key.into());
+    /// This configuration with the signer at the socket `socket`.
+    pub fn with_signer(mut self, socket: impl Into<PathBuf>) -> Config {
+        self.signer = Some(socket.into());
         self
     }
 
@@ -107,7 +106,7 @@ impl Config {
 
     /// The configuration of a process: the store is `LEXLEAN_MCP_STORE`, else
     /// `lexlean-mcp/store` below `XDG_DATA_HOME` or `~/.local/share`, else a directory of
-    /// the working directory; the key file is `LEXLEAN_MCP_SIGNING_KEY`.
+    /// the working directory; the socket of the signer is `LEXLEAN_MCP_SIGNER`.
     pub fn from_environment() -> Config {
         let mut config = Config::from_variables(|name| std::env::var_os(name));
         if config.verifier_program.is_none() {
@@ -140,7 +139,7 @@ impl Config {
             PathBuf::from("lexlean-mcp-store")
         };
         let mut config = Config::at(store);
-        config.signing_key = variable(SIGNING_KEY_VARIABLE).map(PathBuf::from);
+        config.signer = variable(SIGNER_VARIABLE).map(PathBuf::from);
         config.verifier_program = variable("LEXLEAN_MCP_VERIFIER").map(PathBuf::from);
         config
     }

@@ -1,0 +1,23 @@
+[package]
+name = "gateway-signer"
+description = "The signer of the verification records of the LexLean MCP gateway: the DSSE envelope, the key history, and the program that alone holds the key."
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "gateway-signer"
+path = "src/bin/gateway-signer.rs"
+
+[dependencies]
+serde_json = "1"
+sha2 = "0.10"
+ed25519-dalek = "2"
+base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints.rust]
+missing_docs = "deny"
