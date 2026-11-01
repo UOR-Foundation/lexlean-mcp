@@ -464,6 +464,10 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "scenario table" gateway_conformance_summary
+      - name: Free disk for the SDK image
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "free runner disk" free_runner_disk
       - name: 7q. prismpm verify, in the locked SDK image
         run: |
           . .github/lexlean-ci/lib.sh
