@@ -22,6 +22,7 @@ the rows and this file.
 | VP-04 | A cancel ends one task: a queued one never starts, a running one reports its groups and leaves no record, a verdict that races the cancel leaves no record, and a process that ignores the cancel is killed with its session. |
 | VP-05 | A lost verifier fails its task as `verifier-lost` with no record, and everything left in its session is killed. |
 | VP-06 | Each gate rejects its planted defect (below). |
+| VP-08 | Q1 and AC-05: every example but `uor-atlas` verifies through the tool beside the CLI, with the same observations, a record that validates and a bundle that exports; each `audit/output.txt` equals the committed record. |
 | VP-07 | AC-07: the 32 `verify` fixtures give the command result of the CLI through `lexlean_verify` and `lexlean_verify_control`, with the class equal to its exit status, and leave no record. |
 
 ## The protocol
@@ -84,12 +85,27 @@ The host asks the process whether it is alive, and not the pipe.
 - **`gateway-verifier` must be next to the host.** CI step 7k builds only `gateway-host`; the
   images of #17 must ship both programs. Without it `lexlean_verify` is `verifier-unavailable`,
   and the conformance suite does not call it.
-- **AC-05 is not met.** Each example verifying, with its observed axioms equal to the committed
-  records, is not tested. The mapping to MCP's tasks is in TASKHOST.md.
+- **AC-05 is met for 16 of the 18 examples** (VP-08). `uor-atlas` is not run, and `nested-induction`
+  has no committed record to hold its axioms against. The mapping to MCP's tasks is in TASKHOST.md.
 - **The queue is in memory.** A task of an earlier host is unknown after a restart; its process
   ends itself when the host's end of its input closes.
 - **Q3, R1, R4 and R8 stay `Pending`** in the model; no module of `src/` changes. Only the tiny
   fixture was verified through the process, with Lean, and one real cancel was made.
+
+## The examples
+
+VP-08 runs every example but `uor-atlas` through `lexlean_verify` beside `lexlean verify`, at the
+width and memory of the owner values on both sides. `attestation.json` cannot be equal byte for byte,
+because it names the digest of the running program, `gateway-verifier` on one side and `lexlean` on
+the other, and the attestation ID hashes that. The test compares everything else, including what each
+declaration observed, and holds `audit/output.txt` to the committed `expected/verify`.
+
+Running the examples found two faults of the record: a project with source packages could not keep
+its evidence (SG-20), and an `attestation.json` over 1 MiB could not be written (SG-21). Each ended
+the task failed with class 5 after a verification that had succeeded.
+
+`uor-atlas` is left out by name. LexLean records 169 to 248 minutes and 14.9 GB for one side at width
+1, so the two sides do not fit one job. Serving it is the owner's decision (`profile.uor-atlas`).
 
 ## The verify fixtures
 

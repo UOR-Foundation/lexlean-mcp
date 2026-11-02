@@ -183,8 +183,9 @@ GATEWAY_INPUTS=(
 # with, and the job itself. `gateway/mcp/lexlean.rev` is laid out from `.github/mcp.rev` and is not
 # committed, so the commit is reached through the pin.
 VERIFY_FIXTURES_INPUTS=(
-  '^gateway/bindings/gateway-binding/src/(verifier|child)\.rs$'
+  '^gateway/bindings/gateway-binding/src/(verifier|child|attestation|evidence|presentation)\.rs$'
   '^gateway/bindings/gateway-engine-host/src/engine\.rs$'
+  '^gateway/bindings/gateway-signer/src/'
   '^gateway/tool-tests/'
   '^gateway/mcp/lexlean\.rev$'
   '^\.github/(mcp\.rev$|lexlean-ci/lib\.sh$|workflows/lexlean\.yml$)'
@@ -542,13 +543,18 @@ gateway_build_unpack() {
   fi
 }
 
-# gateway_ignored_tests PACKAGE EXPECTED [SKIP]: run the ignored tests of PACKAGE, but for the test
-# SKIP that another job runs, and require that exactly EXPECTED of them ran and passed (an ignored
-# test that is filtered out proves nothing).
+# gateway_ignored_tests PACKAGE EXPECTED [SKIP...]: run the ignored tests of PACKAGE, but for the
+# tests SKIP that another job runs, and require that exactly EXPECTED of them ran and passed (an
+# ignored test that is filtered out proves nothing).
 gateway_ignored_tests() {
-  local package=$1 expected=$2 skip=${3:-} log
+  local package=$1 expected=$2 log skip
+  shift 2
+  local skips=()
+  for skip in "$@"; do
+    skips+=(--skip "$skip")
+  done
   log=$(mktemp)
-  gateway_cargo test -p "$package" --locked --offline -- --ignored ${skip:+--skip "$skip"} 2>&1 | tee "$log"
+  gateway_cargo test -p "$package" --locked --offline -- --ignored "${skips[@]}" 2>&1 | tee "$log"
   local passed
   passed=$(sed -n 's/^test result: ok\. \([0-9]*\) passed.*/\1/p' "$log" | paste -sd+ | bc)
   rm -f "$log"
@@ -645,6 +651,21 @@ gateway_verify() {
   # The step runs under `bash -e`, and `wait` answers 143 for a program that was ended.
   wait "$engine_pid" 2>/dev/null || true
   return "$status"
+}
+
+# gateway_verify_examples: every example but the one verified apart (VP-08), by name, and require
+# that the test ran, as gateway_verify_fixtures does.
+gateway_verify_examples() {
+  local log passed
+  log=$(mktemp)
+  gateway_cargo test -p gateway-tool-tests --test equality --locked --offline -- \
+    --ignored --exact every_example_verifies_beside_the_cli_vp_08 --nocapture 2>&1 | tee "$log"
+  passed=$(sed -n 's/^test result: ok\. \([0-9]*\) passed.*/\1/p' "$log")
+  rm -f "$log"
+  if [[ $passed != 1 ]]; then
+    echo "the verification of the examples: ${passed:-no} tests passed, expected 1" >&2
+    return 1
+  fi
 }
 
 # ---- the conformance run of the gateway (AC-03 b, GW-12) -----------------------------

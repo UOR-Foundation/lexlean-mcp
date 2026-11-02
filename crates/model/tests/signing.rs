@@ -348,6 +348,29 @@ fn the_record_keeps_its_evidence_sg_14() {
 }
 
 #[test]
+fn the_files_of_a_source_package_are_kept_sg_20() {
+    answered_by(
+        "SG-20",
+        &[
+            "a_file_of_a_source_package_has_a_key_of_its_own_sg_20",
+            "a_file_of_a_source_package_that_cannot_be_found_leaves_no_record_sg_20",
+            "a_rendering_cannot_take_the_name_of_the_files_of_a_package_sg_20",
+        ],
+    );
+}
+
+#[test]
+fn an_attestation_has_a_bound_of_its_own_sg_21() {
+    answered_by(
+        "SG-21",
+        &[
+            "an_attestation_of_the_largest_size_is_kept_through_the_socket_sg_21",
+            "an_attestation_over_the_largest_size_leaves_no_envelope_sg_21",
+        ],
+    );
+}
+
+#[test]
 fn evidence_that_cannot_be_kept_leaves_no_record_sg_15() {
     answered_by(
         "SG-15",

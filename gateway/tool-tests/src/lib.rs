@@ -63,6 +63,14 @@ pub const EXAMPLES_OFF_THE_EXPECTED_TREE: &[&str] = &[
     "recursive-data",
 ];
 
+/// The example that VP-08 leaves out: on the runner of a job it takes about three hours and 14.9 GB
+/// of one side, so it needs jobs of its own (QUALITY.md, Q1). LexLean's own CI splits it too.
+pub const EXAMPLES_VERIFIED_APART: &[&str] = &["uor-atlas"];
+
+/// The example with no committed record of its verification, `expected/verify`, to hold its
+/// observed axioms against at the pin (AC-05).
+pub const EXAMPLES_WITHOUT_A_RECORD: &[&str] = &["nested-induction"];
+
 /// The projects whose semantic snapshot is larger than the 4 MiB an engine effect may return
 /// (`RESULT_MAXIMUM` of the binding): `lexlean_snapshot` answers them with class 4 (TOOLS.md).
 pub const SNAPSHOTS_OVER_THE_LIMIT: &[&str] = &["uor-atlas"];

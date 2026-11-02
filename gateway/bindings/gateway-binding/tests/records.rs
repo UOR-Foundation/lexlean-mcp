@@ -14,7 +14,9 @@ use std::time::{Duration, Instant};
 
 use gateway_binding::signer::{self, Signer};
 use gateway_binding::signer_client::SignerClient;
-use gateway_binding::{conclude, Config, Facts, Job, Native, State};
+use gateway_binding::{
+    conclude, source_key, Config, Facts, Job, Native, State, ATTESTATION_MAXIMUM,
+};
 use gateway_host_api::protocol::{
     attestation_lookup, verify_control, verify_start, Host, HostError,
 };
@@ -652,6 +654,108 @@ fn the_record_keeps_the_manifest_the_renderings_and_the_sources_sg_14() {
         kept["inputs"][0]["sha256"],
         sha(&read("sources/src/Tiny.lex.tex"))
     );
+}
+
+// SG-20
+
+#[test]
+fn a_file_of_a_source_package_has_a_key_of_its_own_sg_20() {
+    assert_eq!(source_key("src/Tiny.lex.tex"), "sources/src/Tiny.lex.tex");
+    assert_eq!(
+        source_key("std-models:src/Scores.lex.tex"),
+        "package-sources/std-models/src/Scores.lex.tex"
+    );
+}
+
+#[test]
+fn a_file_of_a_source_package_that_cannot_be_found_leaves_no_record_sg_20() {
+    let directory = tempfile::tempdir().expect("a directory");
+    let config = config(directory.path());
+    let job = job(directory.path(), &config);
+    let manifest = serde_json::to_vec(&serde_json::json!({
+        "inputs": [{"kind": "source", "path": "absent:src/Absent.lex.tex", "sha256": tiny_digest()}],
+        "outputs": [{"kind": "tex", "path": RENDERING_PATH, "sha256": sha(RENDERING)}],
+    }))
+    .expect("JSON");
+    let root = verified_with(directory.path(), &manifest, &[(RENDERING_PATH, RENDERING)]);
+    let outcome = conclude(&job, &facts(root));
+    assert_eq!(outcome.class, 5);
+    let text = String::from_utf8_lossy(&outcome.result).into_owned();
+    assert!(
+        text.contains("absent:src/Absent.lex.tex is missing"),
+        "{text}"
+    );
+    assert!(
+        files_below(&config.store.join("verifications")).is_empty(),
+        "no record is left"
+    );
+}
+
+#[test]
+fn a_rendering_cannot_take_the_name_of_the_files_of_a_package_sg_20() {
+    let directory = tempfile::tempdir().expect("a directory");
+    let config = config(directory.path());
+    let job = job(directory.path(), &config);
+    let path = "package-sources/std/src/Tiny.tex";
+    let manifest = manifest_with_outputs(serde_json::json!([
+        {"kind": "tex", "path": path, "sha256": sha(RENDERING)}
+    ]));
+    let root = verified_with(directory.path(), &manifest, &[(path, RENDERING)]);
+    let outcome = conclude(&job, &facts(root));
+    assert_eq!(outcome.class, 5);
+    assert!(files_below(&config.store.join("verifications")).is_empty());
+}
+
+// SG-21
+
+/// A verified directory whose `attestation.json` is `length` bytes long.
+fn verified_with_an_attestation_of(dir: &Path, length: usize) -> PathBuf {
+    let root = verified_root(dir);
+    let plain = attestation_json();
+    let padding = length - plain.len() - "\"padding\":\"\",".len();
+    let mut padded = b"{\"padding\":\"".to_vec();
+    padded.extend(std::iter::repeat_n(b'x', padding));
+    padded.extend_from_slice(b"\",");
+    padded.extend_from_slice(&plain[1..]);
+    assert_eq!(padded.len(), length);
+    std::fs::write(root.join("attestation.json"), padded).expect("a file");
+    root
+}
+
+#[test]
+fn an_attestation_of_the_largest_size_is_kept_through_the_socket_sg_21() {
+    let directory = tempfile::tempdir().expect("a directory");
+    let config = config(directory.path());
+    let mut job = job(directory.path(), &config);
+    let socket = config.signer.clone().expect("a signer");
+    job.signer = Arc::new(SignerClient::ready(&socket).expect("the signer is ready"));
+    let root = verified_with_an_attestation_of(directory.path(), ATTESTATION_MAXIMUM);
+    let outcome = conclude(&job, &facts(root));
+    assert_eq!(
+        outcome.class,
+        0,
+        "{}",
+        String::from_utf8_lossy(&outcome.result)
+    );
+    let record = config.store.join("verifications");
+    let envelope = std::fs::read(record.join(format!("{}.json", id()))).expect("the envelope");
+    let subject =
+        std::fs::read(record.join(id()).join("attestation.json")).expect("the attestation");
+    assert_eq!(subject.len(), ATTESTATION_MAXIMUM);
+    let history = signer::read_history(&config.history_path()).expect("the history");
+    signer::validate(&envelope, &history, &subject).expect("the envelope validates");
+}
+
+#[test]
+fn an_attestation_over_the_largest_size_leaves_no_envelope_sg_21() {
+    let directory = tempfile::tempdir().expect("a directory");
+    let config = config(directory.path());
+    let job = job(directory.path(), &config);
+    let root = verified_with_an_attestation_of(directory.path(), ATTESTATION_MAXIMUM + 1);
+    let outcome = conclude(&job, &facts(root));
+    assert_eq!(outcome.class, 5);
+    let record = config.store.join("verifications");
+    assert!(!record.join(format!("{}.json", id())).exists());
 }
 
 // SG-15

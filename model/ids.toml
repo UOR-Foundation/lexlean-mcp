@@ -43,6 +43,7 @@
 # register DR-01..DR-11; lexlean_draft_assemble and the structured read of lexlean_draft_read register DR-12..DR-16.
 # The signer as a program of its own, the first service of issue #17, registers SG-16..SG-19.
 # The engine host as a program of its own, the second service of issue #17, registers EH-01..EH-04.
+# What the examples showed of the record (issue #15) registers SG-20 and SG-21, and their verification beside the CLI VP-08.
 
 spec = "template/1"
 
@@ -416,7 +417,7 @@ statement = "Every diagnostic code that the 298 negative fixtures of AC-07 retur
 id = "QM-07"
 level = "build"
 suite = "quality"
-statement = "The measures of Q1 to Q4 and Q6 to Q8 are Executed in src/Quality.lex.tex, whose tests pass: Q1 by TL-03 and TL-06, which run lexlean_check and lexlean_build beside the CLI, and by VP-07, which runs lexlean_verify beside the CLI on the 32 verify fixtures, while its clause for lexlean_verify on every example stays in pendingClauses (#15); Q2 by QM-01, QM-02 and QM-03 (Q2, whose running clause TL-15 executes); Q4 by the host process accounting (Q4, whose running clause TL-08 executes); and Q8 by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes). Q3 by the fault cases of the verifier and the signed record (VP-04 and VP-05, a cancelled or lost verifier, and SG-07 and SG-12, a record that cannot be written, each leaving no record); Q6 by EF-06 and GW-06, which find no tool or method name in the source of the host adapter, and Q7 by QM-09, which builds a fixed project to the recorded build_id in every run of just vv; Q5 stays Pending, naming the issue that executes it, pendingClauses holds only the clause of Q1 for lexlean_verify on every example, and the counts the model states (285 negative fixtures, 9 functions, 86 codes) are those of the pinned files."
+statement = "The measures of Q1 to Q4 and Q6 to Q8 are Executed in src/Quality.lex.tex, whose tests pass: Q1 by TL-03 and TL-06, which run lexlean_check and lexlean_build beside the CLI, by VP-07, which runs lexlean_verify beside the CLI on the 32 verify fixtures, and by VP-08, which does so on every example but uor-atlas, while its clause for lexlean_verify on uor-atlas stays in pendingClauses (#15); Q2 by QM-01, QM-02 and QM-03 (Q2, whose running clause TL-15 executes); Q4 by the host process accounting (Q4, whose running clause TL-08 executes); and Q8 by QM-04, QM-05 and QM-06 (Q8, whose running clause TL-13 executes). Q3 by the fault cases of the verifier and the signed record (VP-04 and VP-05, a cancelled or lost verifier, and SG-07 and SG-12, a record that cannot be written, each leaving no record); Q6 by EF-06 and GW-06, which find no tool or method name in the source of the host adapter, and Q7 by QM-09, which builds a fixed project to the recorded build_id in every run of just vv; Q5 stays Pending, naming the issue that executes it, pendingClauses holds only the clause of Q1 for lexlean_verify on uor-atlas, and the counts the model states (285 negative fixtures, 9 functions, 86 codes) are those of the pinned files."
 
 [[id]]
 id = "QM-08"
@@ -1133,6 +1134,18 @@ suite = "engine-host"
 statement = "Each gate of the engine host rejects its planted defect: the socket left open to other users, a directory outside the store admitted, a result changed on its way through the socket, a refusal name that comes back as another, the bound on a request removed, a class that is not an answer accepted, and the host making an Engine call itself; ENGINE-HOST.md records the command, the diagnostic and the restore of each."
 
 [[id]]
+id = "SG-20"
+level = "build"
+suite = "signing"
+statement = "A record keeps the files of the source packages: a row <package>:<file> of the build manifest is read from the package LexLean resolves for the project, checked against its digest and kept at package-sources/<package>/<file>, the export writes it at the same key, a file that cannot be found leaves no record, and no rendering can take that directory."
+
+[[id]]
+id = "SG-21"
+level = "build"
+suite = "signing"
+statement = "A record keeps an attestation.json of up to ATTESTATION_MAXIMUM bytes, larger than RECORD_MAXIMUM of the other files because it lists every process of the verification: one of that size is signed through the socket of the signer and validates, and one over it leaves no envelope."
+
+[[id]]
 id = "VP-01"
 level = "build"
 suite = "verifier"
@@ -1173,6 +1186,12 @@ id = "VP-07"
 level = "build"
 suite = "verifier"
 statement = "The 32 verify fixtures of AC-07 give the command result of the CLI: for each negative fixture of class #11 in crates/negative-fixtures/register.toml, run in its own environment and, when it carries a toolchain directory, with an elan home that overlays those programs on the pinned toolchain, lexlean_verify and lexlean_verify_control end the task failed with the class equal to the exit status of lexlean verify, and a result equal to the lexlean/command-result/1 the CLI prints on the same bytes, and they leave no record."
+
+[[id]]
+id = "VP-08"
+level = "build"
+suite = "verifier"
+statement = "Every example of LexLean at the pin but uor-atlas verifies beside the CLI: with the width and the memory of the owner values on both sides, lexlean_verify and lexlean_verify_control end the task verified with class 0, the build, source and semantic IDs and the modules equal those lexlean verify prints, attestation.json equals the CLI's but for the attestation ID and the digest of the program that verified, the envelope found by lexlean_attestation validates against the key history, lexlean_export writes the bundle, and audit/output.txt equals the committed expected/verify of each example that has one (AC-05); a project that commits no lock gets the one lexlean lock writes, and the constants name uor-atlas and the one example with no committed record."
 
 [[id]]
 id = "TH-01"

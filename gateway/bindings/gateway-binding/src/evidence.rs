@@ -10,6 +10,9 @@
 
 use std::path::Path;
 
+use camino::Utf8Path;
+use lexlean::project::Project;
+use lexlean::source_package::{self, SourcePackages};
 use lexlean::Sha256Digest;
 use serde_json::Value;
 
@@ -21,6 +24,9 @@ pub const MANIFEST: &str = "build-manifest.json";
 
 /// The directory of a record that holds the source files, under their paths in the project.
 pub const SOURCES: &str = "sources";
+
+/// The directory of a record that holds the files of the source packages, by package.
+pub const PACKAGE_SOURCES: &str = "package-sources";
 
 /// The most files a record keeps beside its envelope and its `attestation.json`.
 pub const FILES_MAXIMUM: usize = 1024;
@@ -68,6 +74,47 @@ pub(crate) fn rows(
     Ok(found)
 }
 
+/// The key below a record of the source file that the build manifest names `path`. The manifest
+/// names a file of a source package `<package>:<file>`, and `:` is in no key of the store.
+pub fn source_key(path: &str) -> String {
+    match path.split_once(':') {
+        Some((package, file)) => format!("{PACKAGE_SOURCES}/{package}/{file}"),
+        None => format!("{SOURCES}/{path}"),
+    }
+}
+
+/// The source packages of `project`, resolved only when `sources` names a file of one: LexLean
+/// reads and checks their trees, and a project without them has nothing to resolve.
+fn packages_of(project: &Path, sources: &[(String, String)]) -> Result<SourcePackages, String> {
+    if !sources.iter().any(|(path, _)| path.contains(':')) {
+        return Ok(SourcePackages::default());
+    }
+    let config = project.join("lexlean.toml");
+    let config = Utf8Path::from_path(&config)
+        .ok_or_else(|| "the path of the project is not UTF-8".to_owned())?;
+    let project =
+        Project::load(config).map_err(|_| "the project cannot be loaded again".to_owned())?;
+    source_package::resolve(&project)
+        .map_err(|_| "the source packages of the project cannot be resolved".to_owned())
+}
+
+/// The file `path` of a source package, whose SHA-256 must be `sha256`.
+fn package_file(packages: &SourcePackages, path: &str, sha256: &str) -> Result<Vec<u8>, String> {
+    let bytes = path
+        .split_once(':')
+        .and_then(|(package, file)| packages.packages.get(package)?.files.get(file))
+        .ok_or_else(|| format!("the source file {path} is missing"))?;
+    if bytes.len() > RECORD_MAXIMUM {
+        return Err(format!("the source file {path} cannot be read"));
+    }
+    if digest_of(bytes) != sha256 {
+        return Err(format!(
+            "the source file {path} is not the file the build manifest names"
+        ));
+    }
+    Ok(bytes.clone())
+}
+
 /// The file `path` below `directory`, whose SHA-256 must be `sha256`.
 fn bound(directory: &Path, path: &str, sha256: &str, what: &str) -> Result<Vec<u8>, String> {
     let bytes = read_below(directory, path, what)?;
@@ -108,6 +155,7 @@ pub fn gather(verified: &Path, project: &Path, subject: &[u8]) -> Result<Evidenc
         if path == MANIFEST
             || path == "attestation.json"
             || path.starts_with(&format!("{SOURCES}/"))
+            || path.starts_with(&format!("{PACKAGE_SOURCES}/"))
         {
             return Err(format!(
                 "the rendering {path} has the name of another file of a record"
@@ -118,9 +166,14 @@ pub fn gather(verified: &Path, project: &Path, subject: &[u8]) -> Result<Evidenc
             bound(verified, path, sha256, "the rendering")?,
         ));
     }
+    let packages = packages_of(project, &sources)?;
     for (path, sha256) in &sources {
-        let bytes = bound(project, path, sha256, "the source file")?;
-        evidence.push((format!("{SOURCES}/{path}"), bytes));
+        let bytes = if path.contains(':') {
+            package_file(&packages, path, sha256)?
+        } else {
+            bound(project, path, sha256, "the source file")?
+        };
+        evidence.push((source_key(path), bytes));
     }
     Ok(evidence)
 }

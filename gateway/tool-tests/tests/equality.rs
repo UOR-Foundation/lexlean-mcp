@@ -11,10 +11,12 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use gateway_binding::{signer, VERIFY_MEMORY_KIB, VERIFY_WIDTH};
 use gateway_tool_tests::{
     copy_tree, fixtures_of, lexlean_sources, real_verifier, register, run_cli, run_cli_in, tree,
-    Cli, Fixture, Gateway, Reply, EXAMPLES_OFF_THE_EXPECTED_TREE, F4_FIXTURES, F7_FIXTURES,
-    NOT_IN_THE_REGISTER, SNAPSHOTS_OVER_THE_LIMIT,
+    Cli, Fixture, Gateway, Reply, EXAMPLES_OFF_THE_EXPECTED_TREE, EXAMPLES_VERIFIED_APART,
+    EXAMPLES_WITHOUT_A_RECORD, F4_FIXTURES, F7_FIXTURES, NOT_IN_THE_REGISTER,
+    SNAPSHOTS_OVER_THE_LIMIT,
 };
 use serde_json::{json, Value};
 
@@ -836,7 +838,16 @@ fn verifier_under(environment: &[(String, String)], directory: &Path) -> PathBuf
 
 /// The report of the task `task` once it has ended.
 fn ended(gateway: &mut Gateway, task: &str) -> Result<Reply, String> {
-    let until = std::time::Instant::now() + std::time::Duration::from_secs(900);
+    ended_within(gateway, task, std::time::Duration::from_secs(900))
+}
+
+/// [`ended`], with this long for the verification.
+fn ended_within(
+    gateway: &mut Gateway,
+    task: &str,
+    within: std::time::Duration,
+) -> Result<Reply, String> {
+    let until = std::time::Instant::now() + within;
     loop {
         let reply = gateway.call(
             "lexlean_verify_control",
@@ -947,4 +958,199 @@ fn the_verify_fixtures_give_the_result_of_the_cli_vp_07() {
         failures.extend(found.into_iter().map(|d| format!("{}: {d}", fixture.name)));
     }
     finish("VP-07", fixtures.len(), &failures);
+}
+
+// ---- VP-08 -----------------------------------------------------------------------------
+
+/// Write the lock of each project of the workspace `root` that commits none: without one the CLI
+/// and the tool both refuse it with `LLC0102`, and neither verifies anything.
+fn lock_where_there_is_none(root: &Path) {
+    for entry in std::fs::read_dir(root).expect("a workspace").flatten() {
+        let project = entry.path();
+        if project.join("lexlean.toml").is_file() && !project.join("lexlean.lock").exists() {
+            let locked = run_cli(&project, &["lock"]);
+            assert_eq!(locked.status, 0, "lexlean lock in {}", project.display());
+        }
+    }
+}
+
+/// `attestation.json`, without what names the program that verified: `executable_sha256` is the
+/// digest of the running binary, `gateway-verifier` on one side and `lexlean` on the other, and the
+/// attestation ID hashes it. Everything else is what the two verifications observed.
+fn observed(bytes: &[u8]) -> Result<Value, String> {
+    let mut attestation: Value =
+        serde_json::from_slice(bytes).map_err(|error| error.to_string())?;
+    let object = attestation
+        .as_object_mut()
+        .ok_or("attestation.json is not an object")?;
+    object.remove("attestation_id");
+    object
+        .get_mut("lexlean")
+        .and_then(Value::as_object_mut)
+        .ok_or("attestation.json names no compiler")?
+        .remove("executable_sha256");
+    Ok(attestation)
+}
+
+/// The ways the tool's verification of the example `name` differs from the CLI's, as sentences.
+/// `project` is the copy the CLI verified, and `expected` the committed record, when there is one.
+fn verified_differences(
+    name: &str,
+    cli: &Cli,
+    project: &Path,
+    expected: Option<&Path>,
+    gateway: &mut Gateway,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    let printed: Value = serde_json::from_slice(&cli.stdout).unwrap_or(Value::Null);
+    if cli.status != 0 {
+        out.push(format!("the CLI exited {}: {printed}", cli.status));
+        return out;
+    }
+    let started = gateway.call("lexlean_verify", project_arguments(name));
+    let Some(task) = started.structured()["task"].as_str().map(str::to_string) else {
+        out.push(format!("the tool started no task: {}", started.body));
+        return out;
+    };
+    let report = match ended_within(gateway, &task, std::time::Duration::from_secs(5400)) {
+        Ok(report) => report,
+        Err(message) => {
+            out.push(message);
+            return out;
+        }
+    };
+    let structured = report.structured();
+    if structured["state"] != "verified" {
+        out.push(format!(
+            "the task ended {} with the class {}: {}",
+            structured["state"],
+            structured["class"],
+            report.text()
+        ));
+        return out;
+    }
+    if structured["class"] != json!(cli.status) {
+        out.push(format!(
+            "the class is {}, the CLI exited {}",
+            structured["class"], cli.status
+        ));
+    }
+    let answered: Value = serde_json::from_str(report.text()).unwrap_or(Value::Null);
+    for field in ["build_id", "source_id", "semantic_id", "modules"] {
+        if answered[field] != printed[field] {
+            out.push(format!(
+                "{field} is {}, the CLI printed {}",
+                answered[field], printed[field]
+            ));
+        }
+    }
+    let Some(identity) = answered["attestation_id"].as_str().map(str::to_string) else {
+        out.push("the result names no attestation".to_string());
+        return out;
+    };
+    let printed_identity = printed["attestation_id"].as_str().unwrap_or_default();
+    let verified = project.join(".lexlean/verified").join(printed_identity);
+    let record = gateway.store().join("verifications").join(&identity);
+    let subject = std::fs::read(record.join("attestation.json")).unwrap_or_default();
+    let cli_subject = std::fs::read(verified.join("attestation.json")).unwrap_or_default();
+    match (observed(&subject), observed(&cli_subject)) {
+        (Ok(tool), Ok(cli)) if tool == cli => {}
+        (Ok(_), Ok(_)) => out.push("attestation.json differs from the CLI's".to_string()),
+        (tool, cli) => out.push(format!("attestation.json: {tool:?}, {cli:?}")),
+    }
+    // The record is signed, found by its ID and validates against the history of the store.
+    let found = gateway.call(
+        "lexlean_attestation",
+        json!({"by": "id", "value": identity}),
+    );
+    if found.structured()["found"] != true {
+        out.push(format!("the lookup found no record: {}", found.body));
+    } else {
+        let history = signer::read_history(&gateway.config().history_path());
+        let statement = history
+            .map_err(|error| format!("{error:?}"))
+            .and_then(|history| {
+                signer::validate(found.text().as_bytes(), &history, &subject)
+                    .map_err(|error| format!("{error:?}"))
+            });
+        match statement {
+            Ok(statement) if statement["predicate"]["status"] == "verified" => {}
+            Ok(statement) => out.push(format!("the statement says {}", statement["predicate"])),
+            Err(error) => out.push(format!("the envelope does not validate: {error}")),
+        }
+    }
+    // The bundle of the record follows every source, those of the source packages too.
+    let exported = gateway.call("lexlean_export", json!({"by": "id", "value": identity}));
+    if exported.is_error() {
+        out.push(format!("the record cannot be exported: {}", exported.body));
+    }
+    // AC-05: the axioms the verification observed are the ones the committed record holds.
+    if let Some(expected) = expected {
+        let mine = std::fs::read(verified.join("audit/output.txt")).unwrap_or_default();
+        let theirs = std::fs::read(expected.join("audit/output.txt")).unwrap_or_default();
+        if mine.is_empty() || mine != theirs {
+            out.push("the observed axioms are not the committed record's".to_string());
+        }
+    }
+    out
+}
+
+/// Q1 and AC-05: each example verifies through the tool, beside the CLI of the same commit.
+#[test]
+#[ignore = "another job: `gateway / verify fixtures` of .github/workflows/lexlean.yml runs it by name with --ignored and requires that it ran"]
+fn every_example_verifies_beside_the_cli_vp_08() {
+    let sources = lexlean_sources();
+    let all = examples(&sources);
+    assert!(all.len() >= 18, "the examples of LexLean: {}", all.len());
+    let names: Vec<&str> = all.iter().map(|(name, _)| name.as_str()).collect();
+    for apart in EXAMPLES_VERIFIED_APART {
+        assert!(names.contains(apart), "{apart} is no example of LexLean");
+    }
+    let environment = [
+        ("LEXLEAN_VERIFY_WIDTH".to_string(), VERIFY_WIDTH.to_string()),
+        (
+            "LEXLEAN_VERIFY_MEMORY_KIB".to_string(),
+            VERIFY_MEMORY_KIB.to_string(),
+        ),
+    ];
+    let mut failures = Vec::new();
+    let mut ran = 0;
+    let mut without_a_record = Vec::new();
+    for (name, staged) in &all {
+        if EXAMPLES_VERIFIED_APART.contains(&name.as_str()) {
+            continue;
+        }
+        ran += 1;
+        let begun = std::time::Instant::now();
+        lock_where_there_is_none(&staged.root);
+        let scratch = tempfile::tempdir().expect("a directory");
+        let side = scratch.path().join("workspace");
+        copy_tree(&staged.root, &side);
+        let project = side.join(name);
+        let cli = run_cli_in(&project, &["verify"], &environment);
+        let mut gateway = Gateway::with_real_verifier();
+        copy_tree(&staged.root, &gateway.drafts());
+        let record = sources.join("examples").join(name).join("expected/verify");
+        if !record.is_dir() {
+            without_a_record.push(name.as_str());
+        }
+        let found = verified_differences(
+            name,
+            &cli,
+            &project,
+            record.is_dir().then_some(record.as_path()),
+            &mut gateway,
+        );
+        eprintln!(
+            "{name}: {} differences in {:?}",
+            found.len(),
+            begun.elapsed()
+        );
+        failures.extend(found.into_iter().map(|d| format!("{name}: {d}")));
+    }
+    assert_eq!(
+        without_a_record, EXAMPLES_WITHOUT_A_RECORD,
+        "the examples with no committed record of their verification"
+    );
+    finish("VP-08", ran, &failures);
 }

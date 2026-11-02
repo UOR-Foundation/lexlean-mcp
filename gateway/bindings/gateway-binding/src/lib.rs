@@ -29,11 +29,13 @@ mod taskhost;
 pub mod telemetry;
 mod verifier;
 
+pub use attestation::ATTESTATION_MAXIMUM;
 pub use config::{
     Config, CANCEL_GRACE, DRAFT_BLOB_HEADROOM, DRAFT_MAX_BYTES, ENGINE_VARIABLE, LOG_TAIL_BYTES,
     RATE_WINDOW, SIGNER_VARIABLE, SIGNING_KEY_VARIABLE, VERIFY_CONCURRENCY, VERIFY_MEMORY_KIB,
     VERIFY_WIDTH,
 };
+pub use evidence::source_key;
 pub use gateway_engine_host::engine::{Answer, Call, Unavailable};
 pub use gateway_engine_host::service as engine_service;
 pub use gateway_signer::{client as signer_client, service as signer_service, signer};
