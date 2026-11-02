@@ -53,6 +53,7 @@ tool (the core), never by the client.
 | `build-manifest.json` | the manifest whose SHA-256 `attestation.json` names |
 | `<path of a rendering>` | the canonical LaTeX of a module, at the path the manifest gives it |
 | `sources/<path>` | a source file the verification covered |
+| `package-sources/<package>/<file>` | a file of a source package, which the manifest names `<package>:<file>` |
 
 A reader needs no store and no network. The envelope validates against `keys.json` and
 `attestation.json` (DSSE with Ed25519, `SIGNING.md`); the SHA-256 of `build-manifest.json` is

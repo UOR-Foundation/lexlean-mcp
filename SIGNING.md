@@ -38,6 +38,8 @@ against the rows, the failures and this file.
 | SG-17 | An envelope through the socket equals the signer's, validates against the history the program wrote, and a key file put right or rotated is used at the next request. |
 | SG-18 | Every failure of the service is typed and has a negative test, and a signer lost before a verification concludes leaves no record. |
 | SG-19 | Each gate of the service rejects its planted defect (below). |
+| SG-20 | A record keeps the files of the source packages at `package-sources/<package>/<file>`, each checked against its digest, and one that cannot be found leaves no record. |
+| SG-21 | A record keeps an `attestation.json` of up to `ATTESTATION_MAXIMUM` (8 MiB), which reaches the signer through its socket; a larger one leaves no envelope. |
 
 ## The formats
 
@@ -194,6 +196,22 @@ The root-workspace gate that holds every constructor of every public failure to 
 | Defect | Command | Diagnostic | Restore |
 | --- | --- | --- | --- |
 | a constructor with no test: `EnvelopeError::Replayed` added to `signer.rs` | `cargo test -p repo-model --test signing` | 7 passed, 1 failed: `every_refusal_of_an_envelope_and_of_a_key_has_a_negative_test_sg_04` panics `no test reaches EnvelopeError::Replayed` | `git checkout gateway/bindings/gateway-signer/src/signer.rs` |
+
+## What the examples showed of the record
+
+`SG-20` and `SG-21` come from running the host's verifier and record code on the examples of
+LexLean. Before them each of these was the defect, in the code as it stood, and it failed a
+verification that had succeeded. The same run on the fixed code ended each one `verified`, with
+a record and a bundle.
+
+| Example | `attestation.json` | Result before |
+| --- | --- | --- |
+| `helpdesk`, 3 files of source packages | 1.6 MB | class 5, `the evidence of the verification could not be kept: the source file std-models:src/Scores.lex.tex cannot be read` |
+| `models` | 1.7 MB | class 5, `the record of the verification could not be written` |
+| `reasoning` | 2.5 MB | class 5, the same |
+
+`production-coverage`, the largest example but the Atlas, has 2.9 MB, which is why
+`ATTESTATION_MAXIMUM` is 8 MiB. The size of the Atlas's has not been measured.
 
 ## Planted defects of the signer service
 
