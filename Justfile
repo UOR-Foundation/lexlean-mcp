@@ -3,7 +3,7 @@
 default: vv
 
 # The whole gate. Each check runs once, the cheapest failure first.
-vv: fmt-check model template-check lint test deny
+vv: fmt-check model template-check model-check lint test deny
     @echo "vv: the acceptance gate passed"
 
 # R1, R4, R5, the bootstrap trust root and dependency ownership: every
@@ -16,6 +16,10 @@ model:
 template-check:
     prismpm template check
     prismpm lock check
+
+# The SDK's own check of the model (MODEL-CHECK.md says what it does not cover).
+model-check:
+    prismpm check
 
 # Regenerate everything the model owns: CONFORMANCE.md.
 model-write:
