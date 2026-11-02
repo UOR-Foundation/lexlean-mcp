@@ -241,3 +241,8 @@ The vectors of the draft tools (#9) name the profile `tiny`, which #8 provisions
 provision` has filled with the profiles the vectors were recorded with (the same function that
 `record` uses), and the ordinary tests of `gateway-binding` and `gateway-tool-tests` include the
 draft tests (`tests/materialize.rs`, `tests/drafts.rs`), none of which is ignored.
+
+The vectors of the four Engine effects are answered by `gateway-engine-host` (ENGINE-HOST.md).
+`gateway_verify` starts it beside the container of `prismpm verify`, on the same store, and hands
+its socket to the replay with `LEXLEAN_MCP_ENGINE` through a directory both can reach. The replay
+inherits that variable as it inherits `LEXLEAN_MCP_STORE`.

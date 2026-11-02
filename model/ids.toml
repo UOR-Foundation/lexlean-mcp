@@ -42,6 +42,7 @@
 # The draft tools of issue #9 (F3: identity, admission, storage, reading and materialization of drafts)
 # register DR-01..DR-11; lexlean_draft_assemble and the structured read of lexlean_draft_read register DR-12..DR-16.
 # The signer as a program of its own, the first service of issue #17, registers SG-16..SG-19.
+# The engine host as a program of its own, the second service of issue #17, registers EH-01..EH-04.
 
 spec = "template/1"
 
@@ -1106,6 +1107,30 @@ id = "SG-19"
 level = "build"
 suite = "signing"
 statement = "Each gate of the signer service rejects its planted defect: the host loading the key itself, the socket left open to other users, the key cached at the start of the program, a refusal name that comes back as another error, and the bound on a request removed; SIGNING.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "EH-01"
+level = "build"
+suite = "engine-host"
+statement = "The engine host is a program of its own and the only maker of the four Engine calls: gateway-engine-host answers on the Unix socket LEXLEAN_MCP_ENGINE with mode 0600 for the store LEXLEAN_MCP_STORE, the crate that holds it links no generated package, no host and no signer, and the host makes those calls through that socket alone, so a host without one answers engine-unavailable."
+
+[[id]]
+id = "EH-02"
+level = "build"
+suite = "engine-host"
+statement = "An answer through the socket is the answer of the Engine: for check, snapshot, format, format with check_only and build, and for each selection, the class and the bytes of the result equal those of the Engine on an equal project, and a refusal of the Engine is an answer with its class."
+
+[[id]]
+id = "EH-03"
+level = "build"
+suite = "engine-host"
+statement = "Every failure of the engine host is typed and has a negative test: each refusal and each call travels by its name, a directory that is not below the store after links are followed is refused, a request that is not one or is over MAX_REQUEST_BYTES is refused and the next is served, no answer at the socket, a service lost before it answers and an answer that is not one are Unavailable, a host whose engine host has gone answers engine-unavailable and judges the project first, and each constructor of StartError stops the program."
+
+[[id]]
+id = "EH-04"
+level = "build"
+suite = "engine-host"
+statement = "Each gate of the engine host rejects its planted defect: the socket left open to other users, a directory outside the store admitted, a result changed on its way through the socket, a refusal name that comes back as another, the bound on a request removed, a class that is not an answer accepted, and the host making an Engine call itself; ENGINE-HOST.md records the command, the diagnostic and the restore of each."
 
 [[id]]
 id = "VP-01"

@@ -134,6 +134,8 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   (SG-01 to SG-13), what is not met, and the defects planted in its gates.
 - [VERIFIER.md](VERIFIER.md) states what the verifier process claims (VP-01 to VP-06): one process
   for each task, the queue, the cancel, the lost verifier and the sweep of its session.
+- [ENGINE-HOST.md](ENGINE-HOST.md) states what the engine host claims (EH-01 to EH-04): the four
+  Engine calls in a program of their own, what is not met, and the defects planted in its gates.
 - [PROFILES.md](PROFILES.md) states what the profiles model claims and does not
   claim and the defects planted in its laws.
 - [CI.md](CI.md) describes the workflow that runs every gate that works without

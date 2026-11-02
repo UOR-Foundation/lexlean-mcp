@@ -1,0 +1,23 @@
+[package]
+name = "gateway-engine-host"
+description = "The engine host of the LexLean MCP gateway: the four Engine calls, and the program that alone makes them."
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "gateway-engine-host"
+path = "src/bin/gateway-engine-host.rs"
+
+[dependencies]
+lexlean = "0.3.0"
+serde_json = "1"
+camino = "1"
+base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints.rust]
+missing_docs = "deny"

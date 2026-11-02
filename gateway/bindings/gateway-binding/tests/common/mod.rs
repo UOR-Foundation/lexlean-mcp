@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use gateway_binding::signer_service::Service;
-use gateway_binding::{Config, Native, State};
+use gateway_binding::{engine_service, Config, Native, State};
 use gateway_host_api::protocol::{verify_control, verify_start, Host, HostError};
 
 /// The fixture project.
@@ -45,13 +45,25 @@ pub fn signer(dir: &Path, key: &Path) -> PathBuf {
     socket
 }
 
-/// A configuration whose store is below `dir`, whose signer has a key file of `dir` and whose
-/// verifier is `program`.
+/// The socket of an engine host on a thread of this test, for the store below `dir`: the service of
+/// `gateway-engine-host`, over a real socket.
+pub fn engine(dir: &Path) -> PathBuf {
+    let socket = dir.join("engine.sock");
+    engine_service::Service::new(dir.join("store"))
+        .bind(&socket)
+        .expect("a socket")
+        .spawn();
+    socket
+}
+
+/// A configuration whose store is below `dir`, whose signer has a key file of `dir`, whose engine
+/// host serves that store and whose verifier is `program`.
 pub fn config(dir: &Path, program: PathBuf) -> Config {
     let key = dir.join("signing.key");
     std::fs::write(&key, format!("{}\n", hex(&SEED))).expect("a key file");
     Config::at(dir.join("store"))
         .with_signer(signer(dir, &key))
+        .with_engine(engine(dir))
         .with_verifier(program)
 }
 

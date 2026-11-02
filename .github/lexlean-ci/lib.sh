@@ -183,7 +183,8 @@ GATEWAY_INPUTS=(
 # with, and the job itself. `gateway/mcp/lexlean.rev` is laid out from `.github/mcp.rev` and is not
 # committed, so the commit is reached through the pin.
 VERIFY_FIXTURES_INPUTS=(
-  '^gateway/bindings/gateway-binding/src/(verifier|engine|child)\.rs$'
+  '^gateway/bindings/gateway-binding/src/(verifier|child)\.rs$'
+  '^gateway/bindings/gateway-engine-host/src/engine\.rs$'
   '^gateway/tool-tests/'
   '^gateway/mcp/lexlean\.rev$'
   '^\.github/(mcp\.rev$|lexlean-ci/lib\.sh$|workflows/lexlean\.yml$)'
@@ -606,6 +607,23 @@ gateway_verify() {
   # calls it (gateway/target/debug/gateway-provision) for each profile of the vectors.
   gateway_cargo build -p gateway-binding --bin gateway-provision --locked --offline || return 1
   python3 -I gateway/vectors/generate.py provision "$store" || return 1
+  # The vectors of the four Engine effects are answered by the engine host, as in a deployment: it
+  # runs beside the container, on the same store, and the socket reaches the replay through $work.
+  gateway_cargo build -p gateway-engine-host --bin gateway-engine-host --locked --offline || return 1
+  local engine=$work/engine.sock engine_pid status=0
+  LEXLEAN_MCP_STORE="$store" LEXLEAN_MCP_ENGINE="$engine" \
+    gateway/target/debug/gateway-engine-host >"$work/engine-host.log" 2>&1 &
+  engine_pid=$!
+  for _ in $(seq 1 100); do
+    [[ -S $engine ]] && break
+    sleep 0.1
+  done
+  if [[ ! -S $engine ]]; then
+    echo "gateway-engine-host made no socket" >&2
+    cat "$work/engine-host.log" >&2
+    kill "$engine_pid" 2>/dev/null || true
+    return 1
+  fi
   docker run --rm \
     --user "$(id -u):$(id -g)" \
     --volume "$PWD:$PWD" \
@@ -619,9 +637,14 @@ gateway_verify() {
     --env CARGO_HOME="$PWD/gateway/registry/cargo-home" \
     --env CARGO_NET_OFFLINE=true \
     --env LEXLEAN_MCP_STORE="$store" \
+    --env LEXLEAN_MCP_ENGINE="$engine" \
     --env LEXLEAN_VERIFY_WIDTH="$GATEWAY_VERIFY_WIDTH" \
     --env LEXLEAN_CI_TELEMETRY="$telemetry" \
-    "$image" "$PRISMPM_ROOT/bin/prismpm" verify
+    "$image" "$PRISMPM_ROOT/bin/prismpm" verify || status=$?
+  kill "$engine_pid" 2>/dev/null || true
+  # The step runs under `bash -e`, and `wait` answers 143 for a program that was ended.
+  wait "$engine_pid" 2>/dev/null || true
+  return "$status"
 }
 
 # ---- the conformance run of the gateway (AC-03 b, GW-12) -----------------------------

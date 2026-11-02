@@ -18,6 +18,7 @@ the declaration by `cargo test -p repo-model --test gateway`.
 | `gateway/src/Application.lex.tex` | the server application: the eleven effects, the limits, the serving surface and the vectors; rendered by `gateway/vectors/generate.py` |
 | `gateway/mcp/src`, `gateway/language/mcp.core` | the protocol core of UOR-Foundation/MCP at `.github/mcp.rev`, laid out by `gateway/lay-out-mcp.sh`; not committed |
 | `gateway/bindings/gateway-binding` | the binding crate: `Native` implements the generated `Host` trait, and nothing else |
+| `gateway/bindings/gateway-engine-host` | the program that makes the four Engine calls, and the client the binding reaches it with (ENGINE-HOST.md) |
 | `gateway/vectors` | `generate.py`, `exchanges.json` (the recorded vectors), `runner` (the recorder) and `fixture/tiny` (the project the vectors draft) |
 | `gateway/generated` | the production request and the committed export of the core |
 | `gateway/gateway-host-api`, `gateway/gateway-host`, `gateway/lexlean_mcp_gateway_core` | what `prismpm build` generates and `gateway/lay-out.sh` lays out; not committed |
@@ -123,8 +124,8 @@ store is a directory of seven areas (`LEXLEAN_MCP_STORE`, else `$XDG_DATA_HOME` 
 link, reads do not follow one, and a write is a temporary file renamed over its target.
 A project is a directory of `drafts/` with a `lexlean.toml`, or the handle `<profile>/<id>` of a
 draft written by `lexlean_draft_write`: the host copies the profile bundle and the files of the
-draft into a directory of its own below `builds/` (`materialize.rs`, DRAFTS.md), runs the Engine
-on it and removes it, and a bundle that holds a symbolic link is `project-refused`. The verifier is a thread that
+draft into a directory of its own below `builds/` (`materialize.rs`, DRAFTS.md), has
+`gateway-engine-host` run the Engine on it (ENGINE-HOST.md) and removes it, and a bundle that holds a symbolic link is `project-refused`. The verifier is a thread that
 runs `Engine::verify` (one at a time, the others queued) and writes the attestation record
 of a success to `verifications/` and its digest index to `index/`; it is cancelled with
 `lexlean::verify::end_live_children`. The rate counter counts the counted requests of the
@@ -221,7 +222,7 @@ gateway/lay-out-sdk.sh                  # language/prism.arch of PrismPM at the 
 gateway/registry.sh                     # the registry; CARGO_HOME=gateway/registry/cargo-home
 (cd gateway && prismpm build)           # exports the core, generates the host packages
 gateway/lay-out.sh gateway/.prism/build/<id>
-(cd gateway && prismpm verify)          # LEXLEAN_MCP_STORE=$(mktemp -d)
+(cd gateway && prismpm verify)          # LEXLEAN_MCP_STORE=$(mktemp -d), LEXLEAN_MCP_ENGINE: the socket of a running gateway-engine-host on that store
 ```
 
 CI.md describes the job that runs this, and the release step that removes the registry.

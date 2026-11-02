@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use gateway_binding::signer_service::Service;
-use gateway_binding::{Config, Native};
+use gateway_binding::{engine_service, Config, Native};
 use gateway_host::exchange::{core, step, turn, Step};
 use gateway_host::perform::perform;
 use gateway_host::protocol::Request;
@@ -607,6 +607,12 @@ impl Gateway {
             .bind(&socket)
             .expect("a socket")
             .spawn();
+        // An Engine call is made by the service of `gateway-engine-host`, over a real socket.
+        let engine = directory.path().join("engine.sock");
+        engine_service::Service::new(&store)
+            .bind(&engine)
+            .expect("a socket")
+            .spawn();
         let verifier = program.unwrap_or_else(|| {
             let stand_in = directory.path().join("verifier");
             stand_in_verifier(&stand_in);
@@ -614,6 +620,7 @@ impl Gateway {
         });
         let config = Config::at(store.clone())
             .with_signer(socket)
+            .with_engine(engine)
             .with_verifier(verifier.clone());
         Gateway {
             host: Native::new(config),
@@ -788,6 +795,7 @@ impl Gateway {
     pub fn config(&self) -> Config {
         Config::at(self.store.clone())
             .with_signer(self._directory.path().join("signer.sock"))
+            .with_engine(self._directory.path().join("engine.sock"))
             .with_verifier(self.verifier.clone())
     }
 }

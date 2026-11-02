@@ -16,6 +16,7 @@ path = "src/bin/gateway-verifier.rs"
 
 [dependencies]
 gateway-host-api = { path = "../../gateway-host-api" }
+gateway-engine-host = { path = "../gateway-engine-host" }
 gateway-signer = { path = "../gateway-signer" }
 lexlean = "0.3.0"
 serde_json = "1"
