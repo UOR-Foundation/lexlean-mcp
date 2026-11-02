@@ -29,7 +29,7 @@
 # The executable measures of Q2 and Q8 of issue #15 register QM-01 to QM-08: two rows that
 # reproduce the pinned LexLean (its public API and its diagnostic registry) and six that are checked here.
 # The features F1 to F13 and journeys J1 to J6 of issue #18 register FJ-01..FJ-10: the
-# model-side slice, whose rules prismpm check cannot yet run on the bound SDK image.
+# model-side slice; prismpm check runs their rules since MC-01.
 # The observability model of issue #16 registers OB-01..OB-10: three rows that reproduce
 # LexLean, MCP and W3C facts and seven that are checked here.
 # The model-side slice of the profiles and vocabulary of issue #8 (profile identity, language rule,
@@ -41,6 +41,7 @@
 # adapter's own refusal of a foreign Origin (issue #45) registers GW-13. The running clause of Q2 registers TL-15.
 # The draft tools of issue #9 (F3: identity, admission, storage, reading and materialization of drafts)
 # register DR-01..DR-11; lexlean_draft_assemble and the structured read of lexlean_draft_read register DR-12..DR-16.
+# prismpm check on the root model (issues #5, #14, #15 and #18) registers MC-01..MC-03.
 # The signer as a program of its own, the first service of issue #17, registers SG-16..SG-19.
 # The engine host as a program of its own, the second service of issue #17, registers EH-01..EH-04.
 
@@ -1131,6 +1132,24 @@ id = "EH-04"
 level = "build"
 suite = "engine-host"
 statement = "Each gate of the engine host rejects its planted defect: the socket left open to other users, a directory outside the store admitted, a result changed on its way through the socket, a refusal name that comes back as another, the bound on a request removed, a class that is not an answer accepted, and the host making an Engine call itself; ENGINE-HOST.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "MC-01"
+level = "build"
+suite = "model-check"
+statement = "The root is a PrismPM project over the root model and just vv runs prismpm check: prismpm.toml names lexlean.toml, the recipe vv depends on model-check and model-check is prismpm check, so a model the check refuses does not pass the acceptance gate."
+
+[[id]]
+id = "MC-02"
+level = "build"
+suite = "model-check"
+statement = "The facet records have the form the check requires: for each record type of Foundation.Arch, Foundation.Sec and Foundation.Qual with an index, the index of each declaration is its position in the byte order of the IDs, and each standard reference names its entry of the standards profile with the position of that entry and edition index 0."
+
+[[id]]
+id = "MC-03"
+level = "build"
+suite = "model-check"
+statement = "Each rule of the check that the model relies on rejects its planted defect, and what it does not reject is named: an index out of order, a standard of another edition or outside the profile, a feature with no call or no acceptance row, a call that names no declaration, a journey step that is no feature, a journey actor that is no stakeholder, and an unresolved viewpoint, risk, control, requirement or measure link are each refused with their code; a concern framed by no viewpoint, a risk with no control, a requirement with no measure and a view of the wrong viewpoint pass the check, and MODEL-CHECK.md records what rejects each of them."
 
 [[id]]
 id = "VP-01"

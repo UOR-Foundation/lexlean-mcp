@@ -4,8 +4,8 @@
 //! checks the kernel side: the theorems of that module are `decide` proofs over the
 //! same tables. These tests read the sources as text and apply the five rules of
 //! PrismPM#330 (PP2014 to PP2018) once more, independently of the Lean data they
-//! check, because `prismpm check` does not reach them yet: it stops at `PP4004` on the
-//! facets (FEATURES.md). They also hold the vocabulary copy against
+//! check, so that a rule is not trusted to `prismpm check` alone (MODEL-CHECK.md). They also hold
+//! the vocabulary copy against
 //! the PrismPM commit it comes from and `FEATURES.md` against the declarations.
 
 use std::collections::BTreeSet;

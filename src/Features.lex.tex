@@ -339,49 +339,49 @@ definition{
   name: journeyJ1AuthorAndAttest,
   parameters: [],
   result: Foundation.Arch::Journey,
-  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderAuthorAgent", steps := (cons "Features::featureF01Profiles" (cons "Features::featureF02Vocabulary" (cons "Features::featureF03Drafts" (cons "Features::featureF04Check" (cons "Features::featureF08Verify" (cons "Features::featureF09Present" (nil String)))))))})
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholder01AuthorAgent", steps := (cons "Features::featureF01Profiles" (cons "Features::featureF02Vocabulary" (cons "Features::featureF03Drafts" (cons "Features::featureF04Check" (cons "Features::featureF08Verify" (cons "Features::featureF09Present" (nil String)))))))})
 }
 
 definition{
   name: journeyJ2Repair,
   parameters: [],
   result: Foundation.Arch::Journey,
-  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderAuthorAgent", steps := (cons "Features::featureF04Check" (cons "Features::featureF11Explain" (cons "Features::featureF03Drafts" (cons "Features::featureF04Check" (cons "Features::featureF08Verify" (nil String))))))})
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholder01AuthorAgent", steps := (cons "Features::featureF04Check" (cons "Features::featureF11Explain" (cons "Features::featureF03Drafts" (cons "Features::featureF04Check" (cons "Features::featureF08Verify" (nil String))))))})
 }
 
 definition{
   name: journeyJ3VocabularyGap,
   parameters: [],
   result: Foundation.Arch::Journey,
-  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderAuthorAgent", steps := (cons "Features::featureF04Check" (cons "Features::featureF02Vocabulary" (cons "Features::featureF03Drafts" (nil String))))})
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholder01AuthorAgent", steps := (cons "Features::featureF04Check" (cons "Features::featureF02Vocabulary" (cons "Features::featureF03Drafts" (nil String))))})
 }
 
 definition{
   name: journeyJ4ReaderCheck,
   parameters: [],
   result: Foundation.Arch::Journey,
-  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderReader", steps := (cons "Features::featureF10Attestation" (cons "Features::featureF12Export" (nil String)))})
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholder02Reader", steps := (cons "Features::featureF10Attestation" (cons "Features::featureF12Export" (nil String)))})
 }
 
 definition{
   name: journeyJ5ProvisionProfile,
   parameters: [],
   result: Foundation.Arch::Journey,
-  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderOperator", steps := (cons "Features::featureF01Profiles" (nil String))})
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholder03Operator", steps := (cons "Features::featureF01Profiles" (nil String))})
 }
 
 definition{
   name: journeyJ6Upgrade,
   parameters: [],
   result: Foundation.Arch::Journey,
-  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholderOperator", steps := (cons "Features::featureF13Lifecycle" (cons "Features::featureF01Profiles" (nil String)))})
+  body: (record Foundation.Arch::Journey {actor := "Architecture::stakeholder03Operator", steps := (cons "Features::featureF13Lifecycle" (cons "Features::featureF01Profiles" (nil String)))})
 }
 
 definition{
   name: stakeholderRows,
   parameters: [],
   result: (List StakeholderRow),
-  body: (cons (record StakeholderRow {id := "Architecture::stakeholderRequester", stakeholder := (Architecture::stakeholderRequester)}) (cons (record StakeholderRow {id := "Architecture::stakeholderAuthorAgent", stakeholder := (Architecture::stakeholderAuthorAgent)}) (cons (record StakeholderRow {id := "Architecture::stakeholderReader", stakeholder := (Architecture::stakeholderReader)}) (cons (record StakeholderRow {id := "Architecture::stakeholderOperator", stakeholder := (Architecture::stakeholderOperator)}) (cons (record StakeholderRow {id := "Architecture::stakeholderLexiconMaintainer", stakeholder := (Architecture::stakeholderLexiconMaintainer)}) (cons (record StakeholderRow {id := "Architecture::stakeholderLexLeanMaintainers", stakeholder := (Architecture::stakeholderLexLeanMaintainers)}) (cons (record StakeholderRow {id := "Architecture::stakeholderPrismPMMaintainers", stakeholder := (Architecture::stakeholderPrismPMMaintainers)}) (cons (record StakeholderRow {id := "Architecture::stakeholderMcpMaintainers", stakeholder := (Architecture::stakeholderMcpMaintainers)}) (nil StakeholderRow)))))))))
+  body: (cons (record StakeholderRow {id := "Architecture::stakeholder00Requester", stakeholder := (Architecture::stakeholder00Requester)}) (cons (record StakeholderRow {id := "Architecture::stakeholder01AuthorAgent", stakeholder := (Architecture::stakeholder01AuthorAgent)}) (cons (record StakeholderRow {id := "Architecture::stakeholder02Reader", stakeholder := (Architecture::stakeholder02Reader)}) (cons (record StakeholderRow {id := "Architecture::stakeholder03Operator", stakeholder := (Architecture::stakeholder03Operator)}) (cons (record StakeholderRow {id := "Architecture::stakeholder04LexiconMaintainer", stakeholder := (Architecture::stakeholder04LexiconMaintainer)}) (cons (record StakeholderRow {id := "Architecture::stakeholder05LexLeanMaintainers", stakeholder := (Architecture::stakeholder05LexLeanMaintainers)}) (cons (record StakeholderRow {id := "Architecture::stakeholder06PrismPMMaintainers", stakeholder := (Architecture::stakeholder06PrismPMMaintainers)}) (cons (record StakeholderRow {id := "Architecture::stakeholder07McpMaintainers", stakeholder := (Architecture::stakeholder07McpMaintainers)}) (nil StakeholderRow)))))))))
 }
 
 definition{

@@ -71,60 +71,60 @@ definition{
   name: standardIso42010,
   parameters: [],
   result: Foundation.Arch::StandardReference,
-  body: (record Foundation.Arch::StandardReference {standardIndex := 42010, editionIndex := 2022, standardId := "ISO/IEC/IEEE 42010", edition := "2022"})
+  body: (record Foundation.Arch::StandardReference {standardIndex := 4, editionIndex := 0, standardId := "ISO-42010-2022", edition := "2022"})
 }
 
 definition{
-  name: stakeholderRequester,
+  name: stakeholder00Requester,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
   body: (record Foundation.Arch::Stakeholder {index := 0, name := "Requester", text := "Asks for a document to be written and verified, and receives the result."})
 }
 
 definition{
-  name: stakeholderAuthorAgent,
+  name: stakeholder01AuthorAgent,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
   body: (record Foundation.Arch::Stakeholder {index := 1, name := "Author agent", text := "The LLM agent that drafts LexLean modules through the tools and repairs them from the refusals it receives."})
 }
 
 definition{
-  name: stakeholderReader,
+  name: stakeholder02Reader,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
   body: (record Foundation.Arch::Stakeholder {index := 2, name := "Reader", text := "Reads the canonical rendering of a verified module and checks it against its attestation."})
 }
 
 definition{
-  name: stakeholderOperator,
+  name: stakeholder03Operator,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
   body: (record Foundation.Arch::Stakeholder {index := 3, name := "Operator", text := "Runs the server on a host and bounds what it may do there."})
 }
 
 definition{
-  name: stakeholderLexiconMaintainer,
+  name: stakeholder04LexiconMaintainer,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
   body: (record Foundation.Arch::Stakeholder {index := 4, name := "Lexicon maintainer", text := "Maintains the lexicon whose entries give a rendering its meaning."})
 }
 
 definition{
-  name: stakeholderLexLeanMaintainers,
+  name: stakeholder05LexLeanMaintainers,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
   body: (record Foundation.Arch::Stakeholder {index := 5, name := "LexLean maintainers", text := "Maintain LexLean, the compiler and verifier the server links."})
 }
 
 definition{
-  name: stakeholderPrismPMMaintainers,
+  name: stakeholder06PrismPMMaintainers,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
   body: (record Foundation.Arch::Stakeholder {index := 6, name := "PrismPM maintainers", text := "Maintain PrismPM, the modeling SDK and metamodel this model is checked with."})
 }
 
 definition{
-  name: stakeholderMcpMaintainers,
+  name: stakeholder07McpMaintainers,
   parameters: [],
   result: Foundation.Arch::Stakeholder,
   body: (record Foundation.Arch::Stakeholder {index := 7, name := "MCP maintainers", text := "Maintain the MCP protocol core that this product links unchanged."})
@@ -187,315 +187,315 @@ definition{
 }
 
 definition{
-  name: componentClient,
+  name: component00Client,
   parameters: [],
   result: Foundation.Arch::Component,
   body: (record Foundation.Arch::Component {index := 0, kind := (ctor Foundation.Arch::ComponentKind.externalSystem), name := "client", text := "The MCP client that carries the requests of a requester or an author agent to the gateway."})
 }
 
 definition{
-  name: componentGateway,
+  name: component01Gateway,
   parameters: [],
   result: Foundation.Arch::Component,
   body: (record Foundation.Arch::Component {index := 1, kind := (ctor Foundation.Arch::ComponentKind.service), name := "gateway", text := "Accepts MCP messages on loopback and hands them to the protocol core and the tool layer."})
 }
 
 definition{
-  name: componentProtocolCore,
+  name: component02ProtocolCore,
   parameters: [],
   result: Foundation.Arch::Component,
   body: (record Foundation.Arch::Component {index := 2, kind := (ctor Foundation.Arch::ComponentKind.service), name := "protocol core", text := "The MCP protocol core that this product links unchanged."})
 }
 
 definition{
-  name: componentToolLayer,
+  name: component03ToolLayer,
   parameters: [],
   result: Foundation.Arch::Component,
   body: (record Foundation.Arch::Component {index := 3, kind := (ctor Foundation.Arch::ComponentKind.service), name := "tool layer", text := "The tools registered on the core's extension point; they act only through host effects."})
 }
 
 definition{
-  name: componentEngineHost,
+  name: component04EngineHost,
   parameters: [],
   result: Foundation.Arch::Component,
   body: (record Foundation.Arch::Component {index := 4, kind := (ctor Foundation.Arch::ComponentKind.service), name := "engine-host", text := "Calls the LexLean engine for check, snapshot, format and build, and reads and writes the store for the tool layer."})
 }
 
 definition{
-  name: componentVerifier,
+  name: component05Verifier,
   parameters: [],
   result: Foundation.Arch::Component,
   body: (record Foundation.Arch::Component {index := 5, kind := (ctor Foundation.Arch::ComponentKind.service), name := "verifier", text := "Runs Lean, Lake and leanchecker for one verification task."})
 }
 
 definition{
-  name: componentSigner,
+  name: component06Signer,
   parameters: [],
   result: Foundation.Arch::Component,
   body: (record Foundation.Arch::Component {index := 6, kind := (ctor Foundation.Arch::ComponentKind.service), name := "signer", text := "Signs the attestation of a verified task as a DSSE envelope over an in-toto statement."})
 }
 
 definition{
-  name: componentTelemetryCollector,
+  name: component07TelemetryCollector,
   parameters: [],
   result: Foundation.Arch::Component,
   body: (record Foundation.Arch::Component {index := 7, kind := (ctor Foundation.Arch::ComponentKind.service), name := "telemetry-collector", text := "Collects the telemetry that the other components emit."})
 }
 
 definition{
-  name: componentStore,
+  name: component08Store,
   parameters: [],
   result: Foundation.Arch::Component,
   body: (record Foundation.Arch::Component {index := 8, kind := (ctor Foundation.Arch::ComponentKind.database), name := "store", text := "Holds profiles, drafts, builds, verifications, index, exports and keys (lexlean-mcp/store/1)."})
 }
 
 definition{
-  name: componentToolchain,
+  name: component09Toolchain,
   parameters: [],
   result: Foundation.Arch::Component,
   body: (record Foundation.Arch::Component {index := 9, kind := (ctor Foundation.Arch::ComponentKind.externalSystem), name := "toolchain", text := "The Lean, Lake and leanchecker toolchain that a profile pins."})
 }
 
 definition{
-  name: edgeClientGateway,
+  name: edge00ClientGateway,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 0, fromIndex := 0, toIndex := 1, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
 }
 
 definition{
-  name: edgeGatewayCore,
+  name: edge01GatewayCore,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 1, fromIndex := 1, toIndex := 2, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
 }
 
 definition{
-  name: edgeCoreGateway,
+  name: edge02CoreGateway,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 2, fromIndex := 2, toIndex := 1, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
 }
 
 definition{
-  name: edgeGatewayToolLayer,
+  name: edge03GatewayToolLayer,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 3, fromIndex := 1, toIndex := 3, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
 }
 
 definition{
-  name: edgeToolLayerGateway,
+  name: edge04ToolLayerGateway,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 4, fromIndex := 3, toIndex := 1, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
 }
 
 definition{
-  name: edgeToolLayerEngineHost,
+  name: edge05ToolLayerEngineHost,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 5, fromIndex := 3, toIndex := 4, kind := (ctor Foundation.Arch::EdgeKind.controlFlow)})
 }
 
 definition{
-  name: edgeEngineHostStore,
+  name: edge06EngineHostStore,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 6, fromIndex := 4, toIndex := 8, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
 }
 
 definition{
-  name: edgeEngineHostVerifier,
+  name: edge07EngineHostVerifier,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 7, fromIndex := 4, toIndex := 5, kind := (ctor Foundation.Arch::EdgeKind.controlFlow)})
 }
 
 definition{
-  name: edgeVerifierToolchain,
+  name: edge08VerifierToolchain,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 8, fromIndex := 5, toIndex := 9, kind := (ctor Foundation.Arch::EdgeKind.controlFlow)})
 }
 
 definition{
-  name: edgeVerifierSigner,
+  name: edge09VerifierSigner,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 9, fromIndex := 5, toIndex := 6, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
 }
 
 definition{
-  name: edgeVerifierStore,
+  name: edge10VerifierStore,
   parameters: [],
   result: Foundation.Arch::Edge,
   body: (record Foundation.Arch::Edge {index := 10, fromIndex := 5, toIndex := 8, kind := (ctor Foundation.Arch::EdgeKind.dataFlow)})
 }
 
 definition{
-  name: viewpointComponentC3AuthorAgent,
+  name: viewpoint00ComponentC3AuthorAgent,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 0, stakeholderIndex := 1, concernIndex := 2, modelKindIndex := 0})
 }
 
 definition{
-  name: viewpointComponentC5Operator,
+  name: viewpoint01ComponentC5Operator,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 1, stakeholderIndex := 3, concernIndex := 4, modelKindIndex := 0})
 }
 
 definition{
-  name: viewpointComponentC6Operator,
+  name: viewpoint02ComponentC6Operator,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 2, stakeholderIndex := 3, concernIndex := 5, modelKindIndex := 0})
 }
 
 definition{
-  name: viewpointComponentC7AuthorAgent,
+  name: viewpoint03ComponentC7AuthorAgent,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 3, stakeholderIndex := 1, concernIndex := 6, modelKindIndex := 0})
 }
 
 definition{
-  name: viewpointComponentC7LexLeanMaintainers,
+  name: viewpoint04ComponentC7LexLeanMaintainers,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 4, stakeholderIndex := 5, concernIndex := 6, modelKindIndex := 0})
 }
 
 definition{
-  name: viewpointComponentC7PrismPMMaintainers,
+  name: viewpoint05ComponentC7PrismPMMaintainers,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 5, stakeholderIndex := 6, concernIndex := 6, modelKindIndex := 0})
 }
 
 definition{
-  name: viewpointComponentC8AuthorAgent,
+  name: viewpoint06ComponentC8AuthorAgent,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 6, stakeholderIndex := 1, concernIndex := 7, modelKindIndex := 0})
 }
 
 definition{
-  name: viewpointComponentC8PrismPMMaintainers,
+  name: viewpoint07ComponentC8PrismPMMaintainers,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 7, stakeholderIndex := 6, concernIndex := 7, modelKindIndex := 0})
 }
 
 definition{
-  name: viewpointComponentC8McpMaintainers,
+  name: viewpoint08ComponentC8McpMaintainers,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 8, stakeholderIndex := 7, concernIndex := 7, modelKindIndex := 0})
 }
 
 definition{
-  name: viewpointSecurityC1Reader,
+  name: viewpoint09SecurityC1Reader,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 9, stakeholderIndex := 2, concernIndex := 0, modelKindIndex := 1})
 }
 
 definition{
-  name: viewpointSecurityC1LexiconMaintainer,
+  name: viewpoint10SecurityC1LexiconMaintainer,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 10, stakeholderIndex := 4, concernIndex := 0, modelKindIndex := 1})
 }
 
 definition{
-  name: viewpointSecurityC4Requester,
+  name: viewpoint11SecurityC4Requester,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 11, stakeholderIndex := 0, concernIndex := 3, modelKindIndex := 1})
 }
 
 definition{
-  name: viewpointSecurityC4Reader,
+  name: viewpoint12SecurityC4Reader,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 12, stakeholderIndex := 2, concernIndex := 3, modelKindIndex := 1})
 }
 
 definition{
-  name: viewpointSecurityC5Operator,
+  name: viewpoint13SecurityC5Operator,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 13, stakeholderIndex := 3, concernIndex := 4, modelKindIndex := 1})
 }
 
 definition{
-  name: viewpointQualityC1Reader,
+  name: viewpoint14QualityC1Reader,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 14, stakeholderIndex := 2, concernIndex := 0, modelKindIndex := 2})
 }
 
 definition{
-  name: viewpointQualityC1LexiconMaintainer,
+  name: viewpoint15QualityC1LexiconMaintainer,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 15, stakeholderIndex := 4, concernIndex := 0, modelKindIndex := 2})
 }
 
 definition{
-  name: viewpointQualityC2Requester,
+  name: viewpoint16QualityC2Requester,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 16, stakeholderIndex := 0, concernIndex := 1, modelKindIndex := 2})
 }
 
 definition{
-  name: viewpointQualityC3AuthorAgent,
+  name: viewpoint17QualityC3AuthorAgent,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 17, stakeholderIndex := 1, concernIndex := 2, modelKindIndex := 2})
 }
 
 definition{
-  name: viewpointQualityC8AuthorAgent,
+  name: viewpoint18QualityC8AuthorAgent,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 18, stakeholderIndex := 1, concernIndex := 7, modelKindIndex := 2})
 }
 
 definition{
-  name: viewpointQualityC8PrismPMMaintainers,
+  name: viewpoint19QualityC8PrismPMMaintainers,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 19, stakeholderIndex := 6, concernIndex := 7, modelKindIndex := 2})
 }
 
 definition{
-  name: viewpointQualityC8McpMaintainers,
+  name: viewpoint20QualityC8McpMaintainers,
   parameters: [],
   result: Foundation.Arch::Viewpoint,
   body: (record Foundation.Arch::Viewpoint {index := 20, stakeholderIndex := 7, concernIndex := 7, modelKindIndex := 2})
 }
 
 definition{
-  name: viewComponent,
+  name: view00Component,
   parameters: [],
   result: Foundation.Arch::View,
   body: (record Foundation.Arch::View {index := 0, viewpointIndex := 0, modelKindIndex := 0})
 }
 
 definition{
-  name: viewSecurity,
+  name: view01Security,
   parameters: [],
   result: Foundation.Arch::View,
   body: (record Foundation.Arch::View {index := 1, viewpointIndex := 9, modelKindIndex := 1})
 }
 
 definition{
-  name: viewQuality,
+  name: view02Quality,
   parameters: [],
   result: Foundation.Arch::View,
   body: (record Foundation.Arch::View {index := 2, viewpointIndex := 14, modelKindIndex := 2})
@@ -568,7 +568,7 @@ definition{
   name: stakeholderRecords,
   parameters: [],
   result: (List Foundation.Arch::Stakeholder),
-  body: (cons (stakeholderRequester) (cons (stakeholderAuthorAgent) (cons (stakeholderReader) (cons (stakeholderOperator) (cons (stakeholderLexiconMaintainer) (cons (stakeholderLexLeanMaintainers) (cons (stakeholderPrismPMMaintainers) (cons (stakeholderMcpMaintainers) (nil Foundation.Arch::Stakeholder)))))))))
+  body: (cons (stakeholder00Requester) (cons (stakeholder01AuthorAgent) (cons (stakeholder02Reader) (cons (stakeholder03Operator) (cons (stakeholder04LexiconMaintainer) (cons (stakeholder05LexLeanMaintainers) (cons (stakeholder06PrismPMMaintainers) (cons (stakeholder07McpMaintainers) (nil Foundation.Arch::Stakeholder)))))))))
 }
 
 definition{
@@ -582,28 +582,28 @@ definition{
   name: componentRecords,
   parameters: [],
   result: (List Foundation.Arch::Component),
-  body: (cons (componentClient) (cons (componentGateway) (cons (componentProtocolCore) (cons (componentToolLayer) (cons (componentEngineHost) (cons (componentVerifier) (cons (componentSigner) (cons (componentTelemetryCollector) (cons (componentStore) (cons (componentToolchain) (nil Foundation.Arch::Component)))))))))))
+  body: (cons (component00Client) (cons (component01Gateway) (cons (component02ProtocolCore) (cons (component03ToolLayer) (cons (component04EngineHost) (cons (component05Verifier) (cons (component06Signer) (cons (component07TelemetryCollector) (cons (component08Store) (cons (component09Toolchain) (nil Foundation.Arch::Component)))))))))))
 }
 
 definition{
   name: edgeRecords,
   parameters: [],
   result: (List Foundation.Arch::Edge),
-  body: (cons (edgeClientGateway) (cons (edgeGatewayCore) (cons (edgeCoreGateway) (cons (edgeGatewayToolLayer) (cons (edgeToolLayerGateway) (cons (edgeToolLayerEngineHost) (cons (edgeEngineHostStore) (cons (edgeEngineHostVerifier) (cons (edgeVerifierToolchain) (cons (edgeVerifierSigner) (cons (edgeVerifierStore) (nil Foundation.Arch::Edge))))))))))))
+  body: (cons (edge00ClientGateway) (cons (edge01GatewayCore) (cons (edge02CoreGateway) (cons (edge03GatewayToolLayer) (cons (edge04ToolLayerGateway) (cons (edge05ToolLayerEngineHost) (cons (edge06EngineHostStore) (cons (edge07EngineHostVerifier) (cons (edge08VerifierToolchain) (cons (edge09VerifierSigner) (cons (edge10VerifierStore) (nil Foundation.Arch::Edge))))))))))))
 }
 
 definition{
   name: viewpointRecords,
   parameters: [],
   result: (List Foundation.Arch::Viewpoint),
-  body: (cons (viewpointComponentC3AuthorAgent) (cons (viewpointComponentC5Operator) (cons (viewpointComponentC6Operator) (cons (viewpointComponentC7AuthorAgent) (cons (viewpointComponentC7LexLeanMaintainers) (cons (viewpointComponentC7PrismPMMaintainers) (cons (viewpointComponentC8AuthorAgent) (cons (viewpointComponentC8PrismPMMaintainers) (cons (viewpointComponentC8McpMaintainers) (cons (viewpointSecurityC1Reader) (cons (viewpointSecurityC1LexiconMaintainer) (cons (viewpointSecurityC4Requester) (cons (viewpointSecurityC4Reader) (cons (viewpointSecurityC5Operator) (cons (viewpointQualityC1Reader) (cons (viewpointQualityC1LexiconMaintainer) (cons (viewpointQualityC2Requester) (cons (viewpointQualityC3AuthorAgent) (cons (viewpointQualityC8AuthorAgent) (cons (viewpointQualityC8PrismPMMaintainers) (cons (viewpointQualityC8McpMaintainers) (nil Foundation.Arch::Viewpoint))))))))))))))))))))))
+  body: (cons (viewpoint00ComponentC3AuthorAgent) (cons (viewpoint01ComponentC5Operator) (cons (viewpoint02ComponentC6Operator) (cons (viewpoint03ComponentC7AuthorAgent) (cons (viewpoint04ComponentC7LexLeanMaintainers) (cons (viewpoint05ComponentC7PrismPMMaintainers) (cons (viewpoint06ComponentC8AuthorAgent) (cons (viewpoint07ComponentC8PrismPMMaintainers) (cons (viewpoint08ComponentC8McpMaintainers) (cons (viewpoint09SecurityC1Reader) (cons (viewpoint10SecurityC1LexiconMaintainer) (cons (viewpoint11SecurityC4Requester) (cons (viewpoint12SecurityC4Reader) (cons (viewpoint13SecurityC5Operator) (cons (viewpoint14QualityC1Reader) (cons (viewpoint15QualityC1LexiconMaintainer) (cons (viewpoint16QualityC2Requester) (cons (viewpoint17QualityC3AuthorAgent) (cons (viewpoint18QualityC8AuthorAgent) (cons (viewpoint19QualityC8PrismPMMaintainers) (cons (viewpoint20QualityC8McpMaintainers) (nil Foundation.Arch::Viewpoint))))))))))))))))))))))
 }
 
 definition{
   name: viewRecords,
   parameters: [],
   result: (List Foundation.Arch::View),
-  body: (cons (viewComponent) (cons (viewSecurity) (cons (viewQuality) (nil Foundation.Arch::View))))
+  body: (cons (view00Component) (cons (view01Security) (cons (view02Quality) (nil Foundation.Arch::View))))
 }
 
 definition{

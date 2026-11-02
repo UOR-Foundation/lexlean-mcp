@@ -22,12 +22,9 @@ definitions in this repository's source graph.
 - `crates/model/tests/features.rs` (FJ-01 to FJ-10) reads the same source as text and
   applies the same rules independently, so a rule is not trusted to a single
   implementation.
-- **Not done:** `prismpm check` has not validated the declarations. The acceptance line
-  of #18 ("`prismpm check` validates all 13 features and 6 journeys") does not hold yet. The
-  SDK image bound in `prismpm.lock`, PrismPM main `e84124f0`, contains PrismPM#330 (merge
-  `d11ace6f`) and knows PP2014 to PP2018, but the root has no `prismpm.toml`, and with one the
-  check stops at `PP4004` on the standard references and the facet indexes, before it reaches
-  the features.
+- **`prismpm check` validates the 13 features and 6 journeys**, which is the acceptance line of
+  #18, on the development SDK image of `prismpm.lock` (PrismPM main `e84124f0`), in `just vv`
+  (MC-01). A planted defect of each rule PP2014 to PP2018 is refused (MODEL-CHECK.md).
 
 The vocabulary (`language/prism.arch/`, `src/Foundation/Arch.lex.tex`) is a byte-identical
 copy of PrismPM main at `d11ace6f`: 143 files, whose manifest digest is the checksum of

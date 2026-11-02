@@ -60,16 +60,14 @@ what is and is not met.
   QM-08, `crates/quality-map`, `QUALITY.md`). The tools themselves do not exist
   yet, so Q1 and Q3 to Q7 stay pending and so does the runtime half of Q2 and Q8.
 - The 13 features and 6 journeys of #18 are declared (`Features`), checked by kernel
-  theorems and by FJ-01 to FJ-10. `prismpm check` has not validated them: the SDK
-  image bound in `prismpm.lock` contains PrismPM#330, and the check stops earlier, on the
-  facets (see below). [FEATURES.md](FEATURES.md)
+  theorems and by FJ-01 to FJ-10. `prismpm check` validates them in `just vv`
+  (MC-01). [FEATURES.md](FEATURES.md)
   states where each feature and journey comes from and which rows await the owner.
 - The closed host effect set of #7 is declared (EF-01 to EF-08, `EFFECTS.md`): E1 to E10, a total codec, the negative theorem and the acceptance vectors. The generated host adapter and the `gateway` binary wait on PrismPM#216 and MCP#14 and are not built.
 - The repository is bound to a development SDK image, not to a PrismPM SDK release (#4):
   `prismpm.lock` selects the candidate built from PrismPM main `e84124f0`, on which `just vv`
-  passes. `prismpm check` has not validated the model: the root has no `prismpm.toml`, and with
-  one the check stops at `PP4004`, because the standard references and the facet indexes of
-  `Architecture`, `Quality` and `Security` do not have the form it requires.
+  and `prismpm check` pass. [MODEL-CHECK.md](MODEL-CHECK.md) states what that check rejects and
+  what it does not.
 - v0.1.0 is tracked in #20, with its upstream dependencies in LexLean, PrismPM,
   the UOR template and UOR-Foundation/MCP.
 
@@ -133,6 +131,8 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   observability theorems, the command that rejects each and the restore.
 - [STORE.md](STORE.md) states what the store model claims and does not claim
   and the defects planted in its laws.
+- [MODEL-CHECK.md](MODEL-CHECK.md) states what `prismpm check` validates on the model (MC-01 to
+  MC-03), the defects planted in it, and what it lets through.
 - [SIGNING.md](SIGNING.md) states what the signer of the verification records claims
   (SG-01 to SG-13), what is not met, and the defects planted in its gates.
 - [VERIFIER.md](VERIFIER.md) states what the verifier process claims (VP-01 to VP-06): one process

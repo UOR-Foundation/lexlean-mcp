@@ -53,273 +53,273 @@ structure{
 }
 
 definition{
-  name: assetVerificationRecords,
+  name: asset00VerificationRecords,
   parameters: [],
   result: Foundation.Sec::Asset,
   body: (record Foundation.Sec::Asset {index := 0, componentIndex := 6})
 }
 
 definition{
-  name: assetSigningKey,
+  name: asset01SigningKey,
   parameters: [],
   result: Foundation.Sec::Asset,
   body: (record Foundation.Sec::Asset {index := 1, componentIndex := 6})
 }
 
 definition{
-  name: assetDraftsAndResults,
+  name: asset02DraftsAndResults,
   parameters: [],
   result: Foundation.Sec::Asset,
   body: (record Foundation.Sec::Asset {index := 2, componentIndex := 8})
 }
 
 definition{
-  name: assetVerifierHost,
+  name: asset03VerifierHost,
   parameters: [],
   result: Foundation.Sec::Asset,
   body: (record Foundation.Sec::Asset {index := 3, componentIndex := 5})
 }
 
 definition{
-  name: assetProfileBundles,
+  name: asset04ProfileBundles,
   parameters: [],
   result: Foundation.Sec::Asset,
   body: (record Foundation.Sec::Asset {index := 4, componentIndex := 4})
 }
 
 definition{
-  name: assetRequestStateKey,
+  name: asset05RequestStateKey,
   parameters: [],
   result: Foundation.Sec::Asset,
   body: (record Foundation.Sec::Asset {index := 5, componentIndex := 2})
 }
 
 definition{
-  name: threatForgedAttestation,
+  name: threat00ForgedAttestation,
   parameters: [],
   result: Foundation.Sec::Threat,
   body: (record Foundation.Sec::Threat {index := 0})
 }
 
 definition{
-  name: threatMisstatingEntry,
+  name: threat01MisstatingEntry,
   parameters: [],
   result: Foundation.Sec::Threat,
   body: (record Foundation.Sec::Threat {index := 1})
 }
 
 definition{
-  name: threatWebOriginAccess,
+  name: threat02WebOriginAccess,
   parameters: [],
   result: Foundation.Sec::Threat,
   body: (record Foundation.Sec::Threat {index := 2})
 }
 
 definition{
-  name: threatExhaustion,
+  name: threat03Exhaustion,
   parameters: [],
   result: Foundation.Sec::Threat,
   body: (record Foundation.Sec::Threat {index := 3})
 }
 
 definition{
-  name: threatPathEscape,
+  name: threat04PathEscape,
   parameters: [],
   result: Foundation.Sec::Threat,
   body: (record Foundation.Sec::Threat {index := 4})
 }
 
 definition{
-  name: threatRequestTimeAcquisition,
+  name: threat05RequestTimeAcquisition,
   parameters: [],
   result: Foundation.Sec::Threat,
   body: (record Foundation.Sec::Threat {index := 5})
 }
 
 definition{
-  name: threatContentSteering,
+  name: threat06ContentSteering,
   parameters: [],
   result: Foundation.Sec::Threat,
   body: (record Foundation.Sec::Threat {index := 6})
 }
 
 definition{
-  name: threatKeyCompromise,
+  name: threat07KeyCompromise,
   parameters: [],
   result: Foundation.Sec::Threat,
   body: (record Foundation.Sec::Threat {index := 7})
 }
 
 definition{
-  name: threatRequestStateForgery,
+  name: threat08RequestStateForgery,
   parameters: [],
   result: Foundation.Sec::Threat,
   body: (record Foundation.Sec::Threat {index := 8})
 }
 
 definition{
-  name: threatLocalProcessImpersonation,
+  name: threat09LocalProcessImpersonation,
   parameters: [],
   result: Foundation.Sec::Threat,
   body: (record Foundation.Sec::Threat {index := 9})
 }
 
 definition{
-  name: riskForgedAttestation,
+  name: risk00ForgedAttestation,
   parameters: [],
   result: Foundation.Sec::Risk,
   body: (record Foundation.Sec::Risk {index := 0, assetIndex := 0, threatIndex := 0, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.critical)})
 }
 
 definition{
-  name: riskMisstatingEntry,
+  name: risk01MisstatingEntry,
   parameters: [],
   result: Foundation.Sec::Risk,
   body: (record Foundation.Sec::Risk {index := 1, assetIndex := 4, threatIndex := 1, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.critical)})
 }
 
 definition{
-  name: riskWebOriginAccess,
+  name: risk02WebOriginAccess,
   parameters: [],
   result: Foundation.Sec::Risk,
   body: (record Foundation.Sec::Risk {index := 2, assetIndex := 2, threatIndex := 2, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.critical)})
 }
 
 definition{
-  name: riskExhaustion,
+  name: risk03Exhaustion,
   parameters: [],
   result: Foundation.Sec::Risk,
   body: (record Foundation.Sec::Risk {index := 3, assetIndex := 3, threatIndex := 3, likelihood := (ctor Foundation.Sec::Likelihood.high), impact := (ctor Foundation.Sec::Impact.major)})
 }
 
 definition{
-  name: riskPathEscape,
+  name: risk04PathEscape,
   parameters: [],
   result: Foundation.Sec::Risk,
   body: (record Foundation.Sec::Risk {index := 4, assetIndex := 3, threatIndex := 4, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.critical)})
 }
 
 definition{
-  name: riskRequestTimeAcquisition,
+  name: risk05RequestTimeAcquisition,
   parameters: [],
   result: Foundation.Sec::Risk,
   body: (record Foundation.Sec::Risk {index := 5, assetIndex := 4, threatIndex := 5, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.major)})
 }
 
 definition{
-  name: riskContentSteering,
+  name: risk06ContentSteering,
   parameters: [],
   result: Foundation.Sec::Risk,
   body: (record Foundation.Sec::Risk {index := 6, assetIndex := 2, threatIndex := 6, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.major)})
 }
 
 definition{
-  name: riskKeyCompromise,
+  name: risk07KeyCompromise,
   parameters: [],
   result: Foundation.Sec::Risk,
   body: (record Foundation.Sec::Risk {index := 7, assetIndex := 1, threatIndex := 7, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.critical)})
 }
 
 definition{
-  name: riskRequestStateForgery,
+  name: risk08RequestStateForgery,
   parameters: [],
   result: Foundation.Sec::Risk,
   body: (record Foundation.Sec::Risk {index := 8, assetIndex := 5, threatIndex := 8, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.major)})
 }
 
 definition{
-  name: riskLocalProcessImpersonation,
+  name: risk09LocalProcessImpersonation,
   parameters: [],
   result: Foundation.Sec::Risk,
   body: (record Foundation.Sec::Risk {index := 9, assetIndex := 2, threatIndex := 9, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.major)})
 }
 
 definition{
-  name: controlSignedRecords,
+  name: control00SignedRecords,
   parameters: [],
   result: Foundation.Sec::ApplicationSecurityControl,
   body: (record Foundation.Sec::ApplicationSecurityControl {index := 0, riskIndex := 0})
 }
 
 definition{
-  name: controlReviewedPackages,
+  name: control01ReviewedPackages,
   parameters: [],
   result: Foundation.Sec::ApplicationSecurityControl,
   body: (record Foundation.Sec::ApplicationSecurityControl {index := 1, riskIndex := 1})
 }
 
 definition{
-  name: controlLoopbackOrigin,
+  name: control02LoopbackOrigin,
   parameters: [],
   result: Foundation.Sec::ApplicationSecurityControl,
   body: (record Foundation.Sec::ApplicationSecurityControl {index := 2, riskIndex := 2})
 }
 
 definition{
-  name: controlLimits,
+  name: control03Limits,
   parameters: [],
   result: Foundation.Sec::ApplicationSecurityControl,
   body: (record Foundation.Sec::ApplicationSecurityControl {index := 3, riskIndex := 3})
 }
 
 definition{
-  name: controlPathAdmission,
+  name: control04PathAdmission,
   parameters: [],
   result: Foundation.Sec::ApplicationSecurityControl,
   body: (record Foundation.Sec::ApplicationSecurityControl {index := 4, riskIndex := 4})
 }
 
 definition{
-  name: controlEgressDenied,
+  name: control05EgressDenied,
   parameters: [],
   result: Foundation.Sec::ApplicationSecurityControl,
   body: (record Foundation.Sec::ApplicationSecurityControl {index := 5, riskIndex := 5})
 }
 
 definition{
-  name: controlTypedResults,
+  name: control06TypedResults,
   parameters: [],
   result: Foundation.Sec::ApplicationSecurityControl,
   body: (record Foundation.Sec::ApplicationSecurityControl {index := 6, riskIndex := 6})
 }
 
 definition{
-  name: controlKeyHistory,
+  name: control07KeyHistory,
   parameters: [],
   result: Foundation.Sec::ApplicationSecurityControl,
   body: (record Foundation.Sec::ApplicationSecurityControl {index := 7, riskIndex := 7})
 }
 
 definition{
-  name: controlRequestStateIntegrity,
+  name: control08RequestStateIntegrity,
   parameters: [],
   result: Foundation.Sec::ApplicationSecurityControl,
   body: (record Foundation.Sec::ApplicationSecurityControl {index := 8, riskIndex := 8})
 }
 
 definition{
-  name: activityRotateSigningKey,
+  name: activity00RotateSigningKey,
   parameters: [],
   result: Foundation.Sec::SecurityActivity,
   body: (record Foundation.Sec::SecurityActivity {index := 0, controlIndex := 7})
 }
 
 definition{
-  name: activityRotateRequestStateKey,
+  name: activity01RotateRequestStateKey,
   parameters: [],
   result: Foundation.Sec::SecurityActivity,
   body: (record Foundation.Sec::SecurityActivity {index := 1, controlIndex := 8})
 }
 
 definition{
-  name: activityReviewLexiconPackages,
+  name: activity02ReviewLexiconPackages,
   parameters: [],
   result: Foundation.Sec::SecurityActivity,
   body: (record Foundation.Sec::SecurityActivity {index := 2, controlIndex := 1})
 }
 
 definition{
-  name: activityDriftCheck,
+  name: activity03DriftCheck,
   parameters: [],
   result: Foundation.Sec::SecurityActivity,
   body: (record Foundation.Sec::SecurityActivity {index := 3, controlIndex := 1})
@@ -329,7 +329,7 @@ definition{
   name: assetRecords,
   parameters: [],
   result: (List Foundation.Sec::Asset),
-  body: (cons (assetVerificationRecords) (cons (assetSigningKey) (cons (assetDraftsAndResults) (cons (assetVerifierHost) (cons (assetProfileBundles) (cons (assetRequestStateKey) (nil Foundation.Sec::Asset)))))))
+  body: (cons (asset00VerificationRecords) (cons (asset01SigningKey) (cons (asset02DraftsAndResults) (cons (asset03VerifierHost) (cons (asset04ProfileBundles) (cons (asset05RequestStateKey) (nil Foundation.Sec::Asset)))))))
 }
 
 definition{
@@ -343,28 +343,28 @@ definition{
   name: threatRecords,
   parameters: [],
   result: (List Foundation.Sec::Threat),
-  body: (cons (threatForgedAttestation) (cons (threatMisstatingEntry) (cons (threatWebOriginAccess) (cons (threatExhaustion) (cons (threatPathEscape) (cons (threatRequestTimeAcquisition) (cons (threatContentSteering) (cons (threatKeyCompromise) (cons (threatRequestStateForgery) (cons (threatLocalProcessImpersonation) (nil Foundation.Sec::Threat)))))))))))
+  body: (cons (threat00ForgedAttestation) (cons (threat01MisstatingEntry) (cons (threat02WebOriginAccess) (cons (threat03Exhaustion) (cons (threat04PathEscape) (cons (threat05RequestTimeAcquisition) (cons (threat06ContentSteering) (cons (threat07KeyCompromise) (cons (threat08RequestStateForgery) (cons (threat09LocalProcessImpersonation) (nil Foundation.Sec::Threat)))))))))))
 }
 
 definition{
   name: riskRecords,
   parameters: [],
   result: (List Foundation.Sec::Risk),
-  body: (cons (riskForgedAttestation) (cons (riskMisstatingEntry) (cons (riskWebOriginAccess) (cons (riskExhaustion) (cons (riskPathEscape) (cons (riskRequestTimeAcquisition) (cons (riskContentSteering) (cons (riskKeyCompromise) (cons (riskRequestStateForgery) (cons (riskLocalProcessImpersonation) (nil Foundation.Sec::Risk)))))))))))
+  body: (cons (risk00ForgedAttestation) (cons (risk01MisstatingEntry) (cons (risk02WebOriginAccess) (cons (risk03Exhaustion) (cons (risk04PathEscape) (cons (risk05RequestTimeAcquisition) (cons (risk06ContentSteering) (cons (risk07KeyCompromise) (cons (risk08RequestStateForgery) (cons (risk09LocalProcessImpersonation) (nil Foundation.Sec::Risk)))))))))))
 }
 
 definition{
   name: controlRecords,
   parameters: [],
   result: (List Foundation.Sec::ApplicationSecurityControl),
-  body: (cons (controlSignedRecords) (cons (controlReviewedPackages) (cons (controlLoopbackOrigin) (cons (controlLimits) (cons (controlPathAdmission) (cons (controlEgressDenied) (cons (controlTypedResults) (cons (controlKeyHistory) (cons (controlRequestStateIntegrity) (nil Foundation.Sec::ApplicationSecurityControl))))))))))
+  body: (cons (control00SignedRecords) (cons (control01ReviewedPackages) (cons (control02LoopbackOrigin) (cons (control03Limits) (cons (control04PathAdmission) (cons (control05EgressDenied) (cons (control06TypedResults) (cons (control07KeyHistory) (cons (control08RequestStateIntegrity) (nil Foundation.Sec::ApplicationSecurityControl))))))))))
 }
 
 definition{
   name: activityRecords,
   parameters: [],
   result: (List Foundation.Sec::SecurityActivity),
-  body: (cons (activityRotateSigningKey) (cons (activityRotateRequestStateKey) (cons (activityReviewLexiconPackages) (cons (activityDriftCheck) (nil Foundation.Sec::SecurityActivity)))))
+  body: (cons (activity00RotateSigningKey) (cons (activity01RotateRequestStateKey) (cons (activity02ReviewLexiconPackages) (cons (activity03DriftCheck) (nil Foundation.Sec::SecurityActivity)))))
 }
 
 definition{
