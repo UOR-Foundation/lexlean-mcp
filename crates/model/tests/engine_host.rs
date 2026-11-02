@@ -124,6 +124,12 @@ fn the_vectors_are_answered_by_the_program_and_ci_runs_its_tests_eh_01() {
             && verify.contains("--env LEXLEAN_MCP_ENGINE="),
         "the replay of the vectors reaches the program"
     );
+    // The step runs under `bash -e`, and `wait` answers 143 for the program it has just ended.
+    assert!(
+        verify.contains("wait \"$engine_pid\" 2>/dev/null || true")
+            && verify.contains("return \"$status\""),
+        "the verdict of the step is that of the replay, not of ending the program"
+    );
     let workflow = read(".github/workflows/lexlean.yml");
     assert!(
         workflow.contains("gateway_cargo test -p gateway-engine-host --locked --offline"),

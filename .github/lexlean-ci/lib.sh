@@ -559,7 +559,7 @@ gateway_verify() {
   if [[ ! -S $engine ]]; then
     echo "gateway-engine-host made no socket" >&2
     cat "$work/engine-host.log" >&2
-    kill "$engine_pid" 2>/dev/null
+    kill "$engine_pid" 2>/dev/null || true
     return 1
   fi
   docker run --rm \
@@ -576,8 +576,9 @@ gateway_verify() {
     --env LEXLEAN_MCP_STORE="$store" \
     --env LEXLEAN_MCP_ENGINE="$engine" \
     "$image" "$PRISMPM_ROOT/bin/prismpm" verify || status=$?
-  kill "$engine_pid" 2>/dev/null
-  wait "$engine_pid" 2>/dev/null
+  kill "$engine_pid" 2>/dev/null || true
+  # The step runs under `bash -e`, and `wait` answers 143 for a program that was ended.
+  wait "$engine_pid" 2>/dev/null || true
   return "$status"
 }
 
