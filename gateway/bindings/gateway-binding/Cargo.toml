@@ -16,16 +16,17 @@ path = "src/bin/gateway-verifier.rs"
 
 [dependencies]
 gateway-host-api = { path = "../../gateway-host-api" }
+gateway-signer = { path = "../gateway-signer" }
 lexlean = "0.3.0"
 serde_json = "1"
 camino = "1"
 sha2 = "0.10"
-ed25519-dalek = "2"
-base64 = "0.22"
 rustix = { version = "1", features = ["process", "rand"] }
 
 [dev-dependencies]
 tempfile = "3"
+ed25519-dalek = "2"
+base64 = "0.22"
 
 [lints.rust]
 missing_docs = "deny"

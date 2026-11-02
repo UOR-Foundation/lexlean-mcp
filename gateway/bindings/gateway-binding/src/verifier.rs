@@ -19,7 +19,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::{mpsc, Arc, Condvar, Mutex, MutexGuard, PoisonError};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use lexlean::Selection;
 use serde_json::{json, Value};
@@ -27,7 +27,7 @@ use serde_json::{json, Value};
 use crate::attestation;
 use crate::config::{Config, SIGNING_KEY_VARIABLE};
 use crate::evidence;
-use crate::signer::Signer;
+use crate::signer::{envelope_keyid, RecordSigner};
 use crate::sweep;
 use crate::telemetry::{ErrorClass, GroupEnd, Telemetry, VerifyOutcome};
 
@@ -65,7 +65,7 @@ pub struct Job {
     /// The root of the store, where the record of a verification is written.
     pub store: PathBuf,
     /// The signer of the record: a verification is not started without one.
-    pub signer: Arc<Signer>,
+    pub signer: Arc<dyn RecordSigner>,
 }
 
 /// A status or a cancellation.
@@ -714,10 +714,7 @@ pub fn conclude(job: &Job, facts: &Facts) -> Outcome {
         "modules": facts.modules,
         "files": digests,
     });
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs());
-    let envelope = match job.signer.sign(&subject, &predicate, now) {
+    let envelope = match job.signer.sign_record(&subject, &predicate) {
         Ok(envelope) => envelope,
         Err(error) => {
             return failure(5, &format!("the verification could not be signed: {error}"));
@@ -741,7 +738,7 @@ pub fn conclude(job: &Job, facts: &Facts) -> Outcome {
         "source_id": facts.source_id,
         "semantic_id": facts.semantic_id,
         "modules": facts.modules,
-        "keyid": job.signer.keyid(),
+        "keyid": envelope_keyid(&envelope),
     });
     Outcome {
         class: 0,

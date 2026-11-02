@@ -5,6 +5,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use gateway_binding::signer_service::Service;
 use gateway_binding::{Config, Native, State};
 use gateway_host_api::protocol::{verify_control, verify_start, Host, HostError};
 
@@ -33,13 +34,24 @@ pub fn fake_verifier(dir: &Path) -> PathBuf {
     path
 }
 
-/// A configuration whose store is below `dir`, whose key is a file of `dir` and whose verifier is
-/// `program`.
+/// The socket of a signer on a thread of this test, with the key file `key` and the history of the
+/// store below `dir`: the service of `gateway-signer`, over a real socket.
+pub fn signer(dir: &Path, key: &Path) -> PathBuf {
+    let socket = dir.join("signer.sock");
+    Service::new(key, dir.join("store").join("keys").join("history"))
+        .bind(&socket)
+        .expect("a socket")
+        .spawn();
+    socket
+}
+
+/// A configuration whose store is below `dir`, whose signer has a key file of `dir` and whose
+/// verifier is `program`.
 pub fn config(dir: &Path, program: PathBuf) -> Config {
     let key = dir.join("signing.key");
     std::fs::write(&key, format!("{}\n", hex(&SEED))).expect("a key file");
     Config::at(dir.join("store"))
-        .with_signing_key(key)
+        .with_signer(signer(dir, &key))
         .with_verifier(program)
 }
 

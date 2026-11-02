@@ -3,10 +3,11 @@
 //! lets a reader validate the envelope after the key has rotated or been revoked.
 //!
 //! LexLean signs nothing itself (SPEC 22.9), so this is where a verification becomes a record
-//! that can be forged only with the key. The key is a file secret named by the operator; it is
-//! read once, never copied into an envelope, a history or a message, and the signing key of the
-//! library zeroizes itself on drop. An envelope is never returned before the history that
-//! names its key is on disk, so a record cannot exist for a key a reader cannot look up.
+//! that can be forged only with the key. The key is a file secret named by the operator; only the
+//! program `gateway-signer` reads it (`service`), it is never copied into an envelope, a history or
+//! a message, and the signing key of the library zeroizes itself on drop. An envelope is never
+//! returned before the history that names its key is on disk, so a record cannot exist for a key a
+//! reader cannot look up.
 //!
 //! The history is a JSON list in `keys/history`: one entry per key, in the order of first use,
 //! with `revoked_at` set by the operator when the key is compromised. Rotation adds an entry and
@@ -18,6 +19,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
@@ -118,6 +120,12 @@ pub enum SignError {
     History(HistoryError),
     /// The key of the signer has been revoked.
     KeyRevoked,
+    /// The key file of the signer service was refused.
+    Key(KeyError),
+    /// The signer service was asked something that is not a request, or is over its bound.
+    RequestRefused,
+    /// No signer service answered, or what answered was not one.
+    Unavailable,
 }
 
 impl fmt::Display for SignError {
@@ -127,11 +135,44 @@ impl fmt::Display for SignError {
             SignError::KeyRevoked => {
                 formatter.write_str("no signature: the signing key is revoked")
             }
+            SignError::Key(error) => write!(formatter, "no signature: {error}"),
+            SignError::RequestRefused => {
+                formatter.write_str("no signature: the signer refused the request")
+            }
+            SignError::Unavailable => formatter.write_str("no signature: no signer answered"),
         }
     }
 }
 
 impl std::error::Error for SignError {}
+
+/// What makes the envelope of a record: `SignerClient` in a running host, or `Signer` itself.
+pub trait RecordSigner: fmt::Debug + Send + Sync {
+    /// The envelope for the verification whose `attestation.json` is `subject`.
+    fn sign_record(&self, subject: &[u8], predicate: &Value) -> Result<Vec<u8>, SignError>;
+}
+
+impl RecordSigner for Signer {
+    fn sign_record(&self, subject: &[u8], predicate: &Value) -> Result<Vec<u8>, SignError> {
+        self.sign(subject, predicate, now())
+    }
+}
+
+/// The seconds since the epoch, for `not_before`.
+pub fn now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs())
+}
+
+/// The key ID an envelope names first: the one this host's signer signed with. A verification takes
+/// minutes and the key may have rotated since it began, so the envelope says, not the start.
+pub fn envelope_keyid(envelope: &[u8]) -> Option<String> {
+    let envelope: Value = serde_json::from_slice(envelope).ok()?;
+    envelope["signatures"][0]["keyid"]
+        .as_str()
+        .map(str::to_owned)
+}
 
 /// Why an envelope was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
