@@ -7,7 +7,7 @@ the evidence is, what it does not show, and the defects planted in its gates.
 
 | Measure | Requirement | Status | Rows |
 | --- | --- | --- | --- |
-| Q1 | a tool result equals the engine's result | **Executed** for check and build; the verify clause is pending (#11) | TL-03, TL-06 |
+| Q1 | a tool result equals the engine's result | **Executed** for check, build and the 32 verify fixtures; the clause for `lexlean_verify` on every example is pending (#15) | TL-03, TL-06, VP-07 |
 | Q2 | each in-scope API function is reached by exactly one tool | **Executed** | QM-01 to QM-03, TL-15 |
 | Q3 | no record for a verification that did not end `verified` | **Executed** | VP-04, VP-05, SG-07, SG-12 |
 | Q4 | check, snapshot, format, build start no child process | **Executed** | TL-08 |
@@ -18,10 +18,10 @@ the evidence is, what it does not show, and the defects planted in its gates.
 
 `measuresPendingAreQ5` pins the pending list, `executedMeasuresAreQ1ToQ4AndQ6ToQ8`
 pins the executed one, and `onlyTheVerifyClauseOfQ1IsPending` pins the list of clauses that
-still wait: one, the clause of Q1 for `lexlean_verify`. `qualityValid` requires that the
+still wait: one, the clause of Q1 for `lexlean_verify` on every example. `qualityValid` requires that the
 measure of each clause in `pendingClauses` is an executed one. `QM-07` ties the statuses to
 the register: the rows each status cites are read from the statement of `QM-07`, and each
-must be registered with a test; for Q1 they are `TL-03` and `TL-06`, for Q2 `QM-01` to `QM-03`
+must be registered with a test; for Q1 they are `TL-03`, `TL-06` and `VP-07`, for Q2 `QM-01` to `QM-03`
 and `TL-15`, for Q4 `TL-08`, and for Q8 `QM-04` to `QM-06` and `TL-13`. `QM-07` also requires
 the count of Q1 (285) to be the fixtures of `crates/negative-fixtures/register.toml` in scope.
 
@@ -34,15 +34,19 @@ core with the real host on another, and requires the same exit code and class, t
 diagnostics (code, message, span), the same bytes in the text block and the same project files
 afterwards. `TL-06` does the same for `lexlean_build` on each of the 18 examples of LexLean,
 tree for tree. Both run in the gateway job with `--ignored`, which requires their count; the
-workspace gate checks that the rows and their tests exist.
+workspace gate checks that the rows and their tests exist. `VP-07` (VERIFIER.md) stages each of the
+32 verify fixtures, runs the CLI on one copy and calls `lexlean_verify` and `lexlean_verify_control`
+on another, and requires the same class and result and no record. It runs by name in the job
+`gateway / verify fixtures`, which requires that it ran. With `TL-03` that is the 285 fixtures in scope.
 
 **The count.** The model stated 273 fixtures, the count of issue #10 at an older LexLean. The
 register at v0.4.0 holds 297: 252 F4, 1 F7, 32 verify and 13 excluded, so 285 are in
 scope. The model now states 285, and `QM-07` recomputes it from the register.
 
-**What it does not show.** `lexlean_verify` against the CLI, on the 32 verify fixtures and
-the examples, waits for verification as tasks (#11). That clause is in `pendingClauses`, and
-the evidence of Q1 names it. The equality holds at the gateway's pin (`gateway/mcp/lexlean.rev`),
+**What it does not show.** `lexlean_verify` against the CLI on every example. All 32 verify
+fixtures fail, so `VP-07` compares no verification that succeeds with the CLI, and no test runs
+the tool and the CLI side by side on an example. The measure of Q1 asks for every example, so that
+clause is in `pendingClauses`, the evidence of Q1 names it, and it waits on #15. The equality holds at the gateway's pin (`gateway/mcp/lexlean.rev`),
 whose fixture locks are rewritten for its compiler (TOOLS.md); 12 examples build to a tree that
 differs from their committed `expected/build`, the same for the tool and the CLI.
 
@@ -175,7 +179,7 @@ tests run in the gateway workspace and `QM-07` checks that each cited row has a 
 
 Q5 (the MCP oracles) stays `Pending`: it needs all 50 scenarios to pass and the waiting list is
 not empty (#45, #17); the model says which issue executes it. Q1's clause for `lexlean_verify`
-waits for #11. Issue #15 stays open for Q5 and that clause.
+on every example has no test yet. Issue #15 stays open for Q5 and that clause.
 
 ## Q6: modularity
 
@@ -233,6 +237,10 @@ that the check runs on every `cargo test`.
 | `TL-15` removed from the statement of `QM-07` | same | `QM-07 cites [...], and the expected evidence is [...]` |
 | Q6 flipped back to `Pending` | `cargo test -p repo-conformance --test quality` | `the measure 5 is not Executed`; `exactly 7 measures must be Executed` |
 | Q7 flipped back to `Pending` | same | `the measure 6 is not Executed` |
+| the clause of Q1 for `lexlean_verify` on every example dropped: the body of `pendingClauses` is `(nil Named)` | `cargo test -p repo-conformance --test quality` | `pendingClauses does not record the clause of Q1 for lexlean_verify on every example, which waits for #15`; `pendingClauses records 0 clauses` |
+| that clause narrowed back to the 32 verify fixtures, as if `VP-07` had executed all of it | same | `pendingClauses does not record the clause of Q1 for lexlean_verify on every example, which waits for #15` |
+| the evidence of Q1 no longer naming `VP-07` | same | `the Executed status of measure 0 does not name VP-07` |
+| `VP-07` removed from the statement of `QM-07` | same | `QM-07 cites {...}, and the expected evidence is {...}` |
 | the `build_id` recorded in `crates/build-id/fixture/expected` changed in one digit | `cargo test -p build-id` | `the build of the fixture on x86_64`, left `dab4dfd2...`, right `dab5dfd2...` |
 | `CONFORMANCE.md` edited by hand | `cargo run -p xtask -- check-model` | `CONFORMANCE.md is stale: it disagrees with model/ids.toml` |
 
