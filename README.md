@@ -61,12 +61,15 @@ what is and is not met.
   yet, so Q1 and Q3 to Q7 stay pending and so does the runtime half of Q2 and Q8.
 - The 13 features and 6 journeys of #18 are declared (`Features`), checked by kernel
   theorems and by FJ-01 to FJ-10. `prismpm check` has not validated them: the SDK
-  image bound in `prismpm.lock` predates PrismPM#330. [FEATURES.md](FEATURES.md)
+  image bound in `prismpm.lock` contains PrismPM#330, and the check stops earlier, on the
+  facets (see below). [FEATURES.md](FEATURES.md)
   states where each feature and journey comes from and which rows await the owner.
 - The closed host effect set of #7 is declared (EF-01 to EF-08, `EFFECTS.md`): E1 to E10, a total codec, the negative theorem and the acceptance vectors. The generated host adapter and the `gateway` binary wait on PrismPM#216 and MCP#14 and are not built.
-- The repository is not bound to a PrismPM SDK release (#4): `prismpm.lock` and
-  `template.lock` are absent, so `just vv` and the devcontainer cannot run, and
-  `prismpm check` has not validated the model.
+- The repository is bound to a development SDK image, not to a PrismPM SDK release (#4):
+  `prismpm.lock` selects the candidate built from PrismPM main `e84124f0`, on which `just vv`
+  passes. `prismpm check` has not validated the model: the root has no `prismpm.toml`, and with
+  one the check stops at `PP4004`, because the standard references and the facet indexes of
+  `Architecture`, `Quality` and `Security` do not have the form it requires.
 - v0.1.0 is tracked in #20, with its upstream dependencies in LexLean, PrismPM,
   the UOR template and UOR-Foundation/MCP.
 
