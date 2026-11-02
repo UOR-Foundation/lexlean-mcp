@@ -115,3 +115,15 @@ Feature: The signer of the verification records
     Given the signer service with one defect planted at a time
     When the tests of SG-16 to SG-18 run
     Then each defect makes the test that answers it fail, with the diagnostic SIGNING.md records
+
+  @SG-20 @build
+  Scenario: A record keeps the files of the source packages: a row <package>:<file> of the build manifest is read from the package LexLean resolves for the project, checked against its digest and kept at package-sources/<package>/<file>, the export writes it at the same key, a file that cannot be found leaves no record, and no rendering can take that directory.
+    Given a build manifest that names a file of a source package
+    When the verification concludes and the record is exported
+    Then the file is kept at its own key, and one that cannot be found leaves no record
+
+  @SG-21 @build
+  Scenario: A record keeps an attestation.json of up to ATTESTATION_MAXIMUM bytes, larger than RECORD_MAXIMUM of the other files because it lists every process of the verification: one of that size is signed through the socket of the signer and validates, and one over it leaves no envelope.
+    Given an attestation.json of the largest size and one over it
+    When each is concluded
+    Then the first is signed through the socket and validates, and the second leaves no envelope

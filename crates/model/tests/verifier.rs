@@ -254,6 +254,41 @@ fn the_verify_fixtures_give_the_result_of_the_cli_vp_07() {
 }
 
 #[test]
+fn every_example_verifies_beside_the_cli_vp_08() {
+    let equality = read("gateway/tool-tests/tests/equality.rs");
+    assert!(
+        equality.contains("fn every_example_verifies_beside_the_cli_vp_08()"),
+        "the equality tests hold the examples"
+    );
+    let test = read("gateway/tool-tests/src/lib.rs");
+    assert!(
+        test.contains("EXAMPLES_VERIFIED_APART: &[&str] = &[\"uor-atlas\"]"),
+        "only the Atlas is left out, and the constant names it"
+    );
+    assert!(
+        read("VERIFIER.md").contains("VP-08"),
+        "VERIFIER.md does not name VP-08"
+    );
+    // The job runs it by name and requires that it ran; the gateway job skips it.
+    let lib = read(".github/lexlean-ci/lib.sh");
+    assert!(
+        lib.contains("--ignored --exact every_example_verifies_beside_the_cli_vp_08"),
+        "the job names the test"
+    );
+    let workflow = read(".github/workflows/lexlean.yml");
+    assert!(
+        workflow.contains("gateway_verify_examples"),
+        "the job of the verify fixtures runs it"
+    );
+    assert!(
+        workflow.contains(
+            "gateway_ignored_tests gateway-tool-tests 11 the_verify_fixtures_give_the_result_of_the_cli_vp_07 every_example_verifies_beside_the_cli_vp_08"
+        ),
+        "the gateway job skips it"
+    );
+}
+
+#[test]
 fn each_gate_of_the_verifier_process_rejects_its_planted_defect_vp_06() {
     let document = read("VERIFIER.md");
     let section = document

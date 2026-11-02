@@ -43,3 +43,9 @@ Feature: The verifier process
     Given the 32 verify fixtures of LexLean at the pin, each in its own environment and toolchain
     When the CLI verifies one copy and the tool verifies another
     Then the class is the exit status, the result is the command result of the CLI, and no record is left
+
+  @VP-08 @build
+  Scenario: Every example of LexLean at the pin but uor-atlas verifies beside the CLI: with the width and the memory of the owner values on both sides, lexlean_verify and lexlean_verify_control end the task verified with class 0, the build, source and semantic IDs and the modules equal those lexlean verify prints, attestation.json equals the CLI's but for the attestation ID and the digest of the program that verified, the envelope found by lexlean_attestation validates against the key history, lexlean_export writes the bundle, and audit/output.txt equals the committed expected/verify of each example that has one (AC-05); a project that commits no lock gets the one lexlean lock writes, and the constants name uor-atlas and the one example with no committed record.
+    Given the examples of LexLean at the pin but uor-atlas, each staged twice
+    When the CLI verifies one copy and the tool verifies another
+    Then both end verified with the same observations, and the record validates and exports

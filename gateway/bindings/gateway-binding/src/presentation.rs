@@ -9,8 +9,8 @@
 
 use serde_json::Value;
 
-use crate::attestation::{Refused, RECORD_MAXIMUM};
-use crate::evidence::{digest_of, rows, MANIFEST, SOURCES};
+use crate::attestation::{Refused, ATTESTATION_MAXIMUM, RECORD_MAXIMUM};
+use crate::evidence::{digest_of, rows, source_key, MANIFEST};
 use crate::store;
 
 /// The area of the verifications, and of the key history, and of the exports.
@@ -53,7 +53,15 @@ fn read_bound(
 }
 
 fn follow(root: &std::path::Path, id: &str) -> Result<Record, Refused> {
-    let subject = read(root, id, SUBJECT)?;
+    let subject = match store::read(
+        root,
+        VERIFICATIONS,
+        &format!("{id}/{SUBJECT}"),
+        ATTESTATION_MAXIMUM,
+    ) {
+        Ok(Some(bytes)) => bytes,
+        _ => return Err(Refused::Store),
+    };
     let attestation: Value = serde_json::from_slice(&subject).map_err(|_| Refused::Store)?;
     let named = attestation["build_manifest"]["sha256"]
         .as_str()
@@ -119,23 +127,23 @@ pub fn export(root: &std::path::Path, id: &str, envelope: &[u8]) -> Result<Strin
         files.push((path.clone(), read_bound(root, id, path, sha256)?));
     }
     for (path, sha256) in &record.sources {
-        files.push((
-            format!("{SOURCES}/{path}"),
-            read_bound(root, id, &format!("{SOURCES}/{path}"), sha256)?,
-        ));
+        let key = source_key(path);
+        let bytes = read_bound(root, id, &key, sha256)?;
+        files.push((key, bytes));
     }
     let mut names: Vec<&str> = files.iter().map(|(name, _)| name.as_str()).collect();
     names.sort_unstable();
     if names.windows(2).any(|pair| pair[0] == pair[1]) {
         return Err(Refused::Store);
     }
+    // Each file was bounded when it was read, and `attestation.json` is the largest a record holds.
     for (name, bytes) in &files {
         store::write(
             root,
             EXPORTS,
             &format!("{id}/{name}"),
             bytes,
-            RECORD_MAXIMUM,
+            ATTESTATION_MAXIMUM,
         )
         .map_err(|_| Refused::Store)?;
     }

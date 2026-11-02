@@ -18,6 +18,12 @@ use crate::store::{self, StoreError};
 /// The most bytes of a record.
 pub const RECORD_MAXIMUM: usize = 1 << 20;
 
+/// The largest `attestation.json` a record holds. It is larger than the other files of a record,
+/// because it lists every process of the verification: 1.7 MB for the example `models`. It travels
+/// to the signer in base64, so it stays below what the signer reads in one request
+/// (`gateway_signer::service::MAX_REQUEST_BYTES`).
+pub const ATTESTATION_MAXIMUM: usize = 8 << 20;
+
 /// Whether `text` is a SHA-256 in lowercase hexadecimal.
 pub fn is_digest(text: &str) -> bool {
     text.len() == 64
@@ -86,7 +92,7 @@ pub fn record(
         3,
         &format!("{attestation}/attestation.json"),
         subject,
-        RECORD_MAXIMUM,
+        ATTESTATION_MAXIMUM,
     )
     .map_err(|_| ())?;
     for (key, bytes) in evidence {
