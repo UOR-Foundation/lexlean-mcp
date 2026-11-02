@@ -14,9 +14,10 @@ acceptance boundary (`VERIFICATION.md`); until the SDK binding lands it fails at
 | `cargo / fmt clippy audits deny test` | `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --locked -- -D warnings`; `cargo check --workspace --all-features --all-targets --locked`; `cargo xtask check-model`, `audit-limits`, `audit-deferral` and `audit-dependency-updates`; `cargo deny --all-features check`; `cargo test --workspace --locked --no-fail-fast` |
 | `lexlean / verify` | `lexlean fmt --check`, `lexlean lock --check`, `lexlean check`, `lexlean verify` |
 | `lexlean / export <crate>` | one job per `crates/*/generated/request.json`, found by `find` and never listed: `lexlean production build --request <it>` in a clean `.lexlean/production`, then every exported `rust-std` package is compared with `diff -r` against the package committed beside the request, in both directions (a committed package the request no longer exports, or an export nobody committed, fails by name) |
-| `gateway / prismpm build and verify` | builds the gateway of #7 against the registry that `gateway/registry.sh` assembles from the pins: the MCP sources at `.github/mcp.rev` (`gateway/lay-out-mcp.sh`) and their byte equality to the pin (`gateway/mcp-identities.sh`, AC-03 a); the `prism.arch` lexicon of PrismPM at `.github/prismpm.rev`, laid out whole (`gateway/lay-out-sdk.sh`, not committed), and the two whole-file copies of PrismPM's standard library (`sdk_copies_agree`); `lexlean lock --check` and `check`, and every module that is not a copy canonical; the registry; `prismpm build`, whose exported core must equal `gateway/generated/lexlean_mcp_gateway_core` (`diff -r`); `cargo fmt`, `clippy` and the tests of the binding, with its ignored tests run by count; the generated host source free of tool and method names (Q6); `gateway/vectors/generate.py check`; `gateway-host` built and served under MCP's server suite and schema oracle, whose failing scenarios must be exactly `gateway/waiting.json` (GATEWAY-CONFORMANCE.md, `GW-12`); and `prismpm verify` |
-| `gateway / verify fixtures` | runs VP-07 by name and requires that it ran: the 32 `verify` fixtures through the tool beside the CLI (AC-07). It runs `prismpm build` for the generated packages the tests link, and none of the gateway job's other gates. |
-| `scope / does the change reach the gateway` | publishes whether the gateway job runs: on a pull request, only when a changed file matches `GATEWAY_INPUTS` in `.github/lexlean-ci/lib.sh` (the files that job reads); on a push to `main`, always |
+| `gateway / prismpm build` | the one `prismpm build` of a run, which the two jobs below need: the MCP sources at `.github/mcp.rev` (`gateway/lay-out-mcp.sh`) and their byte equality to the pin (`gateway/mcp-identities.sh`, AC-03 a); the `prism.arch` lexicon of PrismPM at `.github/prismpm.rev`, laid out whole (`gateway/lay-out-sdk.sh`, not committed), and the two whole-file copies of PrismPM's standard library (`sdk_copies_agree`); `lexlean lock --check` and `check`, and every module that is not a copy canonical; `prismpm build`, which verifies the gateway and whose exported core must equal `gateway/generated/lexlean_mcp_gateway_core` (`diff -r`); then the generated packages as the artifact `gateway-build` |
+| `gateway / prismpm build and verify` | over the packages of that build and against the registry that `gateway/registry.sh` assembles from the pins: `cargo fmt`, `clippy` and the tests of the binding, with its ignored tests run by count; the generated host source free of tool and method names (Q6); `gateway/vectors/generate.py check`; `gateway-host` built and served under MCP's server suite and schema oracle, whose failing scenarios must be exactly `gateway/waiting.json` (GATEWAY-CONFORMANCE.md, `GW-12`); and `prismpm verify`, which builds again in the locked SDK image |
+| `gateway / verify fixtures` | runs VP-07 by name and requires that it ran: the 32 `verify` fixtures through the tool beside the CLI (AC-07). The tests link the packages of that build, and it runs none of the gateway job's other gates. |
+| `scope / does the change reach the gateway` | publishes whether the gateway job and the job of the verify fixtures run, and so the build that either needs: on a pull request, only when a changed file matches `GATEWAY_INPUTS` or `VERIFY_FIXTURES_INPUTS` in `.github/lexlean-ci/lib.sh` (the files each job reads); on a push to `main`, always |
 | `prepare / compiler and toolchains` | builds `lexlean`, installs the Lean toolchain, checks that the compiler is the one `lexlean.lock` was made with, and publishes the job matrix |
 
 ## Not run here
@@ -60,7 +61,7 @@ are unpacked.
 
 ## The gateway job
 
-The job takes about three hours, so a pull request that changes none of its inputs skips it
+The job takes hours, so a pull request that changes none of its inputs skips it
 (`scope`). `main` runs it on every push, so an input missing from `GATEWAY_INPUTS` fails there
 rather than passing unseen. Planted defect: with `'^gateway/'` removed from the list, a change to
 `gateway/Cargo.lock` alone published `gateway=false`; restored, it publishes `gateway=true`.
@@ -73,8 +74,56 @@ publish `verify_fixtures=true`; the signer publishes `gateway=true verify_fixtur
 publishes both false; a push to `main` publishes both true. Planted defect: with `'^gateway/tool-tests/'`
 removed from `VERIFY_FIXTURES_INPUTS`, a change to `gateway/tool-tests/tests/equality.rs` alone published
 `verify_fixtures=false`; restored, it publishes `verify_fixtures=true`.
-The job saves the `lexlean` it builds at MCP's pin under that pin's key: `prepare` saves only the
-root pin's, and without the save every run rebuilt it (about five minutes).
+The build job saves the `lexlean` it builds at MCP's pin under that pin's key: `prepare` saves only
+the root pin's, and without the save every run rebuilt it (about five minutes). The two jobs after
+it restore that key.
+
+### One build in a run
+
+A run verifies the gateway in `prismpm build` and again in `prismpm verify` (step 7q), whose second
+verification belongs to PrismPM#342. Two further repeats are gone. Step 7d ran `lexlean verify`
+immediately before `prismpm build`: `production::build` at MCP's pin calls `engine.verify` with
+`Selection::Entrypoints`, which is the selection `lexlean verify` makes without arguments, and
+refuses the export when it fails. And both jobs below ran their own `prismpm build`.
+
+A job reads another's artifact only after that job has ended, so the build is a job of its own and
+the gates that need no build (7a, 7c, 7d) run ahead of it, so that a formatting error is not
+reported after the verification. The job runs when either scope is true; the gateway job and the job
+of the verify fixtures each need it to have succeeded and each keep their own scope. Because a failed
+build skips them, the run fails on the build job, not on theirs.
+
+The artifact `gateway-build` is one tar of the three packages `gateway/lay-out.sh` lays out, named by
+the commit it was built from, and lives for one day. It is a tar because an artifact does not keep
+file modes. It holds nothing else, because nothing later reads more: Cargo reads the packages; the
+tests that compare projects copy them without `.prism` and `.lexlean`; `gateway/vectors/generate.py`
+and step 7i read the laid-out packages; and `prismpm verify` makes its own build and starts from an
+empty `gateway/.prism`, where it writes as the container's user. `gateway_build_unpack` refuses what
+this revision's build did not produce:
+
+| Planted defect | Command | Diagnostic | Restored |
+| --- | --- | --- | --- |
+| the archive of another revision: a commit made after packing | `gateway_build_unpack` | exit 1: `the artifact holds no build of <head>: <other>.tar` | the same commit: `the generated packages of <head> are laid out, and the core is the committed export`, and `gateway-host/run` has mode 755 |
+| an archive without `gateway-host` | `gateway_build_unpack` | exit 1: `the build of <head> holds no package gateway-host` | as above |
+| a line added to the committed export | `gateway_build_unpack` | exit 1: the `diff -r` hunk, then `the core of the build of <head> differs from gateway/generated/lexlean_mcp_gateway_core` | as above |
+| `\|\| needs.scope.outputs.verify_fixtures == 'true'` removed from the `if` of the build job, which would skip the fixtures with their scope true | `cargo test -p repo-model --test gateway` | `the build runs when either job that reads it runs` | the test passes |
+| `--env LEXLEAN_VERIFY_WIDTH` removed from `gateway_verify`, which would run step 7q at width 1 | `cargo test -p repo-model --test gateway` | `prismpm build and prismpm verify run at the width of GATEWAY_VERIFY_WIDTH` | the test passes |
+
+`.github/lexlean-ci/test-gate.sh`, which `prepare` runs, holds the first three as cases.
+
+### The width of the verifications
+
+`prismpm build` and `prismpm verify` run at `GATEWAY_VERIFY_WIDTH` (`lib.sh`), passed as
+`LEXLEAN_VERIFY_WIDTH` to the process that calls `verify`, and through `docker run --env` in step 7q,
+where the container has no other environment. The width schedules processes and changes no output
+(LexLean SPEC §22.11). The tests that run verifications keep the default: `run_cli` removes the
+variable (`gateway/tool-tests/src/lib.rs`), and the projects of those tests are small.
+
+`LEXLEAN_CI_TELEMETRY` is passed the same way, and each job keeps the directory as an artifact
+(`gateway-verify-telemetry-build`, `-verify`). No stage reads it. It is where the peak memory, swap
+and wall time of each process are read, and it can be turned into the hints of §22.11. The memory
+budget compares the expected peaks of such hints, so without hints it would do nothing and none is
+set. `child_timeout_ms` (`gateway/lexlean.toml`) stays 20 minutes: a width that a process cannot
+finish under fails the build with `LLS8002`.
 
 `gateway/` is its own Cargo workspace with its own `Cargo.lock`, because the binding links
 `lexlean`, which is not on crates.io yet. The root workspace, `cargo deny` and the SDK's

@@ -37,6 +37,40 @@ expect 1 "errexit is restored after a passing gate" \
 expect 1 "a failing pipeline inside a helper fails the gate" \
   'helper() { false | cat; true; }; gate "helper" helper'
 
+# The generated packages that pass between jobs: each case makes a repository with them laid out,
+# packs them, and removes them again, as the job that unpacks starts without them.
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
+packed() {
+  local project=$scratch/$1 package
+  mkdir -p "$project/gateway/generated/lexlean_mcp_gateway_core/src"
+  echo manifest >"$project/gateway/generated/lexlean_mcp_gateway_core/Cargo.toml"
+  echo core >"$project/gateway/generated/lexlean_mcp_gateway_core/src/lib.rs"
+  for package in lexlean_mcp_gateway_core gateway-host-api gateway-host; do
+    mkdir -p "$project/gateway/$package/src"
+    echo manifest >"$project/gateway/$package/Cargo.toml"
+    echo core >"$project/gateway/$package/src/lib.rs"
+  done
+  install -m 0755 /dev/null "$project/gateway/gateway-host/run"
+  git -C "$project" init -q
+  git -C "$project" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one
+  (
+    cd "$project"
+    . "$lib" >/dev/null
+    RUNNER_TEMP=$project/temp gateway_build_pack >/dev/null
+    rm -rf gateway/lexlean_mcp_gateway_core gateway/gateway-host-api gateway/gateway-host
+  )
+  printf "cd '%s'; export RUNNER_TEMP='%s/temp'; " "$project" "$project"
+}
+expect 0 "the packages come back with their file modes" \
+  "$(packed modes)"'gate "unpack" gateway_build_unpack; test -x gateway/gateway-host/run; test -f gateway/gateway-host-api/Cargo.toml'
+expect 1 "the build of another revision is refused" \
+  "$(packed revision)"'git -c user.name=t -c user.email=t@t commit -q --allow-empty -m two; gate "unpack" gateway_build_unpack'
+expect 1 "a build without one of the packages is refused" \
+  "$(packed missing)"'mkdir w; tar -C w -xf "$RUNNER_TEMP"/gateway-build/*.tar; tar -C w -cf "$RUNNER_TEMP"/gateway-build/"$(git rev-parse HEAD)".tar lexlean_mcp_gateway_core gateway-host-api; gate "unpack" gateway_build_unpack'
+expect 1 "a core that is not the committed export is refused" \
+  "$(packed core)"'echo edit >>gateway/generated/lexlean_mcp_gateway_core/src/lib.rs; gate "unpack" gateway_build_unpack'
+
 if ((failures != 0)); then
   printf '%s case(s) of gate do not hold\n' "$failures"
   exit 1
