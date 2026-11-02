@@ -462,11 +462,25 @@ gateway_cargo() {
   (cd gateway && CARGO_HOME=$(cd .. && gateway_cargo_home) cargo "$@")
 }
 
+# The process width of the two verifications of the gateway, `prismpm build` and `prismpm verify`
+# (LexLean SPEC §22.11): the runner has 4 vCPUs and 16 GB, and the width changes no output. No
+# memory budget is set: it only compares the expected peaks of a hints file, and none is committed.
+GATEWAY_VERIFY_WIDTH=4
+
+# gateway_telemetry_dir: where those verifications write their telemetry (SPEC §22.12), which no
+# stage reads: the wall time, peak memory and swap of each process, kept as an artifact of the run.
+gateway_telemetry_dir() {
+  printf '%s\n' "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/gateway-verify-telemetry"
+}
+
 # gateway_build: `prismpm build` in the gateway project, then lay the generated packages out
 # and require the core to be the committed export, byte for byte, in both directions.
 gateway_build() {
-  local output id
-  output=$(cd gateway && prismpm build) || { printf '%s\n' "$output"; return 1; }
+  local output id telemetry
+  telemetry=$(gateway_telemetry_dir)
+  mkdir -p "$telemetry"
+  output=$(cd gateway && LEXLEAN_VERIFY_WIDTH=$GATEWAY_VERIFY_WIDTH LEXLEAN_CI_TELEMETRY=$telemetry prismpm build) ||
+    { printf '%s\n' "$output"; return 1; }
   printf '%s\n' "$output"
   id=$(printf '%s\n' "$output" | sed -n 's/^build published: \([0-9a-f]\{64\}\)$/\1/p')
   if [[ -z $id ]]; then
@@ -478,6 +492,51 @@ gateway_build() {
     echo "gateway/generated/lexlean_mcp_gateway_core is the export of the sources"
   else
     echo "gateway/generated/lexlean_mcp_gateway_core differs from the export of the sources" >&2
+    return 1
+  fi
+}
+
+# What `gateway_build` lays out and later steps read. Nothing reads the build roots it leaves
+# (.prism, .lexlean): `prismpm verify` makes its own build, and the tests copy projects without them.
+GATEWAY_BUILD_PACKAGES=(lexlean_mcp_gateway_core gateway-host-api gateway-host)
+
+# The directory the workflow passes between jobs as the artifact `gateway-build`.
+gateway_build_dir() {
+  printf '%s\n' "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/gateway-build"
+}
+
+# gateway_build_pack: the generated packages as one tar named by the revision they were built from.
+# A tar, because an artifact does not keep file modes.
+gateway_build_pack() {
+  local dir
+  dir=$(gateway_build_dir)
+  mkdir -p "$dir"
+  tar -C gateway -cf "$dir/$(git rev-parse HEAD).tar" "${GATEWAY_BUILD_PACKAGES[@]}"
+  ls -l "$dir"
+}
+
+# gateway_build_unpack: lay out the packages of `gateway_build_pack`. An archive of another
+# revision, a missing package or a core that is not the committed export stops the job: the tests
+# must not link something this revision's build did not produce.
+gateway_build_unpack() {
+  local dir head package
+  dir=$(gateway_build_dir)
+  head=$(git rev-parse HEAD)
+  if [[ ! -f $dir/$head.tar ]]; then
+    echo "the artifact holds no build of $head: $(ls "$dir" 2>&1 | paste -sd' ')" >&2
+    return 1
+  fi
+  tar -C gateway -xf "$dir/$head.tar"
+  for package in "${GATEWAY_BUILD_PACKAGES[@]}"; do
+    if [[ ! -f gateway/$package/Cargo.toml ]]; then
+      echo "the build of $head holds no package $package" >&2
+      return 1
+    fi
+  done
+  if diff -r gateway/lexlean_mcp_gateway_core gateway/generated/lexlean_mcp_gateway_core; then
+    echo "the generated packages of $head are laid out, and the core is the committed export"
+  else
+    echo "the core of the build of $head differs from gateway/generated/lexlean_mcp_gateway_core" >&2
     return 1
   fi
 }
@@ -528,9 +587,10 @@ free_runner_disk() {
 # one. The binary that runs is the one install_prismpm built (PrismPM at .github/prismpm.rev with
 # LexLean at MCP's pin), mounted read-only and called by its path, which is not on the SDK's
 # PATH; the workspace is mounted at the same path, so the registry's directory source
-# (gateway/registry/cargo-home/config.toml) resolves inside the container.
+# (gateway/registry/cargo-home/config.toml) resolves inside the container. The container has only
+# the environment named here, so the width and the telemetry directory are passed.
 gateway_verify() {
-  local image store work
+  local image store work telemetry
   image=$(sed -n 's/.*"sdk_image":"\([^"]*\)".*/\1/p' prismpm.lock)
   if [[ ! $image =~ ^[a-z0-9.-]+(:[0-9]{1,5})?/[a-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]]; then
     echo "prismpm.lock does not select an immutable SDK image" >&2
@@ -538,6 +598,8 @@ gateway_verify() {
   fi
   store=$(mktemp -d)
   work=$(mktemp -d)
+  telemetry=$(gateway_telemetry_dir)
+  mkdir -p "$telemetry"
   # The vectors of the draft tools name the profile `tiny`, which #8 provisions in a real store:
   # the replay starts from a store that holds the profiles the vectors were recorded with.
   # The operator's command is the one that provisions: it is built first, and the generator
@@ -550,12 +612,15 @@ gateway_verify() {
     --volume "$PRISMPM_ROOT:$PRISMPM_ROOT:ro" \
     --volume "$store:$store" \
     --volume "$work:$work" \
+    --volume "$telemetry:$telemetry" \
     --workdir "$PWD/gateway" \
     --env HOME="$work" \
     --env TMPDIR="$work" \
     --env CARGO_HOME="$PWD/gateway/registry/cargo-home" \
     --env CARGO_NET_OFFLINE=true \
     --env LEXLEAN_MCP_STORE="$store" \
+    --env LEXLEAN_VERIFY_WIDTH="$GATEWAY_VERIFY_WIDTH" \
+    --env LEXLEAN_CI_TELEMETRY="$telemetry" \
     "$image" "$PRISMPM_ROOT/bin/prismpm" verify
 }
 

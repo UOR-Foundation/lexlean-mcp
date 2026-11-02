@@ -785,6 +785,20 @@ fn the_binding_implements_each_effect_and_tests_each_failure_gw_07() {
     }
 }
 
+/// The text of one job of a workflow: from its key to the next line at the indent of a job.
+fn job<'a>(workflow: &'a str, key: &str) -> &'a str {
+    let start = workflow
+        .find(&format!("\n  {key}:\n"))
+        .unwrap_or_else(|| panic!("the workflow has no job {key}"))
+        + 1;
+    let body = &workflow[start..];
+    let end = body
+        .match_indices("\n  ")
+        .find(|(at, _)| !body[at + 3..].starts_with(' '))
+        .map_or(body.len(), |(at, _)| at);
+    &body[..end]
+}
+
 /// GW-08: the gateway job builds, compares the core and verifies; the defects are recorded.
 #[test]
 fn the_gateway_job_builds_and_verifies_and_the_defects_are_recorded_gw_08() {
@@ -804,6 +818,51 @@ fn the_gateway_job_builds_and_verifies_and_the_defects_are_recorded_gw_08() {
     ] {
         assert!(workflow.contains(step), "the workflow runs `{step}`");
     }
+    // One build: a job of its own runs it when either job that reads it runs. Each of those keeps
+    // its scope, needs the build and takes the packages from it; neither builds them again.
+    let file = read(".github/workflows/lexlean.yml");
+    let build = job(&file, "gateway-build");
+    assert!(
+        build.contains(
+            "if: needs.scope.outputs.gateway == 'true' || needs.scope.outputs.verify_fixtures == 'true'"
+        ),
+        "the build runs when either job that reads it runs"
+    );
+    for step in [
+        "gateway_fmt_check",
+        "gateway_lexlean lock --check",
+        "gateway_lexlean check",
+        "gate \"prismpm build\" gateway_build\n",
+        "gateway_build_pack",
+    ] {
+        assert!(build.contains(step), "the build job runs `{step}`");
+    }
+    for (key, scope) in [
+        ("gateway", "gateway"),
+        ("verify-fixtures", "verify_fixtures"),
+    ] {
+        let reader = job(&file, key);
+        assert!(
+            reader.contains("needs: [scope, gateway-build]")
+                && reader.contains(&format!("if: needs.scope.outputs.{scope} == 'true'"))
+                && reader.contains("gateway_build_unpack")
+                && !reader.contains(" gateway_build\n"),
+            "{key} needs the build, keeps its scope and takes the packages from the artifact"
+        );
+    }
+    // `prismpm build` is the verification of the gateway; `lexlean verify` would repeat it.
+    assert!(
+        !file.contains("gateway_lexlean verify"),
+        "the gateway is verified by prismpm build, and not a second time before it"
+    );
+    // The width reaches both verifications, across the boundary of the SDK container in the second.
+    let library = read(".github/lexlean-ci/lib.sh");
+    assert!(
+        library.contains("LEXLEAN_VERIFY_WIDTH=$GATEWAY_VERIFY_WIDTH LEXLEAN_CI_TELEMETRY=$telemetry prismpm build")
+            && library.contains("--env LEXLEAN_VERIFY_WIDTH=\"$GATEWAY_VERIFY_WIDTH\"")
+            && library.contains("--env LEXLEAN_CI_TELEMETRY=\"$telemetry\""),
+        "prismpm build and prismpm verify run at the width of GATEWAY_VERIFY_WIDTH"
+    );
     let document = read("GATEWAY.md");
     let defects = table(&document, "Planted defects");
     assert!(defects.len() >= 5, "five defects or more are recorded");
