@@ -281,6 +281,7 @@ dependencies = [
  "gateway-engine-host",
  "gateway-host-api",
  "gateway-signer",
+ "gateway-verifier-host",
  "lexlean",
  "rustix",
  "serde_json",
@@ -343,6 +344,15 @@ dependencies = [
  "gateway-binding",
  "gateway-host",
  "serde_json",
+]
+
+[[package]]
+name = "gateway-verifier-host"
+version = "0.1.0"
+dependencies = [
+ "rustix",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

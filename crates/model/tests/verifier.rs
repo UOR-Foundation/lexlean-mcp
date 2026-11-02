@@ -22,6 +22,7 @@ fn read(relative: &str) -> String {
 const BINDING: &str = "gateway/bindings/gateway-binding";
 const VERIFIER: &str = "gateway/bindings/gateway-binding/src/verifier.rs";
 const CHILD: &str = "gateway/bindings/gateway-binding/src/child.rs";
+const SERVICE: &str = "gateway/bindings/gateway-verifier-host/src/service.rs";
 
 /// The names of the `#[test]` functions of the verifier tests of the binding.
 fn gateway_tests() -> BTreeSet<String> {
@@ -111,19 +112,19 @@ fn the_process_has_the_settings_and_not_the_key_vp_02() {
             "a_program_that_is_not_a_file_is_verifier_unavailable_and_copies_nothing_vp_02",
         ],
     );
-    let verifier = read(VERIFIER);
+    let service = read(SERVICE);
     for needed in [
         ".env_remove(SIGNING_KEY_VARIABLE)",
         "\"LEXLEAN_VERIFY_WIDTH\"",
         "\"LEXLEAN_VERIFY_MEMORY_KIB\"",
     ] {
-        assert!(verifier.contains(needed), "verifier.rs lacks {needed}");
+        assert!(service.contains(needed), "service.rs lacks {needed}");
     }
     // The project is judged before the program, so a project that is not one is refused whatever the
     // service, and the copy a draft makes is dropped when the program is missing.
     let host = read(&format!("{BINDING}/src/lib.rs"));
     let start = host.find("fn verify_start(").expect("verify_start");
-    let program = after(&host, start, "verifier_program");
+    let program = after(&host, start, "gateway_verifier_host::client::ready");
     let copy = after(&host, start, "project::resolve(");
     assert!(copy < program, "the project is judged before the program");
 }
@@ -191,15 +192,21 @@ fn a_lost_verifier_leaves_nothing_vp_05() {
     let verifier = read(VERIFIER);
     assert!(verifier.contains("verifier-lost"));
     let watch = verifier.find("fn watch(").expect("watch");
-    let settle = after(&verifier, watch, "settle(shared, name, verdict");
-    let sweep = after(&verifier, watch, "sweep::kill_session(session)");
+    let settle = after(&verifier, watch, "settle(shared, name, None");
+    let slot = after(&verifier, watch, "tasks.running.saturating_sub(1)");
+    assert!(settle < slot, "the task is settled, then its slot is free");
+    // The service sweeps the session before it says the process has ended, and it watches the
+    // process, not only its pipe: an orphan may hold the pipe.
+    let service = read(SERVICE);
+    let run = service.find("fn run(&self, stream").expect("run");
+    let wait = after(&service, run, "child.try_wait()");
+    let sweep = after(&service, wait, "sweep::kill_session(session)");
+    let ended = after(&service, run, "\"event\": \"ended\"");
     assert!(
-        settle < sweep,
-        "the task is settled, then the session is swept"
+        wait < sweep && sweep < ended,
+        "the process, its session, then ended"
     );
-    // The process is watched, not only its pipe: an orphan may hold the pipe.
-    assert!(verifier.contains("child.try_wait()"));
-    let sweep_source = read(&format!("{BINDING}/src/sweep.rs"));
+    let sweep_source = read("gateway/bindings/gateway-verifier-host/src/sweep.rs");
     assert!(
         sweep_source.contains("/proc") && sweep_source.contains("Signal::KILL"),
         "the sweep reads /proc and kills"

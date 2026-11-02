@@ -15,6 +15,7 @@ members = [
     "bindings/gateway-binding",
     "bindings/gateway-engine-host",
     "bindings/gateway-signer",
+    "bindings/gateway-verifier-host",
     "vectors/runner",
     "tool-tests",
 ]

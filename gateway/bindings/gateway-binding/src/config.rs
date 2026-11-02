@@ -20,6 +20,7 @@ pub const LOG_TAIL_BYTES: usize = 65_536;
 
 pub use gateway_engine_host::service::ENGINE_VARIABLE;
 pub use gateway_signer::service::{SIGNER_VARIABLE, SIGNING_KEY_VARIABLE};
+pub use gateway_verifier_host::service::VERIFIER_HOST_VARIABLE;
 
 /// The tasks that run at once: the owner value `verify.concurrency`.
 pub const VERIFY_CONCURRENCY: usize = 1;
@@ -50,9 +51,9 @@ pub struct Config {
     /// The socket of `gateway-engine-host`, named by `LEXLEAN_MCP_ENGINE`. An Engine call without
     /// one is `engine-unavailable`: this process does not make them.
     pub engine: Option<PathBuf>,
-    /// The program that verifies, one process for each task: `LEXLEAN_MCP_VERIFIER`, else
-    /// `gateway-verifier` beside the running executable. A verification is not started without it.
-    pub verifier_program: Option<PathBuf>,
+    /// The socket of `gateway-verifier-host`, named by `LEXLEAN_MCP_VERIFIER_HOST`, which starts one
+    /// process for each task. A verification is not started without one that has a program to start.
+    pub verifier: Option<PathBuf>,
     /// The tasks that run at once.
     pub verify_concurrency: usize,
     /// The width of one verification, given to its process in `LEXLEAN_VERIFY_WIDTH`.
@@ -72,7 +73,7 @@ impl Config {
             rate_window: RATE_WINDOW,
             signer: None,
             engine: None,
-            verifier_program: None,
+            verifier: None,
             verify_concurrency: VERIFY_CONCURRENCY,
             verify_width: VERIFY_WIDTH,
             verify_memory_kib: VERIFY_MEMORY_KIB,
@@ -80,9 +81,9 @@ impl Config {
         }
     }
 
-    /// This configuration with the verifier program `program`.
-    pub fn with_verifier(mut self, program: impl Into<PathBuf>) -> Config {
-        self.verifier_program = Some(program.into());
+    /// This configuration with the verifier host at the socket `socket`.
+    pub fn with_verifier(mut self, socket: impl Into<PathBuf>) -> Config {
+        self.verifier = Some(socket.into());
         self
     }
 
@@ -120,17 +121,7 @@ impl Config {
     /// the working directory; the socket of the signer is `LEXLEAN_MCP_SIGNER`, and that of the
     /// engine host `LEXLEAN_MCP_ENGINE`.
     pub fn from_environment() -> Config {
-        let mut config = Config::from_variables(|name| std::env::var_os(name));
-        if config.verifier_program.is_none() {
-            config.verifier_program = std::env::current_exe()
-                .ok()
-                .and_then(|exe| {
-                    exe.parent()
-                        .map(|directory| directory.join("gateway-verifier"))
-                })
-                .filter(|program| program.is_file());
-        }
-        config
+        Config::from_variables(|name| std::env::var_os(name))
     }
 
     /// The configuration that the variables `lookup` gives, as `from_environment` reads them;
@@ -153,7 +144,7 @@ impl Config {
         let mut config = Config::at(store);
         config.signer = variable(SIGNER_VARIABLE).map(PathBuf::from);
         config.engine = variable(ENGINE_VARIABLE).map(PathBuf::from);
-        config.verifier_program = variable("LEXLEAN_MCP_VERIFIER").map(PathBuf::from);
+        config.verifier = variable(VERIFIER_HOST_VARIABLE).map(PathBuf::from);
         config
     }
 }

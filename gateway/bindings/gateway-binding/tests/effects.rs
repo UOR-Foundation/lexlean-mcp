@@ -23,7 +23,7 @@ fn config_in(dir: &Path) -> Config {
     Config::at(dir.join("store"))
         .with_signer(common::signer(dir, &key))
         .with_engine(common::engine(dir))
-        .with_verifier(common::real_verifier())
+        .with_verifier(common::verifier_host(dir, &common::real_verifier()))
 }
 
 fn host() -> (Native, tempfile::TempDir) {

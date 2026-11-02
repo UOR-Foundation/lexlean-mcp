@@ -242,6 +242,10 @@ provision` has filled with the profiles the vectors were recorded with (the same
 `record` uses), and the ordinary tests of `gateway-binding` and `gateway-tool-tests` include the
 draft tests (`tests/materialize.rs`, `tests/drafts.rs`), none of which is ignored.
 
+The tests that verify run the service of `gateway-verifier-host` on a thread, over a real socket, and
+`gateway-verifier` as its program. No vector starts a verification, so the replay needs no verifier
+host.
+
 The vectors of the four Engine effects are answered by `gateway-engine-host` (ENGINE-HOST.md).
 `gateway_verify` starts it beside the container of `prismpm verify`, on the same store, and hands
 its socket to the replay with `LEXLEAN_MCP_ENGINE` through a directory both can reach. The replay

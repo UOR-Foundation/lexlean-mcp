@@ -43,6 +43,7 @@
 # register DR-01..DR-11; lexlean_draft_assemble and the structured read of lexlean_draft_read register DR-12..DR-16.
 # prismpm check on the root model (issues #5, #14, #15 and #18) registers MC-01..MC-03.
 # The signer as a program of its own, the first service of issue #17, registers SG-16..SG-19.
+# The verifier host, the third service of issue #17, registers VS-01..VS-05.
 # The engine host as a program of its own, the second service of issue #17, registers EH-01..EH-04.
 # What the examples showed of the record (issue #15) registers SG-20 and SG-21, and their verification beside the CLI VP-08.
 
@@ -1165,6 +1166,36 @@ suite = "signing"
 statement = "A record keeps an attestation.json of up to ATTESTATION_MAXIMUM bytes, larger than RECORD_MAXIMUM of the other files because it lists every process of the verification: one of that size is signed through the socket of the signer and validates, and one over it leaves no envelope."
 
 [[id]]
+id = "VS-01"
+level = "build"
+suite = "verifier-host"
+statement = "The process of each task is started where the verifier runs: gateway-verifier-host answers on the Unix socket LEXLEAN_MCP_VERIFIER_HOST with mode 0600 for the store LEXLEAN_MCP_STORE, starts LEXLEAN_MCP_VERIFIER or gateway-verifier beside it, says whether it has a program to start, its crate links no compiler, no generated package, no host and no signer, and the host starts no process, kills none and sweeps none of its own."
+
+[[id]]
+id = "VS-02"
+level = "build"
+suite = "verifier-host"
+statement = "One connection is one task in one process of its own: the process gets the job, the width and the memory it is asked for and nothing of the key, each line it writes reaches the host as it wrote it, ended is the last line, after the process has gone, with the tail of its standard error, and a cancel of one task does not touch another."
+
+[[id]]
+id = "VS-03"
+level = "build"
+suite = "verifier-host"
+statement = "The service ends what it started: a cancel reaches the process and its answer comes back, kill ends a process that ignores everything, the end of the connection ends the input of the process, a process that ignores that or does not end after its verdict is killed after the grace, what a lost process leaves in its session is killed, and a child that holds the pipe does not hold the end of the task."
+
+[[id]]
+id = "VS-04"
+level = "build"
+suite = "verifier-host"
+statement = "Every failure of the verifier host is typed and has a negative test: each refusal travels by its name, a directory that is not below the store after links are followed starts no process, a program that cannot start is refused, a request that is not one or is over MAX_REQUEST_BYTES is refused and the next is served, no answer at the socket and an answer that is not one are Lost, a service lost during a task ends its events without ended and each line already buffered still arrives, and each constructor of StartError stops the program."
+
+[[id]]
+id = "VS-05"
+level = "build"
+suite = "verifier-host"
+statement = "Each gate of the verifier host rejects its planted defect: the socket left open to other users, a directory outside the store admitted, the key left in the environment of the process, kill ignored, the session not swept, a process kept after the host has gone or after its verdict, a refusal name that comes back as another, the bound on a request removed, the first lines of a task lost in a buffer, and the host starting a process itself; VERIFIER.md records the command, the diagnostic and the restore of each."
+
+[[id]]
 id = "VP-01"
 level = "build"
 suite = "verifier"
@@ -1174,7 +1205,7 @@ statement = "The verifier is a program that speaks lines of JSON: gateway-verifi
 id = "VP-02"
 level = "build"
 suite = "verifier"
-statement = "Each task runs in a process of its own that does not hold the key: verify.start starts the program of the configuration (LEXLEAN_MCP_VERIFIER, else gateway-verifier beside the running executable) with the width and the memory of the owner values in LEXLEAN_VERIFY_WIDTH and LEXLEAN_VERIFY_MEMORY_KIB, without LEXLEAN_MCP_SIGNING_KEY in its environment and with nothing of the seed or of the path of the key file in its arguments, its environment or its input; when the configured program is not a file, verify.start fails with verifier-unavailable, starts no task and leaves nothing in the builds area."
+statement = "Each task runs in a process of its own that does not hold the key: the verifier host starts its program (LEXLEAN_MCP_VERIFIER, else gateway-verifier beside it) with the width and the memory of the owner values in LEXLEAN_VERIFY_WIDTH and LEXLEAN_VERIFY_MEMORY_KIB, without LEXLEAN_MCP_SIGNING_KEY in its environment and with nothing of the seed or of the path of the key file in its arguments, its environment or its input; when no verifier host answers or its program is not a file, verify.start fails with verifier-unavailable, starts no task and leaves nothing in the builds area."
 
 [[id]]
 id = "VP-03"

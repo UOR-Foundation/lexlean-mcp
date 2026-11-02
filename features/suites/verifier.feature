@@ -9,7 +9,7 @@ Feature: The verifier process
     Then the session is the process ID, the bad draft is failed with class 1 and its diagnostics, the bad line is failed with class 5 and a closed input ends the process with no verdict
 
   @VP-02 @build
-  Scenario: Each task runs in a process of its own that does not hold the key: verify.start starts the program of the configuration (LEXLEAN_MCP_VERIFIER, else gateway-verifier beside the running executable) with the width and the memory of the owner values in LEXLEAN_VERIFY_WIDTH and LEXLEAN_VERIFY_MEMORY_KIB, without LEXLEAN_MCP_SIGNING_KEY in its environment and with nothing of the seed or of the path of the key file in its arguments, its environment or its input; when the configured program is not a file, verify.start fails with verifier-unavailable, starts no task and leaves nothing in the builds area.
+  Scenario: Each task runs in a process of its own that does not hold the key: the verifier host starts its program (LEXLEAN_MCP_VERIFIER, else gateway-verifier beside it) with the width and the memory of the owner values in LEXLEAN_VERIFY_WIDTH and LEXLEAN_VERIFY_MEMORY_KIB, without LEXLEAN_MCP_SIGNING_KEY in its environment and with nothing of the seed or of the path of the key file in its arguments, its environment or its input; when no verifier host answers or its program is not a file, verify.start fails with verifier-unavailable, starts no task and leaves nothing in the builds area.
     Given a host with a verifier program that records what it is given, and a host whose program is missing
     When a verification is started in each
     Then the program saw the two settings and nothing of the key, and the missing program is verifier-unavailable with nothing left in the builds area

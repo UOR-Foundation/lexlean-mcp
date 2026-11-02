@@ -1,7 +1,8 @@
 //! The verifier of the host: tasks that each run `Engine::verify` in a process of their own, and
 //! the signing of the verifications that end `verified`.
 //!
-//! A task is a `gateway-verifier` process (see `child`). The host starts at most
+//! A task is a `gateway-verifier` process (see `child`), which `gateway-verifier-host` starts where
+//! the verifier runs, one connection for each task. The host starts at most
 //! `verify.concurrency` of them at once and holds the others in a queue, and none fails for waiting.
 //! One process for each task is the only isolation the library offers: `end_live_children` ends
 //! every child group of the process that calls it, so a process that runs two tasks cannot cancel
@@ -15,20 +16,18 @@
 //! does.
 
 use std::collections::{BTreeMap, VecDeque};
-use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::{mpsc, Arc, Condvar, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
+use gateway_verifier_host::client::{self, Events, Input};
 use lexlean::Selection;
 use serde_json::{json, Value};
 
 use crate::attestation;
-use crate::config::{Config, SIGNING_KEY_VARIABLE};
+use crate::config::Config;
 use crate::evidence;
 use crate::signer::{envelope_keyid, RecordSigner};
-use crate::sweep;
 use crate::telemetry::{ErrorClass, GroupEnd, Telemetry, VerifyOutcome};
 
 /// The state of a task.
@@ -115,10 +114,9 @@ struct Task {
     phase: Phase,
     outcome: Option<Outcome>,
     /// The input of the process, held while it runs; letting go of it is the end of the input.
-    input: Option<ChildStdin>,
-    pid: Option<u32>,
-    /// The session the process said it leads.
-    session: Option<u32>,
+    input: Option<Input>,
+    /// The processes the verifier host killed in its session.
+    swept: u32,
     /// The groups a cancel ended and could not end, as the process reported them.
     groups: (u32, u32),
     /// The profile of the draft, for the labels of the indicators.
@@ -139,7 +137,7 @@ struct Tasks {
 struct Shared {
     tasks: Mutex<Tasks>,
     changed: Condvar,
-    program: Option<PathBuf>,
+    socket: Option<PathBuf>,
     concurrency: usize,
     width: u32,
     memory_kib: u64,
@@ -187,7 +185,7 @@ impl Verifier {
             shared: Arc::new(Shared {
                 tasks: Mutex::new(Tasks::default()),
                 changed: Condvar::new(),
-                program: config.verifier_program.clone(),
+                socket: config.verifier.clone(),
                 concurrency: config.verify_concurrency.max(1),
                 width: config.verify_width,
                 memory_kib: config.verify_memory_kib,
@@ -223,8 +221,7 @@ impl Verifier {
                     phase: Phase::Queued,
                     outcome: None,
                     input: None,
-                    pid: None,
-                    session: None,
+                    swept: 0,
                     groups: (0, 0),
                     profile: profile.to_owned(),
                     queued: Instant::now(),
@@ -268,7 +265,7 @@ impl Verifier {
                 let task = tasks.tasks.get_mut(name)?;
                 task.phase = Phase::Cancelling;
                 if let Some(input) = task.input.as_mut() {
-                    let _ = writeln!(input, "cancel").and_then(|()| input.flush());
+                    input.cancel();
                 }
             }
             Phase::Cancelling => {}
@@ -279,20 +276,11 @@ impl Verifier {
 
         // The watcher of the process ends the task when the process answers or is gone.
         let (mut tasks, mut over) = wait_for_end(shared, tasks, name, shared.grace);
-        let mut swept = 0;
         if !over {
-            let (pid, session) = {
-                let task = tasks.tasks.get(name)?;
-                (task.pid, task.session)
-            };
-            drop(tasks);
-            if let Some(pid) = pid {
-                sweep::kill(pid);
+            if let Some(input) = tasks.tasks.get_mut(name)?.input.as_mut() {
+                input.kill();
             }
-            if let Some(session) = session {
-                swept = sweep::kill_session(session);
-            }
-            let (again, ended) = wait_for_end(shared, lock(shared), name, Duration::from_secs(5));
+            let (again, ended) = wait_for_end(shared, tasks, name, Duration::from_secs(5));
             tasks = again;
             over = ended;
         }
@@ -304,6 +292,7 @@ impl Verifier {
             shared.changed.notify_all();
         }
         let (ended, failed) = task.groups;
+        let swept = task.swept;
         Some(report(task, ended + swept, failed))
     }
 }
@@ -373,159 +362,71 @@ fn pump(shared: &Arc<Shared>) {
     }
 }
 
-/// Start the process of a task and the thread that watches it.
+/// Start the process of a task at the verifier host, and the thread that watches it.
 fn launch(shared: &Arc<Shared>, name: &str, task: &mut Task) -> Result<(), String> {
-    let program = shared
-        .program
+    let socket = shared
+        .socket
         .as_deref()
-        .ok_or("no verifier program is configured")?;
+        .ok_or("no verifier host is configured")?;
     let directory = task
         .job
         .directory
         .to_str()
         .ok_or("the project path is not UTF-8")?;
     let (kind, files) = selection_spec(&task.job.selection);
-    let line = json!({"directory": directory, "selection": {"kind": kind, "files": files}});
-    let mut child = Command::new(program)
-        .env("LEXLEAN_VERIFY_WIDTH", shared.width.to_string())
-        .env("LEXLEAN_VERIFY_MEMORY_KIB", shared.memory_kib.to_string())
-        .env_remove(SIGNING_KEY_VARIABLE)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| format!("the verifier could not be started: {}", error.kind()))?;
-    let (Some(mut input), Some(output), Some(errors)) =
-        (child.stdin.take(), child.stdout.take(), child.stderr.take())
-    else {
-        let _ = child.kill();
-        let _ = child.wait();
-        return Err("the verifier has no pipes".to_owned());
-    };
-    // A process that is already gone is found by its watcher.
-    let _ = writeln!(input, "{line}").and_then(|()| input.flush());
-    task.pid = Some(child.id());
+    let (input, events) = client::run(
+        socket,
+        &client::Run {
+            width: shared.width,
+            memory_kib: shared.memory_kib,
+            grace: shared.grace,
+            job: json!({"directory": directory, "selection": {"kind": kind, "files": files}}),
+        },
+    )
+    .map_err(|error| format!("the verifier could not be started: {error:?}"))?;
     task.input = Some(input);
     task.phase = Phase::Running;
     task.started = Some(Instant::now());
     shared.telemetry.queue_wait(millis(task.queued.elapsed()));
 
-    let tail = Arc::new(Mutex::new(Vec::new()));
-    let drained = Arc::clone(&tail);
-    std::thread::spawn(move || drain(errors, &drained));
     let shared = Arc::clone(shared);
     let name = name.to_owned();
-    std::thread::spawn(move || watch(&shared, &name, child, output, &tail));
+    std::thread::spawn(move || watch(&shared, &name, events));
     Ok(())
 }
 
-/// Keep the last bytes of the standard error of a process, for the result of a lost verifier.
-fn drain(mut errors: impl Read, tail: &Mutex<Vec<u8>>) {
-    const KEPT: usize = 8192;
-    let mut buffer = [0u8; 1024];
-    while let Ok(count) = errors.read(&mut buffer) {
-        if count == 0 {
-            break;
-        }
-        let mut kept = tail.lock().unwrap_or_else(PoisonError::into_inner);
-        kept.extend_from_slice(&buffer[..count]);
-        if kept.len() > KEPT {
-            let excess = kept.len() - KEPT;
-            kept.drain(..excess);
-        }
-    }
-}
-
-/// Read the lines of a process until its verdict or its end, settle its task, wait for the
-/// process, kill what its session still holds, and free its slot.
-///
-/// The end of the process is found by asking the process and not by the end of its output: a child
-/// that outlived it may hold the pipe open, and a lost verifier must not wait for that child.
-fn watch(
-    shared: &Arc<Shared>,
-    name: &str,
-    mut child: Child,
-    output: ChildStdout,
-    tail: &Mutex<Vec<u8>>,
-) {
-    let (send, receive) = mpsc::channel::<Value>();
-    std::thread::spawn(move || {
-        for line in BufReader::new(output).lines().map_while(Result::ok) {
-            if let Ok(event) = serde_json::from_str::<Value>(&line) {
-                if send.send(event).is_err() {
-                    break;
-                }
-            }
-        }
-    });
-
-    let mut verdict = None;
-    // Whether the event was a verdict.
-    let mut take = |event: Value| -> bool {
+/// Read the events of a task until its process has gone, settle the task, and free its slot. The
+/// verdict settles the task as soon as it comes; the slot is free when the verifier host says that
+/// the process and its session have gone, or when the verifier host is lost.
+fn watch(shared: &Arc<Shared>, name: &str, events: Events) {
+    let mut settled = false;
+    let mut log = String::new();
+    for event in events {
         match event.get("event").and_then(Value::as_str) {
-            Some("started") => {
-                let session = event
-                    .get("sid")
+            Some("verified" | "failed" | "cancelled") if !settled => {
+                settled = true;
+                settle(shared, name, Some(event), "");
+            }
+            Some("ended") => {
+                log = event
+                    .get("log")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned();
+                let swept = event
+                    .get("swept")
                     .and_then(Value::as_u64)
-                    .and_then(|sid| u32::try_from(sid).ok());
+                    .and_then(|swept| u32::try_from(swept).ok())
+                    .unwrap_or(0);
                 if let Some(task) = lock(shared).tasks.get_mut(name) {
-                    task.session = session;
-                }
-                false
-            }
-            Some("verified" | "failed" | "cancelled") => {
-                verdict = Some(event);
-                true
-            }
-            _ => false,
-        }
-    };
-    loop {
-        match receive.recv_timeout(Duration::from_millis(25)) {
-            Ok(event) => {
-                if take(event) {
-                    break;
+                    task.swept = swept;
                 }
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                if matches!(child.try_wait(), Ok(None)) {
-                    continue;
-                }
-                // The process is gone: take what it had written, then stop.
-                while let Ok(event) = receive.recv_timeout(Duration::from_millis(100)) {
-                    if take(event) {
-                        break;
-                    }
-                }
-                break;
-            }
-            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            _ => {}
         }
     }
-    if verdict.is_none() {
-        // A lost verifier: let its last words reach the tail.
-        std::thread::sleep(Duration::from_millis(100));
-    }
-    let log =
-        String::from_utf8_lossy(&tail.lock().unwrap_or_else(PoisonError::into_inner)).into_owned();
-    settle(shared, name, verdict, &log);
-
-    // The process ends itself after its verdict; one that does not is killed after the grace.
-    let deadline = Instant::now() + shared.grace;
-    loop {
-        match child.try_wait() {
-            Ok(Some(_)) | Err(_) => break,
-            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
-            Ok(None) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                break;
-            }
-        }
-    }
-    let session = lock(shared).tasks.get(name).and_then(|task| task.session);
-    if let Some(session) = session {
-        sweep::kill_session(session);
+    if !settled {
+        settle(shared, name, None, &log);
     }
     {
         let mut tasks = lock(shared);

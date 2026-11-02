@@ -76,7 +76,7 @@ fn key_file(dir: &Path) -> PathBuf {
 fn config(dir: &Path) -> Config {
     Config::at(dir.join("store"))
         .with_signer(common::signer(dir, &key_file(dir)))
-        .with_verifier(common::real_verifier())
+        .with_verifier(common::verifier_host(dir, &common::real_verifier()))
 }
 
 /// The canonical LaTeX of the module of the tiny project, as a verification renders it.
@@ -255,7 +255,8 @@ fn a_key_named_to_the_host_signs_nothing_sg_16() {
     });
     assert_eq!(config.signer, None, "the key names no signer");
     let program = common::fake_verifier(directory.path());
-    let mut host = Native::new(config.with_verifier(program));
+    let mut host =
+        Native::new(config.with_verifier(common::verifier_host(directory.path(), &program)));
     copy(
         Path::new(TINY),
         &host.config().store.join("drafts").join("tiny"),
@@ -306,7 +307,9 @@ fn verify_start_without_a_usable_key_is_unavailable_and_starts_nothing_sg_09() {
     for (label, make) in unusable {
         let directory = tempfile::tempdir().expect("a directory");
         let program = common::fake_verifier(directory.path());
-        let mut host = Native::new(make(directory.path()).with_verifier(program));
+        let mut host = Native::new(
+            make(directory.path()).with_verifier(common::verifier_host(directory.path(), &program)),
+        );
         copy(
             Path::new(TINY),
             &host.config().store.join("drafts").join("tiny"),
@@ -357,7 +360,9 @@ fn verify_start_without_a_usable_key_is_unavailable_and_starts_nothing_sg_09() {
     // With a key, the same request starts the first task.
     let directory = tempfile::tempdir().expect("a directory");
     let program = common::fake_verifier(directory.path());
-    let mut host = Native::new(config(directory.path()).with_verifier(program));
+    let mut host = Native::new(
+        config(directory.path()).with_verifier(common::verifier_host(directory.path(), &program)),
+    );
     copy(
         Path::new(TINY),
         &host.config().store.join("drafts").join("tiny"),

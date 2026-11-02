@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use gateway_binding::signer_service::Service;
-use gateway_binding::{engine_service, Config, Native, State};
+use gateway_binding::{engine_service, verifier_host_service, Config, Native, State};
 use gateway_host_api::protocol::{verify_control, verify_start, Host, HostError};
 
 /// The fixture project.
@@ -56,15 +56,26 @@ pub fn engine(dir: &Path) -> PathBuf {
     socket
 }
 
+/// The socket of a verifier host on a thread of this test, for the store below `dir` and with the
+/// program `program`: the service of `gateway-verifier-host`, over a real socket.
+pub fn verifier_host(dir: &Path, program: &Path) -> PathBuf {
+    let socket = dir.join("verifier.sock");
+    verifier_host_service::Service::new(dir.join("store"), program)
+        .bind(&socket)
+        .expect("a socket")
+        .spawn();
+    socket
+}
+
 /// A configuration whose store is below `dir`, whose signer has a key file of `dir`, whose engine
-/// host serves that store and whose verifier is `program`.
+/// host serves that store and whose verifier host starts `program`.
 pub fn config(dir: &Path, program: PathBuf) -> Config {
     let key = dir.join("signing.key");
     std::fs::write(&key, format!("{}\n", hex(&SEED))).expect("a key file");
     Config::at(dir.join("store"))
         .with_signer(signer(dir, &key))
         .with_engine(engine(dir))
-        .with_verifier(program)
+        .with_verifier(verifier_host(dir, &program))
 }
 
 /// Copy a directory tree, leaving out the build root of LexLean.
