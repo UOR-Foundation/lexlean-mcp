@@ -53,6 +53,7 @@ FIXTURE = FIXTURES / "tiny"
 VOCAB = FIXTURES / "vocab"
 VOCAB_REVIEW = FIXTURES / "vocab.review"
 PROVISION = GATEWAY / "target" / "debug" / "gateway-provision"
+ENGINE_HOST = GATEWAY / "target" / "debug" / "gateway-engine-host"
 
 MODEL = "Foundation.Server.V1.Model"
 
@@ -692,14 +693,25 @@ def http_response(frame: bytes) -> bytes:
 def record_vectors(runner: str, binary: pathlib.Path = PROVISION) -> list:
     requests = spec()
     built = [http_request(i, m, t, a, n) for i, (n, _, m, t, a) in enumerate(requests)]
-    with tempfile.TemporaryDirectory() as store:
+    with tempfile.TemporaryDirectory() as store, tempfile.TemporaryDirectory() as sockets:
         provision(pathlib.Path(store), binary)
-        environment = {"LEXLEAN_MCP_STORE": store, "PATH": "/usr/bin:/bin"}
-        process = subprocess.run(
-            [runner],
-            input="".join(frame.hex() + "\n" for _, frame in built).encode(),
-            capture_output=True, env=environment, check=False,
-        )
+        environment = {
+            "LEXLEAN_MCP_STORE": store,
+            "LEXLEAN_MCP_ENGINE": str(pathlib.Path(sockets) / "engine.sock"),
+            "PATH": "/usr/bin:/bin",
+        }
+        # The Engine effects are answered by the engine host, which says when its socket is there.
+        engine = subprocess.Popen([ENGINE_HOST], env=environment, stdout=subprocess.PIPE)
+        try:
+            engine.stdout.readline()
+            process = subprocess.run(
+                [runner],
+                input="".join(frame.hex() + "\n" for _, frame in built).encode(),
+                capture_output=True, env=environment, check=False,
+            )
+        finally:
+            engine.kill()
+            engine.wait()
     if process.returncode != 0:
         sys.exit(f"generate: {runner} failed: {process.stderr.decode(errors='replace')}")
     answers = [json.loads(line) for line in process.stdout.decode().splitlines()]

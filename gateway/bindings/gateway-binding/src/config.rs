@@ -18,6 +18,7 @@ pub const RATE_WINDOW: Duration = Duration::from_millis(60_000);
 /// The most bytes of a verification log that a status carries.
 pub const LOG_TAIL_BYTES: usize = 65_536;
 
+pub use gateway_engine_host::service::ENGINE_VARIABLE;
 pub use gateway_signer::service::{SIGNER_VARIABLE, SIGNING_KEY_VARIABLE};
 
 /// The tasks that run at once: the owner value `verify.concurrency`.
@@ -46,6 +47,9 @@ pub struct Config {
     /// without a signer whose key loads, because its record would be unsigned. There is no setting
     /// for the key: this process does not hold it.
     pub signer: Option<PathBuf>,
+    /// The socket of `gateway-engine-host`, named by `LEXLEAN_MCP_ENGINE`. An Engine call without
+    /// one is `engine-unavailable`: this process does not make them.
+    pub engine: Option<PathBuf>,
     /// The program that verifies, one process for each task: `LEXLEAN_MCP_VERIFIER`, else
     /// `gateway-verifier` beside the running executable. A verification is not started without it.
     pub verifier_program: Option<PathBuf>,
@@ -67,6 +71,7 @@ impl Config {
             blob_max_bytes: DRAFT_MAX_BYTES + DRAFT_BLOB_HEADROOM,
             rate_window: RATE_WINDOW,
             signer: None,
+            engine: None,
             verifier_program: None,
             verify_concurrency: VERIFY_CONCURRENCY,
             verify_width: VERIFY_WIDTH,
@@ -99,6 +104,12 @@ impl Config {
         self
     }
 
+    /// This configuration with the engine host at the socket `socket`.
+    pub fn with_engine(mut self, socket: impl Into<PathBuf>) -> Config {
+        self.engine = Some(socket.into());
+        self
+    }
+
     /// The key history: `keys/history` below the store.
     pub fn history_path(&self) -> PathBuf {
         self.store.join("keys").join("history")
@@ -106,7 +117,8 @@ impl Config {
 
     /// The configuration of a process: the store is `LEXLEAN_MCP_STORE`, else
     /// `lexlean-mcp/store` below `XDG_DATA_HOME` or `~/.local/share`, else a directory of
-    /// the working directory; the socket of the signer is `LEXLEAN_MCP_SIGNER`.
+    /// the working directory; the socket of the signer is `LEXLEAN_MCP_SIGNER`, and that of the
+    /// engine host `LEXLEAN_MCP_ENGINE`.
     pub fn from_environment() -> Config {
         let mut config = Config::from_variables(|name| std::env::var_os(name));
         if config.verifier_program.is_none() {
@@ -140,6 +152,7 @@ impl Config {
         };
         let mut config = Config::at(store);
         config.signer = variable(SIGNER_VARIABLE).map(PathBuf::from);
+        config.engine = variable(ENGINE_VARIABLE).map(PathBuf::from);
         config.verifier_program = variable("LEXLEAN_MCP_VERIFIER").map(PathBuf::from);
         config
     }

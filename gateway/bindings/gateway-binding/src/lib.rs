@@ -5,7 +5,8 @@
 //! lookup of an attestation. This crate implements each of them for the generated `Host`
 //! trait, and a counter for the one effect the adapter asks for itself, the rate of the
 //! requests of the client. It holds implementations only: which effect the core asked for,
-//! and what to do with the answer, is decided by the generated driver and the core.
+//! and what to do with the answer, is decided by the generated driver and the core. The
+//! Engine calls themselves are made by `gateway-engine-host`, through its socket.
 //!
 //! The state of the host is a directory (the store, see `Config`) and the verifications
 //! that run in this process.
@@ -13,7 +14,6 @@
 mod attestation;
 pub mod child;
 mod config;
-mod engine;
 mod evidence;
 pub mod identity;
 mod lexicon;
@@ -30,10 +30,12 @@ pub mod telemetry;
 mod verifier;
 
 pub use config::{
-    Config, CANCEL_GRACE, DRAFT_BLOB_HEADROOM, DRAFT_MAX_BYTES, LOG_TAIL_BYTES, RATE_WINDOW,
-    SIGNER_VARIABLE, SIGNING_KEY_VARIABLE, VERIFY_CONCURRENCY, VERIFY_MEMORY_KIB, VERIFY_WIDTH,
+    Config, CANCEL_GRACE, DRAFT_BLOB_HEADROOM, DRAFT_MAX_BYTES, ENGINE_VARIABLE, LOG_TAIL_BYTES,
+    RATE_WINDOW, SIGNER_VARIABLE, SIGNING_KEY_VARIABLE, VERIFY_CONCURRENCY, VERIFY_MEMORY_KIB,
+    VERIFY_WIDTH,
 };
-pub use engine::{Answer, Call, Unavailable};
+pub use gateway_engine_host::engine::{Answer, Call, Unavailable};
+pub use gateway_engine_host::service as engine_service;
 pub use gateway_signer::{client as signer_client, service as signer_service, signer};
 pub use taskhost::{iso, Clock};
 pub use telemetry::Telemetry;
@@ -112,7 +114,9 @@ impl Native {
         selection: u32,
         files: &str,
         call: Call,
-    ) -> Result<engine::Answer, EngineRefusal> {
+    ) -> Result<Answer, EngineRefusal> {
+        // The project is judged before the service, as it is for a verification: a project that is
+        // not one is refused whatever the state of the engine host.
         let resolved = project::resolve(
             &self.config.store,
             project,
@@ -121,11 +125,19 @@ impl Native {
         )
         .ok_or(EngineRefusal::Project)?;
         let started = Instant::now();
-        let answered = engine::run(
-            resolved.directory(),
-            project::selection(selection, files),
-            call,
-        );
+        let answered = self
+            .config
+            .engine
+            .as_deref()
+            .ok_or(Unavailable)
+            .and_then(|socket| {
+                gateway_engine_host::client::call(
+                    socket,
+                    resolved.directory(),
+                    &project::selection(selection, files),
+                    call,
+                )
+            });
         // A refused project is the client's mistake and no tool outcome; what ran is one.
         let class = match &answered {
             Ok(answer) => telemetry::ErrorClass::from_number(answer.class),

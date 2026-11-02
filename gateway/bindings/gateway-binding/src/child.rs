@@ -31,8 +31,8 @@ use lexlean::verify::{end_live_children, GroupEnd};
 use lexlean::{Engine, LexLeanError, VerifyRequest};
 use serde_json::{json, Value};
 
-use crate::engine::{class_number, verify_result};
 use crate::project;
+use gateway_engine_host::engine::{class_number, verify_result};
 
 /// The job on the first line of the input.
 struct Spec {

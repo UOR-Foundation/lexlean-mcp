@@ -22,6 +22,7 @@ fn config_in(dir: &Path) -> Config {
     std::fs::write(&key, format!("{}\n", "11".repeat(32))).expect("a key file");
     Config::at(dir.join("store"))
         .with_signer(common::signer(dir, &key))
+        .with_engine(common::engine(dir))
         .with_verifier(common::real_verifier())
 }
 
@@ -474,6 +475,69 @@ fn engine_check_is_unavailable_when_the_engine_cannot_run() {
         matches!(outcome, Err(engine_check::Failure::EngineUnavailable)),
         "a missing Lake workspace is an environment error: {outcome:?}"
     );
+}
+
+#[test]
+fn a_host_with_no_engine_host_makes_no_engine_call_eh_01() {
+    let directory = tempfile::tempdir().expect("a temporary directory");
+    let mut host = Native::new(Config::at(directory.path().join("store")));
+    copy(
+        Path::new(TINY),
+        &host.config().store.join("drafts").join("tiny"),
+    );
+    assert_eq!(host.config().engine, None);
+    assert!(matches!(
+        check(&mut host, "tiny", 0, ""),
+        Err(engine_check::Failure::EngineUnavailable)
+    ));
+    assert_eq!(
+        format(&mut host, "tiny", true),
+        Err(engine_format::Failure::EngineUnavailable)
+    );
+    assert_eq!(
+        build(&mut host, "tiny"),
+        Err(engine_build::Failure::EngineUnavailable)
+    );
+    let snapshot = host.engine_snapshot(engine_snapshot::Request {
+        project: "tiny".into(),
+        selection: 0,
+        files: String::new(),
+    });
+    assert!(matches!(
+        snapshot,
+        Err(HostError::Failed(
+            engine_snapshot::Failure::EngineUnavailable
+        ))
+    ));
+}
+
+#[test]
+fn the_environment_names_the_engine_host_eh_01() {
+    let config = Config::from_variables(|name| {
+        (name == gateway_binding::ENGINE_VARIABLE).then(|| "/run/engine.sock".into())
+    });
+    assert_eq!(config.engine, Some(Path::new("/run/engine.sock").into()));
+    assert_eq!(Config::from_variables(|_| None).engine, None);
+}
+
+#[test]
+fn a_host_whose_engine_host_has_gone_is_unavailable_and_judges_the_project_first_eh_03() {
+    let directory = tempfile::tempdir().expect("a temporary directory");
+    let mut host = Native::new(
+        Config::at(directory.path().join("store")).with_engine(directory.path().join("gone.sock")),
+    );
+    assert!(matches!(
+        check(&mut host, "no-such-project", 0, ""),
+        Err(engine_check::Failure::ProjectRefused)
+    ));
+    copy(
+        Path::new(TINY),
+        &host.config().store.join("drafts").join("tiny"),
+    );
+    assert!(matches!(
+        check(&mut host, "tiny", 0, ""),
+        Err(engine_check::Failure::EngineUnavailable)
+    ));
 }
 
 // ---- engine.snapshot ------------------------------------------------------------------

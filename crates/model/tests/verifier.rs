@@ -245,7 +245,7 @@ fn the_verify_fixtures_give_the_result_of_the_cli_vp_07() {
         "the job names the test and has its own inputs"
     );
     // The result is the function the CLI calls, and not a shape of the host's own.
-    let engine = read("gateway/bindings/gateway-binding/src/engine.rs");
+    let engine = read("gateway/bindings/gateway-engine-host/src/engine.rs");
     let verify = &engine[engine.find("pub fn verify_result(").expect("verify_result")..];
     assert!(
         verify[..verify.find("\n}\n").expect("its end")].contains("command_result_json("),

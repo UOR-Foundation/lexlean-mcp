@@ -13,6 +13,7 @@ members = [
     "gateway-host-api",
     "gateway-host",
     "bindings/gateway-binding",
+    "bindings/gateway-engine-host",
     "bindings/gateway-signer",
     "vectors/runner",
     "tool-tests",

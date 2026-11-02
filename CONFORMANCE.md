@@ -72,6 +72,15 @@ model does not sanction.
 | `EF-08` | `build` | Each gate of the effect set rejects its planted defect: an eleventh effect, a duplicated id, a decode that accepts an unknown wire, an effect name containing a tool name and a mismapped Engine call; EFFECTS.md records the command, the diagnostic and the restore of each. |
 | `EF-09` | `build` | E1 store.get and E2 store.put carry fields that the model closes: a View of store.get (Stored 0, Data 1, Spans 2), a Form of store.put (Plain 0, Assemble 1, Rewrite 2) and a Class in their answers (Accepted 0, Refused 1, Absent 2); each decoder is total and proved sound for every number, a number past the last constructor is the typed refusal UnknownView, UnknownForm or UnknownClass, and the set of effects stays the ten of EF-01 with no effect added. |
 
+## engine-host
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `EH-01` | `build` | The engine host is a program of its own and the only maker of the four Engine calls: gateway-engine-host answers on the Unix socket LEXLEAN_MCP_ENGINE with mode 0600 for the store LEXLEAN_MCP_STORE, the crate that holds it links no generated package, no host and no signer, and the host makes those calls through that socket alone, so a host without one answers engine-unavailable. |
+| `EH-02` | `build` | An answer through the socket is the answer of the Engine: for check, snapshot, format, format with check_only and build, and for each selection, the class and the bytes of the result equal those of the Engine on an equal project, and a refusal of the Engine is an answer with its class. |
+| `EH-03` | `build` | Every failure of the engine host is typed and has a negative test: each refusal and each call travels by its name, a directory that is not below the store after links are followed is refused, a request that is not one or is over MAX_REQUEST_BYTES is refused and the next is served, no answer at the socket, a service lost before it answers and an answer that is not one are Unavailable, a host whose engine host has gone answers engine-unavailable and judges the project first, and each constructor of StartError stops the program. |
+| `EH-04` | `build` | Each gate of the engine host rejects its planted defect: the socket left open to other users, a directory outside the store admitted, a result changed on its way through the socket, a refusal name that comes back as another, the bound on a request removed, a class that is not an answer accepted, and the host making an Engine call itself; ENGINE-HOST.md records the command, the diagnostic and the restore of each. |
+
 ## features
 
 | ID | Level | Statement |
