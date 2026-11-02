@@ -19,15 +19,15 @@ use common::{root, workspace_test_names};
 
 /// The rows `QM-07` is expected to cite, by measure: Q1 (index 0), Q2 (1), Q3 (2), Q4 (3), Q6 (5),
 /// Q7 (6) and Q8 (7).
-/// The last row of each is the row of the tools suite that runs its clause where the tools are
-/// built: `TL-06` the build of every example beside the CLI for Q1, `TL-15` a tool that runs for
+/// The last row of each is the row that runs its clause where the tools are built: `VP-07` the
+/// verify fixtures beside the CLI for Q1, `TL-15` a tool that runs for
 /// each in-scope function for Q2, `TL-08` the host process accounting across each call for Q4,
 /// and `TL-13` the running `lexlean_explain` for Q8. Q3 is observed by the fault cases of the
 /// verifier (`VP-04`, `VP-05`) and of the signed record (`SG-07`, `SG-12`). Q6 is observed by the
 /// search of the host adapter source for a tool or method name (`GW-06`, and `EF-06` for the
 /// effect names), Q7 by the build of a fixed project in every run of `just vv` (`QM-09`).
 const CITED: [(u32, &[&str]); 7] = [
-    (0, &["TL-03", "TL-06"]),
+    (0, &["TL-03", "TL-06", "VP-07"]),
     (1, &["QM-01", "QM-02", "QM-03", "TL-15"]),
     (2, &["VP-04", "VP-05", "SG-07", "SG-12"]),
     (3, &["TL-08"]),
@@ -37,7 +37,8 @@ const CITED: [(u32, &[&str]); 7] = [
 ];
 
 /// The one executed measure that keeps a clause in `pendingClauses`: Q1, whose clause for
-/// `lexlean_verify` and the verify fixtures waits for verification as tasks (#11).
+/// `lexlean_verify` on every example waits (#15). `VP-07` holds the 32 verify fixtures, which all
+/// fail, so no verification that succeeds is compared with the CLI.
 const KEEPS_A_CLAUSE: u32 = 0;
 
 /// The measures that stay pending, each naming what executes it.
@@ -180,9 +181,9 @@ fn violations(i: &Inputs) -> Vec<String> {
                     }
                 }
                 if measure == KEEPS_A_CLAUSE {
-                    if !record.contains("pendingClauses") || !record.contains("#11") {
+                    if !record.contains("pendingClauses") || !record.contains("#15") {
                         out.push(format!(
-                            "the Executed status of measure {measure} does not point at its clause for lexlean_verify in pendingClauses, which waits for #11"
+                            "the Executed status of measure {measure} does not point at its clause for lexlean_verify on every example in pendingClauses, which waits for #15"
                         ));
                     }
                 } else if record.contains("pendingClauses") {
@@ -230,17 +231,19 @@ fn violations(i: &Inputs) -> Vec<String> {
                     ));
                 }
             }
-            if !clauses.contains(&format!("index := {KEEPS_A_CLAUSE}")) || !clauses.contains("#11")
+            if !clauses.contains(&format!("index := {KEEPS_A_CLAUSE}"))
+                || !clauses.contains("every example")
+                || !clauses.contains("#15")
             {
                 out.push(
-                    "pendingClauses does not record the clause of Q1 for lexlean_verify, which waits for #11"
+                    "pendingClauses does not record the clause of Q1 for lexlean_verify on every example, which waits for #15"
                         .to_string(),
                 );
             }
             let count = clauses.matches("record Named {").count();
             if count != 1 {
                 out.push(format!(
-                    "pendingClauses records {count} clauses, and only the clause of Q1 for lexlean_verify waits"
+                    "pendingClauses records {count} clauses, and only the clause of Q1 for lexlean_verify on every example waits"
                 ));
             }
         }
@@ -411,7 +414,41 @@ fn the_check_rejects_a_pending_measure_a_missing_row_and_a_wrong_count_qm_07() {
         "the Executed status of measure 0 does not point at its clause for lexlean_verify"
     ));
 
-    // The clause of Q1 for lexlean_verify dropped while verification is not a task.
+    // Q1 no longer naming the row that holds the verify fixtures.
+    let at = base
+        .quality
+        .find("record MeasureEvidence {measure := 0,")
+        .expect("Q1");
+    let unnamed = format!(
+        "{}{}",
+        &base.quality[..at],
+        base.quality[at..].replacen("VP-07 runs", "a row runs", 1)
+    );
+    let planted = Inputs {
+        quality: unnamed,
+        ..clone(&base)
+    };
+    assert!(reported(
+        &planted,
+        "the Executed status of measure 0 does not name VP-07"
+    ));
+
+    // The clause of Q1 narrowed back to the fixtures, as if VP-07 had executed the whole of it.
+    let narrowed = base.quality.replacen(
+        "on every example: the 32 verify fixtures",
+        "on the 32 verify fixtures",
+        1,
+    );
+    let planted = Inputs {
+        quality: narrowed,
+        ..clone(&base)
+    };
+    assert!(reported(
+        &planted,
+        "pendingClauses does not record the clause of Q1 for lexlean_verify on every example"
+    ));
+
+    // The clause of Q1 for lexlean_verify dropped while no test compares it on the examples.
     let at = base
         .quality
         .find("name: pendingClauses,")
@@ -467,6 +504,17 @@ fn the_check_rejects_a_pending_measure_a_missing_row_and_a_wrong_count_qm_07() {
         ..clone(&base)
     };
     assert!(reported(&planted, "QM-07 cites"), "Q1 without TL-06");
+    let mut model = base.model.clone();
+    for item in &mut model.ids.id {
+        if item.id == "QM-07" {
+            item.statement = item.statement.replace("and by VP-07,", "and by a row");
+        }
+    }
+    let planted = Inputs {
+        model,
+        ..clone(&base)
+    };
+    assert!(reported(&planted, "QM-07 cites"), "Q1 without VP-07");
     let mut model = base.model.clone();
     for item in &mut model.ids.id {
         if item.id == "QM-07" {
