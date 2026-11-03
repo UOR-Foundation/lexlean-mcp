@@ -86,8 +86,8 @@ cd .. && cargo test -p repo-model --test engine_host     # EH-01 to EH-04 agains
 
 ## Not met
 
-- **No image and no Compose service exist**, so egress is not denied to this service and R6 stays
-  `Pending`. That is the rest of #17.
+- **An image exists and a Compose service does not** (`IMAGES.md`): a test runs this service with no
+  network but loopback, and R6 stays `Pending`, because its measurement names the deployment.
 - **The gateway still links `lexlean`.** The views of `store.get` and `store.put`, provisioning and the
   program `gateway-verifier` use it, so moving E3 to E6 does not take the compiler out of the process
   that faces the client.

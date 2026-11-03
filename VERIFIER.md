@@ -126,9 +126,9 @@ The verifier host asks the process whether it is alive, and not the pipe.
 
 ## Not met
 
-- **No image and no Compose service exist**, so nothing yet shows the verifier apart from the
-  gateway, or egress denied to it. R6 stays `Pending`. An image must ship `gateway-verifier-host`
-  and `gateway-verifier` together, with the Lean toolchain.
+- **An image exists and a Compose service does not** (`IMAGES.md`): a test verifies through the
+  gateway with this service apart and no network but loopback. R6 stays `Pending`, because its
+  measurement names the deployment.
 - **A verifier host that hangs holds its slot.** A lost one ends the connection, and the task fails.
   One that is alive and silent is waited for, as a child process that hung was.
 - **Whoever reaches the socket can run a verification on any project in the store.** Other users

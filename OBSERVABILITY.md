@@ -18,7 +18,8 @@ holds the module, this file and the authorities to one statement.
 | The server notifications that can be emitted | `Emitted` | modeled (OB-09) |
 | Emission as OpenTelemetry logs, metrics and spans, the alerts, redaction and the trace context in the host | `gateway/bindings/gateway-binding/src/telemetry.rs` | built, tested without Lean (OB-11 to OB-14, below) |
 | Spans of the requests, and the protocol errors by code | `Telemetry::begin_request`, `RequestScope::end` | built; the driver of the gateway binary calls them (below) |
-| A collector receiving the file, alert routing | the operator's | not built here |
+| A collector receiving the file | `deploy/images/collector.Containerfile` | built; an alert reaches it in the run of the images (IM-04, `IMAGES.md`) |
+| Alert routing | the operator's | not built here |
 
 ## The runtime
 

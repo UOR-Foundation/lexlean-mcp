@@ -150,9 +150,10 @@ is the service's. A socket left by an earlier run is replaced; anything else at 
 
 ## Not met
 
-- **The service is a program, not yet a deployment.** There is no image and no Compose service
-  (#17), so nothing yet shows the key mounted into this service only; that is what `signing.key_custody`
-  asks, and until the deployment runs it is a property of the code and not of a running system.
+- **The service has an image, not yet a deployment.** A test mounts the key in this service's
+  container alone and checks that the others lack it (IM-03, `IMAGES.md`). That is what
+  `signing.key_custody` asks, and until the deployment runs it holds of that test and not of a
+  deployed system.
 - **Whoever reaches the socket can have anything signed.** The service takes the host's word for the
   subject. It keeps the key from leaving, which limits a compromise of the gateway to the time it
   lasts, and it does not stop that compromise signing. Mode 0600 keeps out other users; the same user

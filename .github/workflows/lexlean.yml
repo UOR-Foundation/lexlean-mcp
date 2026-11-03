@@ -407,6 +407,55 @@ jobs:
           export LEXLEAN_SOURCES="$RUNNER_TEMP/lexlean-at-the-pin" &&
             gate "the verification of the examples" gateway_verify_examples
 
+  images:
+    name: gateway / images
+    needs: [scope, gateway-build]
+    if: needs.scope.outputs.gateway == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out the exact event revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The MCP sources at the pin
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/lay-out-mcp.sh" gateway/lay-out-mcp.sh
+      - name: The gateway is compiled by the LexLean commit MCP names at the pin
+        run: echo "LEXLEAN_REV_FILE=gateway/mcp/lexlean.rev" >>"$GITHUB_ENV"
+      - name: Install the pinned Rust toolchain
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "install Rust" install_rust
+      - name: The registry from the pins
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "gateway/registry.sh" gateway/registry.sh
+      # The artifact of this run: no other run's is reachable without a run id.
+      - name: The generated packages of this run's build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: gateway-build
+          path: ${{ runner.temp }}/gateway-build
+      - name: They are the packages of this revision, and the core is the committed export
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "unpack the generated packages" gateway_build_unpack
+      - name: The programs the images hold
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "the programs of the images" images_programs
+      - name: IM-01, IM-02. the images
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "the images" images_build
+      - name: IM-03 to IM-05. the services run apart, from their images
+        run: |
+          . .github/lexlean-ci/lib.sh
+          gate "the run of the images" images_run
+
   gateway:
     name: gateway / prismpm build and verify
     needs: [scope, gateway-build]
