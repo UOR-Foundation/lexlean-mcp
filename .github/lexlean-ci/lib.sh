@@ -172,10 +172,11 @@ output_pin() {
 GATEWAY_INPUTS=(
   '^gateway/'
   '^\.github/(lexlean-ci/|mcp\.rev$|prismpm\.rev$|workflows/lexlean\.yml$)'
-  '^crates/model/(Cargo\.toml$|src/|tests/gateway(_conformance)?\.rs$)'
+  '^deploy/images/'
+  '^crates/model/(Cargo\.toml$|src/|tests/(gateway(_conformance)?|images)\.rs$)'
   '^(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|lean-toolchain|prismpm\.lock|deny\.toml)$'
   '^src/(Effects|OwnerValues)\.lex\.tex$'
-  '^(CI|EFFECTS|GATEWAY|GATEWAY-CONFORMANCE)\.md$'
+  '^(CI|EFFECTS|GATEWAY|GATEWAY-CONFORMANCE|IMAGES)\.md$'
 )
 
 # VERIFY_FIXTURES_INPUTS: what can change the answer of the job that runs the verify fixtures
@@ -665,6 +666,34 @@ gateway_verify_examples() {
   rm -f "$log"
   if [[ $passed != 1 ]]; then
     echo "the verification of the examples: ${passed:-no} tests passed, expected 1" >&2
+    return 1
+  fi
+}
+
+# ---- the images of the services (IM-01 to IM-05) --------------------------------------
+
+# images_programs: the programs the images hold, from the gateway's locked dependencies.
+images_programs() {
+  gateway_cargo build --release --locked --offline -p gateway-host -p gateway-engine-host \
+    -p gateway-signer -p gateway-verifier-host -p gateway-binding --bins
+}
+
+# images_build: the images of those programs.
+images_build() {
+  deploy/images/build.sh "$PWD/gateway/target/release"
+}
+
+# images_run: the services apart, from their images. A run that stopped early or lost a check is
+# not green, so the count it printed is held to the checks written in run.sh.
+images_run() {
+  local log passed expected
+  log=$(mktemp)
+  deploy/images/run.sh 2>&1 | tee "$log"
+  passed=$(sed -n 's/^images: \([0-9]*\) checks passed$/\1/p' "$log")
+  rm -f "$log"
+  expected=$(grep -c '^check "' deploy/images/run.sh)
+  if [[ ${passed:-} != "$expected" ]]; then
+    echo "the run of the images: ${passed:-no} checks passed, expected $expected" >&2
     return 1
   fi
 }

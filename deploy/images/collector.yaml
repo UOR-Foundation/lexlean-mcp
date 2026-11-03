@@ -1,0 +1,20 @@
+# The gateway appends OTLP/JSON lines to a file (OBSERVABILITY.md). What the collector received is
+# written to a second file, so a run can read what arrived and not only what was sent (IM-04).
+receivers:
+  otlpjsonfile:
+    include: [/telemetry/otlp.jsonl]
+    start_at: beginning
+exporters:
+  file:
+    path: /telemetry/received.jsonl
+service:
+  pipelines:
+    logs:
+      receivers: [otlpjsonfile]
+      exporters: [file]
+    metrics:
+      receivers: [otlpjsonfile]
+      exporters: [file]
+    traces:
+      receivers: [otlpjsonfile]
+      exporters: [file]

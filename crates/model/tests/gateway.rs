@@ -840,6 +840,7 @@ fn the_gateway_job_builds_and_verifies_and_the_defects_are_recorded_gw_08() {
     for (key, scope) in [
         ("gateway", "gateway"),
         ("verify-fixtures", "verify_fixtures"),
+        ("images", "gateway"),
     ] {
         let reader = job(&file, key);
         assert!(

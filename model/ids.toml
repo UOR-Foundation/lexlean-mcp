@@ -1196,6 +1196,42 @@ suite = "verifier-host"
 statement = "Each gate of the verifier host rejects its planted defect: the socket left open to other users, a directory outside the store admitted, the key left in the environment of the process, kill ignored, the session not swept, a process kept after the host has gone or after its verdict, a refusal name that comes back as another, the bound on a request removed, the first lines of a task lost in a buffer, and the host starting a process itself; VERIFIER.md records the command, the diagnostic and the restore of each."
 
 [[id]]
+id = "IM-01"
+level = "build"
+suite = "images"
+statement = "Each service has an image of its own, defined in deploy/images: gateway-host, gateway-engine-host, gateway-signer, gateway-verifier-host with gateway-verifier, and the telemetry collector; each definition starts from a base named by its digest, has no RUN step and runs as user 65532, and each image holds its own program and no other service's."
+
+[[id]]
+id = "IM-02"
+level = "build"
+suite = "images"
+statement = "The verifier image alone holds Lean, at the version gateway/lean-toolchain names, unpacked from the release archive whose SHA-256 deploy/images/lean-toolchain.sha256 records, where LexLean finds it through ELAN_HOME, and an archive of another digest or another version stops the build."
+
+[[id]]
+id = "IM-03"
+level = "build"
+suite = "images"
+statement = "The services run apart from their images: each in a container of its own with a read-only root and no capabilities; the engine host, the verifier host and the signer have no network but loopback; each shares with the gateway only its own socket and the store; the key is mounted in the signer alone; and through the gateway a module is checked, built and verified, its signed record is found by its ID, a cancel ends a Lean child of its task, and neither a cancel nor a process killed under Lean leaves a process or a zombie."
+
+[[id]]
+id = "IM-04"
+level = "build"
+suite = "images"
+statement = "The collector of its image receives what the gateway exports: an alert reaches it from the telemetry file, and no text of a module does."
+
+[[id]]
+id = "IM-05"
+level = "build"
+suite = "images"
+statement = "A service that stops is a typed failure of the gateway and not a hang: a task in flight when the verifier host stops ends as verifier-lost, verify is refused with verifier-unavailable when the verifier host or the signer is stopped, and an Engine call with engine-unavailable when the engine host is; and a run whose checks did not all pass, or whose count is not the number written in deploy/images/run.sh, fails the gate."
+
+[[id]]
+id = "IM-06"
+level = "build"
+suite = "images"
+statement = "Each gate of the images rejects its planted defect: a base named by a tag, a RUN step, a root user, a recorded digest that is not the archive's, a toolchain of another version, Lean in the gateway image, the key mounted in the verifier, a network given to the services, no init to reap what a killed process leaves, a run that stops early, the collector reading another file, and a stopped service left running; IMAGES.md records the gate and the diagnostic of each."
+
+[[id]]
 id = "VP-01"
 level = "build"
 suite = "verifier"
