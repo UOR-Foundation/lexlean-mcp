@@ -96,7 +96,7 @@ fn a_program_that_is_not_a_file_is_verifier_unavailable_and_copies_nothing_vp_02
     for (label, program) in cases {
         let dir = tempfile::tempdir().expect("a directory");
         let mut config = config(dir.path(), fake_verifier(dir.path()));
-        config.verifier_program = program(dir.path());
+        config.verifier = program(dir.path()).map(|path| common::verifier_host(dir.path(), &path));
         let mut host = Native::new(config);
         install_draft(&host, None);
         assert_eq!(

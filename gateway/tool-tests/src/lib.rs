@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use gateway_binding::signer_service::Service;
-use gateway_binding::{engine_service, Config, Native};
+use gateway_binding::{engine_service, verifier_host_service, Config, Native};
 use gateway_host::exchange::{core, step, turn, Step};
 use gateway_host::perform::perform;
 use gateway_host::protocol::Request;
@@ -626,6 +626,14 @@ impl Gateway {
             stand_in_verifier(&stand_in);
             stand_in
         });
+        // A process for each task is started by the service of `gateway-verifier-host`, over a real
+        // socket, as in a deployment.
+        let verifier_socket = directory.path().join("verifier.sock");
+        verifier_host_service::Service::new(&store, verifier)
+            .bind(&verifier_socket)
+            .expect("a socket")
+            .spawn();
+        let verifier = verifier_socket;
         let config = Config::at(store.clone())
             .with_signer(socket)
             .with_engine(engine)

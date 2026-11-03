@@ -24,7 +24,6 @@ mod project;
 pub mod provision;
 mod rate;
 mod store;
-mod sweep;
 mod taskhost;
 pub mod telemetry;
 mod verifier;
@@ -39,6 +38,7 @@ pub use evidence::source_key;
 pub use gateway_engine_host::engine::{Answer, Call, Unavailable};
 pub use gateway_engine_host::service as engine_service;
 pub use gateway_signer::{client as signer_client, service as signer_service, signer};
+pub use gateway_verifier_host::service as verifier_host_service;
 pub use taskhost::{iso, Clock};
 pub use telemetry::Telemetry;
 pub use verifier::{conclude, Facts, Job, Outcome, Report, State, Verifier};
@@ -430,9 +430,9 @@ impl Host for Native {
         let signer = SignerClient::ready(socket).map_err(|_| unsigned())?;
         if !self
             .config
-            .verifier_program
+            .verifier
             .as_deref()
-            .is_some_and(std::path::Path::is_file)
+            .is_some_and(gateway_verifier_host::client::ready)
         {
             return Err(unavailable());
         }

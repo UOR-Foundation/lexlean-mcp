@@ -186,6 +186,7 @@ VERIFY_FIXTURES_INPUTS=(
   '^gateway/bindings/gateway-binding/src/(verifier|child|attestation|evidence|presentation)\.rs$'
   '^gateway/bindings/gateway-engine-host/src/engine\.rs$'
   '^gateway/bindings/gateway-signer/src/'
+  '^gateway/bindings/gateway-verifier-host/src/'
   '^gateway/tool-tests/'
   '^gateway/mcp/lexlean\.rev$'
   '^\.github/(mcp\.rev$|lexlean-ci/lib\.sh$|workflows/lexlean\.yml$)'

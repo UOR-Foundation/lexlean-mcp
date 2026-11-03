@@ -6,8 +6,13 @@ and the host queues the tasks, cancels one without touching another, and cleans 
 process it has lost. Registered as VP-01 to VP-06. The signer and the signed record are
 SG-01 to SG-13 (SIGNING.md); the tasks-extension mapping is not here (see "Not met").
 
-The code is `gateway/bindings/gateway-binding/src/{child,verifier,sweep}.rs` and
-`src/bin/gateway-verifier.rs`. The tests are `tests/verifier_program.rs` (the real program),
+A process ID and a session mean something only in the container they live in, so whatever starts,
+kills or sweeps a verifier process runs beside it: `gateway-verifier-host`, the third service of
+#17 (VS-01 to VS-05, "The verifier host"). The host keeps the queue, the signing and the record.
+
+The code is `gateway/bindings/gateway-binding/src/{child,verifier}.rs`,
+`src/bin/gateway-verifier.rs` and `gateway/bindings/gateway-verifier-host`. The tests are
+`tests/verifier_program.rs` (the real program),
 `tests/verifier_tasks.rs` (the host, with a script that stands in for the program,
 `tests/common/fake-verifier.sh`) and `crates/model/tests/verifier.rs`, which holds them against
 the rows and this file.
@@ -22,6 +27,11 @@ the rows and this file.
 | VP-04 | A cancel ends one task: a queued one never starts, a running one reports its groups and leaves no record, a verdict that races the cancel leaves no record, and a process that ignores the cancel is killed with its session. |
 | VP-05 | A lost verifier fails its task as `verifier-lost` with no record, and everything left in its session is killed. |
 | VP-06 | Each gate rejects its planted defect (below). |
+| VS-01 | `gateway-verifier-host` starts the process of each task where the verifier runs, on a socket of mode 0600, and links no compiler, no host and nothing generated; the host starts, kills and sweeps nothing itself. |
+| VS-02 | One connection is one task in one process: it has the job and the settings and nothing of the key, its lines arrive as written, and `ended` is last, after the process has gone. |
+| VS-03 | The service ends what it started: cancel, kill, the host gone, a process that lingers after its verdict, and what a lost process leaves in its session. |
+| VS-04 | Every failure of the service is typed and has a negative test. |
+| VS-05 | Each gate of the service rejects its planted defect (below). |
 | VP-08 | Q1 and AC-05: every example but `uor-atlas` verifies through the tool beside the CLI, with the same observations, a record that validates and a bundle that exports; each `audit/output.txt` equals the committed record. |
 | VP-07 | AC-07: the 32 `verify` fixtures give the command result of the CLI through `lexlean_verify` and `lexlean_verify_control`, with the class equal to its exit status, and leave no record. |
 
@@ -44,6 +54,43 @@ exits with status 1, without a verdict. The host starts the process with `LEXLEA
 and `LEXLEAN_VERIFY_MEMORY_KIB` from `verify.width` and `verify.memory_kib`, and without
 `LEXLEAN_MCP_SIGNING_KEY`; the key is used only by the host, in `conclude`.
 
+## The verifier host
+
+One connection is one task, and each line is what it is on the pipes of the process:
+
+```text
+host -> service   {"op":"ready"}
+service -> host   {"ready":true}
+
+host -> service   {"op":"run","width":<n>,"memory_kib":<n>,"grace_ms":<n>,"job":<the job line>}
+service -> host   {"event":"accepted"}
+service -> host   each line of the process, as it wrote it
+host -> service   cancel
+host -> service   kill
+service -> host   {"event":"ended","swept":<processes>,"log":"<the tail of its standard error>"}
+
+service -> host   {"refused":"request-refused"|"directory-refused"|"program-unavailable"}
+```
+
+The socket is `LEXLEAN_MCP_VERIFIER_HOST`, for the program and for the host, and the program serves
+the store `LEXLEAN_MCP_STORE`. **Behaviour change for anyone running the host:** without a running
+`gateway-verifier-host` that has a program to start, `verify.start` is `verifier-unavailable`. No
+in-process fallback remains (AGENTS.md, Required workflow, step 3).
+
+- **The service is where the process is.** It watches the process, reads its session from `started`,
+  keeps the tail of its standard error and sweeps the session before it says `ended`.
+- **The host still decides.** A verdict settles the task as soon as it arrives, and the grace of a
+  cancel is the host's: after it, the host says `kill`. The slot is free at `ended`, or when the
+  connection ends without it, which is a lost verifier.
+- **A directory outside the store is refused** after links are followed: the second check, for a
+  client of the socket that is not the host.
+- **The service does not bound how many run.** `verify.concurrency` is the host's, one host per
+  deployment.
+- **The first lines of a task are read through one reader**, because the answer `accepted` can
+  arrive in one read with the lines behind it. A first version read the answer through its own
+  buffer and could lose a verdict; `a_service_lost_during_a_task_ends_the_events_without_ended_vs_04`
+  caught it, and it is the last planted defect below but one.
+
 ## The host
 
 - **Slots.** `verify.concurrency` (default 1, `Config::with_verify_concurrency`) processes run
@@ -53,13 +100,13 @@ and `LEXLEAN_VERIFY_MEMORY_KIB` from `verify.width` and `verify.memory_kib`, and
   its process concluded: it is cancelled or recorded and never both. This closes the cancel race
   that SIGNING.md recorded as not met.
 - **Cancel.** A queued task leaves the queue. A running one is sent `cancel` and the host waits for
-  the verdict, for at most the grace (`CANCEL_GRACE`, 30 s); then it kills the process and its
-  session and reports the processes it killed as groups ended. `groups_ended` and `groups_failed`
+  the verdict, for at most the grace (`CANCEL_GRACE`, 30 s); then it has the verifier host kill the
+  process and its session and reports the processes killed as groups ended. `groups_ended` and `groups_failed`
   are what the process reported.
 - **Lost.** A process that ends without a verdict (exit, `SIGKILL`, the OOM killer) fails its task
   with class 5 and `{"failure":"verifier-lost","log":<the tail of its standard error>}`.
-- **Where the verifier is.** `LEXLEAN_MCP_VERIFIER`, else `gateway-verifier` beside the running
-  executable. Without a file there, `verify.start` is `verifier-unavailable`.
+- **Where the verifier is.** The verifier host starts `LEXLEAN_MCP_VERIFIER`, else `gateway-verifier`
+  beside it. Without a file there, `verify.start` is `verifier-unavailable`.
 
 ## Why the session
 
@@ -68,23 +115,25 @@ work: LexLean starts every child of a verification (`lake`, `lean`) with `env_cl
 (`verify/child.rs`), so a marker in the environment never reaches them, and `end_live_children`
 documents `SIGKILL` of the host as the one case it does not cover. What the children do keep is
 their session: the program calls `setsid` first, a session outlives its leader and is inherited by
-every descendant, and `/proc/<pid>/stat` lists it. The host kills every process whose session is
+every descendant, and `/proc/<pid>/stat` lists it. The verifier host kills every process whose session is
 the one the process said it leads, after the process is gone. `rustix` (already in the lock, for
 `tempfile`) gives the two calls without `unsafe`; the sweep reads `/proc` and is Linux only, as are
 the platforms.
 
 A second finding came from the first test of it: a child that outlived its verifier also held the
 verifier's output pipe open, so a host that waited for the end of the output waited for the child.
-The host asks the process whether it is alive, and not the pipe.
+The verifier host asks the process whether it is alive, and not the pipe.
 
 ## Not met
 
-- **The verifier is a child of the host.** The key has left the host (`gateway-signer`, SIGNING.md),
-  but the host still starts each verification as its child, which a verifier in an image of its own
-  (#17) cannot be.
-- **`gateway-verifier` must be next to the host.** CI step 7k builds only `gateway-host`; the
-  images of #17 must ship both programs. Without it `lexlean_verify` is `verifier-unavailable`,
-  and the conformance suite does not call it.
+- **No image and no Compose service exist**, so nothing yet shows the verifier apart from the
+  gateway, or egress denied to it. R6 stays `Pending`. An image must ship `gateway-verifier-host`
+  and `gateway-verifier` together, with the Lean toolchain.
+- **A verifier host that hangs holds its slot.** A lost one ends the connection, and the task fails.
+  One that is alive and silent is waited for, as a child process that hung was.
+- **Whoever reaches the socket can run a verification on any project in the store.** Other users
+  are kept out by the mode; the same user is R10, the residual risk of `mcp-loopback`.
+- **The conformance suite does not call `lexlean_verify`**, so it runs without a verifier host.
 - **AC-05 is met for 16 of the 18 examples** (VP-08). `uor-atlas` is not run, and `nested-induction`
   has no committed record to hold its axioms against. The mapping to MCP's tasks is in TASKHOST.md.
 - **The queue is in memory.** A task of an earlier host is unknown after a restart; its process
@@ -136,6 +185,27 @@ Each defect was planted in `gateway/bindings/gateway-binding/src/verifier.rs`, t
 | a verdict that carries only the diagnostics: `verify_result` of `engine.rs` renders the diagnostics and not the command result | `cargo build -p gateway-binding`, then `cargo test -p gateway-tool-tests --test equality -- --ignored vp_07` | `the_verify_fixtures_give_the_result_of_the_cli_vp_07` reports "the result is {"diagnostics":...}, the CLI printed {"artifacts":[],"command":"verify",...}" (measured on `axiom-policy-excess`) | `git checkout -- gateway/bindings/gateway-binding/src/engine.rs` and build again |
 | a class that is not the exit status: `from_error` of `child.rs` adds one to the class | `cargo build -p gateway-binding`, then `cargo test -p gateway-tool-tests --test equality -- --ignored vp_07` | `the_verify_fixtures_give_the_result_of_the_cli_vp_07` reports "the class is 2, the CLI exited 1" (measured on `axiom-policy-excess`) | `git checkout -- gateway/bindings/gateway-binding/src/child.rs` and build again |
 | a process that ignores cancel left running: `cancel` neither kills the process nor its session | `cargo test -p gateway-binding --test verifier_tasks` | 10 passed, 1 failed after 10 s: `a_process_that_ignores_the_cancel_is_killed_after_the_grace_vp_04` finds the process still alive | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
+
+## Planted defects of the verifier host
+
+Each was planted in a copy of `gateway/bindings/gateway-verifier-host` built as a workspace of its
+own, with the command `cargo test --test service <the test>`, and the file was restored from the
+tree; the unplanted crate passes 23 of 23. The last row was planted in a copy of the repository, with
+`cargo test -p repo-model --test verifier_host`.
+
+| Defect | Rejected by | Diagnostic |
+| --- | --- | --- |
+| the socket left open to other users: `bind` does not set the mode | `the_program_answers_on_a_socket_of_mode_0600_vs_01` | `left: 493`, `right: 384` (mode 0755, not 0600) |
+| a directory outside the store admitted: `admits` joins its two conditions with `\|\|` | `a_directory_outside_the_store_starts_no_process_vs_04` | `left: None`, `right: Some(Refused(Directory))` |
+| the key left in the environment of the process: the `env_remove` is gone | `the_process_gets_the_job_and_the_settings_and_nothing_of_the_key_vs_02` | the assertion that the process saw no key |
+| `kill` ignored | `kill_ends_a_process_that_ignores_everything_vs_03` | the process is still alive after 5 s |
+| the session not swept: no `kill_session` before `ended` | `what_a_lost_process_leaves_in_its_session_is_swept_vs_03` | `swept` is 0 |
+| a process kept after the host has gone | `a_process_that_ignores_the_end_of_the_input_is_killed_after_the_grace_vs_03` | the process is still alive after 5 s |
+| a process kept after its verdict | `a_process_that_does_not_end_after_its_verdict_is_killed_after_the_grace_vs_03` | `the service ends the task after the grace` |
+| a refusal name that comes back as another | `every_refusal_travels_by_its_name_vs_04` | `left: Some(Request)`, `right: Some(Directory)` |
+| the bound on a request removed: the line is compared with twice `MAX_REQUEST_BYTES` | `a_request_over_the_bound_is_refused_vs_04` | `left: {"ready": true}`, `right: {"refused": "request-refused"}` |
+| the first lines of a task lost: the answer is read through a buffer of its own | `a_service_lost_during_a_task_ends_the_events_without_ended_vs_04` | `left: 0`, `right: 1` |
+| the host starting a process itself: `Command::new` in `verifier.rs` | `the_host_has_no_process_of_its_own_vs_01` | `the host has Command::new in verifier.rs` |
 
 ## Reproducing
 
