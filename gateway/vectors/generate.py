@@ -390,8 +390,8 @@ TEMPLATE = "lexlean://profiles/{profile}/lexicon/{package}@{version}"
 PACKAGE_URI = "lexlean://profiles/vocab/lexicon/shapes.words@1.0.0"
 MISSING_URI = "lexlean://profiles/vocab/lexicon/no.such@1.0.0"
 BROKEN_RECORD = "not the id of a profile\nsrc\n"
-# A source the Engine refuses (class 1): the project of the vectors after this write is the one
-# whose command result a refused check and a refused snapshot carry (issue #10).
+# A source the Engine refuses (class 1), written by a vector of store.put. No vector checks it: the
+# Engine's command result for it does not fit the corpus (see the Engine vectors below).
 REFUSED = "\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n"
 DIGEST = "5ee76e509683c39ef3347d2587071270720c04fd7e270b6f4b1538b4d96426cc"
 # The header and the data of the modules the assemble vectors make: an empty semantic module, which
@@ -526,7 +526,6 @@ def spec() -> list:
     call = "tools/call"
     tiny = {SOURCE: fixture(SOURCE)}
     handle = draft_handle("tiny", tiny)
-    refused = draft_handle("tiny", {SOURCE: REFUSED})
     out = [
         ("the tools the gateway serves", "tools-list", "tools/list", None, None),
         ("a tool call without its arguments", "invalid-arguments", call, "lexlean_check", {}),
@@ -544,18 +543,22 @@ def spec() -> list:
         ("a record that is not a profile record is refused", "tool-call", call, "lexlean_draft_write",
          {"profile": "broken", "files": [{"path": SOURCE, "content": "x"}]}),
         ("engine.check", "tool-call", call, "lexlean_check", {"project": handle, "files": []}),
-        ("engine.snapshot", "tool-call", call, "lexlean_snapshot", {"project": handle, "files": []}),
+        # The corpus of a server application is at most 256 KiB (PrismPM's MAXIMUM_CORPUS_BYTES),
+        # and these vectors fill it: no vector takes the snapshot of the tiny draft (about 27 KB,
+        # recorded three times), and none carries the Engine's own refusal of a project, whose
+        # command result is about 1 KB a call. engine.snapshot is asked for by the vector of an
+        # absent draft below. DR-07's tests compare the snapshot of a draft with the snapshot of
+        # the same files as a directory project, and
+        # a_draft_the_engine_refuses_is_the_refusal_of_the_engine_dr_07 holds the refusal (#84).
         ("engine.format", "tool-call", call, "lexlean_format",
          {"project": handle, "files": [], "check_only": True}),
         ("engine.build", "tool-call", call, "lexlean_build", {"project": handle, "files": []}),
         ("store.put a source the engine refuses", "tool-call", call, "lexlean_draft_write",
          {"profile": "tiny", "files": [{"path": SOURCE, "content": REFUSED}]}),
-        ("engine.check refuses the project", "tool-call", call, "lexlean_check",
-         {"project": refused, "files": []}),
-        ("engine.snapshot refuses the project", "tool-call", call, "lexlean_snapshot",
-         {"project": refused, "files": []}),
         ("engine.check refuses a draft that is absent", "tool-call", call, "lexlean_check",
          {"project": "tiny/" + "0" * 64, "files": []}),
+        ("engine.snapshot refuses a draft that is absent", "tool-call", call, "lexlean_snapshot",
+         {"project": "tiny/" + "1" * 64, "files": []}),
         ("verify.start refuses a project", "tool-call", call, "lexlean_verify",
          {"project": "absent", "files": []}),
         ("verify.control refuses a task", "tool-call", call, "lexlean_verify_control",

@@ -137,7 +137,13 @@ does, requires that the profile ID of the preimage is that of the record of the 
 **copies** the files of the profile bundle (`profiles/<profile>/`, except the record) and then
 the files of the draft, each into a regular file of its own, into a new directory of the
 `builds` area. Nothing in that directory is a link, so LexLean (SPEC 25.1) sees none, and a
-link is never created. The directory belongs to the call and is removed when the call ends;
+link is never created. A file of the draft **replaces** the file of the bundle at its path: the
+bundle's file is not copied, and the draft's is created in its place. A draft is therefore the
+profile with its files, so an author can edit a file the profile holds, such as the entrypoint
+`src/Main.lex.tex` that `gateway-provision init` writes (#84). The replaced entry is still
+inspected, so a link there is refused as any other; a draft file whose path is a directory of
+the bundle is `project-refused`. Every file, the draft's included, is still created with
+`create_new`, so nothing is written through an entry that was already there. The directory belongs to the call and is removed when the call ends;
 `lexlean_verify` keeps its directory, because the verification outlives the call (`builds` is a
 cache that the lifecycle of the store, `ST-`, can drop). Two calls on one draft are two
 directories and never see each other's files. A draft or a profile that is absent, a draft that
@@ -193,7 +199,8 @@ here, not hidden:
 
 Each defect was applied to the working tree, the command was run, and the file was restored
 (`git checkout`, then the command again). D1 to D4 are those of the first draft tools; D5 to D7
-are those of the `view`, the `form` and the prose documents.
+are those of the `view`, the `form` and the prose documents; D8 and D9 are those of a draft
+file that replaces a file of the bundle (#84).
 
 | Id | Defect | Command | Diagnostic | Restore |
 | --- | --- | --- | --- | --- |
@@ -204,3 +211,5 @@ are those of the `view`, the `form` and the prose documents.
 | D5 | an unknown view admitted: `View::from_number` of `gateway/bindings/gateway-binding/src/modules.rs` answers `Some(View::Stored)` for a number outside 0 to 2, where it answers `None` | `cargo test -p gateway-binding --test views` (in `gateway/`) | `an_unknown_view_is_a_typed_failure_dr_15` and `an_unknown_view_is_a_typed_failure_gw_05` fail: for view 3 the left side is `None` where `Some(ViewUnknown)` is expected (11 passed, 2 failed) | the saved `modules.rs` (`cmp`); 13 passed |
 | D6 | an assembled module whose bytes differ from `sdk::write_module`'s: the `Rewrite` form of `modules.rs` appends a newline to the text the sdk returns | `cargo test -p gateway-binding --test views` and `cargo test -p gateway-tool-tests --test drafts` (in `gateway/`) | `form_2_stores_what_sdk_write_module_returns_dr_13` fails (12 passed, 1 failed) and `a_rewritten_module_is_what_sdk_write_module_returns_dr_13` fails (19 passed, 1 failed in the tests named `dr_12` to `dr_15`) | the saved `modules.rs` (`cmp`); all pass |
 | D7 | a prose document sent through the sdk: `View::Stored` of `modules.rs` reads the bytes with `sdk::read_module`, and `store_get` of `lib.rs` no longer returns the stored bytes early (`if false {`) | `cargo test -p gateway-binding --test views` and `cargo test -p gateway-tool-tests --test drafts` (in `gateway/`) | `form_0_stores_the_bytes_as_given_dr_13`, `form_1_stores_what_sdk_assemble_returns_dr_13`, `form_2_stores_what_sdk_write_module_returns_dr_13` and `view_0_is_the_stored_bytes_and_never_the_sdk_dr_12` fail (9 passed, 4 failed), and 13 tests of `drafts.rs` fail, among them `a_prose_document_is_stored_and_read_as_text_dr_14` (66 passed, 13 failed) | the saved `modules.rs` and `lib.rs` (`cmp`); all pass |
+| D8 | no replacement: `copy_bundle` of `materialize.rs` copies every file of the bundle (`} else {` where it skips a path the draft has), so the draft's `create_new` meets the bundle's file | `cargo test -p gateway-binding --test materialize` and `cargo test -p gateway-tool-tests --test drafts dr_07` (in `gateway/`) | `a_file_of_the_draft_replaces_the_file_of_the_bundle_at_its_path_dr_07` fails at `expect("a project")` (17 passed, 1 failed), and `a_draft_of_a_file_the_profile_holds_is_checked_with_the_bytes_of_the_draft_dr_07` finds `project-refused` (7 passed, 1 failed) | the saved `materialize.rs`; 18 passed and 8 passed |
+| D9 | a replaced entry skipped before it is inspected: `copy_bundle` continues on a path the draft has before `symlink_metadata` | `cargo test -p gateway-binding --test materialize` (in `gateway/`) | `a_link_at_a_path_the_draft_replaces_is_refused_dr_08` finds `Ok(".../builds/<id>-<pid>-<n>")` where `Err(Link)` is expected, and `a_draft_file_where_the_bundle_has_a_directory_is_refused_dr_07` finds `Ok(...)` where `Err(Draft)` is expected (16 passed, 2 failed) | the saved `materialize.rs`; 18 passed |

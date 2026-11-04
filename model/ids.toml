@@ -845,7 +845,7 @@ statement = "The profile record is read by the first effect of a write: it holds
 id = "DR-07"
 level = "build"
 suite = "drafts"
-statement = "Materialization copies: an Engine tool whose project is the handle of a draft runs on a directory of the builds area that holds the files of the profile bundle and of the draft as regular files of their own and links nothing, the result equals the result of the same tool on a directory project holding the same files, and a handle whose draft or profile is absent is the host failure project-refused."
+statement = "Materialization copies: an Engine tool whose project is the handle of a draft runs on a directory of the builds area that holds the files of the profile bundle and of the draft as regular files of their own and links nothing, a file of the draft replaces the file of the bundle at its path, so a draft can edit the profile's entrypoint, the result equals the result of the same tool on a directory project holding the same files, and a handle whose draft or profile is absent is the host failure project-refused."
 
 [[id]]
 id = "DR-08"

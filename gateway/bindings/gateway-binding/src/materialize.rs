@@ -6,12 +6,14 @@
 //! its entry `profile` is the record of the profile and is not part of the bundle. The project is
 //! `builds/<id>/`: the files of the bundle and then the files of the draft, each **copied** into
 //! a file of its own, so that nothing in the project is a link and LexLean (SPEC 25.1) sees none.
+//! A file of the draft replaces the file of the bundle at its path, which is then not copied.
 //!
 //! A bundle that holds a symbolic link anywhere is refused before a byte of it is read, and so is
 //! any entry that is neither a directory nor a regular file. Every materialization is a directory
 //! of its own, so that two calls on one draft, or a verification that is still running, never see
 //! each other's files: the `builds` area is a cache that can be dropped (`src/Store.lex.tex`).
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -131,13 +133,23 @@ fn record_id(record: &[u8]) -> Option<&str> {
         .then_some(line)
 }
 
-/// Copy the regular files of `from` below `to`, refusing every link.
-fn copy_bundle(from: &Path, to: &Path, top: bool) -> Result<(), Refused> {
+/// Copy the regular files of `from` below `to`, refusing every link. `at` is the path of `from`
+/// in the bundle: `Some("")` at its top, `None` below a name that is not UTF-8, which no path of
+/// a draft can name. A file whose path is in `replaced` is not copied, because the draft has a
+/// file of that path: the draft is the profile with its files, so an author can edit a file the
+/// profile holds, its entrypoint first (#84). The entry is inspected all the same, so a link
+/// there is refused like any other.
+fn copy_bundle(
+    from: &Path,
+    to: &Path,
+    at: Option<&str>,
+    replaced: &BTreeSet<&str>,
+) -> Result<(), Refused> {
     let entries = fs::read_dir(from).map_err(|_| Refused::Io)?;
     for entry in entries {
         let entry = entry.map_err(|_| Refused::Io)?;
         let name = entry.file_name();
-        if top && DERIVED.iter().any(|derived| name == *derived) {
+        if at == Some("") && DERIVED.iter().any(|derived| name == *derived) {
             continue;
         }
         let source = entry.path();
@@ -146,11 +158,15 @@ fn copy_bundle(from: &Path, to: &Path, top: bool) -> Result<(), Refused> {
         if kind.is_symlink() || !(kind.is_dir() || kind.is_file()) {
             return Err(Refused::Link);
         }
+        let path = at.zip(name.to_str()).map(|(at, name)| match at {
+            "" => name.to_string(),
+            _ => format!("{at}/{name}"),
+        });
         let target = to.join(&name);
         if kind.is_dir() {
             fs::create_dir(&target).map_err(|_| Refused::Io)?;
-            copy_bundle(&source, &target, false)?;
-        } else {
+            copy_bundle(&source, &target, path.as_deref(), replaced)?;
+        } else if !path.is_some_and(|path| replaced.contains(path.as_str())) {
             copy_file(&source, &target)?;
         }
     }
@@ -227,7 +243,12 @@ pub fn materialize_noting(
     ));
     fs::create_dir(&project).map_err(|_| Refused::Io)?;
     let done = (|| -> Result<(), Refused> {
-        copy_bundle(&bundle, &project, true)?;
+        // Every path was checked as UTF-8 above.
+        let replaced = rows
+            .iter()
+            .filter_map(|(path, _)| std::str::from_utf8(path).ok())
+            .collect::<BTreeSet<_>>();
+        copy_bundle(&bundle, &project, Some(""), &replaced)?;
         for (path, content) in &rows {
             let path = std::str::from_utf8(path).map_err(|_| Refused::Draft)?;
             let target = project.join(path);

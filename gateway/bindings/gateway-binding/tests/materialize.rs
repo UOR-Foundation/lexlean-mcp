@@ -175,6 +175,60 @@ fn the_bundle_and_the_draft_are_copied_into_a_directory_of_their_own_dr_07() {
 }
 
 #[test]
+fn a_file_of_the_draft_replaces_the_file_of_the_bundle_at_its_path_dr_07() {
+    let store = store();
+    std::fs::create_dir_all(store.bundle().join("src")).expect("a source root");
+    std::fs::write(store.bundle().join("src/Main.lex.tex"), b"bundle\n").expect("a file");
+    std::fs::write(store.bundle().join("src/Kept.lex.tex"), b"kept\n").expect("a file");
+    let id = store.draft(&[("src/Main.lex.tex", b"draft\n")]);
+    let project = materialize(&store.root(), PROFILE, &id, LIMIT).expect("a project");
+    let mut found = Vec::new();
+    tree(&project, "", &mut found);
+    found.sort();
+    assert_eq!(
+        found,
+        [
+            "language/sub/entry.toml",
+            "lexlean.toml",
+            "src/Kept.lex.tex",
+            "src/Main.lex.tex"
+        ]
+    );
+    assert_eq!(
+        std::fs::read(project.join("src/Main.lex.tex")).expect("a file"),
+        b"draft\n",
+        "the draft's bytes, not the bundle's"
+    );
+    assert_eq!(
+        std::fs::read(project.join("src/Kept.lex.tex")).expect("a file"),
+        b"kept\n"
+    );
+    assert_eq!(
+        std::fs::read(store.bundle().join("src/Main.lex.tex")).expect("a file"),
+        b"bundle\n",
+        "the bundle is not changed"
+    );
+}
+
+#[test]
+fn a_draft_file_where_the_bundle_has_a_directory_is_refused_dr_07() {
+    // Only a file of the bundle is replaced: a directory at the draft's path stays, and the
+    // draft's file cannot be created there.
+    let store = store();
+    std::fs::create_dir_all(store.bundle().join("src/Dir.lex.tex/inner")).expect("a directory");
+    let id = store.draft(&[("src/Dir.lex.tex", b"x\n")]);
+    assert_eq!(
+        materialize(&store.root(), PROFILE, &id, LIMIT),
+        Err(Refused::Draft)
+    );
+    assert!(
+        store.builds_listing().is_empty(),
+        "{:?}",
+        store.builds_listing()
+    );
+}
+
+#[test]
 fn two_materializations_of_one_draft_are_two_directories_dr_07() {
     let store = store();
     let id = store.draft(&[("src/Main.lex.tex", b"main\n")]);
@@ -313,6 +367,16 @@ fn a_link_below_a_subdirectory_is_refused_dr_08() {
     let target = outside.path().join("secret");
     std::fs::write(&target, b"secret").expect("a file");
     assert_a_link_is_refused("below a subdirectory", "language/sub/deeper/entry", &target);
+}
+
+#[test]
+fn a_link_at_a_path_the_draft_replaces_is_refused_dr_08() {
+    // The draft writes src/Main.lex.tex, so the bundle's entry there is not copied; it is still
+    // inspected, and a link is refused, not skipped.
+    let outside = tempfile::tempdir().expect("a directory");
+    let target = outside.path().join("secret");
+    std::fs::write(&target, b"secret").expect("a file");
+    assert_a_link_is_refused("replaced", "src/Main.lex.tex", &target);
 }
 
 #[test]
