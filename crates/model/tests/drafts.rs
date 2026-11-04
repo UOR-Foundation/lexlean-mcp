@@ -315,6 +315,9 @@ fn a_draft_is_materialized_by_copy_dr_07() {
             "two_materializations_of_one_draft_are_two_directories_dr_07",
             "an_absent_draft_and_a_changed_draft_are_refused_dr_07",
             "a_draft_with_a_path_that_leaves_the_project_is_refused_dr_07",
+            "a_file_of_the_draft_replaces_the_file_of_the_bundle_at_its_path_dr_07",
+            "a_draft_file_where_the_bundle_has_a_directory_is_refused_dr_07",
+            "a_draft_of_a_file_the_profile_holds_is_checked_with_the_bytes_of_the_draft_dr_07",
         ],
     );
 }
@@ -350,6 +353,7 @@ fn a_symbolic_link_in_a_bundle_is_refused_dr_08() {
             "a_link_below_a_subdirectory_is_refused_dr_08",
             "a_link_to_the_record_is_refused_dr_08",
             "a_link_to_a_pipe_does_not_block_and_is_refused_dr_08",
+            "a_link_at_a_path_the_draft_replaces_is_refused_dr_08",
         ],
     );
 }

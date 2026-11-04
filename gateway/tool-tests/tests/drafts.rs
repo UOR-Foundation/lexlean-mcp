@@ -586,6 +586,26 @@ fn an_engine_tool_on_the_handle_of_a_draft_agrees_with_the_directory_dr_07() {
 }
 
 #[test]
+fn a_draft_of_a_file_the_profile_holds_is_checked_with_the_bytes_of_the_draft_dr_07() {
+    // The profile holds its entrypoint, as a profile made by `gateway-provision init` does, and
+    // that copy is one the Engine refuses: a check that saw it would fail.
+    let mut gateway = with_profile();
+    let held = gateway.profile("tiny").join(SOURCE);
+    std::fs::create_dir_all(held.parent().expect("a source root")).expect("a source root");
+    std::fs::write(&held, "\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n").expect("a file");
+    gateway.install("dir", &tiny());
+    let draft = handle(&write(&mut gateway, "tiny", &[(SOURCE, &tiny_text())]));
+    let by_handle = gateway.call("lexlean_check", json!({"project": draft, "files": []}));
+    let by_directory = gateway.call("lexlean_check", json!({"project": "dir", "files": []}));
+    assert!(!by_handle.is_error(), "{}", by_handle.body);
+    assert_eq!(
+        by_handle.structured(),
+        by_directory.structured(),
+        "the entrypoint is the draft's file, not the profile's"
+    );
+}
+
+#[test]
 fn the_directory_of_an_engine_call_is_gone_after_it_dr_07() {
     let (mut gateway, draft) = with_tiny_both_ways();
     let reply = gateway.call("lexlean_check", json!({"project": draft, "files": []}));
