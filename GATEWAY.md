@@ -156,8 +156,14 @@ Five vectors ask for no effect (`tools-list`, `invalid-arguments`, `unknown-tool
 `explain` calls, one of a registered code and one of a code with a quotation mark and a reverse
 solidus that the registry lacks, whose answers are compiled into the core: TOOLS.md); the
 others call a tool, in an order that matters (the store is shared): the six files of the
-project `tiny`, a read of one, the four Engine calls on it, and a refusal of each of
-`store.put`, `verify.start`, `verify.control`, `lexicon.read` and `attestation.lookup`.
+project `tiny`, a read of one, three Engine calls on it (check, format and build), and a refusal
+of each of `store.put`, `verify.start`, `verify.control`, `lexicon.read` and `attestation.lookup`.
+PrismPM holds the vectors of a server application to 256 KiB in all (`MAXIMUM_CORPUS_BYTES`),
+and these fill it: no vector takes the snapshot of `tiny` (about 27 KB, recorded three times) or
+carries the Engine's own refusal of a project (about 1 KB a call). `engine.snapshot` is asked for
+by the vector of an absent draft; DR-07's tests compare the snapshot of a draft with that of the
+same files as a directory project, and hold the Engine's refusal of a draft (#84). A new vector
+needs room made for it first.
 `verify.start` and `verify.control` are exercised by their refusals only: every vector is a
 fresh process, so a task started by one is gone before the next. Their success paths are the
 binding's tests (`verify_start_*`, `verify_control_*`), including a real verification and a
