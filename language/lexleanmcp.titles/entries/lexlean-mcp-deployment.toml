@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "lexlean-mcp-deployment"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Deployment"
+component = "deploymentIsValidForEveryNamedBuild"
+
+[[form]]
+id = "lexlean-mcp-deployment"
+channel = "text"
+surface = "LexLean MCP loopback deployment"
+canonical_source = true
+features = ["sentence-case", "singular"]

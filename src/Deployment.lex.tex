@@ -1,0 +1,333 @@
+\begin{lexlean}{Deployment}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{lexleanmcp.titles@1.0.0}
+\importmodule{Product}
+\importmodule{OwnerValues}
+\importmodule{Effects}
+\importmodule{Production.Core}
+\importmodule{Production.HostEffectSystem}
+\title{LexLean MCP loopback deployment}
+\begin{semanticmodule}
+structure{
+  name: Images,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: gateway, type: String},
+    {name: engineHost, type: String},
+    {name: signer, type: String},
+    {name: verifier, type: String},
+    {name: collector, type: String}
+  ]
+}
+
+definition{
+  name: gatewayApplicationDigest,
+  parameters: [],
+  result: String,
+  body: "sha256:c79a97a854fc294cd483149822cd2aef226a798a63caf1972526589e7cd3610c"
+}
+
+definition{
+  name: versionText,
+  parameters: [value : Product::OwnerValue],
+  result: String,
+  body: (match value | Product::OwnerValue.Unbound => "" | Product::OwnerValue.Bound text => text)
+}
+
+definition{
+  name: systemProduct,
+  parameters: [],
+  result: Production.Core::Product,
+  body: (record Production.Core::Product {id := (project (Product::product) id), owner := (project (Product::product) owner), version := (versionText (project (Product::product) version)), lifecycle := "development", sourcePolicy := "selected LexLean source and kernel proof", supportedPlatforms := (cons "linux" (nil String))})
+}
+
+definition{
+  name: effectNamesOf,
+  parameters: [effects : (List Effects::Effect)],
+  result: (List String),
+  body: (match effects
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (Effects::effectName head) (effectNamesOf tail))),
+  recursive_argument: effects
+}
+
+definition{
+  name: frameAndTaskEffects,
+  parameters: [],
+  result: (List String),
+  body: (cons "rate.calls" (cons "clock.now" (cons "task.id" (cons "task.table" (cons "task.store" (nil String))))))
+}
+
+definition{
+  name: hostEffects,
+  parameters: [],
+  result: (List String),
+  body: (Production.HostEffectSystem::appendStrings (effectNamesOf (Effects::allEffects)) (frameAndTaskEffects))
+}
+
+definition{
+  name: profileFor,
+  parameters: [],
+  result: Production.HostEffectSystem::ApplicationProfile,
+  body: (record Production.HostEffectSystem::ApplicationProfile {contract := "prismpm/server-application/1", protocol := "prismpm/host-effects/1", applicationModelDigest := (gatewayApplicationDigest), effects := (hostEffects)})
+}
+
+definition{
+  name: image,
+  parameters: [key : String, location : String, imageDigest : String],
+  result: Production.HostEffectSystem::Artifact,
+  body: (record Production.HostEffectSystem::Artifact {id := key, path := location, digest := imageDigest, licenseExpression := "MIT OR Apache-2.0"})
+}
+
+definition{
+  name: artifactsFor,
+  parameters: [images : Images],
+  result: (List Production.HostEffectSystem::Artifact),
+  body: (cons (image "collector-image" "ghcr.io/uor-foundation/lexlean-mcp-collector" (project images collector)) (cons (image "verifier-image" "ghcr.io/uor-foundation/lexlean-mcp-verifier" (project images verifier)) (cons (image "signer-image" "ghcr.io/uor-foundation/lexlean-mcp-signer" (project images signer)) (cons (image "engine-host-image" "ghcr.io/uor-foundation/lexlean-mcp-engine-host" (project images engineHost)) (cons (image "gateway-image" "ghcr.io/uor-foundation/lexlean-mcp-gateway" (project images gateway)) (nil Production.HostEffectSystem::Artifact))))))
+}
+
+definition{
+  name: serviceResources,
+  parameters: [],
+  result: Production.HostEffectSystem::Resources,
+  body: (record Production.HostEffectSystem::Resources {cpuMillis := 500, memoryBytes := 268435456, replicasMin := 1, replicasMax := 1})
+}
+
+definition{
+  name: verifierResources,
+  parameters: [],
+  result: Production.HostEffectSystem::Resources,
+  body: (record Production.HostEffectSystem::Resources {cpuMillis := (prim multiply (prim multiply (OwnerValues::verifyWidth) (OwnerValues::verifyConcurrency) : Nat) 1000 : Nat), memoryBytes := (prim multiply (prim multiply (OwnerValues::verifyMemoryKib) (OwnerValues::verifyConcurrency) : Nat) 1024 : Nat), replicasMin := 1, replicasMax := 1})
+}
+
+definition{
+  name: collector,
+  parameters: [],
+  result: Production.HostEffectSystem::Component,
+  body: (record Production.HostEffectSystem::Component {id := "telemetry-collector", kind := "telemetry-collector", version := (versionText (project (Product::product) version)), artifact := "collector-image", command := (cons "/otelcol-contrib" (cons "--config=/etc/otelcol-contrib/config.yaml" (nil String))), dependsOn := (nil String), readiness := (cons "/otelcol-contrib" (cons "validate" (cons "--config=/etc/otelcol-contrib/config.yaml" (nil String)))), parameters := (nil String), secrets := (nil String), volumes := (cons "telemetry" (nil String)), networks := (cons "backend" (nil String)), resources := (serviceResources)})
+}
+
+definition{
+  name: verifier,
+  parameters: [],
+  result: Production.HostEffectSystem::Component,
+  body: (record Production.HostEffectSystem::Component {id := "verifier", kind := "worker", version := (versionText (project (Product::product) version)), artifact := "verifier-image", command := (cons "/usr/local/bin/gateway-verifier-host" (nil String)), dependsOn := (nil String), readiness := (cons "/usr/local/bin/gateway-verifier-host" (cons "ready" (nil String))), parameters := (cons "lexlean-mcp-store" (cons "lexlean-mcp-verifier-host" (nil String))), secrets := (nil String), volumes := (cons "store" (cons "verifier-socket" (nil String))), networks := (cons "backend" (nil String)), resources := (verifierResources)})
+}
+
+definition{
+  name: signer,
+  parameters: [],
+  result: Production.HostEffectSystem::Component,
+  body: (record Production.HostEffectSystem::Component {id := "signer", kind := "worker", version := (versionText (project (Product::product) version)), artifact := "signer-image", command := (cons "/usr/local/bin/gateway-signer" (nil String)), dependsOn := (nil String), readiness := (cons "/usr/local/bin/gateway-signer" (cons "ready" (nil String))), parameters := (cons "lexlean-mcp-store" (cons "lexlean-mcp-signer" (nil String))), secrets := (cons "lexlean-mcp-signing-key" (nil String)), volumes := (cons "store" (cons "signer-socket" (nil String))), networks := (cons "backend" (nil String)), resources := (serviceResources)})
+}
+
+definition{
+  name: engineHost,
+  parameters: [],
+  result: Production.HostEffectSystem::Component,
+  body: (record Production.HostEffectSystem::Component {id := "engine-host", kind := "worker", version := (versionText (project (Product::product) version)), artifact := "engine-host-image", command := (cons "/usr/local/bin/gateway-engine-host" (nil String)), dependsOn := (nil String), readiness := (cons "/usr/local/bin/gateway-engine-host" (cons "ready" (nil String))), parameters := (cons "lexlean-mcp-store" (cons "lexlean-mcp-engine" (nil String))), secrets := (nil String), volumes := (cons "store" (cons "engine-socket" (nil String))), networks := (cons "backend" (nil String)), resources := (serviceResources)})
+}
+
+definition{
+  name: gateway,
+  parameters: [],
+  result: Production.HostEffectSystem::Component,
+  body: (record Production.HostEffectSystem::Component {id := "gateway", kind := "api", version := (versionText (project (Product::product) version)), artifact := "gateway-image", command := (cons "/usr/local/bin/gateway-host" (cons "serve" (nil String))), dependsOn := (cons "telemetry-collector" (cons "verifier" (cons "signer" (cons "engine-host" (nil String))))), readiness := (cons "/usr/local/bin/gateway-ready" (nil String)), parameters := (cons "lexlean-mcp-store" (cons "lexlean-mcp-telemetry" (cons "lexlean-mcp-signer" (cons "lexlean-mcp-engine" (cons "lexlean-mcp-verifier-host" (nil String)))))), secrets := (nil String), volumes := (cons "store" (cons "telemetry" (cons "signer-socket" (cons "engine-socket" (cons "verifier-socket" (nil String)))))), networks := (nil String), resources := (serviceResources)})
+}
+
+definition{
+  name: components,
+  parameters: [],
+  result: (List Production.HostEffectSystem::Component),
+  body: (cons (collector) (cons (verifier) (cons (signer) (cons (engineHost) (cons (gateway) (nil Production.HostEffectSystem::Component))))))
+}
+
+definition{
+  name: pathParameter,
+  parameters: [key : String, value : String],
+  result: Production.Core::Configuration,
+  body: (record Production.Core::Configuration {id := key, valueType := "string", allowed := (nil String), defaultValue := (ctor Option.some [String] value), required := true, mutable := false, lateBound := false, exposure := "internal"})
+}
+
+definition{
+  name: parameters,
+  parameters: [],
+  result: (List Production.Core::Configuration),
+  body: (cons (pathParameter "lexlean-mcp-store" "/store") (cons (pathParameter "lexlean-mcp-telemetry" "/telemetry/otlp.jsonl") (cons (pathParameter "lexlean-mcp-signer" "/sockets/signer/signer.sock") (cons (pathParameter "lexlean-mcp-engine" "/sockets/engine/engine.sock") (cons (pathParameter "lexlean-mcp-verifier-host" "/sockets/verifier/verifier.sock") (nil Production.Core::Configuration))))))
+}
+
+definition{
+  name: secrets,
+  parameters: [],
+  result: (List Production.Core::SecretReference),
+  body: (cons (record Production.Core::SecretReference {id := "lexlean-mcp-signing-key", providerKey := "signing-key", consumers := (cons "signer" (nil String)), rotation := "manual"}) (nil Production.Core::SecretReference))
+}
+
+definition{
+  name: volumes,
+  parameters: [],
+  result: (List Production.HostEffectSystem::Volume),
+  body: (cons (record Production.HostEffectSystem::Volume {id := "store", mountPath := "/store"}) (cons (record Production.HostEffectSystem::Volume {id := "telemetry", mountPath := "/telemetry"}) (cons (record Production.HostEffectSystem::Volume {id := "signer-socket", mountPath := "/sockets/signer"}) (cons (record Production.HostEffectSystem::Volume {id := "engine-socket", mountPath := "/sockets/engine"}) (cons (record Production.HostEffectSystem::Volume {id := "verifier-socket", mountPath := "/sockets/verifier"}) (nil Production.HostEffectSystem::Volume))))))
+}
+
+definition{
+  name: networks,
+  parameters: [],
+  result: (List Production.HostEffectSystem::Network),
+  body: (cons (record Production.HostEffectSystem::Network {id := "backend", internal := true}) (nil Production.HostEffectSystem::Network))
+}
+
+definition{
+  name: listeners,
+  parameters: [],
+  result: (List Production.HostEffectSystem::Listener),
+  body: (cons (record Production.HostEffectSystem::Listener {id := "mcp-endpoint", component := "gateway", port := (OwnerValues::listenPort), protocol := "tcp", bindAddress := (Production.HostEffectSystem::loopbackAddress)}) (nil Production.HostEffectSystem::Listener))
+}
+
+definition{
+  name: targets,
+  parameters: [],
+  result: (List Production.HostEffectSystem::Target),
+  body: (cons (record Production.HostEffectSystem::Target {id := "compose-loopback", kind := "compose", adapterDigest := "sha256:5d63cd6921f790c8637e716b632d7777899f37166eff0a6010cd19d1e9127044", apiVersion := "compose-spec@fee041b381ffd4aad263410980bdce0cdf4beb7d", minimumReleaseStatus := "development"}) (nil Production.HostEffectSystem::Target))
+}
+
+definition{
+  name: systemModelFor,
+  parameters: [images : Images],
+  result: Production.HostEffectSystem::SystemModel,
+  body: (record Production.HostEffectSystem::SystemModel {product := (systemProduct), applicationProfile := (profileFor), artifacts := (artifactsFor images), components := (components), parameters := (parameters), secretReferences := (secrets), volumes := (volumes), networks := (networks), listeners := (listeners), targets := (targets)})
+}
+
+definition{
+  name: systemManifestFor,
+  parameters: [],
+  result: Production.HostEffectSystem::SystemManifest,
+  body: (record Production.HostEffectSystem::SystemManifest {applicationModelDigest := (gatewayApplicationDigest), productId := (project (systemProduct) id), productVersion := (project (systemProduct) version), effects := (hostEffects), listeners := (cons "mcp-endpoint" (nil String))})
+}
+
+definition{
+  name: imagesNamed,
+  parameters: [images : Images],
+  result: Bool,
+  body: ((Production.HostEffectSystem::nonEmpty (project images collector)) && ((Production.HostEffectSystem::nonEmpty (project images verifier)) && ((Production.HostEffectSystem::nonEmpty (project images signer)) && ((Production.HostEffectSystem::nonEmpty (project images engineHost)) && (Production.HostEffectSystem::nonEmpty (project images gateway))))))
+}
+
+theorem{
+  name: andTrue,
+  parameters: [b : Bool],
+  statement: ((b && true) = b),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: "false"},
+      {proof: reflexivity{}, binders: [], constructor: "true"}
+    ],
+    scrutinee: b
+  }
+}
+
+theorem{
+  name: onlyTheImagesAreOpen,
+  parameters: [images : Images],
+  statement: ((Production.HostEffectSystem::validateManifest (systemModelFor images) (systemManifestFor)) = (((Production.HostEffectSystem::validArtifacts (artifactsFor images)) && true) && true)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: theArtifactsAreValidWhenEachImageIsNamed,
+  parameters: [images : Images],
+  statement: ((Production.HostEffectSystem::validArtifacts (artifactsFor images)) = ((Production.HostEffectSystem::nonEmpty (project images collector)) && ((Production.HostEffectSystem::nonEmpty (project images verifier)) && ((Production.HostEffectSystem::nonEmpty (project images signer)) && ((Production.HostEffectSystem::nonEmpty (project images engineHost)) && ((Production.HostEffectSystem::nonEmpty (project images gateway)) && true)))))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: deploymentIsValidForEveryNamedBuild,
+  parameters: [images : Images],
+  statement: ((Production.HostEffectSystem::validateManifest (systemModelFor images) (systemManifestFor)) = (imagesNamed images)),
+  proof: simplify{
+    definitions: [
+      andTrue,
+      imagesNamed,
+      onlyTheImagesAreOpen,
+      theArtifactsAreValidWhenEachImageIsNamed
+    ]
+  },
+  axioms: [propext]
+}
+
+definition{
+  name: apiIds,
+  parameters: [rows : (List Production.HostEffectSystem::Component)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (if (prim equal (project head kind) "api" : Bool) then (cons (project head id) (apiIds tail)) else (apiIds tail))),
+  recursive_argument: rows
+}
+
+theorem{
+  name: theGatewayIsTheOnlyApi,
+  parameters: [],
+  statement: ((apiIds (components)) = (cons "gateway" (nil String))),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: theListenerIsTheOwnerSetPortOnLoopback,
+  parameters: [],
+  statement: ((Production.HostEffectSystem::listenerPorts (listeners)) = (cons (OwnerValues::listenPort) (nil Nat))),
+  proof: decide{},
+  axioms: []
+}
+
+definition{
+  name: onTheInternalNetworkAlone,
+  parameters: [rows : (List Production.HostEffectSystem::Component)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => (((prim equal (project head kind) "api" : Bool) || (Production.HostEffectSystem::equalStrings (project head networks) (cons "backend" (nil String)))) && (onTheInternalNetworkAlone tail))),
+  recursive_argument: rows
+}
+
+theorem{
+  name: everyOtherServiceIsOnTheInternalNetworkAlone,
+  parameters: [],
+  statement: (((onTheInternalNetworkAlone (components)) && (match (networks)
+    | List.nil => false
+    | List.cons head tail => ((project head internal) && (prim equal (project head id) "backend" : Bool)))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+definition{
+  name: secretHolders,
+  parameters: [rows : (List Production.HostEffectSystem::Component)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (match (project head secrets)
+      | List.nil => (secretHolders tail)
+      | List.cons s rest => (cons (project head id) (secretHolders tail)))),
+  recursive_argument: rows
+}
+
+theorem{
+  name: theSigningKeyIsTheSignersAlone,
+  parameters: [],
+  statement: ((secretHolders (components)) = (cons "signer" (nil String))),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: theEffectsAreTheGatewaysHostProtocol,
+  parameters: [],
+  statement: ((hostEffects) = (cons "store.get" (cons "store.put" (cons "engine.check" (cons "engine.snapshot" (cons "engine.format" (cons "engine.build" (cons "verify.start" (cons "verify.control" (cons "lexicon.read" (cons "attestation.lookup" (cons "rate.calls" (cons "clock.now" (cons "task.id" (cons "task.table" (cons "task.store" (nil String))))))))))))))))),
+  proof: decide{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

@@ -28,6 +28,7 @@
 # binding and its acceptance vectors) registers GW-01..GW-09.
 # The executable measures of Q2 and Q8 of issue #15 register QM-01 to QM-08: two rows that
 # reproduce the pinned LexLean (its public API and its diagnostic registry) and six that are checked here.
+# The loopback deployment of issue #17 as a PrismPM host-effect system model registers DP-01 to DP-04.
 # The features F1 to F13 and journeys J1 to J6 of issue #18 register FJ-01..FJ-10: the
 # model-side slice; prismpm check runs their rules since MC-01.
 # The observability model of issue #16 registers OB-01..OB-10: three rows that reproduce
@@ -1458,3 +1459,27 @@ id = "EX-06"
 level = "build"
 suite = "present"
 statement = "Each gate of lexlean_export rejects its planted defect: a rendering left out of the bundle, the key history left out, the envelope replaced by attestation.json, and the evidence not checked before the first write; PRESENT.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "DP-01"
+level = "build"
+suite = "deployment"
+statement = "Production.Core and Production.HostEffectSystem of this repository are, byte for byte, the two standard library files of PrismPM ecb594bd: the SHA-256 over their path-sorted manifest equals the checksum of the authority A-PRISMPM-SYSTEM."
+
+[[id]]
+id = "DP-02"
+level = "build"
+suite = "deployment"
+statement = "The deployment mcp-loopback is a Production.HostEffectSystem system model whose only api component is the gateway, which declares no network and owns the one listener, on 127.0.0.1 at the owner value listen.port; every other component is on the internal network backend alone, the signing key is the signer's alone, and lexlean verify proves that validateManifest accepts the model for every build that names its five images and only for such a build."
+
+[[id]]
+id = "DP-03"
+level = "build"
+suite = "deployment"
+statement = "The application model digest the deployment binds, in its profile and its manifest, is sha256: followed by the SHA-256 of gateway/src/Application.lex.tex, the declaration of the server application the gateway serves."
+
+[[id]]
+id = "DP-04"
+level = "build"
+suite = "deployment"
+statement = "The effects the deployment declares are the host protocol of the gateway: the 15 effect names of gateway/src/Application.lex.tex, in its order, which begin with the ten names of src/Effects.lex.tex in the order of allEffects."

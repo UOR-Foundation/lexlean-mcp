@@ -28,6 +28,15 @@ model does not sanction.
 | `AT-04` | `build` | A lookup writes nothing: the store holds the same files with the same bytes after lookups that find, that miss and that are refused. |
 | `AT-05` | `build` | Each gate of the tool rejects its planted defect: the lookup reading the file that the envelope signs instead of the envelope, the digest read as an attestation ID, the check of the value dropped, and a lookup that writes to the store; ATTESTATION.md records the command, the diagnostic and the restore of each. |
 
+## deployment
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `DP-01` | `build` | Production.Core and Production.HostEffectSystem of this repository are, byte for byte, the two standard library files of PrismPM ecb594bd: the SHA-256 over their path-sorted manifest equals the checksum of the authority A-PRISMPM-SYSTEM. |
+| `DP-02` | `build` | The deployment mcp-loopback is a Production.HostEffectSystem system model whose only api component is the gateway, which declares no network and owns the one listener, on 127.0.0.1 at the owner value listen.port; every other component is on the internal network backend alone, the signing key is the signer's alone, and lexlean verify proves that validateManifest accepts the model for every build that names its five images and only for such a build. |
+| `DP-03` | `build` | The application model digest the deployment binds, in its profile and its manifest, is sha256: followed by the SHA-256 of gateway/src/Application.lex.tex, the declaration of the server application the gateway serves. |
+| `DP-04` | `build` | The effects the deployment declares are the host protocol of the gateway: the 15 effect names of gateway/src/Application.lex.tex, in its order, which begin with the ten names of src/Effects.lex.tex in the order of allEffects. |
+
 ## draft
 
 | ID | Level | Statement |
@@ -394,6 +403,7 @@ Never re-derived, vendored, or gated on.
 | `A-W3C-TRACE-CONTEXT` | W3C Recommendation 23 November 2021, https://www.w3.org/TR/2021/REC-trace-context-1-20211123/: sections 3.2.2 to 3.2.4 (traceparent), 3.3 (tracestate) and 4.3 (processing model). | `OB-03` |
 | `A-W3C-BAGGAGE` | W3C Candidate Recommendation Snapshot 30 May 2024, https://www.w3.org/TR/baggage/ (CR-baggage-20240530): section 3.3.2 (limits) and section 5 (privacy considerations). | `OB-03` |
 | `A-LEXLEAN-ATLAS` | UOR-Foundation/LexLean at commit e0b74b81e6f49c83596a957d232c8383a5db1a25 (v0.4.0 at `e0b74b8`, the revision .github/lexlean.rev pins): the lexicon package language/uor/atlas (lexicon.toml, git blob 06a6fd06742185f8292377fea7c9ec86b6e71a76, and the 293 files of entries, git tree of language/uor/atlas 0f3b5a884831c378723d1e890c890a0821f4c45f) and the project examples/uor-atlas, whose README states 86 modules, 80 Atlas modules and 6 under Prelude/ (src git tree 3c4ef471b81bbf3aacc2eb0f2eed311b82faeab8). The committed copies under crates/model/tests/atlas are lexicon.toml, byte-identical to the file at that commit, and entries.tsv and modules.txt, extracts read from the entry files and the module headers; crates/model/tests/atlas/README.md records how the copy was made. | `PF-07` |
+| `A-PRISMPM-SYSTEM` | UOR-Foundation/PrismPM, commit ecb594bd5640f3cb4bdc567c096c20f03209bd0d (the merge of pull request #502, which closes issue #517 and is part of issue #217), files stdlib/src/Production/Core.lex.tex (git blob 028ba0cd5d8e78534cc97348923bd8f59f5b5805) and stdlib/src/Production/HostEffectSystem.lex.tex (git blob 23393a874625bedd954e459ec8eb4981346619fe); SPEC.md section 11 (Host-effect service system) and crates/prismpm/src/system/host_effect.rs of that commit project the profile to Compose. The committed copy is src/Production/Core.lex.tex and src/Production/HostEffectSystem.lex.tex of this repository, byte-identical to those two files. | `DP-01`, `DP-02` |
 
 ## Claims that are not conformance IDs
 
@@ -415,3 +425,4 @@ Never re-derived, vendored, or gated on.
 | `AUTH-14` | `some-true` | W3C Trace Context Level 1 gives the grammar and the validity rules of traceparent and the rule that tracestate is not parsed after a traceparent that fails to parse. |
 | `AUTH-15` | `some-true` | W3C Baggage gives the minimum limits of 64 list-members and 8192 bytes. |
 | `AUTH-16` | `some-true` | The lexicon lexlean.uor.atlas@1.0.0 of LexLean v0.4.0 at `e0b74b8` is language 1.0 with 293 entries that are document denotations into the module Atlas, and examples/uor-atlas holds 86 core modules. |
+| `AUTH-17` | `some-true` | PrismPM ecb594bd projects a prismpm/system-model/3 api component onto the host network with no published port, where the 127.0.0.1 its listener binds is the host's loopback, and every other component onto its declared networks. |

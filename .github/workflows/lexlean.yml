@@ -150,11 +150,11 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "install Lean" install_lean
-      - name: 4a. lexlean fmt --check
+      - name: 4a. lexlean fmt, every module but PrismPM's copies
         if: matrix.kind == 'verify'
         run: |
           . .github/lexlean-ci/lib.sh
-          gate "lexlean fmt --check" lexlean --color never fmt --check
+          gate "root modules are canonical" root_fmt_check
       - name: 4b. lexlean lock --check
         if: matrix.kind == 'verify'
         run: |

@@ -461,6 +461,28 @@ gateway_fmt_check() {
   return "$status"
 }
 
+# root_fmt_check: every module of src that is the repository's own is canonical. The copies of
+# PrismPM's host-effect system profile under src/Production are PrismPM's bytes (DP-01 holds them to
+# the pin), and the pinned LexLean writes one of their definitions on one line where PrismPM's
+# formatter wrote five. So, as for the gateway, the project is formatted in a scratch copy and each
+# module that is not a copy is compared.
+root_fmt_check() {
+  local scratch status=0 file
+  scratch=$(mktemp -d)
+  git ls-files -z | xargs -0 cp --parents -t "$scratch"
+  (cd "$scratch" && lexlean --color never fmt)
+  while IFS= read -r file; do
+    if cmp -s "$file" "$scratch/$file"; then
+      echo "$file is canonical"
+    else
+      echo "$file is not canonical; run lexlean fmt and restore src/Production" >&2
+      status=1
+    fi
+  done < <(find src -name '*.lex.tex' -not -path 'src/Production/*' | sort)
+  rm -rf "$scratch"
+  return "$status"
+}
+
 # gateway_cargo ARGS...: `cargo` in the gateway workspace, offline, against the registry.
 gateway_cargo() {
   (cd gateway && CARGO_HOME=$(cd .. && gateway_cargo_home) cargo "$@")
