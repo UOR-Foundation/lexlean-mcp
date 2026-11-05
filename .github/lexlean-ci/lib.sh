@@ -696,8 +696,8 @@ gateway_verify_examples() {
 
 # images_programs: the programs the images hold, from the gateway's locked dependencies.
 images_programs() {
-  gateway_cargo build --release --locked --offline -p gateway-host -p gateway-engine-host \
-    -p gateway-signer -p gateway-verifier-host -p gateway-binding --bins
+  gateway_cargo build --release --locked --offline -p gateway-host -p gateway-ready \
+    -p gateway-engine-host -p gateway-signer -p gateway-verifier-host -p gateway-binding --bins
 }
 
 # images_build: the images of those programs.

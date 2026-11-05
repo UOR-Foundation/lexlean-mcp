@@ -3,7 +3,7 @@ Feature: The images of the services
   The services of issue #17 as images of their own, run apart and exercised through the gateway. This is what the deployment will start; the Compose projection that starts it belongs to PrismPM and is not here.
 
   @IM-01 @build
-  Scenario: Each service has an image of its own, defined in deploy/images: gateway-host, gateway-engine-host, gateway-signer, gateway-verifier-host with gateway-verifier, and the telemetry collector; each definition starts from a base named by its digest, has no RUN step and runs as user 65532, and each image holds its own program and no other service's.
+  Scenario: Each service has an image of its own, defined in deploy/images: gateway-host with its readiness command gateway-ready, gateway-engine-host, gateway-signer, gateway-verifier-host with gateway-verifier, and the telemetry collector; each definition starts from a base named by its digest, has no RUN step and runs as user 65532, and each image holds its own program and no other service's.
     Given the definitions in deploy/images and the images built from them
     When their bases, steps and users are read, and each image is asked what it holds
     Then every base is a digest, no definition runs a step, and each holds its own program alone

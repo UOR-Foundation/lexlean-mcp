@@ -114,7 +114,7 @@ envelope: a verification takes minutes, and the key may have rotated since it be
 ## The service
 
 `OWNER-VALUES.md` keeps the key "mounted read-only into the signer service only", and #17 deploys
-that service. `gateway-signer` is its program. It takes `LEXLEAN_MCP_SIGNING_KEY` (the key file),
+that service. `gateway-signer` is its program. It takes `LEXLEAN_MCP_SIGNING_KEY_FILE` (the key file),
 `LEXLEAN_MCP_SIGNER` (its socket) and `LEXLEAN_MCP_STORE` (whose `keys/history` it writes); without
 one of them, or with its socket path taken by something that is not a socket, it exits with status 2.
 It prints one line when it listens. It is a crate of its own so that the image that holds the key

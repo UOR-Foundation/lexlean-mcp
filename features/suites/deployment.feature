@@ -25,3 +25,21 @@ Feature: The loopback deployment
     Given src/Deployment.lex.tex, gateway/src/Application.lex.tex and src/Effects.lex.tex
     When the host effects of the application and the effects the deployment declares are read in order
     Then they are the same 15 names, and the first ten are the names of allEffects
+
+  @DP-05 @build
+  Scenario: gateway-signer ready, gateway-engine-host ready and gateway-verifier-host ready, the readiness commands the deployment names, ask the service at the socket their environment names whether it can serve and exit 0 only on its yes: the signer can load its key, the engine host has its store, the verifier host has its verifier program. With no socket variable, no service at the socket, or a service that says no, each exits 1 and says why; any other argument is a usage error, exit 64.
+    Given each of the three programs, its service started on a socket of a temporary directory, and the readiness commands of src/Deployment.lex.tex
+    When the program is run with ready against a service that can serve, one that cannot, no service, and no variable, and with another argument
+    Then it exits 0 only for the service that can serve, 1 with the reason otherwise, 64 for the other argument, and each readiness command of the model names one of these programs with ready
+
+  @DP-06 @build
+  Scenario: gateway-ready, the readiness command of the gateway, connects to the address and port of the gateway's served declaration, surface::ADDRESS and surface::PORT of the generated host, and exits 0 only when the answer begins with an HTTP/1.1 status line; with nothing listening, or an answer that is not HTTP, it exits 1 and says why. The gateway image holds gateway-host and gateway-ready.
+    Given a loopback listener that answers with a status line, one that answers with something else, a port with nothing on it, and the source of gateway-ready
+    When the probe is run against each
+    Then only the status line is ready, the program reads its address and port from the generated surface alone, and the gateway image definition copies gateway-host and gateway-ready
+
+  @DP-07 @build
+  Scenario: The signer reads its key from the file LEXLEAN_MCP_SIGNING_KEY_FILE names, the variable PrismPM's projection sets for the secret lexlean-mcp-signing-key, and the verifier host removes that variable from the environment of a verifier process; no source of the gateway names LEXLEAN_MCP_SIGNING_KEY without the suffix _FILE.
+    Given the signer and the verifier host, src/Deployment.lex.tex and the sources below gateway/bindings and deploy
+    When the variable the projection derives from the secret is computed and the sources are read
+    Then it is the variable both programs name, and no source names the variable without its suffix

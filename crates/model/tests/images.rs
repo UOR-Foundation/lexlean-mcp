@@ -17,7 +17,7 @@ fn read(relative: &str) -> String {
 }
 
 const IMAGES: [(&str, &[&str]); 5] = [
-    ("gateway", &["gateway-host"]),
+    ("gateway", &["gateway-host", "gateway-ready"]),
     ("engine-host", &["gateway-engine-host"]),
     ("signer", &["gateway-signer"]),
     ("verifier", &["gateway-verifier-host", "gateway-verifier"]),

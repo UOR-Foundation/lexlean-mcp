@@ -93,7 +93,7 @@ Feature: The signer of the verification records
     Then each task fails with class 5 and the store holds nothing for it
 
   @SG-16 @build
-  Scenario: The signer is a program of its own and the only holder of the key: gateway-signer reads the key file from LEXLEAN_MCP_SIGNING_KEY at each request and answers on the Unix socket LEXLEAN_MCP_SIGNER with mode 0600, it writes the key history below LEXLEAN_MCP_STORE, the crate that holds it links no compiler and no generated package, and the host has no configuration for a key, loads none and links no signature library outside its tests, so that a key named in the environment of the host signs nothing.
+  Scenario: The signer is a program of its own and the only holder of the key: gateway-signer reads the key file from LEXLEAN_MCP_SIGNING_KEY_FILE at each request and answers on the Unix socket LEXLEAN_MCP_SIGNER with mode 0600, it writes the key history below LEXLEAN_MCP_STORE, the crate that holds it links no compiler and no generated package, and the host has no configuration for a key, loads none and links no signature library outside its tests, so that a key named in the environment of the host signs nothing.
     Given the program gateway-signer with a key file, and a host whose environment names a key file and no signer
     When the program is asked for its key and the host is asked to start a verification
     Then the program answers on a socket of mode 0600, and the host is verifier-unavailable and names no signer

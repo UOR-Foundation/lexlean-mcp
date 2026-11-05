@@ -249,7 +249,7 @@ fn a_key_named_to_the_host_signs_nothing_sg_16() {
     let key = key_file(directory.path());
     let store = directory.path().join("store");
     let config = Config::from_variables(|name| match name {
-        "LEXLEAN_MCP_SIGNING_KEY" => Some(key.clone().into_os_string()),
+        "LEXLEAN_MCP_SIGNING_KEY_FILE" => Some(key.clone().into_os_string()),
         "LEXLEAN_MCP_STORE" => Some(store.clone().into_os_string()),
         _ => None,
     });

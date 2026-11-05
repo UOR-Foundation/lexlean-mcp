@@ -342,3 +342,135 @@ fn the_effects_are_the_gateway_host_protocol_dp_04() {
         "hostEffects is allEffects' names, then the frame and task effects"
     );
 }
+
+/// DP-05: the readiness command of each service is its program with `ready`, and the program
+/// answers that argument.
+#[test]
+fn each_service_is_asked_by_its_own_program_dp_05() {
+    let source = deployment();
+    for (component, program) in [
+        ("signer", "gateway-signer"),
+        ("engineHost", "gateway-engine-host"),
+        ("verifier", "gateway-verifier-host"),
+    ] {
+        let body = declaration(&source, "definition", component);
+        assert_eq!(
+            field(&body, "readiness"),
+            format!("(cons \"/usr/local/bin/{program}\" (cons \"ready\" (nil String)))"),
+            "{component} is not asked by {program} ready"
+        );
+        let main = read(&format!("gateway/bindings/{program}/src/bin/{program}.rs"));
+        assert!(
+            main.contains("[word] if word == \"ready\" =>")
+                && main.contains("ready_from_variables")
+                && main.contains("ExitCode::from(64)"),
+            "{program} does not answer ready, or takes other arguments"
+        );
+    }
+}
+
+/// DP-06: the gateway is asked by `gateway-ready`, which reads where to ask from the generated
+/// surface and nowhere else, and which the gateway image holds.
+#[test]
+fn the_gateway_is_asked_at_its_served_address_dp_06() {
+    let source = deployment();
+    let gateway = declaration(&source, "definition", "gateway");
+    assert_eq!(
+        field(&gateway, "readiness"),
+        "(cons \"/usr/local/bin/gateway-ready\" (nil String))"
+    );
+    let main = read("gateway/bindings/gateway-ready/src/bin/gateway-ready.rs");
+    assert!(
+        main.contains("use gateway_host::surface::{ADDRESS, PORT};")
+            && main.contains("SocketAddr::from((ADDRESS, PORT))"),
+        "gateway-ready does not ask at the served address of the generated surface"
+    );
+    let lib = read("gateway/bindings/gateway-ready/src/lib.rs");
+    for text in [&main, &lib] {
+        assert!(
+            !text.contains("5395") && !text.contains("127.0.0.1"),
+            "gateway-ready restates the address or the port"
+        );
+    }
+    let image = read("deploy/images/gateway.Containerfile");
+    assert!(
+        image
+            .lines()
+            .any(|line| line == "COPY gateway-host gateway-ready /usr/local/bin/"),
+        "the gateway image does not hold gateway-ready"
+    );
+    assert!(read("deploy/images/build.sh")
+        .contains("build gateway \"$release/gateway-host\" \"$release/gateway-ready\""));
+    assert!(read("gateway/Cargo.toml").contains("\"bindings/gateway-ready\","));
+}
+
+/// The occurrences of `LEXLEAN_MCP_SIGNING_KEY` in `text` that are not followed by `_FILE`.
+fn bare_key_variables(text: &str) -> usize {
+    text.match_indices("LEXLEAN_MCP_SIGNING_KEY")
+        .filter(|(at, name)| !text[at + name.len()..].starts_with("_FILE"))
+        .count()
+}
+
+fn sources_below(relative: &str, found: &mut Vec<PathBuf>) {
+    for entry in std::fs::read_dir(root().join(relative)).expect("a directory") {
+        let path = entry.expect("an entry").path();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        if path.is_dir() {
+            if name != "target" {
+                sources_below(
+                    path.strip_prefix(root())
+                        .expect("below the root")
+                        .to_str()
+                        .expect("UTF-8"),
+                    found,
+                );
+            }
+        } else if [".rs", ".sh", ".py", ".Containerfile", ".yaml"]
+            .iter()
+            .any(|suffix| name.ends_with(suffix))
+        {
+            found.push(path);
+        }
+    }
+}
+
+/// DP-07: the key's variable is the one PrismPM's projection derives from the secret.
+#[test]
+fn the_key_is_read_from_the_variable_the_projection_sets_dp_07() {
+    let source = deployment();
+    let secrets = declaration(&source, "definition", "secrets");
+    let id = field(&secrets, "id");
+    let id = id.trim_matches('"');
+    let variable = format!("{}_FILE", id.replace('-', "_").to_ascii_uppercase());
+    assert_eq!(variable, "LEXLEAN_MCP_SIGNING_KEY_FILE");
+    for service in [
+        "gateway/bindings/gateway-signer/src/service.rs",
+        "gateway/bindings/gateway-verifier-host/src/service.rs",
+    ] {
+        assert!(
+            read(service).contains(&format!("SIGNING_KEY_VARIABLE: &str = \"{variable}\"")),
+            "{service} does not name {variable}"
+        );
+    }
+    assert!(
+        read("gateway/bindings/gateway-verifier-host/src/service.rs")
+            .contains(".env_remove(SIGNING_KEY_VARIABLE)"),
+        "the verifier host does not remove the variable from a verifier process"
+    );
+    let mut found = Vec::new();
+    sources_below("gateway/bindings", &mut found);
+    sources_below("deploy", &mut found);
+    assert!(found.len() > 20, "the sources are read");
+    for path in found {
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        assert_eq!(
+            bare_key_variables(&text),
+            0,
+            "{} names LEXLEAN_MCP_SIGNING_KEY without _FILE",
+            path.display()
+        );
+    }
+}

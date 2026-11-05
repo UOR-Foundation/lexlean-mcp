@@ -35,7 +35,7 @@ use crate::signer::{now, HistoryError, KeyError, SignError, Signer};
 
 /// The environment variable that names the file of the signing key. Only this program reads it;
 /// the host removes it from the environment of the verifier in case an operator set it there too.
-pub const SIGNING_KEY_VARIABLE: &str = "LEXLEAN_MCP_SIGNING_KEY";
+pub const SIGNING_KEY_VARIABLE: &str = "LEXLEAN_MCP_SIGNING_KEY_FILE";
 
 /// The environment variable that names the socket of the signer, for the program and for the host.
 pub const SIGNER_VARIABLE: &str = "LEXLEAN_MCP_SIGNER";
@@ -86,7 +86,7 @@ pub fn refusal_named(name: &str) -> Option<SignError> {
 /// Why the program did not start.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StartError {
-    /// `LEXLEAN_MCP_SIGNING_KEY` is not set.
+    /// `LEXLEAN_MCP_SIGNING_KEY_FILE` is not set.
     NoKey,
     /// `LEXLEAN_MCP_SIGNER` is not set.
     NoSocket,

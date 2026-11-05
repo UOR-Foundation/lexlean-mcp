@@ -52,7 +52,7 @@ host -> process   cancel
 The end of the process's input before its verdict means the host is gone: it ends its groups and
 exits with status 1, without a verdict. The host starts the process with `LEXLEAN_VERIFY_WIDTH`
 and `LEXLEAN_VERIFY_MEMORY_KIB` from `verify.width` and `verify.memory_kib`, and without
-`LEXLEAN_MCP_SIGNING_KEY`; the key is used only by the host, in `conclude`.
+`LEXLEAN_MCP_SIGNING_KEY_FILE`; the key is used only by the host, in `conclude`.
 
 ## The verifier host
 
@@ -178,7 +178,7 @@ Each defect was planted in `gateway/bindings/gateway-binding/src/verifier.rs`, t
 
 | Defect | Command | Diagnostic | Restore |
 | --- | --- | --- | --- |
-| the key left in the environment of the process: the `env_remove` of `LEXLEAN_MCP_SIGNING_KEY` is gone | `cargo test -p gateway-binding --test verifier_tasks` | 10 passed, 1 failed: `the_process_gets_the_settings_and_nothing_of_the_key_vp_02` finds the variable in what the process saw | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
+| the key left in the environment of the process: the `env_remove` of `LEXLEAN_MCP_SIGNING_KEY_FILE` is gone | `cargo test -p gateway-binding --test verifier_tasks` | 10 passed, 1 failed: `the_process_gets_the_settings_and_nothing_of_the_key_vp_02` finds the variable in what the process saw | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
 | a record made for a task that is being cancelled: `settle` concludes a `verified` verdict in phase `Cancelling` too | `cargo test -p gateway-binding --test verifier_tasks` | 10 passed, 1 failed: `a_process_that_verifies_while_the_cancel_is_pending_leaves_no_record_vp_04` finds the task Verified (2) where Cancelled (4) is required | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
 | the session of a lost verifier not killed: `watch` does not call `kill_session` | `cargo test -p gateway-binding --test verifier_tasks` | 10 passed, 1 failed after 5 s: `the_session_of_a_lost_verifier_is_swept_vp_05` finds the child that outlived its verifier still alive | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |
 | the slots ignored so that every task starts at once: `pump` runs while the queue is not empty | `cargo test -p gateway-binding --test verifier_tasks` | 8 passed, 3 failed: `one_slot_runs_one_task_at_a_time_and_the_others_wait_vp_03`, `two_slots_run_two_tasks_at_once_vp_03` and `a_queued_task_leaves_the_queue_and_its_process_is_never_started_vp_04` find the second task Running where Queued is required | `git checkout gateway/bindings/gateway-binding/src/verifier.rs` |

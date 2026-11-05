@@ -22,7 +22,7 @@ is a test that stands where the projection will. When PrismPM's release arrives,
 
 | Image | Holds | Network | Shares with the gateway |
 | --- | --- | --- | --- |
-| `gateway` | `gateway-host` | none but loopback | |
+| `gateway` | `gateway-host`, `gateway-ready` | none but loopback | |
 | `engine-host` | `gateway-engine-host` | none but loopback | its socket, the store |
 | `signer` | `gateway-signer` | none but loopback | its socket, the store |
 | `verifier` | `gateway-verifier-host`, `gateway-verifier`, Lean | none but loopback | its socket, the store |

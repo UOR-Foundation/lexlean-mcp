@@ -13,6 +13,9 @@ the acceptance criteria as deployed are not here (see "Not met").
 | DP-02 | The gateway alone is an `api`, on the host network, with the one listener on `127.0.0.1` at `listen.port`; every other service is on the internal network `backend` alone; the key is the signer's alone; the model is valid for every build that names its five images, and only for such a build. |
 | DP-03 | The application digest is the SHA-256 of `gateway/src/Application.lex.tex`. |
 | DP-04 | The declared effects are the gateway's 15 host effects, in order. |
+| DP-05 | `gateway-signer ready`, `gateway-engine-host ready` and `gateway-verifier-host ready` ask their service whether it can serve and exit 0 only on its yes; otherwise 1 with the reason, and 64 for any other argument. |
+| DP-06 | `gateway-ready` asks the gateway at the address and port of the generated surface and exits 0 only on an HTTP/1.1 status line; the gateway image holds it. |
+| DP-07 | The signer reads its key from `LEXLEAN_MCP_SIGNING_KEY_FILE`, the variable the projection sets for the secret, and no source names the variable without `_FILE`. |
 
 ## Why the gateway is on the host network
 
@@ -57,6 +60,24 @@ signer, verifier and collector are on `backend`, which is internal.
   application in its model document (#216), so there is no digest of PrismPM's to bind instead.
   DP-03 fails whenever the declaration changes, and the constant moves with it.
 
+## Readiness
+
+The projection gives every service but a `job` a healthcheck from its readiness command, and a
+service that depends on another waits for it to be healthy. So each readiness command answers one
+question about its own service:
+
+| Command | Ready when |
+| --- | --- |
+| `gateway-signer ready` | the signer at `LEXLEAN_MCP_SIGNER` can load its key (its `key` request) |
+| `gateway-engine-host ready` | the engine host at `LEXLEAN_MCP_ENGINE` has its store (`{"op":"ready"}`, new) |
+| `gateway-verifier-host ready` | the verifier host at `LEXLEAN_MCP_VERIFIER_HOST` has its verifier program |
+| `gateway-ready` | the gateway answers an HTTP/1.1 status line at `surface::ADDRESS` and `surface::PORT` |
+
+The generated `gateway-host` has no such mode and is not this repository's to change, so
+`gateway-ready` is a program of its own, in the gateway image. It sends a `GET`, which the adapter
+refuses before the core runs, so a probe calls no tool and asks no effect. It reads the address and
+port from the generated host, so it restates neither.
+
 ## Not a PrismPM release root yet
 
 `prismpm check` reads a definition named `systemModel`, or `systemModel` and a suffix, as a release
@@ -78,14 +99,8 @@ PrismPM's formatter writes `loopbackAddress` on five lines and the pinned LexLea
 
 - **No projection and no run.** Nothing here calls PrismPM's projection, and `deploy/images/run.sh`
   still stands where the Compose run will. That is step 2 and step 3 of #17.
-- **Readiness.** The projection gives every non-`job` service a healthcheck from its readiness
-  command. The model names `gateway-signer ready`, `gateway-engine-host ready`,
-  `gateway-verifier-host ready`, `gateway-ready` and `otelcol-contrib validate`. None of the four
-  programs of this repository has that mode yet, and the generated `gateway-host` has none at all,
-  so the gateway image needs a probe of its own. The collector's command checks its configuration,
-  not that it runs.
-- **The signing key's variable.** The projection sets `LEXLEAN_MCP_SIGNING_KEY_FILE` to
-  `/run/secrets/lexlean-mcp-signing-key`. The signer reads `LEXLEAN_MCP_SIGNING_KEY`.
+- **The collector's readiness checks its configuration**, `otelcol-contrib validate`, not that it
+  runs. The upstream image has no command that asks a running collector.
 - **The images are not published.** The model names `ghcr.io/uor-foundation/lexlean-mcp-*`, and
   nothing pushes them (decision 3 on #17).
 - **Two PrismPM pins.** The gateway is built by PrismPM at `706fb746`, which does not contain #502.
@@ -111,6 +126,11 @@ v0.4.0) and `4 passed` for `cargo test -p repo-model --test deployment`; `prismp
 | `loopbackAddress` of the copy set to `0.0.0.0` | `LLV7002` in `Production.HostEffectSystem`: `decide` refutes its own refusal theorems | DP-01: the checksum is not the authority's, and DP-02: `PrismPM's loopback address is 127.0.0.1` |
 | one byte added to `gateway/src/Application.lex.tex` | passes: the gateway is not in this closure | DP-03: `gatewayApplicationDigest is not "sha256:2dc4be89…"` |
 | `deploymentModelFor` named `systemModelFor` | passes | `prismpm check` (SDK `0519fe6e`): `PP2101: system model is not a closed generated data value`, exit 3 |
+| `gateway-signer ready` exits 0 whatever the answer | | `cargo test -p gateway-signer --test ready`: 3 of 5 fail, among them `a_signer_whose_key_is_gone_is_not_ready_and_says_why_dp_05` |
+| the engine host answers ready without its store | | `cargo test -p gateway-engine-host --test ready`: `an_engine_host_without_its_store_is_not_ready_and_says_why_dp_05` |
+| the probe takes any `HTTP/1.` version | | `probe.rs`: `an_answer_that_is_not_http_is_not_ready_dp_06` |
+| the signer back on `LEXLEAN_MCP_SIGNING_KEY` | | DP-07: `gateway/bindings/gateway-signer/src/service.rs does not name LEXLEAN_MCP_SIGNING_KEY_FILE` |
+| the gateway's readiness command `gateway-host` | passes | DP-06: the readiness of `gateway` is not `gateway-ready` |
 | two lines added to `src/Deployment.lex.tex` | | `root_fmt_check`: `src/Deployment.lex.tex is not canonical`, exit 1 |
 
 The application defect passes `lexlean verify`, which is why DP-03 is a test: the gateway is
