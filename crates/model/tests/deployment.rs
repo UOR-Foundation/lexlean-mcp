@@ -86,7 +86,9 @@ fn field(record: &str, field: &str) -> String {
         match c {
             '"' => in_string = !in_string,
             '(' | '{' if !in_string => depth += 1,
-            ')' | '}' if !in_string && depth == 0 => return record[start..start + offset].to_string(),
+            ')' | '}' if !in_string && depth == 0 => {
+                return record[start..start + offset].to_string()
+            }
             ')' | '}' if !in_string => depth -= 1,
             ',' if !in_string && depth == 0 => return record[start..start + offset].to_string(),
             _ => {}
@@ -174,7 +176,10 @@ fn the_gateway_alone_is_on_the_host_network_dp_02() {
     let networks = declaration(&source, "definition", "networks");
     assert!(
         networks.contains("{id := \"backend\", internal := true}")
-            && networks.matches("record Production.HostEffectSystem::Network").count() == 1,
+            && networks
+                .matches("record Production.HostEffectSystem::Network")
+                .count()
+                == 1,
         "backend is the one network and it is internal"
     );
     let listeners = declaration(&source, "definition", "listeners");
@@ -194,11 +199,15 @@ fn the_gateway_alone_is_on_the_host_network_dp_02() {
     );
     let profile = tight(&read("src/Production/HostEffectSystem.lex.tex"));
     assert!(
-        profile.contains("name: loopbackAddress, parameters: [], result: String, body: \"127.0.0.1\""),
+        profile
+            .contains("name: loopbackAddress, parameters: [], result: String, body: \"127.0.0.1\""),
         "PrismPM's loopback address is 127.0.0.1"
     );
     let secrets = declaration(&source, "definition", "secrets");
-    assert_eq!(field(&secrets, "consumers"), "(cons \"signer\" (nil String))");
+    assert_eq!(
+        field(&secrets, "consumers"),
+        "(cons \"signer\" (nil String))"
+    );
 
     let valid = declaration(&source, "theorem", "deploymentIsValidForEveryNamedBuild");
     assert!(
@@ -282,8 +291,15 @@ fn the_effects_are_the_gateway_host_protocol_dp_04() {
         .split_once("proof:")
         .expect("a proof")
         .0;
-    assert_eq!(quoted(statement), gateway, "the deployment's effects are not the gateway's, in order");
-    assert!(stated.contains("proof: decide{}"), "the statement is decided");
+    assert_eq!(
+        quoted(statement),
+        gateway,
+        "the deployment's effects are not the gateway's, in order"
+    );
+    assert!(
+        stated.contains("proof: decide{}"),
+        "the statement is decided"
+    );
 
     let effects = tight(&read("src/Effects.lex.tex"));
     let names = declaration(&effects, "definition", "effectName");
