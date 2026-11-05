@@ -57,6 +57,16 @@ signer, verifier and collector are on `backend`, which is internal.
   application in its model document (#216), so there is no digest of PrismPM's to bind instead.
   DP-03 fails whenever the declaration changes, and the constant moves with it.
 
+## Not a PrismPM release root yet
+
+`prismpm check` reads a definition named `systemModel`, or `systemModel` and a suffix, as a release
+root. A release root must be a record of literals, lists, records and `Option` only, with no
+parameter and no call (`PP2101`). So `deploymentModelFor` is a function of the five images, not a
+release root, and it is named so that the check does not read it as one. The release root PrismPM
+projects, a closed `systemModel` with the digests of one build written out and its
+`…SystemReleaseReady` theorem by `decide`, is generated from it in step 2. With no root, `prismpm
+check` checks the rest of the model as before.
+
 ## The format gate
 
 PrismPM's formatter writes `loopbackAddress` on five lines and the pinned LexLean on one, so
@@ -88,7 +98,8 @@ PrismPM's formatter writes `loopbackAddress` on five lines and the pinned LexLea
 
 Each was applied alone to a copy of the tree, the gates were run, and the copy was removed. The
 unplanted tree gives `verified 6 modules` for `lexlean verify src/Deployment.lex.tex` (LexLean
-v0.4.0) and `4 passed` for `cargo test -p repo-model --test deployment`.
+v0.4.0) and `4 passed` for `cargo test -p repo-model --test deployment`; `prismpm check` in the SDK image of
+`prismpm.lock` passes.
 
 | Defect | `lexlean verify src/Deployment.lex.tex` | `cargo test -p repo-model --test deployment` |
 | --- | --- | --- |
@@ -99,6 +110,7 @@ v0.4.0) and `4 passed` for `cargo test -p repo-model --test deployment`.
 | `task.store` dropped from the effects | `LLV7002` at `theEffectsAreTheGatewaysHostProtocol`: `decide` refutes it | DP-04: the frame and task effects differ |
 | `loopbackAddress` of the copy set to `0.0.0.0` | `LLV7002` in `Production.HostEffectSystem`: `decide` refutes its own refusal theorems | DP-01: the checksum is not the authority's, and DP-02: `PrismPM's loopback address is 127.0.0.1` |
 | one byte added to `gateway/src/Application.lex.tex` | passes: the gateway is not in this closure | DP-03: `gatewayApplicationDigest is not "sha256:2dc4be89…"` |
+| `deploymentModelFor` named `systemModelFor` | passes | `prismpm check` (SDK `0519fe6e`): `PP2101: system model is not a closed generated data value`, exit 3 |
 | two lines added to `src/Deployment.lex.tex` | | `root_fmt_check`: `src/Deployment.lex.tex is not canonical`, exit 1 |
 
 The application defect passes `lexlean verify`, which is why DP-03 is a test: the gateway is

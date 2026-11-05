@@ -213,7 +213,7 @@ fn the_gateway_alone_is_on_the_host_network_dp_02() {
     assert!(
         valid.contains("parameters: [images : Images]")
             && valid.contains(
-                "statement: ((Production.HostEffectSystem::validateManifest (systemModelFor images) (systemManifestFor)) = (imagesNamed images))"
+                "statement: ((Production.HostEffectSystem::validateManifest (deploymentModelFor images) (deploymentManifest)) = (imagesNamed images))"
             )
             && valid.contains("axioms: [propext]"),
         "the validity theorem is for every build and is an equation, not an implication: {valid}"
@@ -260,7 +260,7 @@ fn the_application_digest_is_the_gateway_declaration_dp_03() {
         digest.ends_with(&format!("body: {expected}}}")),
         "gatewayApplicationDigest is not {expected}: the gateway's application changed, so the deployment binds another application"
     );
-    for name in ["profileFor", "systemManifestFor"] {
+    for name in ["profileFor", "deploymentManifest"] {
         let body = declaration(&source, "definition", name);
         assert_eq!(
             field(&body, "applicationModelDigest"),

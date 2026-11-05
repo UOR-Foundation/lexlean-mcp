@@ -194,14 +194,14 @@ definition{
 }
 
 definition{
-  name: systemModelFor,
+  name: deploymentModelFor,
   parameters: [images : Images],
   result: Production.HostEffectSystem::SystemModel,
   body: (record Production.HostEffectSystem::SystemModel {product := (systemProduct), applicationProfile := (profileFor), artifacts := (artifactsFor images), components := (components), parameters := (parameters), secretReferences := (secrets), volumes := (volumes), networks := (networks), listeners := (listeners), targets := (targets)})
 }
 
 definition{
-  name: systemManifestFor,
+  name: deploymentManifest,
   parameters: [],
   result: Production.HostEffectSystem::SystemManifest,
   body: (record Production.HostEffectSystem::SystemManifest {applicationModelDigest := (gatewayApplicationDigest), productId := (project (systemProduct) id), productVersion := (project (systemProduct) version), effects := (hostEffects), listeners := (cons "mcp-endpoint" (nil String))})
@@ -230,7 +230,7 @@ theorem{
 theorem{
   name: onlyTheImagesAreOpen,
   parameters: [images : Images],
-  statement: ((Production.HostEffectSystem::validateManifest (systemModelFor images) (systemManifestFor)) = (((Production.HostEffectSystem::validArtifacts (artifactsFor images)) && true) && true)),
+  statement: ((Production.HostEffectSystem::validateManifest (deploymentModelFor images) (deploymentManifest)) = (((Production.HostEffectSystem::validArtifacts (artifactsFor images)) && true) && true)),
   proof: reflexivity{}
 }
 
@@ -244,7 +244,7 @@ theorem{
 theorem{
   name: deploymentIsValidForEveryNamedBuild,
   parameters: [images : Images],
-  statement: ((Production.HostEffectSystem::validateManifest (systemModelFor images) (systemManifestFor)) = (imagesNamed images)),
+  statement: ((Production.HostEffectSystem::validateManifest (deploymentModelFor images) (deploymentManifest)) = (imagesNamed images)),
   proof: simplify{
     definitions: [
       andTrue,
