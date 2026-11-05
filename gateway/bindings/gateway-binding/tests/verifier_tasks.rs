@@ -78,7 +78,10 @@ fn the_process_gets_the_settings_and_nothing_of_the_key_vp_02() {
         text.contains("LEXLEAN_VERIFY_MEMORY_KIB=12582912\n"),
         "the memory: {text}"
     );
-    assert!(!text.contains("LEXLEAN_MCP_SIGNING_KEY_FILE"), "the variable");
+    assert!(
+        !text.contains("LEXLEAN_MCP_SIGNING_KEY_FILE"),
+        "the variable"
+    );
     assert!(!text.contains(&hex(&SEED)), "the seed");
     assert!(
         !text.contains(key_path.to_str().expect("a path")),
