@@ -1,6 +1,6 @@
 # `prismpm check` on the model
 
-The development SDK image of `prismpm.lock` (PrismPM main `e84124f0`) checks this language-1.2 model.
+The development SDK image of `prismpm.lock` (PrismPM main `3b1cca75`) checks this language-1.2 model.
 `just vv` runs `prismpm check`, so a model it refuses fails the gate. This file records what the model
 had to change, what the check rejects, and what it lets through. Registered as MC-01 to MC-03; the
 tests are `crates/model/tests/model_check.rs`, which read the sources as text and hold the gate in
