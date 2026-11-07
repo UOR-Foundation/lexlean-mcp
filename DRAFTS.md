@@ -150,6 +150,17 @@ directories and never see each other's files. A draft or a profile that is absen
 was changed, a draft of another profile than its record, and a path that the host would not
 write below a project are the host failure `project-refused`.
 
+**What a draft selects.** The `lexlean.toml` of a materialized draft is the profile's, so its
+entrypoints are the profile's, and a draft need not touch them. An Engine tool or `lexlean_verify`
+on a draft that names no `files` (or an empty list) therefore selects the draft's own files, every
+path of the draft, and not those entrypoints (`Resolved::selection` in
+`gateway-binding/src/project.rs`): the command result and the record name the draft's modules and
+the modules they import, and nothing else of the bundle. Before this, such a verification verified
+the profile's entrypoint (`src/Contract.lex.tex` of `prism-app`) and its record named modules the
+draft did not hold, which the `prism-code` client had to guard against (`hosted.coverage`).
+Explicit `files` and `all` select what they select on any project, and a directory project keeps
+its entrypoints. A draft of no files is the profile unchanged, and keeps the entrypoints.
+
 A bundle that holds a symbolic link, anywhere, to a file, a directory, a pipe or nothing at all,
 is refused before the Engine is called, as `project-refused`: the host inspects each entry with
 `symlink_metadata`, refuses an entry that is a link or neither a directory nor a file, and opens
@@ -200,7 +211,7 @@ here, not hidden:
 Each defect was applied to the working tree, the command was run, and the file was restored
 (`git checkout`, then the command again). D1 to D4 are those of the first draft tools; D5 to D7
 are those of the `view`, the `form` and the prose documents; D8 and D9 are those of a draft
-file that replaces a file of the bundle (#84).
+file that replaces a file of the bundle (#84); D10 is that of the default selection of a draft.
 
 | Id | Defect | Command | Diagnostic | Restore |
 | --- | --- | --- | --- | --- |
@@ -213,3 +224,4 @@ file that replaces a file of the bundle (#84).
 | D7 | a prose document sent through the sdk: `View::Stored` of `modules.rs` reads the bytes with `sdk::read_module`, and `store_get` of `lib.rs` no longer returns the stored bytes early (`if false {`) | `cargo test -p gateway-binding --test views` and `cargo test -p gateway-tool-tests --test drafts` (in `gateway/`) | `form_0_stores_the_bytes_as_given_dr_13`, `form_1_stores_what_sdk_assemble_returns_dr_13`, `form_2_stores_what_sdk_write_module_returns_dr_13` and `view_0_is_the_stored_bytes_and_never_the_sdk_dr_12` fail (9 passed, 4 failed), and 13 tests of `drafts.rs` fail, among them `a_prose_document_is_stored_and_read_as_text_dr_14` (66 passed, 13 failed) | the saved `modules.rs` and `lib.rs` (`cmp`); all pass |
 | D8 | no replacement: `copy_bundle` of `materialize.rs` copies every file of the bundle (`} else {` where it skips a path the draft has), so the draft's `create_new` meets the bundle's file | `cargo test -p gateway-binding --test materialize` and `cargo test -p gateway-tool-tests --test drafts dr_07` (in `gateway/`) | `a_file_of_the_draft_replaces_the_file_of_the_bundle_at_its_path_dr_07` fails at `expect("a project")` (17 passed, 1 failed), and `a_draft_of_a_file_the_profile_holds_is_checked_with_the_bytes_of_the_draft_dr_07` finds `project-refused` (7 passed, 1 failed) | the saved `materialize.rs`; 18 passed and 8 passed |
 | D9 | a replaced entry skipped before it is inspected: `copy_bundle` continues on a path the draft has before `symlink_metadata` | `cargo test -p gateway-binding --test materialize` (in `gateway/`) | `a_link_at_a_path_the_draft_replaces_is_refused_dr_08` finds `Ok(".../builds/<id>-<pid>-<n>")` where `Err(Link)` is expected, and `a_draft_file_where_the_bundle_has_a_directory_is_refused_dr_07` finds `Ok(...)` where `Err(Draft)` is expected (16 passed, 2 failed) | the saved `materialize.rs`; 18 passed |
+| D10 | the profile's entrypoints as the default of a draft, the behaviour `prism-code` reported: in `Resolved::selection` of `project.rs` the arm for a draft reads `Some(own) if false && kind == 0 && ...`, so a draft that names no files falls through to the entrypoints | `cargo test -p gateway-tool-tests --test drafts -- --include-ignored without_files two_module_draft` (in `gateway/`, with Lean for the ignored one) | the three tests fail (0 passed, 3 failed): the check of the draft of `Alpha` and `Beta` names `["Tiny"]`, the record of its real verification names `["Tiny"]`, and the first job the verifier is given is `{"files": [], "kind": 0}`, each where the draft's two modules or files are expected | the saved `project.rs`; 3 passed |

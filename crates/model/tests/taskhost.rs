@@ -265,12 +265,12 @@ fn the_task_path_runs_with_the_real_verifier_th_11() {
             "a_real_verification_is_cancelled_through_the_task_th_11",
         ],
     );
-    // The gateway job requires the count of the ignored tests that ran, which includes these two
-    // and the one of TH-13.
+    // The gateway job requires the count of the ignored tests that ran, which includes these two,
+    // the one of TH-13 and the real verification of a draft of DR-07.
     let workflow = read(".github/workflows/lexlean.yml");
     assert!(
-        workflow.contains("gateway_ignored_tests gateway-tool-tests 11 "),
-        "the job requires the eleven ignored tests of the tool tests that it runs"
+        workflow.contains("gateway_ignored_tests gateway-tool-tests 12 "),
+        "the job requires the twelve ignored tests of the tool tests that it runs"
     );
 }
 

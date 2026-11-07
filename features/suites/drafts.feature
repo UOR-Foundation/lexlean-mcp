@@ -39,13 +39,16 @@ Feature: The draft tools
     Then a valid record gives a write, an unknown profile is profile-unknown, each bad record is ProfileRecordMalformed, and no store.put is asked for
 
   @DR-07 @build
-  Scenario: Materialization copies: an Engine tool whose project is the handle of a draft runs on a directory of the builds area that holds the files of the profile bundle and of the draft as regular files of their own and links nothing, a file of the draft replaces the file of the bundle at its path, so a draft can edit the profile's entrypoint, the result equals the result of the same tool on a directory project holding the same files, and a handle whose draft or profile is absent is the host failure project-refused.
+  Scenario: Materialization copies: an Engine tool whose project is the handle of a draft runs on a directory of the builds area that holds the files of the profile bundle and of the draft as regular files of their own and links nothing, a file of the draft replaces the file of the bundle at its path, so a draft can edit the profile's entrypoint, the result equals the result of the same tool on a directory project holding the same files, and a handle whose draft or profile is absent is the host failure project-refused. An Engine tool or a verification of a draft that names no files selects the draft's own files, not the entrypoints of the profile's lexlean.toml, so its command result and its record name the draft's modules and their imports and no other module of the bundle; explicit files and all select what they select on any project, and a draft of no files is the profile unchanged and keeps its entrypoints.
     Given a profile bundle, a draft written under it and the same files as a directory project
     When lexlean_check is called with the handle and with the directory
     Then the results are equal, the materialized directory holds regular files of its own, and an absent draft is project-refused
     Given a profile bundle that holds the entrypoint, and a draft whose file of that path is the module of the directory project
     When lexlean_check is called with the handle and no files
     Then the result is the result of the directory project: the draft's file replaced the bundle's
+    Given a profile bundle that holds its entrypoint, and a draft of two other modules
+    When lexlean_check and lexlean_verify are called with the handle and no files, and with one file
+    Then the selection is the draft's two files, the result names its two modules and not the entrypoint, and one file narrows it to one
 
   @DR-08 @build
   Scenario: A profile bundle that contains a symbolic link is refused, wherever the link lies (a file, a directory, a dangling link, below a subdirectory) and whatever it points at, as the host failure project-refused, before the Engine is called, and no byte is read through the link.

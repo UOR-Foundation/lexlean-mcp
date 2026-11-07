@@ -17,9 +17,29 @@ use crate::telemetry::Telemetry;
 pub struct Resolved {
     directory: PathBuf,
     ephemeral: bool,
+    /// The paths of the files of a draft; `None` for a directory project.
+    draft: Option<Vec<String>>,
 }
 
 impl Resolved {
+    /// The selection a request names, on this project.
+    ///
+    /// A request that names no files (kind 0) selects the entrypoints of a directory project, as
+    /// the CLI does. On a draft it selects the draft's own files: the entrypoints in its
+    /// `lexlean.toml` are the profile's, so selecting them would check or verify the bundle the
+    /// draft was written against rather than the draft (a draft of `src/A.lex.tex` and
+    /// `src/B.lex.tex` was verified as the profile's `src/Contract.lex.tex`). A draft with no
+    /// files is the profile unchanged, and keeps its entrypoints. `all` and `files` mean what they
+    /// mean on any project.
+    pub fn selection(&self, kind: u32, files: &str) -> Result<Selection, String> {
+        match &self.draft {
+            Some(own) if kind == 0 && !own.is_empty() => Ok(Selection::Files(
+                own.iter().map(Utf8PathBuf::from).collect(),
+            )),
+            _ => selection(kind, files),
+        }
+    }
+
     /// The directory the Engine runs on.
     pub fn directory(&self) -> &Path {
         &self.directory
@@ -54,14 +74,16 @@ pub fn resolve(root: &Path, name: &str, limit: usize, telemetry: &Telemetry) -> 
         if drifted {
             telemetry.profile_drift(profile);
         }
-        return materialized.ok().map(|directory| Resolved {
-            directory,
+        return materialized.ok().map(|made| Resolved {
+            directory: made.directory,
             ephemeral: true,
+            draft: Some(made.files),
         });
     }
     directory_project(root, name).map(|directory| Resolved {
         directory,
         ephemeral: false,
+        draft: None,
     })
 }
 
