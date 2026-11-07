@@ -7,6 +7,9 @@
 //!                      "selection":{"kind":0|1|2,"files":["..."]}|{"invalid":"<message>"}}
 //! service -> client   {"class":<0|1|2|4>,"result":"<base64>"}
 //! service -> client   {"refused":"<the name of a Refusal>"}
+//!
+//! client -> service   {"op":"ready"}
+//! service -> client   {"ready":true}, or {"refused":"directory-refused"} when the store is not a directory
 //! ```
 //!
 //! The host has already judged the project and made its directory: the service runs on a directory
@@ -218,6 +221,14 @@ impl Service {
 
     fn answered(&self, line: &[u8]) -> Result<Value, Refusal> {
         let request: Value = serde_json::from_slice(line).map_err(|_| Refusal::Request)?;
+        if request["op"].as_str() == Some("ready") {
+            // Every call runs below the store, so a service without one can answer none of them.
+            return if self.store.is_dir() {
+                Ok(json!({"ready": true}))
+            } else {
+                Err(Refusal::Directory)
+            };
+        }
         let directory = request["directory"].as_str().ok_or(Refusal::Request)?;
         let call = request["call"]
             .as_str()

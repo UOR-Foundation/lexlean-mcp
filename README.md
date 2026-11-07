@@ -104,6 +104,8 @@ oracles of their own (UOR-Foundation/MCP#15).
 | `Features` | the features F1 to F13 and journeys J1 to J6 (#18) as `Foundation.Arch::Feature` and `Foundation.Arch::Journey` definitions with the interface calls and acceptance rows they name, and the kernel theorems that restate PrismPM's rules PP2014 to PP2018 over them (`featuresModelHolds`) |
 | `Store` | the store, persistence and lifecycle model of #13 (register `ST-`): the seven directories of `lexlean-mcp/store/1` with their wire names, the backup set (`verifications`, `keys`, the drafts references), retention as total functions of the bound owner values, the drift check as a total function with the decision order lock, ID, toolchain, the rollout, rollback, upgrade and retirement machine, and AC-14 to AC-17 as theorems over a record-resolution model that rest on `Identity`'s round trip of the profile preimage (`profileRT`) and claim nothing about SHA-256. Attestation signing stays abstract until #11. [STORE.md](STORE.md) holds the claims, what is not met and the planted defects |
 | `Profiles` | the model-side slice of #8 (register `PF-`): the profile file set outside the source roots, matched by whole path component, the profile ID over it through `Identity`, the language rule with `LLC0103`, and the Atlas profile data (293 entries, 86 modules) with the check that all of them are served (`profilesModelHolds`) |
+| `Deployment` | the loopback deployment of #17 (register `DP-`): `mcp-loopback` as a `Production.HostEffectSystem::SystemModel`, the gateway the one `api` on the host network with the listener on `127.0.0.1` at `listen.port`, the other four services on the internal network `backend`, the signing key the signer's alone, the 15 effects of the gateway's host protocol and the digest of its application declaration; `deploymentIsValidForEveryNamedBuild` proves the model valid for every build that names its five images, and only for such a build. [DEPLOYMENT.md](DEPLOYMENT.md) holds what is not met and the planted defects |
+| `Production.Core`, `Production.HostEffectSystem` | PrismPM's host-effect system profile, `prismpm/system-model/3`, byte-identical copies of `stdlib/src/Production/` of PrismPM main at `ecb594bd`, the merge of PrismPM#502 (DP-01) |
 | `Foundation.Arch` | the architecture vocabulary, a byte-identical copy of `stdlib/src/Foundation/Arch.lex.tex` of PrismPM main at `d11ace6f` (FJ-09) |
 | `Foundation.Sec`, `Foundation.Qual` | the security and quality vocabularies (copies of the PrismPM stdlib modules, as in prism-code) |
 
@@ -141,6 +143,8 @@ This is an instance of the [UOR template](https://github.com/UOR-Foundation/temp
   Engine calls in a program of their own, what is not met, and the defects planted in its gates.
 - [PROFILES.md](PROFILES.md) states what the profiles model claims and does not
   claim and the defects planted in its laws.
+- [DEPLOYMENT.md](DEPLOYMENT.md) states what the deployment model claims (DP-01 to DP-04), what is
+  not met, and the defects planted in its gates.
 - [CI.md](CI.md) describes the workflow that runs every gate that works without
   the SDK, and how to read its failures.
 

@@ -34,4 +34,5 @@ claim = [
   { id = "AUTH-14", level = "some-true", statement = "W3C Trace Context Level 1 gives the grammar and the validity rules of traceparent and the rule that tracestate is not parsed after a traceparent that fails to parse.", authority = "A-W3C-TRACE-CONTEXT" },
   { id = "AUTH-15", level = "some-true", statement = "W3C Baggage gives the minimum limits of 64 list-members and 8192 bytes.", authority = "A-W3C-BAGGAGE" },
   { id = "AUTH-16", level = "some-true", statement = "The lexicon lexlean.uor.atlas@1.0.0 of LexLean v0.4.0 at `e0b74b8` is language 1.0 with 293 entries that are document denotations into the module Atlas, and examples/uor-atlas holds 86 core modules.", authority = "A-LEXLEAN-ATLAS" },
+  { id = "AUTH-17", level = "some-true", statement = "PrismPM ecb594bd projects a prismpm/system-model/3 api component onto the host network with no published port, where the 127.0.0.1 its listener binds is the host's loopback, and every other component onto its declared networks.", authority = "A-PRISMPM-SYSTEM" },
 ]

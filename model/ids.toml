@@ -28,6 +28,7 @@
 # binding and its acceptance vectors) registers GW-01..GW-09.
 # The executable measures of Q2 and Q8 of issue #15 register QM-01 to QM-08: two rows that
 # reproduce the pinned LexLean (its public API and its diagnostic registry) and six that are checked here.
+# The loopback deployment of issue #17 as a PrismPM host-effect system model registers DP-01 to DP-07.
 # The features F1 to F13 and journeys J1 to J6 of issue #18 register FJ-01..FJ-10: the
 # model-side slice; prismpm check runs their rules since MC-01.
 # The observability model of issue #16 registers OB-01..OB-10: three rows that reproduce
@@ -1091,7 +1092,7 @@ statement = "A verification whose evidence cannot be kept whole leaves no record
 id = "SG-16"
 level = "build"
 suite = "signing"
-statement = "The signer is a program of its own and the only holder of the key: gateway-signer reads the key file from LEXLEAN_MCP_SIGNING_KEY at each request and answers on the Unix socket LEXLEAN_MCP_SIGNER with mode 0600, it writes the key history below LEXLEAN_MCP_STORE, the crate that holds it links no compiler and no generated package, and the host has no configuration for a key, loads none and links no signature library outside its tests, so that a key named in the environment of the host signs nothing."
+statement = "The signer is a program of its own and the only holder of the key: gateway-signer reads the key file from LEXLEAN_MCP_SIGNING_KEY_FILE at each request and answers on the Unix socket LEXLEAN_MCP_SIGNER with mode 0600, it writes the key history below LEXLEAN_MCP_STORE, the crate that holds it links no compiler and no generated package, and the host has no configuration for a key, loads none and links no signature library outside its tests, so that a key named in the environment of the host signs nothing."
 
 [[id]]
 id = "SG-17"
@@ -1199,7 +1200,7 @@ statement = "Each gate of the verifier host rejects its planted defect: the sock
 id = "IM-01"
 level = "build"
 suite = "images"
-statement = "Each service has an image of its own, defined in deploy/images: gateway-host, gateway-engine-host, gateway-signer, gateway-verifier-host with gateway-verifier, and the telemetry collector; each definition starts from a base named by its digest, has no RUN step and runs as user 65532, and each image holds its own program and no other service's."
+statement = "Each service has an image of its own, defined in deploy/images: gateway-host with its readiness command gateway-ready, gateway-engine-host, gateway-signer, gateway-verifier-host with gateway-verifier, and the telemetry collector; each definition starts from a base named by its digest, has no RUN step and runs as user 65532, and each image holds its own program and no other service's."
 
 [[id]]
 id = "IM-02"
@@ -1241,7 +1242,7 @@ statement = "The verifier is a program that speaks lines of JSON: gateway-verifi
 id = "VP-02"
 level = "build"
 suite = "verifier"
-statement = "Each task runs in a process of its own that does not hold the key: the verifier host starts its program (LEXLEAN_MCP_VERIFIER, else gateway-verifier beside it) with the width and the memory of the owner values in LEXLEAN_VERIFY_WIDTH and LEXLEAN_VERIFY_MEMORY_KIB, without LEXLEAN_MCP_SIGNING_KEY in its environment and with nothing of the seed or of the path of the key file in its arguments, its environment or its input; when no verifier host answers or its program is not a file, verify.start fails with verifier-unavailable, starts no task and leaves nothing in the builds area."
+statement = "Each task runs in a process of its own that does not hold the key: the verifier host starts its program (LEXLEAN_MCP_VERIFIER, else gateway-verifier beside it) with the width and the memory of the owner values in LEXLEAN_VERIFY_WIDTH and LEXLEAN_VERIFY_MEMORY_KIB, without LEXLEAN_MCP_SIGNING_KEY_FILE in its environment and with nothing of the seed or of the path of the key file in its arguments, its environment or its input; when no verifier host answers or its program is not a file, verify.start fails with verifier-unavailable, starts no task and leaves nothing in the builds area."
 
 [[id]]
 id = "VP-03"
@@ -1458,3 +1459,45 @@ id = "EX-06"
 level = "build"
 suite = "present"
 statement = "Each gate of lexlean_export rejects its planted defect: a rendering left out of the bundle, the key history left out, the envelope replaced by attestation.json, and the evidence not checked before the first write; PRESENT.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "DP-01"
+level = "build"
+suite = "deployment"
+statement = "Production.Core and Production.HostEffectSystem of this repository are, byte for byte, the two standard library files of PrismPM ecb594bd: the SHA-256 over their path-sorted manifest equals the checksum of the authority A-PRISMPM-SYSTEM."
+
+[[id]]
+id = "DP-02"
+level = "build"
+suite = "deployment"
+statement = "The deployment mcp-loopback is a Production.HostEffectSystem system model whose only api component is the gateway, which declares no network and owns the one listener, on 127.0.0.1 at the owner value listen.port; every other component is on the internal network backend alone, the signing key is the signer's alone, and lexlean verify proves that validateManifest accepts the model for every build that names its five images and only for such a build."
+
+[[id]]
+id = "DP-03"
+level = "build"
+suite = "deployment"
+statement = "The application model digest the deployment binds, in its profile and its manifest, is sha256: followed by the SHA-256 of gateway/src/Application.lex.tex, the declaration of the server application the gateway serves."
+
+[[id]]
+id = "DP-04"
+level = "build"
+suite = "deployment"
+statement = "The effects the deployment declares are the host protocol of the gateway: the 15 effect names of gateway/src/Application.lex.tex, in its order, which begin with the ten names of src/Effects.lex.tex in the order of allEffects."
+
+[[id]]
+id = "DP-05"
+level = "build"
+suite = "deployment"
+statement = "gateway-signer ready, gateway-engine-host ready and gateway-verifier-host ready, the readiness commands the deployment names, ask the service at the socket their environment names whether it can serve and exit 0 only on its yes: the signer can load its key, the engine host has its store, the verifier host has its verifier program. With no socket variable, no service at the socket, or a service that says no, each exits 1 and says why; any other argument is a usage error, exit 64."
+
+[[id]]
+id = "DP-06"
+level = "build"
+suite = "deployment"
+statement = "gateway-ready, the readiness command of the gateway, connects to the address and port of the gateway's served declaration, surface::ADDRESS and surface::PORT of the generated host, and exits 0 only when the answer begins with an HTTP/1.1 status line; with nothing listening, or an answer that is not HTTP, it exits 1 and says why. The gateway image holds gateway-host and gateway-ready."
+
+[[id]]
+id = "DP-07"
+level = "build"
+suite = "deployment"
+statement = "The signer reads its key from the file LEXLEAN_MCP_SIGNING_KEY_FILE names, the variable PrismPM's projection sets for the secret lexlean-mcp-signing-key, and the verifier host removes that variable from the environment of a verifier process; no source of the gateway names LEXLEAN_MCP_SIGNING_KEY without the suffix _FILE."

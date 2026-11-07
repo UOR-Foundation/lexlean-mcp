@@ -22,7 +22,7 @@ is a test that stands where the projection will. When PrismPM's release arrives,
 
 | Image | Holds | Network | Shares with the gateway |
 | --- | --- | --- | --- |
-| `gateway` | `gateway-host` | none but loopback | |
+| `gateway` | `gateway-host`, `gateway-ready` | none but loopback | |
 | `engine-host` | `gateway-engine-host` | none but loopback | its socket, the store |
 | `signer` | `gateway-signer` | none but loopback | its socket, the store |
 | `verifier` | `gateway-verifier-host`, `gateway-verifier`, Lean | none but loopback | its socket, the store |
@@ -66,12 +66,12 @@ in an image.
 
 ## Not met
 
-- **A published port cannot reach the gateway.** The model declares `address := "127.0.0.1"`
-  (`gateway/src/Application.lex.tex`), so in a container the gateway listens on that container's own
-  loopback, and Docker forwards a published port to the container's interface. PrismPM's audit of the
-  Compose projection refuses host networking. So `mcp-loopback` cannot work as both are declared: the
-  serving address, or the projection, has to change. The test client shares the gateway's namespace
-  for this reason. This is a decision for the system model, and nothing here settles it.
+- **A published port cannot reach the gateway**, as long as the gateway is on a bridge network. The
+  model declares `address := "127.0.0.1"` (`gateway/src/Application.lex.tex`), and Docker forwards a
+  published port to the container's interface. The test client shares the gateway's namespace for
+  this reason. PrismPM#502 settles it in the projection: an `api` component runs on the host network
+  and publishes no port. The deployment model (`DEPLOYMENT.md`) places the gateway so; this run does
+  not use it yet.
 - **No Compose projection and no deployment exist.** `-p 127.0.0.1` is unexercised, and AC-03 and
   AC-10 as deployed stay open. The system model `mcp-loopback` is not written.
 - **R6 stays `Pending`.** The measurement names the deployment. This run shows that a verification

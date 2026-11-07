@@ -60,6 +60,13 @@ client() {
   docker exec "$prefix-client" python3 -I /exercise.py "$@"
 }
 
+# The readiness command the deployment names for a service, run in its container (DP-05, DP-06).
+ready() {
+  local name=$1
+  shift
+  docker exec "$prefix-$name" "/usr/local/bin/$1" "${@:2}"
+}
+
 in_container() {
   docker exec "$prefix-$1" sh -c "$2"
 }
@@ -161,7 +168,7 @@ no_lean() {
 
 no_key() {
   in_container "$1" 'test ! -e /run/signing/signing.key' &&
-    ! docker inspect --format '{{json .Config.Env}}' "$prefix-$1" | grep -q LEXLEAN_MCP_SIGNING_KEY
+    ! docker inspect --format '{{json .Config.Env}}' "$prefix-$1" | grep -q LEXLEAN_MCP_SIGNING_KEY_FILE
 }
 
 runs_as_65532() {
@@ -222,7 +229,7 @@ module_text=$(grep -rh -m1 -E 'name:' "$root/gateway/vectors/fixture/tiny/src" |
 
 service signer signer --volume "$work/store:/store" --volume "$work/sockets/signer:/sockets" \
   --volume "$work/key:/run/signing:ro" --env LEXLEAN_MCP_STORE=/store \
-  --env LEXLEAN_MCP_SIGNER=/sockets/signer.sock --env LEXLEAN_MCP_SIGNING_KEY=/run/signing/signing.key
+  --env LEXLEAN_MCP_SIGNER=/sockets/signer.sock --env LEXLEAN_MCP_SIGNING_KEY_FILE=/run/signing/signing.key
 service engine-host engine-host --volume "$work/store:/store" --volume "$work/sockets/engine:/sockets" \
   --env LEXLEAN_MCP_STORE=/store --env LEXLEAN_MCP_ENGINE=/sockets/engine.sock
 service verifier verifier --volume "$work/store:/store" --volume "$work/sockets/verifier:/sockets" \
@@ -241,6 +248,10 @@ docker run --detach --name "$prefix-client" --network "container:$prefix-gateway
   --volume "$here/exercise.py:/exercise.py:ro" --entrypoint sleep "$client_image" infinity >/dev/null
 
 check "the gateway answers from its image" client ready
+check "the gateway is ready by its readiness command" ready gateway gateway-ready
+check "the signer is ready by its readiness command" ready signer gateway-signer ready
+check "the engine host is ready by its readiness command" ready engine-host gateway-engine-host ready
+check "the verifier host is ready by its readiness command" ready verifier gateway-verifier-host ready
 check "the gateway runs as user 65532" runs_as_65532 gateway
 check "the engine host runs as user 65532" runs_as_65532 engine-host
 check "the signer runs as user 65532" runs_as_65532 signer
@@ -251,7 +262,7 @@ check "the signer has no network but loopback" only_loopback signer
 check "the gateway holds no Lean" no_lean gateway
 check "the engine host holds no Lean" no_lean engine-host
 check "the signer holds no Lean" no_lean signer
-check "the gateway holds its program alone" holds_only gateway gateway-host
+check "the gateway holds its program and its readiness command alone" holds_only gateway "gateway-host gateway-ready"
 check "the engine host holds its program alone" holds_only engine-host gateway-engine-host
 check "the signer holds its program alone" holds_only signer gateway-signer
 check "the verifier holds its two programs alone" holds_only verifier "gateway-verifier gateway-verifier-host"
