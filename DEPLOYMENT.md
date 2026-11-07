@@ -58,7 +58,8 @@ signer, verifier and collector are on `backend`, which is internal.
   varied would block the proof. The gateway's application is source, so it is bound here:
   `sha256:` and the SHA-256 of `gateway/src/Application.lex.tex`. PrismPM does not yet put a server
   application in its model document (#216), so there is no digest of PrismPM's to bind instead.
-  DP-03 fails whenever the declaration changes, and the constant moves with it.
+  DP-03 fails whenever the declaration changes, and the constant moves with it. A release root needs
+  more than this constant (below).
 
 ## Readiness
 
@@ -88,6 +89,17 @@ projects, a closed `systemModel` with the digests of one build written out and i
 `…SystemReleaseReady` theorem by `decide`, is generated from it in step 2. With no root, `prismpm
 check` checks the rest of the model as before.
 
+A release root also needs its application in the same source graph. `prismpm check` takes as the
+application the one module of the checked project that defines an `…Application` record, and
+refuses a release whose `applicationModelDigest` is not the digest of that module's model document
+(`PP2101`). The root project has no such module, so PrismPM digests the whole root graph, which holds
+the release and so the digest itself. A dry run in the SDK of PrismPM `3b1cca75` showed it: binding
+the digest PrismPM reported only moved the digest it asked for. The gateway's application is a
+`Foundation.Server.V1.Model::ServerApplication`, and that module and its `prism.arch` vocabulary
+exist only on PrismPM#342 (`706fb746`), not on PrismPM main or in any SDK. Step 2 therefore waits on
+#342 reaching an SDK; the root project then carries the application's three modules as byte copies,
+and DP-03 binds the digest PrismPM computes for them.
+
 ## The format gate
 
 PrismPM's formatter writes `loopbackAddress` on five lines and the pinned LexLean on one, so
@@ -103,8 +115,10 @@ PrismPM's formatter writes `loopbackAddress` on five lines and the pinned LexLea
   runs. The upstream image has no command that asks a running collector.
 - **The images are not published.** The model names `ghcr.io/uor-foundation/lexlean-mcp-*`, and
   nothing pushes them (decision 3 on #17).
-- **Two PrismPM pins.** The gateway is built by PrismPM at `706fb746`, which does not contain #502.
-  The profile copied here is from `ecb594bd`. Which PrismPM runs the projection is decision 1 on #17.
+- **Two PrismPM revisions.** The gateway is built by PrismPM#342 at `706fb746`, which does not
+  contain #502. The profile copied here is from `ecb594bd`, and the projection runs in the SDK of
+  `prismpm.lock`, which #87 re-binds to a candidate of `3b1cca75` with #502. The server application
+  the release must import is on #342 alone (above).
 - **R6 for the gateway.** On the host network the gateway has egress. `Security` is not changed
   here (decision 2 on #17).
 - **Linux only.** Host networking means something else on Docker Desktop for macOS and Windows.
