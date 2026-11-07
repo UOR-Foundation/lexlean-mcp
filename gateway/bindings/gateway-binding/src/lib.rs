@@ -136,7 +136,7 @@ impl Native {
                 gateway_engine_host::client::call(
                     socket,
                     resolved.directory(),
-                    &project::selection(selection, files),
+                    &resolved.selection(selection, files),
                     call,
                 )
             });
@@ -416,7 +416,7 @@ impl Host for Native {
         ) else {
             return Err(HostError::Failed(verify_start::Failure::ProjectRefused));
         };
-        let selection = match project::selection(request.selection, &request.files) {
+        let selection = match resolved.selection(request.selection, &request.files) {
             Ok(selection) => selection,
             Err(_) => return Err(HostError::Failed(verify_start::Failure::ProjectRefused)),
         };

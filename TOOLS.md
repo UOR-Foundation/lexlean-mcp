@@ -30,7 +30,8 @@ them and returns them twice: as the text of the result, and as its `structuredCo
 | `lexlean_build` | `lexlean build` | `project`, `files`, `all` | the command result, `command: "build"`, with `build_id` and the artifact |
 
 `files` selects the files named (a path with a line feed is refused as invalid arguments),
-`all` selects every module, and neither selects the entrypoints, as the CLI's default does.
+`all` selects every module, and neither selects the entrypoints, as the CLI's default does; on
+the handle of a draft, giving neither selects the draft's own files (DRAFTS.md, `DR-07`).
 `all` together with a non-empty `files` is invalid arguments, as the CLI's flags are
 exclusive. The input schemas are closed (`additionalProperties: false`) and `project` is
 required. A call that breaks a schema is refused by the core before the tool runs, as an

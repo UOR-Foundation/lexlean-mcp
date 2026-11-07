@@ -673,6 +673,188 @@ fn a_verification_of_a_draft_starts_on_a_copy_dr_07() {
     assert!(reply.structured()["task"].as_str().is_some());
 }
 
+/// The module of the tiny project's form named `name`: its path and its text.
+fn module_named(name: &str) -> (String, String) {
+    (
+        format!("src/{name}.lex.tex"),
+        tiny_text().replace("{Tiny}", &format!("{{{name}}}")),
+    )
+}
+
+/// The handle of a draft of two modules, `Alpha` and `Beta`, under a profile that holds its own
+/// entrypoint, the module `Tiny`, which the draft does not touch. A selection of the profile's
+/// entrypoints would name `Tiny` and neither module of the draft.
+fn two_module_draft(gateway: &mut Gateway) -> String {
+    let held = gateway.profile("tiny").join(SOURCE);
+    std::fs::create_dir_all(held.parent().expect("a source root")).expect("a source root");
+    std::fs::write(&held, tiny_text()).expect("a file");
+    let (alpha_path, alpha) = module_named("Alpha");
+    let (beta_path, beta) = module_named("Beta");
+    handle(&write(
+        gateway,
+        "tiny",
+        &[(&alpha_path, &alpha), (&beta_path, &beta)],
+    ))
+}
+
+#[test]
+fn a_check_of_a_draft_without_files_covers_the_drafts_own_modules_dr_07() {
+    let mut gateway = with_profile();
+    let draft = two_module_draft(&mut gateway);
+    // `prism-code` sends no `files`; the schema also admits an empty list. Both are the default.
+    for arguments in [
+        json!({"project": draft}),
+        json!({"project": draft, "files": []}),
+    ] {
+        let reply = gateway.call("lexlean_check", arguments);
+        assert!(!reply.is_error(), "{}", reply.body);
+        assert_eq!(
+            reply.structured()["modules"],
+            json!(["Alpha", "Beta"]),
+            "the draft's modules, and not the profile's entrypoint"
+        );
+    }
+    let narrowed = gateway.call(
+        "lexlean_check",
+        json!({"project": draft, "files": ["src/Beta.lex.tex"]}),
+    );
+    assert!(!narrowed.is_error(), "{}", narrowed.body);
+    assert_eq!(
+        narrowed.structured()["modules"],
+        json!(["Beta"]),
+        "explicit files narrow the selection"
+    );
+    let every = gateway.call("lexlean_check", json!({"project": draft, "all": true}));
+    assert!(!every.is_error(), "{}", every.body);
+    assert_eq!(
+        every.structured()["modules"],
+        json!(["Alpha", "Beta", "Tiny"]),
+        "all is every module of the project, the bundle's included"
+    );
+}
+
+/// A verifier program that appends the job line it is given to `jobs` and exits without a
+/// verdict, so that its task ends (`verifier-lost`) and the next one starts at once.
+fn recording_verifier(program: &Path, jobs: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    let script = format!(
+        "#!/bin/sh\nprintf '{{\"event\":\"started\",\"sid\":null}}\\n'\nIFS= read -r job\nprintf '%s\\n' \"$job\" >> '{}'\n",
+        jobs.display()
+    );
+    std::fs::write(program, script).expect("a script");
+    std::fs::set_permissions(program, std::fs::Permissions::from_mode(0o755)).expect("a mode");
+}
+
+/// The selections of the first `count` jobs that `jobs` recorded, waiting for them to arrive.
+fn recorded_selections(jobs: &Path, count: usize) -> Vec<Value> {
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    loop {
+        let text = std::fs::read_to_string(jobs).unwrap_or_default();
+        let lines: Vec<&str> = text.lines().collect();
+        if lines.len() >= count {
+            return lines[..count]
+                .iter()
+                .map(|line| {
+                    serde_json::from_str::<Value>(line).expect("a job line")["selection"].clone()
+                })
+                .collect();
+        }
+        assert!(
+            std::time::Instant::now() < until,
+            "{} of {count} jobs arrived",
+            lines.len()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+#[test]
+fn a_verification_of_a_draft_without_files_selects_the_drafts_own_files_dr_07() {
+    let scratch = tempfile::tempdir().expect("a directory");
+    let program = scratch.path().join("verifier");
+    let jobs = scratch.path().join("jobs");
+    recording_verifier(&program, &jobs);
+    let mut gateway = Gateway::with_verifier_program(program);
+    gateway.provision("tiny", &Gateway::record(PROFILE_ID));
+    gateway.install("dir", &tiny());
+    let draft = two_module_draft(&mut gateway);
+    // One task runs at a time and the queue is in order, so the jobs arrive in the order of the
+    // calls.
+    for arguments in [
+        json!({"project": draft}),
+        json!({"project": draft, "files": ["src/Beta.lex.tex"]}),
+        json!({"project": "dir"}),
+    ] {
+        let reply = gateway.call("lexlean_verify", arguments);
+        assert!(!reply.is_error(), "{}", reply.body);
+    }
+    assert_eq!(
+        recorded_selections(&jobs, 3),
+        [
+            json!({"kind": 2, "files": ["src/Alpha.lex.tex", "src/Beta.lex.tex"]}),
+            json!({"kind": 2, "files": ["src/Beta.lex.tex"]}),
+            json!({"kind": 0, "files": []}),
+        ],
+        "a draft's default is its own files, explicit files narrow it, and a directory project \
+         keeps its entrypoints"
+    );
+}
+
+/// The result of the verification `task` once it has ended verified, waiting at most fifteen
+/// minutes.
+fn verified_result(gateway: &mut Gateway, task: &str) -> Value {
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(900);
+    loop {
+        let reply = gateway.call(
+            "lexlean_verify_control",
+            json!({"task": task, "action": "status"}),
+        );
+        let state = reply.structured()["state"].as_str().unwrap_or_default();
+        if !matches!(state, "queued" | "running") {
+            assert_eq!(state, "verified", "{}", reply.body);
+            return serde_json::from_str(reply.text()).expect("the result of the verifier");
+        }
+        assert!(
+            std::time::Instant::now() < until,
+            "the verification did not end"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+}
+
+#[test]
+#[ignore = "runs a real verification, which needs the Lean toolchain: the gateway job of .github/workflows/lexlean.yml runs it with --ignored and requires the count"]
+fn a_verification_of_a_two_module_draft_names_exactly_its_modules_dr_07() {
+    let mut gateway = Gateway::with_real_verifier();
+    gateway.provision("tiny", &Gateway::record(PROFILE_ID));
+    let draft = two_module_draft(&mut gateway);
+    let started = gateway.call("lexlean_verify", json!({"project": draft}));
+    assert!(!started.is_error(), "{}", started.body);
+    let task = started.structured()["task"]
+        .as_str()
+        .expect("a task")
+        .to_string();
+    assert_eq!(
+        verified_result(&mut gateway, &task)["modules"],
+        json!(["Alpha", "Beta"]),
+        "the record names the draft's modules, and nothing of the profile's"
+    );
+    let started = gateway.call(
+        "lexlean_verify",
+        json!({"project": draft, "files": ["src/Alpha.lex.tex"]}),
+    );
+    assert!(!started.is_error(), "{}", started.body);
+    let task = started.structured()["task"]
+        .as_str()
+        .expect("a task")
+        .to_string();
+    assert_eq!(
+        verified_result(&mut gateway, &task)["modules"],
+        json!(["Alpha"]),
+        "explicit files narrow the verification"
+    );
+}
+
 // ---- DR-08 (AC-09) -----------------------------------------------------------------------------
 
 /// A symbolic link in a bundle: `place` is where it lies below the profile, `target` what it

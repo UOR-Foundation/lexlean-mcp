@@ -240,7 +240,7 @@ fn the_verify_fixtures_give_the_result_of_the_cli_vp_07() {
     );
     assert!(
         workflow.contains(
-            "gateway_ignored_tests gateway-tool-tests 11 the_verify_fixtures_give_the_result_of_the_cli_vp_07"
+            "gateway_ignored_tests gateway-tool-tests 12 the_verify_fixtures_give_the_result_of_the_cli_vp_07"
         ),
         "the gateway job skips the verify fixtures"
     );
@@ -289,7 +289,7 @@ fn every_example_verifies_beside_the_cli_vp_08() {
     );
     assert!(
         workflow.contains(
-            "gateway_ignored_tests gateway-tool-tests 11 the_verify_fixtures_give_the_result_of_the_cli_vp_07 every_example_verifies_beside_the_cli_vp_08"
+            "gateway_ignored_tests gateway-tool-tests 12 the_verify_fixtures_give_the_result_of_the_cli_vp_07 every_example_verifies_beside_the_cli_vp_08"
         ),
         "the gateway job skips it"
     );

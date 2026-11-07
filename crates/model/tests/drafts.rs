@@ -318,6 +318,9 @@ fn a_draft_is_materialized_by_copy_dr_07() {
             "a_file_of_the_draft_replaces_the_file_of_the_bundle_at_its_path_dr_07",
             "a_draft_file_where_the_bundle_has_a_directory_is_refused_dr_07",
             "a_draft_of_a_file_the_profile_holds_is_checked_with_the_bytes_of_the_draft_dr_07",
+            "a_check_of_a_draft_without_files_covers_the_drafts_own_modules_dr_07",
+            "a_verification_of_a_draft_without_files_selects_the_drafts_own_files_dr_07",
+            "a_verification_of_a_two_module_draft_names_exactly_its_modules_dr_07",
         ],
     );
 }

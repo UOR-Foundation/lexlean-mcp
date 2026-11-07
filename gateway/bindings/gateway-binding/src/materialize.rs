@@ -199,7 +199,17 @@ fn copy_file(source: &Path, target: &Path) -> Result<(), Refused> {
 /// Materialize the draft `<profile>/<id>` of the store at `root` as a directory of the `builds`
 /// area, and return it. `limit` is the most bytes a draft may have.
 pub fn materialize(root: &Path, profile: &str, id: &str, limit: usize) -> Result<PathBuf, Refused> {
-    materialize_noting(root, profile, id, limit, &mut false)
+    materialize_noting(root, profile, id, limit, &mut false).map(|made| made.directory)
+}
+
+/// A materialized draft: its directory, and the paths of the draft's own files in it.
+#[derive(Debug)]
+pub struct Materialized {
+    /// The project directory, in the `builds` area.
+    pub directory: PathBuf,
+    /// The paths of the files of the draft, in the order of the preimage. The rest of the
+    /// directory is the profile bundle, which the author did not write.
+    pub files: Vec<String>,
 }
 
 /// `materialize`, setting `drifted` when the draft names a profile identity that the installed
@@ -210,7 +220,7 @@ pub fn materialize_noting(
     id: &str,
     limit: usize,
     drifted: &mut bool,
-) -> Result<PathBuf, Refused> {
+) -> Result<Materialized, Refused> {
     let blob = store::read(root, 1, &format!("{profile}/{id}"), limit)
         .map_err(|_| Refused::Draft)?
         .ok_or(Refused::Draft)?;
@@ -266,7 +276,15 @@ pub fn materialize_noting(
         Ok(())
     })();
     match done {
-        Ok(()) => Ok(project),
+        Ok(()) => Ok(Materialized {
+            directory: project,
+            // Every path was checked as UTF-8 above.
+            files: rows
+                .iter()
+                .filter_map(|(path, _)| std::str::from_utf8(path).ok())
+                .map(str::to_owned)
+                .collect(),
+        }),
         Err(refused) => {
             let _ = fs::remove_dir_all(&project);
             Err(refused)
