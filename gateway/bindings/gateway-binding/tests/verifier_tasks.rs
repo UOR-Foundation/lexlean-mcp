@@ -61,11 +61,11 @@ fn the_process_gets_the_settings_and_nothing_of_the_key_vp_02() {
     let dir = tempfile::tempdir().expect("a directory");
     let key_path = dir.path().join("signing.key");
     // The variable is set for the host, as an operator sets it, so that its removal is observed.
-    std::env::set_var("LEXLEAN_MCP_SIGNING_KEY", &key_path);
+    std::env::set_var("LEXLEAN_MCP_SIGNING_KEY_FILE", &key_path);
     let mut host = host_with(dir.path(), |config| config);
     let (task, _) = task(&mut host, "t1", "verified");
     wait_for(&mut host, &task, State::Verified);
-    std::env::remove_var("LEXLEAN_MCP_SIGNING_KEY");
+    std::env::remove_var("LEXLEAN_MCP_SIGNING_KEY_FILE");
 
     let seen = found_in_drafts(&host, "seen");
     assert_eq!(seen.len(), 1, "one process saw one task");
@@ -78,7 +78,10 @@ fn the_process_gets_the_settings_and_nothing_of_the_key_vp_02() {
         text.contains("LEXLEAN_VERIFY_MEMORY_KIB=12582912\n"),
         "the memory: {text}"
     );
-    assert!(!text.contains("LEXLEAN_MCP_SIGNING_KEY"), "the variable");
+    assert!(
+        !text.contains("LEXLEAN_MCP_SIGNING_KEY_FILE"),
+        "the variable"
+    );
     assert!(!text.contains(&hex(&SEED)), "the seed");
     assert!(
         !text.contains(key_path.to_str().expect("a path")),

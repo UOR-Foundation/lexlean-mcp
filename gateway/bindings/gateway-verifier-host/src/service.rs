@@ -51,7 +51,7 @@ pub const PROGRAM_VARIABLE: &str = "LEXLEAN_MCP_VERIFIER";
 
 /// The environment variable of the signing key, which only the signer reads: it is removed in case
 /// an operator set it here too.
-pub const SIGNING_KEY_VARIABLE: &str = "LEXLEAN_MCP_SIGNING_KEY";
+pub const SIGNING_KEY_VARIABLE: &str = "LEXLEAN_MCP_SIGNING_KEY_FILE";
 
 /// The most bytes of the first line of a connection. A job is a directory and a list of files.
 pub const MAX_REQUEST_BYTES: u64 = 16_777_216;

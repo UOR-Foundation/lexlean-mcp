@@ -1,5 +1,7 @@
 //! The side of the host: the process of a task, through the socket of `gateway-verifier-host`.
 
+use std::ffi::OsString;
+use std::fmt;
 use std::io::{BufRead, BufReader, Lines, Write};
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
@@ -8,7 +10,7 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
-use crate::service::{refusal_named, Refusal, TIMEOUT};
+use crate::service::{refusal_named, Refusal, TIMEOUT, VERIFIER_HOST_VARIABLE};
 
 /// Why a task has no process.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,6 +61,40 @@ pub fn ready(socket: &Path) -> bool {
         &json!({"op": "ready"}),
     )
     .is_ok_and(|answer| answer["ready"] == true)
+}
+
+/// Why `gateway-verifier-host ready`, the readiness command of the deployment, said no. It exits 1
+/// with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotReady {
+    /// `LEXLEAN_MCP_VERIFIER_HOST` is not set, or is empty.
+    NoSocket,
+    /// Nothing answered at the socket, or the service has no verifier program to start.
+    NotReady,
+}
+
+impl fmt::Display for NotReady {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NotReady::NoSocket => write!(formatter, "{VERIFIER_HOST_VARIABLE} is not set"),
+            NotReady::NotReady => formatter
+                .write_str("the verifier host is not ready: no answer, or no verifier program"),
+        }
+    }
+}
+
+impl std::error::Error for NotReady {}
+
+/// `ready` at the socket the variables `lookup` gives name. A variable that is empty is not set.
+pub fn ready_from_variables(lookup: impl Fn(&str) -> Option<OsString>) -> Result<(), NotReady> {
+    let socket = lookup(VERIFIER_HOST_VARIABLE)
+        .filter(|value| !value.is_empty())
+        .ok_or(NotReady::NoSocket)?;
+    if ready(Path::new(&socket)) {
+        Ok(())
+    } else {
+        Err(NotReady::NotReady)
+    }
 }
 
 /// What a task asks of its process.

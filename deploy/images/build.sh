@@ -44,7 +44,7 @@ toolchain=$work/toolchain
 mkdir -p "$toolchain"
 tar --zstd --extract --strip-components=1 --file "$cache/$archive" --directory "$toolchain"
 
-build gateway "$release/gateway-host"
+build gateway "$release/gateway-host" "$release/gateway-ready"
 build engine-host "$release/gateway-engine-host"
 build signer "$release/gateway-signer"
 build verifier "$release/gateway-verifier-host" "$release/gateway-verifier" "$toolchain"

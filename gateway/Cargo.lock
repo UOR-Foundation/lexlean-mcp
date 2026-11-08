@@ -314,6 +314,13 @@ name = "gateway-host-api"
 version = "0.1.0"
 
 [[package]]
+name = "gateway-ready"
+version = "0.1.0"
+dependencies = [
+ "gateway-host",
+]
+
+[[package]]
 name = "gateway-signer"
 version = "0.1.0"
 dependencies = [

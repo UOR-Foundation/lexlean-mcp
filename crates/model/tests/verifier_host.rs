@@ -110,9 +110,9 @@ fn the_host_has_no_process_of_its_own_vs_01() {
     );
     // The name of the key's variable is the signer's, spelled again so that this crate need not link it.
     assert!(
-        read(SERVICE).contains("SIGNING_KEY_VARIABLE: &str = \"LEXLEAN_MCP_SIGNING_KEY\"")
+        read(SERVICE).contains("SIGNING_KEY_VARIABLE: &str = \"LEXLEAN_MCP_SIGNING_KEY_FILE\"")
             && read("gateway/bindings/gateway-signer/src/service.rs")
-                .contains("SIGNING_KEY_VARIABLE: &str = \"LEXLEAN_MCP_SIGNING_KEY\""),
+                .contains("SIGNING_KEY_VARIABLE: &str = \"LEXLEAN_MCP_SIGNING_KEY_FILE\""),
         "both name the same variable"
     );
     let workflow = read(".github/workflows/lexlean.yml");

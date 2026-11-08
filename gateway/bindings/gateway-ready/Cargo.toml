@@ -1,0 +1,19 @@
+[package]
+name = "gateway-ready"
+description = "The readiness command of the LexLean MCP gateway: whether the served gateway answers HTTP at the address and port its declaration serves."
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "gateway-ready"
+path = "src/bin/gateway-ready.rs"
+
+# The generated host, for its served address and port alone (`surface`), so that the probe
+# restates neither.
+[dependencies]
+gateway-host = { path = "../../gateway-host" }
+
+[lints.rust]
+missing_docs = "deny"

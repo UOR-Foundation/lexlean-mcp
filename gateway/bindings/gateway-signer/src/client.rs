@@ -1,5 +1,7 @@
 //! The side of the host: signing through the socket of `gateway-signer`, with no key in this process.
 
+use std::ffi::OsString;
+use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
@@ -8,7 +10,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
-use crate::service::{refusal_named, MAX_REQUEST_BYTES, TIMEOUT};
+use crate::service::{refusal_name, refusal_named, MAX_REQUEST_BYTES, SIGNER_VARIABLE, TIMEOUT};
 use crate::signer::{RecordSigner, SignError};
 
 /// A signer that answered at its socket.
@@ -28,6 +30,39 @@ impl SignerClient {
         }
         Ok(SignerClient { socket })
     }
+}
+
+/// Why `gateway-signer ready`, the readiness command of the deployment, said no. It exits 1 with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotReady {
+    /// `LEXLEAN_MCP_SIGNER` is not set, or is empty.
+    NoSocket,
+    /// The signer at the socket did not say it can load its key; the name is the refusal, and
+    /// `unavailable` when nothing answered.
+    Refused(&'static str),
+}
+
+impl fmt::Display for NotReady {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NotReady::NoSocket => write!(formatter, "{SIGNER_VARIABLE} is not set"),
+            NotReady::Refused(name) => write!(formatter, "the signer is not ready: {name}"),
+        }
+    }
+}
+
+impl std::error::Error for NotReady {}
+
+/// Whether the signer at the socket the variables `lookup` gives name can load its key: the
+/// question a deployment asks before it starts what depends on the signer. A variable that is
+/// empty is not set.
+pub fn ready_from_variables(lookup: impl Fn(&str) -> Option<OsString>) -> Result<(), NotReady> {
+    let socket = lookup(SIGNER_VARIABLE)
+        .filter(|value| !value.is_empty())
+        .ok_or(NotReady::NoSocket)?;
+    SignerClient::ready(PathBuf::from(socket))
+        .map(|_| ())
+        .map_err(|error| NotReady::Refused(refusal_name(error)))
 }
 
 impl RecordSigner for SignerClient {
