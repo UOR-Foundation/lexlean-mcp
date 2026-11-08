@@ -65,7 +65,7 @@ what is and is not met.
   states where each feature and journey comes from and which rows await the owner.
 - The closed host effect set of #7 is declared (EF-01 to EF-08, `EFFECTS.md`): E1 to E10, a total codec, the negative theorem and the acceptance vectors. The generated host adapter and the `gateway` binary wait on PrismPM#216 and MCP#14 and are not built.
 - The repository is bound to a development SDK image, not to a PrismPM SDK release (#4):
-  `prismpm.lock` selects the candidate built from PrismPM main `e84124f0`, on which `just vv`
+  `prismpm.lock` selects the candidate built from PrismPM main `3b1cca75`, on which `just vv`
   and `prismpm check` pass. [MODEL-CHECK.md](MODEL-CHECK.md) states what that check rejects and
   what it does not.
 - v0.1.0 is tracked in #20, with its upstream dependencies in LexLean, PrismPM,
