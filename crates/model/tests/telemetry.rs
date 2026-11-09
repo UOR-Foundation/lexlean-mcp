@@ -1,4 +1,4 @@
-//! OB-11 to OB-14: the observability runtime of issue #16.
+//! OB-11 to OB-15: the observability runtime of issue #16.
 //!
 //! The behavior is tested where the host runs: `gateway/bindings/gateway-binding/tests/
 //! telemetry.rs`. These tests read it as text and hold the rows against the tests that answer
@@ -104,4 +104,19 @@ fn trace_context_and_no_notification_ob_14() {
             "no_log_message_notification_is_emitted_ob_14",
         ],
     );
+}
+
+#[test]
+fn served_requests_end_their_own_spans_ob_15() {
+    answered_by(
+        "OB-15",
+        &[
+            "each_request_ends_its_own_span_with_its_method_and_error_ob_15",
+            "a_failed_tool_is_the_class_of_its_own_request_ob_15",
+        ],
+    );
+    // The host implements the generated host's per-request methods, keyed by the request's number.
+    let host = read(&format!("{BINDING}/src/lib.rs"));
+    assert!(host.contains("fn request_begin(&mut self, id: u64, request: &[u8])"));
+    assert!(host.contains("fn request_end(&mut self, id: u64, request: &[u8], response: &[u8])"));
 }
