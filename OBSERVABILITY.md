@@ -50,14 +50,19 @@ lexicon search query. A profile label that is not a profile name is `other`.
 message, which the tests check (`no_log_message_notification_is_emitted_ob_14`); the
 model's `Emitted` is the set of notifications the server may send.
 
-The driver of the gateway binary (PrismPM's generated host) reads the request, calls
-`Native::telemetry().begin_request(meta)` with the `_meta` of the request, and ends
-the scope with the method, the class of a failed tool and the protocol error code of
-the answer; it calls `flush` to export the metrics. That driver is generated and
-not in this repository, so the call is the one thing this change does not make
-(it needs a per-request hook in the generated host, UOR-Foundation/PrismPM#429): the
-request span and S2 are emitted when it does. Every other indicator is emitted by
-the host as it acts.
+The served driver of the gateway (PrismPM's generated host, at the pin of
+`.github/prismpm.rev`) calls two methods of the host for each request it answers
+(UOR-Foundation/PrismPM#429): `request_begin` with the request's number and body
+before the core runs, and `request_end` with the same number, the body and the
+answer after the answer is written. `Native` begins the span with the request's
+`_meta` (`begin_request`), keeps it by the number, and ends it with the JSON-RPC
+method, the class of a tool of that request that failed and the protocol error
+code of the answer (a JSON message, or the last answering message of an event
+stream); `end` counts the request and its error (S2), and `flush` exports the
+metrics after each request. Connections are served on threads that share the host,
+so the calls of two requests interleave: the span is found by the number, and a
+tool's failure (`engine_call`) is the request's that its thread serves (OB-15).
+Every other indicator is emitted by the host as it acts.
 
 ### Planted defects of the runtime
 
@@ -72,6 +77,8 @@ run (the rest run in the gateway job). Restoring the file passes all of them.
 | OB-13 | a profile label is kept as given | `no_telemetry_record_contains_module_text_ob_13` |
 | OB-14 | the forbidden version `ff` is accepted | `a_malformed_traceparent_restarts_the_trace_and_drops_tracestate_ob_14` |
 | OB-14 | `tracestate` is kept after a refused `traceparent` | `a_malformed_traceparent_restarts_the_trace_and_drops_tracestate_ob_14` |
+| OB-15 | `request_end` ends the most recent span instead of the request's own | `each_request_ends_its_own_span_with_its_method_and_error_ob_15` |
+| OB-15 | a tool's failure is recorded on the latest request instead of its thread's | `a_failed_tool_is_the_class_of_its_own_request_ob_15` |
 
 ## Decisions the model makes
 

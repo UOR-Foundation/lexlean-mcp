@@ -196,6 +196,7 @@ model does not sanction.
 | `OB-12` | `build` | Each alert of the model (classes 2, 3 and 70, a failed child group end, a profile drift and a signing failure) fires as an error log record on its planted condition inside the window of its objective, fires on no healthy condition, and a lost verifier raises the class 70 alert. |
 | `OB-13` | `build` | No telemetry record the host emits contains module text, call arguments or a lexicon search query: the text passes through redact, which keeps nothing, and a profile label that is not a profile name is other; a span carries the trace of the request's _meta. |
 | `OB-14` | `build` | The host reads traceparent, tracestate and baggage from _meta as the model's extract does, restarting the trace on a malformed traceparent and dropping tracestate over 512 and baggage over 8192 bytes, and it emits no notification or log message. |
+| `OB-15` | `build` | The host implements the generated host's per-request methods: request_begin continues the trace the request's _meta carries, request_end ends that request's span with its JSON-RPC method, the class of a tool of that request that failed and the protocol error code of its answer, counts the request and its protocol error (S2) and exports the metrics; spans pair by the request's number, so requests whose calls interleave keep their own, and a tool's failure is the request's whose call it was. |
 
 ## owner-values
 
