@@ -446,7 +446,11 @@ fn each_request_ends_its_own_span_with_its_method_and_error_ob_15() {
     // The calls of two requests interleave, as on two connections.
     host.request_begin(0, &call);
     host.request_begin(1, &list);
-    host.request_end(1, &list, br#"{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}"#);
+    host.request_end(
+        1,
+        &list,
+        br#"{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}"#,
+    );
     host.request_end(
         0,
         &call,
@@ -460,10 +464,16 @@ fn each_request_ends_its_own_span_with_its_method_and_error_ob_15() {
     assert_eq!(spans[1]["name"], "example/first");
     assert_eq!(spans[1]["traceId"], "4bf92f3577b34da6a3ce929d0e0e4736");
     assert_eq!(spans[1]["parentSpanId"], "00f067aa0ba902b7");
-    assert_eq!(span_attribute(&spans[1], "rpc.error_code").as_deref(), Some("-32602"));
+    assert_eq!(
+        span_attribute(&spans[1], "rpc.error_code").as_deref(),
+        Some("-32602")
+    );
     // S2: both requests are counted, and the one protocol error by its code.
     assert_eq!(probe.counter(names::REQUESTS, &[]), 2);
-    assert_eq!(probe.counter(names::PROTOCOL_ERRORS, &[("code", "-32602")]), 1);
+    assert_eq!(
+        probe.counter(names::PROTOCOL_ERRORS, &[("code", "-32602")]),
+        1
+    );
     // The arguments of the call are withheld like every other free text.
     for line in sink.lines() {
         assert!(!line.contains(SECRET), "{line}");
@@ -486,7 +496,10 @@ fn a_failed_tool_is_the_class_of_its_own_request_ob_15() {
     host.request_begin(0, &call);
     // Another connection's request is in flight on its own thread while the tool runs here.
     std::thread::scope(|scope| {
-        scope.spawn(|| host.request_begin(1, &list)).join().expect("a thread");
+        scope
+            .spawn(|| host.request_begin(1, &list))
+            .join()
+            .expect("a thread");
     });
     let outcome = host.engine_check(engine_check::Request {
         project: "tiny".to_string(),
@@ -500,9 +513,25 @@ fn a_failed_tool_is_the_class_of_its_own_request_ob_15() {
             .join()
             .expect("a thread");
     });
-    host.request_end(0, &call, br#"{"jsonrpc":"2.0","id":1,"result":{"isError":true}}"#);
+    host.request_end(
+        0,
+        &call,
+        br#"{"jsonrpc":"2.0","id":1,"result":{"isError":true}}"#,
+    );
     let spans = spans(&sink);
-    let named = |name: &str| spans.iter().find(|span| span["name"] == name).cloned().expect(name);
-    assert_eq!(span_attribute(&named("example/first"), "error.class").as_deref(), Some("3"));
-    assert_eq!(span_attribute(&named("example/second"), "error.class"), None);
+    let named = |name: &str| {
+        spans
+            .iter()
+            .find(|span| span["name"] == name)
+            .cloned()
+            .expect(name)
+    };
+    assert_eq!(
+        span_attribute(&named("example/first"), "error.class").as_deref(),
+        Some("3")
+    );
+    assert_eq!(
+        span_attribute(&named("example/second"), "error.class"),
+        None
+    );
 }
