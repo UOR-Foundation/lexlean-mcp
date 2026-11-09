@@ -594,7 +594,7 @@ fn the_gaps_of_a_request_are_recorded_as_fingerprints_ob_16() {
     meta["traceparent"] = json!(TRACEPARENT);
     telemetry
         .begin_request(Some(&meta))
-        .end("tools/call", None, None);
+        .end("example/call", None, None);
     let records = gap_records(&sink);
     assert_eq!(records.len(), 4);
     let kinds: Vec<&str> = records.iter().map(|r| r["gap.kind"].as_str()).collect();
@@ -619,7 +619,7 @@ fn the_gaps_of_a_request_are_recorded_as_fingerprints_ob_16() {
     let (quiet, quiet_sink) = memory();
     quiet
         .begin_request(Some(&json!({"traceparent": TRACEPARENT})))
-        .end("tools/call", None, None);
+        .end("example/call", None, None);
     assert!(gap_records(&quiet_sink).is_empty());
 }
 
@@ -648,7 +648,7 @@ fn a_gap_that_is_not_a_fingerprint_is_dropped_ob_16() {
     gaps.push(beside);
     telemetry
         .begin_request(Some(&batch(Value::Array(gaps))))
-        .end("tools/call", None, None);
+        .end("example/call", None, None);
     assert_eq!(
         gap_records(&sink).len(),
         2,
@@ -691,7 +691,7 @@ fn a_served_request_records_the_gaps_its_meta_carries_ob_16() {
         telemetry,
     );
     let call = request(
-        "tools/call",
+        "example/call",
         batch(
             json!([{"kind": "refusal", "construct": "outcome.unknown", "code": null, "version": "0.6.0", "count": 1}]),
         ),

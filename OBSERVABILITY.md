@@ -146,12 +146,18 @@ run (the rest run in the gateway job). Restoring the file passes all of them.
 | OB-17 | a code label is kept as given | `a_tool_outcome_and_a_verification_carry_profile_and_code_ob_17`: no outcome labelled `other` |
 | OB-17 | a warning is taken for the first error | `the_first_error_code_is_read_from_the_result_ob_17`: `LLV7002` where `LLV7005` is expected |
 | OB-17 | S1 drops the profile label | `a_tool_outcome_and_a_verification_carry_profile_and_code_ob_17`: no outcome labelled `prism-app` |
+| OB-18 | installs counted per record, not distinct | `the_demand_report_ranks_gaps_by_installs_times_and_blocking_ob_18`: 3 installs where 2 are expected |
+| OB-18 | a construct with digits is counted | `the_demand_report_ranks_gaps_by_installs_times_and_blocking_ob_18`: `fields.amount987654` is ranked |
+| OB-18 | `issues` lists GitHub without `--apply` | `the_demand_report_ranks_gaps_by_installs_times_and_blocking_ob_18`: the stand-in `gh` runs |
+| OB-18 | a cumulative S1 series is summed | `the_demand_report_ranks_gaps_by_installs_times_and_blocking_ob_18`: 4 where 3 is expected |
 
 The rows of OB-16 and OB-17 were planted in `telemetry.rs` compiled on its own, with
 the tests of `tests/telemetry.rs` that need neither the generated host nor the fake
 verifier, at Rust 1.97.1; the gateway job runs all of them, and the host's emission
 sites are held by `cargo test -p repo-model --test telemetry`
 (`outcomes_carry_profile_and_code_ob_17`, `gaps_are_recorded_as_fingerprints_ob_16`).
+The rows of OB-18 were planted in `deploy/demand.py` and rejected by
+`cargo test -p repo-model --test telemetry`; the restored file is byte-identical and passes.
 
 ## Decisions the model makes
 

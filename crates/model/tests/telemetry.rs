@@ -234,6 +234,8 @@ fn the_demand_report_ranks_gaps_by_installs_times_and_blocking_ob_18() {
     let lines = [
         gap_line("refusal", "fields.too-many", "none", &a, 2),
         gap_line("refusal", "fields.too-many", "none", &b, 1),
+        // The same install again, in a later batch: one more time, not one more install.
+        gap_line("refusal", "fields.too-many", "none", &a, 1),
         gap_line("unproved", "always:choice-is", "LLV7002", &a, 2),
         gap_line("refusal", "outcome.unknown", "none", &a, 1),
         // Forged lines: text where a fingerprint has a value. None of them is counted.
@@ -265,7 +267,7 @@ fn the_demand_report_ranks_gaps_by_installs_times_and_blocking_ob_18() {
     assert_eq!(
         ranked,
         [
-            ("fields.too-many".to_owned(), 2, 3, false, 6),
+            ("fields.too-many".to_owned(), 2, 4, false, 8),
             ("always:choice-is".to_owned(), 1, 2, true, 4),
             ("outcome.unknown".to_owned(), 1, 1, false, 1),
         ]
@@ -286,7 +288,7 @@ fn the_demand_report_ranks_gaps_by_installs_times_and_blocking_ob_18() {
     let plan = demand(&bin, &["issues", "--repo", "example/repo", path]);
     assert_eq!(
         plan.lines().next(),
-        Some("would open or update: demand: refusal fields.too-many (score 6)")
+        Some("would open or update: demand: refusal fields.too-many (score 8)")
     );
     assert!(!bin.join("gh-ran").exists(), "gh ran without --apply");
     std::fs::remove_dir_all(&bin).ok();
