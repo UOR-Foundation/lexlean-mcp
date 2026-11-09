@@ -7,7 +7,9 @@
 # Development imports upstream commits; a release pins only upstream releases. This pin
 # moves to the PrismPM SDK release that contains PrismPM#216 before lexlean-mcp v0.1.0.
 #
-# Currently: PrismPM main at the merge of #572, with the whole server application of #216
-# (#561, #564, #570) and the per-request methods of the generated host (#429), which the
-# gateway's telemetry implements (#16).
-rev = 15f630aa6deec5d6490ac22e222381fa28d6f17d
+# Currently: backport/request-hooks-on-706fb746, which is #342's head (706fb746) with the
+# per-request methods of the generated host (PrismPM#429, merged on main as #572) that the
+# gateway's telemetry implements (#16). PrismPM main requires LexLean 0.4 and the gateway is
+# compiled by the LexLean that MCP pins (0.3), so this pin returns to PrismPM main once
+# UOR-Foundation/MCP#5 moves MCP to LexLean 0.4.
+rev = 2e79f50908fb466216dcc396d6eb734762eaaa7f
