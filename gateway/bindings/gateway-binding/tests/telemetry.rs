@@ -441,8 +441,8 @@ fn each_request_ends_its_own_span_with_its_method_and_error_ob_15() {
         gateway_binding::Config::at(directory.path().join("store")),
         telemetry,
     );
-    let call = request("tools/call", json!({"traceparent": TRACEPARENT}));
-    let list = request("tools/list", json!({}));
+    let call = request("example/first", json!({"traceparent": TRACEPARENT}));
+    let list = request("example/second", json!({}));
     // The calls of two requests interleave, as on two connections.
     host.request_begin(0, &call);
     host.request_begin(1, &list);
@@ -454,10 +454,10 @@ fn each_request_ends_its_own_span_with_its_method_and_error_ob_15() {
     );
     let spans = spans(&sink);
     assert_eq!(spans.len(), 2, "{spans:?}");
-    assert_eq!(spans[0]["name"], "tools/list");
+    assert_eq!(spans[0]["name"], "example/second");
     assert_eq!(span_attribute(&spans[0], "rpc.error_code"), None);
     assert_ne!(spans[0]["traceId"], "4bf92f3577b34da6a3ce929d0e0e4736");
-    assert_eq!(spans[1]["name"], "tools/call");
+    assert_eq!(spans[1]["name"], "example/first");
     assert_eq!(spans[1]["traceId"], "4bf92f3577b34da6a3ce929d0e0e4736");
     assert_eq!(spans[1]["parentSpanId"], "00f067aa0ba902b7");
     assert_eq!(span_attribute(&spans[1], "rpc.error_code").as_deref(), Some("-32602"));
@@ -481,8 +481,8 @@ fn a_failed_tool_is_the_class_of_its_own_request_ob_15() {
         telemetry,
     );
     install_draft(&host, None);
-    let call = request("tools/call", json!({}));
-    let list = request("tools/list", json!({}));
+    let call = request("example/first", json!({}));
+    let list = request("example/second", json!({}));
     host.request_begin(0, &call);
     // Another connection's request is in flight on its own thread while the tool runs here.
     std::thread::scope(|scope| {
@@ -503,6 +503,6 @@ fn a_failed_tool_is_the_class_of_its_own_request_ob_15() {
     host.request_end(0, &call, br#"{"jsonrpc":"2.0","id":1,"result":{"isError":true}}"#);
     let spans = spans(&sink);
     let named = |name: &str| spans.iter().find(|span| span["name"] == name).cloned().expect(name);
-    assert_eq!(span_attribute(&named("tools/call"), "error.class").as_deref(), Some("3"));
-    assert_eq!(span_attribute(&named("tools/list"), "error.class"), None);
+    assert_eq!(span_attribute(&named("example/first"), "error.class").as_deref(), Some("3"));
+    assert_eq!(span_attribute(&named("example/second"), "error.class"), None);
 }
