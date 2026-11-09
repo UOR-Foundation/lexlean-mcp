@@ -17,6 +17,7 @@ holds the module, this file and the authorities to one statement.
 | `traceparent`, `tracestate`, `baggage` from a request's `_meta` | `parseTraceparent`, `extract` | modeled (OB-07, OB-08) |
 | The server notifications that can be emitted | `Emitted` | modeled (OB-09) |
 | Emission as OpenTelemetry logs, metrics and spans, the alerts, redaction and the trace context in the host | `gateway/bindings/gateway-binding/src/telemetry.rs` | built, tested without Lean (OB-11 to OB-14, below) |
+| The gaps prism-code reports in `_meta`, and the profile and diagnostic code on S1 and S4 | `gaps_of`, `Telemetry::gaps`, `first_error_code` | built, tested without Lean (OB-16, OB-17, below); not in the model, which they leave as it is: they add no free-text field, only labels from closed grammars |
 | Spans of the requests, and the protocol errors by code | `Telemetry::begin_request`, `RequestScope::end` | built; the driver of the gateway binary calls them (below) |
 | A collector receiving the file | `deploy/images/collector.Containerfile` | built; an alert reaches it in the run of the images (IM-04, `IMAGES.md`) |
 | Alert routing | the operator's | not built here |
@@ -31,10 +32,10 @@ names are the metric names; `lexlean_mcp.requests` is the denominator of S2.
 
 | Indicator | Emitted where |
 | --- | --- |
-| S1 tool outcome by class | the four Engine tools in `engine_call`, and a verification when it ends (`verifier::end_telemetry`); class 5 of the host is exit code 70 |
+| S1 tool outcome by class, profile and code | the four Engine tools in `engine_call`, and a verification when it ends (`verifier::end_telemetry`); class 5 of the host is exit code 70 |
 | S2 protocol errors by code | `RequestScope::end` |
 | S3 check latency | `engine_call` for `check`, labelled by the profile of the draft handle |
-| S4 verify duration and outcome | `verifier::end_telemetry` |
+| S4 verify duration and outcome, by profile and code | `verifier::end_telemetry` |
 | S5 queue wait | `verifier::launch`, from the queueing to the start of the process |
 | S6 child group ends | `verifier::settle`, from the groups a cancelled process reports |
 | S7 profile drift | `materialize_noting`: the profile record no longer names the identity a draft was made for |
@@ -42,10 +43,11 @@ names are the metric names; `lexlean_mcp.requests` is the denominator of S2.
 
 An alert is an `ERROR` log record whose `alert` attribute names it and whose `count`
 is the number of its events inside the window of its objective (300 s; 3600 s for
-drift). The thresholds are zero, so one event fires it. Nothing else is emitted as
-a log: the body of every record is `[redacted]`, and the arguments, query and status
-of a span are the same. No entry point keeps the text of a module, an argument or a
-lexicon search query. A profile label that is not a profile name is `other`.
+drift). The thresholds are zero, so one event fires it. The only other log record
+is a gap (below). The body of every record is `[redacted]`, and the arguments, query
+and status of a span are the same. No entry point keeps the text of a module, an
+argument or a lexicon search query. A profile label that is not a profile name is
+`other`.
 `notifications/message` is never emitted: nothing in the module is a JSON-RPC
 message, which the tests check (`no_log_message_notification_is_emitted_ob_14`); the
 model's `Emitted` is the set of notifications the server may send.
@@ -64,6 +66,64 @@ so the calls of two requests interleave: the span is found by the number, and a
 tool's failure (`engine_call`) is the request's that its thread serves (OB-15).
 Every other indicator is emitted by the host as it acts.
 
+### What users needed: gaps and codes
+
+Two records say which LexLean and Prism capabilities users need, ranked by demand,
+with no work for a user or an agent and no endpoint of their own.
+
+**Gaps (OB-16).** prism-code records what its users asked for that Prism or Lean
+could not do, as fingerprints, and sends the unsent ones in the `_meta` of its next
+call to this server, under `foundation.uor/prism-gaps`:
+
+```json
+{"schema": "prism/gaps/1", "install": "<32 lowercase hex>", "gaps": [
+  {"kind": "refusal", "construct": "fields.too-many", "code": null, "version": "0.6.0", "count": 2},
+  {"kind": "unproved", "construct": "always:choice-is+number-le-field", "code": "LLV7002", "version": "0.6.0", "count": 1}
+]}
+```
+
+`begin_request` reads the batch with the trace context, and each gap becomes one
+`INFO` log record in the request's trace, `event` `gap`, with the attributes
+`gap.kind`, `gap.construct`, `gap.code` (`none` when null), `gap.version`,
+`gap.count` and `gap.install`. Every field has a closed grammar, and a gap with any
+field outside it is dropped whole: the kind is one of `refusal`, `roundtrip`,
+`unproved`, `model-refused`; a refusal rule is two words of lowercase letters and
+hyphens joined by a dot; a round trip names a part of a spec, and may add a refusal
+rule after a colon; an unproved property is `always` or `never` and its comparisons
+from a fixed set; a refused model names an SDK step; a code is a diagnostic code;
+a version is `x.y.z` with an optional `-alpha.n`, `-beta.n` or `-rc.n`; the count is
+1 to 10000; the install ID is 32 lowercase hexadecimal digits, drawn by the client
+and derived from nothing. Outside a code and a version no grammar admits a digit, so
+no number a user wrote fits. At most 64 gaps of one request are read. prism-code
+holds its side to the same fingerprints (`sdk/npm/prism-code/src/gaps.mjs` in
+PrismPM), and a user turns it off there with `PRISM_TELEMETRY=0` or `DO_NOT_TRACK=1`.
+
+**Codes (OB-17).** S1 and S4 carry the profile of the draft and the code of the
+first error of the result (`first_error_code`: the first diagnostic that is not a
+warning), so a failure says which part of LexLean a draft needed, not only its
+class. A code is `LL` and a letter, or `PP`, and four digits; a result with no error
+is `none`, and a text that is not a code is `other`.
+
+**The report (OB-18).** `deploy/demand.py` reads the OTLP/JSON file, the gateway's
+or a collector's, and ranks the gaps by fingerprint: distinct installs, times
+recorded, and whether it blocks a build (an unproved property, a refused model, or a
+round trip a refusal stopped), scored as installs x times x 2 when it blocks. Beside
+them it lists the failed tools of S1 by profile and code; S1 is cumulative, so each
+series counts its largest value, and a restart between two files undercounts. It
+holds every value it reads to the gateway's grammar, so a hand-edited file cannot
+put text in a report.
+
+```sh
+python3 -I deploy/demand.py report /telemetry/otlp.jsonl
+python3 -I deploy/demand.py issues --repo UOR-Foundation/lexlean-mcp /telemetry/otlp.jsonl          # the plan
+python3 -I deploy/demand.py issues --repo UOR-Foundation/lexlean-mcp --apply /telemetry/otlp.jsonl  # gh opens or updates them
+```
+
+`issues` keeps one issue per fingerprint, labelled `demand` and found by its title,
+and changes nothing on GitHub without `--apply`. Whether a collector reads the
+production file is the operator's: the images run one (IM-04), which writes what it
+received to a file and forwards nothing.
+
 ### Planted defects of the runtime
 
 Each defect was applied to `telemetry.rs` and the tests of
@@ -79,6 +139,19 @@ run (the rest run in the gateway job). Restoring the file passes all of them.
 | OB-14 | `tracestate` is kept after a refused `traceparent` | `a_malformed_traceparent_restarts_the_trace_and_drops_tracestate_ob_14` |
 | OB-15 | `request_end` ends the most recent span instead of the request's own | `each_request_ends_its_own_span_with_its_method_and_error_ob_15` |
 | OB-15 | a tool's failure is recorded on the latest request instead of its thread's | `a_failed_tool_is_the_class_of_its_own_request_ob_15` |
+| OB-16 | a word of a refusal rule admits digits, so `fields.amount987654` is kept | `a_gap_that_is_not_a_fingerprint_is_dropped_ob_16`: 3 gap records where 2 are expected |
+| OB-16 | `begin_request` does not read the gaps of `_meta` | `the_gaps_of_a_request_are_recorded_as_fingerprints_ob_16`: 0 gap records where 4 are expected |
+| OB-16 | the install ID's length is not checked | `a_gap_that_is_not_a_fingerprint_is_dropped_ob_16`: a 33-digit ID is kept |
+| OB-16 | the install ID is not held to hexadecimal | `a_gap_that_is_not_a_fingerprint_is_dropped_ob_16`: `secretmoduletextsecretmoduletext` is kept |
+| OB-17 | a code label is kept as given | `a_tool_outcome_and_a_verification_carry_profile_and_code_ob_17`: no outcome labelled `other` |
+| OB-17 | a warning is taken for the first error | `the_first_error_code_is_read_from_the_result_ob_17`: `LLV7002` where `LLV7005` is expected |
+| OB-17 | S1 drops the profile label | `a_tool_outcome_and_a_verification_carry_profile_and_code_ob_17`: no outcome labelled `prism-app` |
+
+The rows of OB-16 and OB-17 were planted in `telemetry.rs` compiled on its own, with
+the tests of `tests/telemetry.rs` that need neither the generated host nor the fake
+verifier, at Rust 1.97.1; the gateway job runs all of them, and the host's emission
+sites are held by `cargo test -p repo-model --test telemetry`
+(`outcomes_carry_profile_and_code_ob_17`, `gaps_are_recorded_as_fingerprints_ob_16`).
 
 ## Decisions the model makes
 

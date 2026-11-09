@@ -1,10 +1,12 @@
-//! OB-11 to OB-15: the observability runtime of issue #16.
+//! OB-11 to OB-17: the observability runtime of issue #16.
 //!
 //! The behavior is tested where the host runs: `gateway/bindings/gateway-binding/tests/
 //! telemetry.rs`. These tests read it as text and hold the rows against the tests that answer
 //! them, and the indicators against the places the host emits them.
 
 use std::collections::BTreeSet;
+
+use serde_json::json;
 
 const BINDING: &str = "gateway/bindings/gateway-binding";
 
@@ -119,4 +121,174 @@ fn served_requests_end_their_own_spans_ob_15() {
     let host = read(&format!("{BINDING}/src/lib.rs"));
     assert!(host.contains("fn request_begin(&mut self, id: u64, request: &[u8])"));
     assert!(host.contains("fn request_end(&mut self, id: u64, request: &[u8], response: &[u8])"));
+}
+
+#[test]
+fn gaps_are_recorded_as_fingerprints_ob_16() {
+    answered_by(
+        "OB-16",
+        &[
+            "the_gaps_of_a_request_are_recorded_as_fingerprints_ob_16",
+            "a_gap_that_is_not_a_fingerprint_is_dropped_ob_16",
+            "a_served_request_records_the_gaps_its_meta_carries_ob_16",
+        ],
+    );
+    // The gaps are read where every request's _meta is: when its span begins.
+    let module = read(&format!("{BINDING}/src/telemetry.rs"));
+    assert!(module.contains("self.gaps(meta, extraction.parent.as_ref());"));
+}
+
+#[test]
+fn outcomes_carry_profile_and_code_ob_17() {
+    answered_by(
+        "OB-17",
+        &[
+            "a_tool_outcome_and_a_verification_carry_profile_and_code_ob_17",
+            "the_first_error_code_is_read_from_the_result_ob_17",
+            "a_failed_verification_reports_its_code_and_profile_ob_17",
+        ],
+    );
+    // Both emission sites of S1, and the one of S4, pass the code of the first error.
+    let host =
+        read(&format!("{BINDING}/src/lib.rs")) + &read(&format!("{BINDING}/src/verifier.rs"));
+    assert_eq!(
+        host.matches("first_error_code(").count(),
+        2,
+        "the Engine tools and the verifier"
+    );
+    assert!(host.contains(".tool_outcome(class, profile, code.as_deref())"));
+    assert!(host.contains(".tool_outcome(class, &task.profile, code.as_deref())"));
+}
+
+// OB-18: the demand report
+
+/// One gap record as the gateway writes it.
+fn gap_line(kind: &str, construct: &str, code: &str, install: &str, count: u64) -> String {
+    let attribute = |key: &str, value: &str| json!({"key": key, "value": {"stringValue": value}});
+    json!({"resourceLogs": [{"scopeLogs": [{"logRecords": [{
+        "severityText": "INFO",
+        "body": {"stringValue": "[redacted]"},
+        "attributes": [
+            attribute("gap.kind", kind),
+            attribute("gap.construct", construct),
+            attribute("gap.code", code),
+            attribute("gap.version", "0.6.0"),
+            attribute("gap.count", &count.to_string()),
+            attribute("gap.install", install),
+            attribute("event", "gap"),
+        ],
+    }]}]}]})
+    .to_string()
+}
+
+/// One export of S1 with a failed series of `count`.
+fn outcome_line(count: u64) -> String {
+    let attribute = |key: &str, value: &str| json!({"key": key, "value": {"stringValue": value}});
+    json!({"resourceMetrics": [{"scopeMetrics": [{"metrics": [{
+        "name": "lexlean_mcp.tool.outcomes",
+        "sum": {"dataPoints": [
+            {"attributes": [attribute("class", "1"), attribute("profile", "prism-app"), attribute("code", "LLV7002")], "asInt": count.to_string()},
+            {"attributes": [attribute("class", "ok"), attribute("profile", "prism-app"), attribute("code", "none")], "asInt": "40"},
+        ]},
+    }]}]}]})
+    .to_string()
+}
+
+/// Run `deploy/demand.py` with a `gh` first on the PATH that only records that it ran, in `bin`.
+fn demand(bin: &std::path::Path, args: &[&str]) -> String {
+    use std::os::unix::fs::PermissionsExt;
+    let gh = bin.join("gh");
+    std::fs::write(
+        &gh,
+        format!("#!/bin/sh\ntouch '{}/gh-ran'\nexit 1\n", bin.display()),
+    )
+    .expect("a stand-in gh");
+    std::fs::set_permissions(&gh, std::fs::Permissions::from_mode(0o755)).expect("executable");
+    let path = format!(
+        "{}:{}",
+        bin.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let output = std::process::Command::new("python3")
+        .arg("-I")
+        .arg(repo_model::repo_root().join("deploy/demand.py"))
+        .args(args)
+        .env("PATH", path)
+        .output()
+        .expect("python3 runs deploy/demand.py");
+    assert!(
+        output.status.success(),
+        "demand.py {args:?}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).expect("UTF-8")
+}
+
+#[test]
+fn the_demand_report_ranks_gaps_by_installs_times_and_blocking_ob_18() {
+    let a = "a".repeat(32);
+    let b = "b".repeat(32);
+    let bin = std::env::temp_dir().join(format!("demand-{}", std::process::id()));
+    std::fs::create_dir_all(&bin).expect("a directory");
+    let file = bin.join("otlp.jsonl");
+    let lines = [
+        gap_line("refusal", "fields.too-many", "none", &a, 2),
+        gap_line("refusal", "fields.too-many", "none", &b, 1),
+        gap_line("unproved", "always:choice-is", "LLV7002", &a, 2),
+        gap_line("refusal", "outcome.unknown", "none", &a, 1),
+        // Forged lines: text where a fingerprint has a value. None of them is counted.
+        gap_line("refusal", "fields.amount987654", "none", &a, 1),
+        gap_line("refusal", "fields.none", "none", "secretinstall", 1),
+        gap_line("refusal", "fields.none", "secret", &a, 1),
+        outcome_line(1),
+        outcome_line(3),
+        "not json".to_owned(),
+    ];
+    std::fs::write(&file, lines.join("\n")).expect("a fixture");
+    let path = file.to_str().expect("a path");
+    let report: serde_json::Value =
+        serde_json::from_str(&demand(&bin, &["report", "--json", path])).expect("JSON");
+    let ranked: Vec<(String, u64, u64, bool, u64)> = report["gaps"]
+        .as_array()
+        .expect("gaps")
+        .iter()
+        .map(|row| {
+            (
+                row["construct"].as_str().unwrap().to_owned(),
+                row["users"].as_u64().unwrap(),
+                row["count"].as_u64().unwrap(),
+                row["blocks"].as_bool().unwrap(),
+                row["score"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        ranked,
+        [
+            ("fields.too-many".to_owned(), 2, 3, false, 6),
+            ("always:choice-is".to_owned(), 1, 2, true, 4),
+            ("outcome.unknown".to_owned(), 1, 1, false, 1),
+        ]
+    );
+    assert_eq!(
+        report["failures"],
+        json!([{"class": 1, "profile": "prism-app", "code": "LLV7002", "count": 3}]),
+        "a cumulative series counts its largest value"
+    );
+    let markdown = demand(&bin, &["report", path]);
+    for text in [&markdown, &report.to_string()] {
+        assert!(
+            !text.contains("987654") && !text.contains("secret"),
+            "{text}"
+        );
+    }
+    // Without --apply the issues are only planned, and gh never runs.
+    let plan = demand(&bin, &["issues", "--repo", "example/repo", path]);
+    assert_eq!(
+        plan.lines().next(),
+        Some("would open or update: demand: refusal fields.too-many (score 6)")
+    );
+    assert!(!bin.join("gh-ran").exists(), "gh ran without --apply");
+    std::fs::remove_dir_all(&bin).ok();
+    assert!(read("OBSERVABILITY.md").contains("OB-18"));
 }

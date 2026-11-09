@@ -10,7 +10,13 @@
 //! **Redaction is a type.** No entry point takes the text of a module, an argument or a lexicon
 //! search query and keeps it. The few places a caller has such text accept it only to turn it into
 //! `Redacted`, which has one value and not even the length (OB-04). Profile labels are checked
-//! against the grammar of a profile name, so a text that is not one is labelled `other`.
+//! against the grammar of a profile name, so a text that is not one is labelled `other`, and a
+//! diagnostic code against the grammar of LexLean's and the SDK's codes (OB-17).
+//!
+//! **Gaps are fingerprints.** prism-code sends, in a request's `_meta`, what its users needed that
+//! Prism or LexLean could not do (`prism/gaps/1`). A gap is kept only when every field is in its
+//! closed grammar, none of which admits a digit outside a code or a version, and is emitted as a
+//! log record of its own (OB-16); a gap that is not a fingerprint is dropped whole.
 
 use std::collections::{BTreeMap, VecDeque};
 use std::fs::OpenOptions;
@@ -32,6 +38,18 @@ pub const TRACESTATE_LIMIT: usize = 512;
 /// `baggage` longer than this is dropped whole: the minimum a platform must propagate (W3C
 /// Baggage 3.3.2).
 pub const BAGGAGE_LIMIT: usize = 8192;
+
+/// The `_meta` key under which prism-code sends the gaps it recorded.
+pub const GAPS_META_KEY: &str = "foundation.uor/prism-gaps";
+
+/// The schema of the batch under [`GAPS_META_KEY`].
+pub const GAPS_SCHEMA: &str = "prism/gaps/1";
+
+/// At most this many gaps of one request are read; the rest are dropped.
+pub const GAPS_LIMIT: usize = 64;
+
+/// The largest count one gap may carry: a client sends its ledger in batches of 256 lines.
+pub const GAP_COUNT_LIMIT: u64 = 10_000;
 
 /// The class of a failed tool, by the exit codes of LexLean's `ErrorClass` (SPEC 24.5).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -291,6 +309,225 @@ pub fn extract(meta: Option<&Value>) -> Extraction {
     }
 }
 
+/// What a user needed that Prism or LexLean could not do, as prism-code tells it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GapKind {
+    /// A spec refused by one of Prism's validation rules.
+    Refusal,
+    /// A valid spec that did not come back from its own answers: a Prism bug.
+    RoundTrip,
+    /// A property Lean did not prove that no sampled request breaks.
+    Unproved,
+    /// A generated model the toolchain refused.
+    ModelRefused,
+}
+
+impl GapKind {
+    /// The kind as the batch names it.
+    pub fn label(self) -> &'static str {
+        match self {
+            GapKind::Refusal => "refusal",
+            GapKind::RoundTrip => "roundtrip",
+            GapKind::Unproved => "unproved",
+            GapKind::ModelRefused => "model-refused",
+        }
+    }
+
+    fn parse(text: &str) -> Option<GapKind> {
+        match text {
+            "refusal" => Some(GapKind::Refusal),
+            "roundtrip" => Some(GapKind::RoundTrip),
+            "unproved" => Some(GapKind::Unproved),
+            "model-refused" => Some(GapKind::ModelRefused),
+            _ => None,
+        }
+    }
+}
+
+/// One gap of a batch: every field passed its grammar.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Gap {
+    /// The kind.
+    pub kind: GapKind,
+    /// The construct: a rule, a part of a spec, the shape of a property or a step.
+    pub construct: String,
+    /// The diagnostic code, when there was one.
+    pub code: Option<String>,
+    /// The version of prism-code that recorded it.
+    pub version: String,
+    /// How many times it was recorded since the last batch.
+    pub count: u64,
+}
+
+/// The gaps a request carried, and the random ID of the install that sent them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Gaps {
+    /// 32 lowercase hexadecimal digits, drawn once by the client and derived from nothing.
+    pub install: String,
+    /// The gaps that are fingerprints.
+    pub gaps: Vec<Gap>,
+}
+
+/// The parts of a spec a round trip names (prism-code's `ROUND_TRIP_PARTS` and steps).
+const SPEC_PARTS: [&str; 10] = [
+    "name",
+    "title",
+    "purpose",
+    "fields",
+    "outcomes",
+    "rules",
+    "otherwise",
+    "properties",
+    "examples",
+    "review",
+];
+
+/// The steps of the SDK whose refusal of a generated model is Prism's.
+const MODEL_STEPS: [&str; 7] = [
+    "prelock", "format", "lock", "check", "verify", "build", "run",
+];
+
+/// The comparisons a property's shape is made of.
+const SHAPE_OPS: [&str; 6] = ["lt", "le", "gt", "ge", "eq", "ne"];
+
+/// A word of a rule's name: lowercase letters and single inner hyphens, at most 24 bytes. No digit,
+/// so no number a user wrote fits in one.
+fn rule_word(word: &str) -> bool {
+    !word.is_empty()
+        && word.len() <= 24
+        && !word.starts_with('-')
+        && !word.ends_with('-')
+        && !word.contains("--")
+        && word.bytes().all(|c| c.is_ascii_lowercase() || c == b'-')
+}
+
+/// A refusal rule: two words joined by a dot, such as `fields.too-many`.
+fn refusal_rule(text: &str) -> bool {
+    matches!(text.split_once('.'), Some((group, rule)) if rule_word(group) && rule_word(rule))
+}
+
+/// One comparison of a property's shape, such as `choice-is` or `number-le-field`.
+fn shape(text: &str) -> bool {
+    if text == "choice-is" || text == "choice-is-not" {
+        return true;
+    }
+    let mut parts = text.split('-');
+    matches!(
+        (parts.next(), parts.next(), parts.next(), parts.next()),
+        (Some("number"), Some(op), Some("const" | "field"), None) if SHAPE_OPS.contains(&op)
+    )
+}
+
+/// Whether `construct` is in the grammar of `kind`.
+fn construct_of(kind: GapKind, construct: &str) -> bool {
+    match kind {
+        GapKind::Refusal => refusal_rule(construct),
+        GapKind::RoundTrip => match construct.split_once(':') {
+            Some((part, rule)) => SPEC_PARTS.contains(&part) && refusal_rule(rule),
+            None => SPEC_PARTS.contains(&construct),
+        },
+        GapKind::Unproved => match construct.split_once(':') {
+            Some(("always" | "never", shapes)) => shapes.split('+').all(shape),
+            _ => false,
+        },
+        GapKind::ModelRefused => MODEL_STEPS.contains(&construct),
+    }
+}
+
+/// A diagnostic code of LexLean (`LLV7002`) or of the SDK (`PP2014`): a prefix and four digits.
+pub fn diagnostic_code(text: &str) -> bool {
+    let digits = |rest: &[u8]| rest.len() == 4 && rest.iter().all(u8::is_ascii_digit);
+    match text.as_bytes() {
+        [b'L', b'L', letter, rest @ ..] => letter.is_ascii_uppercase() && digits(rest),
+        [b'P', b'P', rest @ ..] => digits(rest),
+        _ => false,
+    }
+}
+
+/// A version of prism-code: `1.2.3`, or `1.2.3-rc.4` with `alpha`, `beta` or `rc`.
+fn version_text(text: &str) -> bool {
+    let number = |part: &str| {
+        !part.is_empty() && part.len() <= 4 && part.bytes().all(|c| c.is_ascii_digit())
+    };
+    let (release, pre) = match text.split_once('-') {
+        Some((release, pre)) => (release, Some(pre)),
+        None => (text, None),
+    };
+    let mut parts = release.split('.');
+    let release_ok = (0..3).all(|_| parts.next().is_some_and(number)) && parts.next().is_none();
+    let pre_ok = pre.is_none_or(
+        |pre| matches!(pre.split_once('.'), Some(("alpha" | "beta" | "rc", n)) if number(n)),
+    );
+    release_ok && pre_ok
+}
+
+/// The gap `value` names, or `None` when any field of it is outside its grammar.
+fn gap_of(value: &Value) -> Option<Gap> {
+    let object = value.as_object()?;
+    let kind = GapKind::parse(object.get("kind")?.as_str()?)?;
+    let construct = object.get("construct")?.as_str()?;
+    let code = match object.get("code") {
+        None | Some(Value::Null) => None,
+        Some(code) => Some(code.as_str().filter(|code| diagnostic_code(code))?),
+    };
+    let version = object.get("version")?.as_str()?;
+    let count = object.get("count")?.as_u64()?;
+    let valid = construct_of(kind, construct)
+        && version_text(version)
+        && (1..=GAP_COUNT_LIMIT).contains(&count);
+    valid.then(|| Gap {
+        kind,
+        construct: construct.to_owned(),
+        code: code.map(str::to_owned),
+        version: version.to_owned(),
+        count,
+    })
+}
+
+/// The gaps of a request's `_meta`: `None` when it carries no batch, or a batch whose schema or
+/// install ID is not one. A gap that is not a fingerprint is dropped; no field of it is kept.
+pub fn gaps_of(meta: Option<&Value>) -> Option<Gaps> {
+    let batch = meta?.get(GAPS_META_KEY)?.as_object()?;
+    if batch.get("schema")?.as_str()? != GAPS_SCHEMA {
+        return None;
+    }
+    let install = batch.get("install")?.as_str()?;
+    if install.len() != 32
+        || !install
+            .bytes()
+            .all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return None;
+    }
+    let gaps = batch
+        .get("gaps")?
+        .as_array()?
+        .iter()
+        .take(GAPS_LIMIT)
+        .filter_map(gap_of)
+        .collect();
+    Some(Gaps {
+        install: install.to_owned(),
+        gaps,
+    })
+}
+
+/// The code of the first error of a command result (`diagnostics[].code`), when it is a code. A
+/// result that is not JSON, has no error or names something else has none.
+pub fn first_error_code(result: &[u8]) -> Option<String> {
+    let result: Value = serde_json::from_slice(result).ok()?;
+    result["diagnostics"]
+        .as_array()?
+        .iter()
+        .filter(|diagnostic| diagnostic["severity"].as_str() != Some("warning"))
+        .find_map(|diagnostic| {
+            diagnostic["code"]
+                .as_str()
+                .filter(|code| diagnostic_code(code))
+        })
+        .map(str::to_owned)
+}
+
 /// Where the records go.
 pub trait Sink: Send + Sync {
     /// Take one line of OTLP/JSON.
@@ -370,6 +607,16 @@ fn profile_label(profile: &str) -> &str {
         profile
     } else {
         "other"
+    }
+}
+
+/// The label of a diagnostic code: the code, `none` when there is none, and `other` for a text
+/// that is not a code.
+fn code_label(code: Option<&str>) -> &str {
+    match code {
+        None => "none",
+        Some(code) if diagnostic_code(code) => code,
+        Some(_) => "other",
     }
 }
 
@@ -591,10 +838,16 @@ impl Telemetry {
         }
     }
 
-    /// S1: a tool ended. `None` is a tool that succeeded.
-    pub fn tool_outcome(&self, class: Option<ErrorClass>) {
+    /// S1: a tool ended on `profile`, with the code of its first error. `None` is a tool that
+    /// succeeded.
+    pub fn tool_outcome(&self, class: Option<ErrorClass>, profile: &str, code: Option<&str>) {
         let label = class.map_or("ok".to_owned(), |class| class.exit_code().to_string());
-        self.count(names::TOOL_OUTCOMES, vec![("class", label)]);
+        let labels = vec![
+            ("class", label),
+            ("profile", profile_label(profile).to_owned()),
+            ("code", code_label(code).to_owned()),
+        ];
+        self.count(names::TOOL_OUTCOMES, labels);
         let Some(class) = class else { return };
         let alert = match class {
             ErrorClass::CliOrConfiguration => Alert::ClassTwo,
@@ -619,11 +872,18 @@ impl Telemetry {
         self.observe(names::CHECK_DURATION, labels, ms);
     }
 
-    /// S4: a verification ended after `ms`.
-    pub fn verify_duration(&self, profile: &str, outcome: VerifyOutcome, ms: u64) {
+    /// S4: a verification ended after `ms`, with the code of its first error.
+    pub fn verify_duration(
+        &self,
+        profile: &str,
+        outcome: VerifyOutcome,
+        code: Option<&str>,
+        ms: u64,
+    ) {
         let labels = vec![
             ("profile", profile_label(profile).to_owned()),
             ("outcome", outcome.label().to_owned()),
+            ("code", code_label(code).to_owned()),
         ];
         self.observe(names::VERIFY_DURATION, labels, ms);
     }
@@ -661,11 +921,38 @@ impl Telemetry {
         self.alerting(Alert::SigningFailure, Sample::SigningFailures);
     }
 
-    /// Begin the span of a request, continuing the trace its `_meta` carries.
+    /// The gaps a request's `_meta` carries, each as a log record of its own in the request's
+    /// trace (OB-16). Returns how many were recorded.
+    pub fn gaps(&self, meta: Option<&Value>, parent: Option<&Parent>) -> usize {
+        let Some(batch) = gaps_of(meta) else {
+            return 0;
+        };
+        for gap in &batch.gaps {
+            self.log(
+                "INFO",
+                "gap",
+                vec![
+                    attribute("gap.kind", gap.kind.label()),
+                    attribute("gap.construct", &gap.construct),
+                    attribute("gap.code", code_label(gap.code.as_deref())),
+                    attribute("gap.version", &gap.version),
+                    attribute("gap.count", &gap.count.to_string()),
+                    attribute("gap.install", &batch.install),
+                ],
+                parent,
+            );
+        }
+        batch.gaps.len()
+    }
+
+    /// Begin the span of a request, continuing the trace its `_meta` carries, and record the gaps
+    /// it carries.
     pub fn begin_request(&self, meta: Option<&Value>) -> RequestScope {
+        let extraction = extract(meta);
+        self.gaps(meta, extraction.parent.as_ref());
         RequestScope {
             telemetry: self.clone(),
-            extraction: extract(meta),
+            extraction,
             span_id: random::<8>(),
             fresh_trace: random::<16>(),
             started: (self.inner.now_ms)(),

@@ -211,13 +211,17 @@ impl Native {
             Ok(answer) => telemetry::ErrorClass::from_number(answer.class),
             Err(Unavailable) => Some(telemetry::ErrorClass::Environment),
         };
-        self.telemetry.tool_outcome(class);
+        let profile = materialize::split_handle(project).map_or("other", |(profile, _)| profile);
+        // The code of the first error says which part of LexLean a draft needed (OB-17).
+        let code = answered
+            .as_ref()
+            .ok()
+            .and_then(|answer| telemetry::first_error_code(&answer.result));
+        self.telemetry.tool_outcome(class, profile, code.as_deref());
         if let Some(failed) = class {
             self.tool_failed(failed);
         }
         if matches!(call, Call::Check) {
-            let profile =
-                materialize::split_handle(project).map_or("other", |(profile, _)| profile);
             let elapsed = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
             self.telemetry.check_latency(profile, elapsed);
         }
