@@ -28,7 +28,7 @@ use crate::attestation;
 use crate::config::Config;
 use crate::evidence;
 use crate::signer::{envelope_keyid, RecordSigner};
-use crate::telemetry::{ErrorClass, GroupEnd, Telemetry, VerifyOutcome};
+use crate::telemetry::{self, ErrorClass, GroupEnd, Telemetry, VerifyOutcome};
 
 /// The state of a task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -531,17 +531,25 @@ fn settle(shared: &Shared, name: &str, verdict: Option<Value>, log: &str) {
 }
 
 /// The indicators of a task that has just ended: its duration and outcome (S4), and the class of a
-/// failure (S1). A task that failed because of its process is class 5, an internal fault.
+/// failure (S1), each with the profile and the code of the first error (OB-17). A task that failed
+/// because of its process is class 5, an internal fault.
 fn end_telemetry(shared: &Shared, task: &Task) {
     let outcome = match task.phase {
         Phase::Verified => VerifyOutcome::Verified,
         Phase::Cancelled => VerifyOutcome::Cancelled,
         _ => VerifyOutcome::Failed,
     };
+    let code = task
+        .outcome
+        .as_ref()
+        .and_then(|outcome| telemetry::first_error_code(&outcome.result));
     if let Some(started) = task.started {
-        shared
-            .telemetry
-            .verify_duration(&task.profile, outcome, millis(started.elapsed()));
+        shared.telemetry.verify_duration(
+            &task.profile,
+            outcome,
+            code.as_deref(),
+            millis(started.elapsed()),
+        );
     }
     let class = match outcome {
         VerifyOutcome::Failed => task
@@ -550,7 +558,9 @@ fn end_telemetry(shared: &Shared, task: &Task) {
             .and_then(|outcome| ErrorClass::from_number(outcome.class)),
         _ => None,
     };
-    shared.telemetry.tool_outcome(class);
+    shared
+        .telemetry
+        .tool_outcome(class, &task.profile, code.as_deref());
 }
 
 /// The task of a process that ended without a verdict.

@@ -585,6 +585,24 @@ suite = "observability"
 statement = "The host implements the generated host's per-request methods: request_begin continues the trace the request's _meta carries, request_end ends that request's span with its JSON-RPC method, the class of a tool of that request that failed and the protocol error code of its answer, counts the request and its protocol error (S2) and exports the metrics; spans pair by the request's number, so requests whose calls interleave keep their own, and a tool's failure is the request's whose call it was."
 
 [[id]]
+id = "OB-16"
+level = "build"
+suite = "observability"
+statement = "The host records the gaps a request's _meta carries under foundation.uor/prism-gaps (prism/gaps/1) as one INFO log record each in the request's trace, with the kind, construct, code, version and count of the gap and the install ID of the batch; a gap is kept only when every field is in its closed grammar, which admits no digit outside a diagnostic code or a version, a gap that is not one is dropped with every field of it, and a batch whose schema or install ID is not one is dropped whole."
+
+[[id]]
+id = "OB-17"
+level = "build"
+suite = "observability"
+statement = "The tool outcome (S1) and the verify duration and outcome (S4) carry the profile of the draft and the code of the first error of the result as labels: a code is a LexLean or SDK diagnostic code (LL and a letter, or PP, and four digits), none when the result has no error, and other for a text that is not a code, so no result text reaches a label."
+
+[[id]]
+id = "OB-18"
+level = "build"
+suite = "observability"
+statement = "deploy/demand.py reads the gateway's OTLP/JSON lines and ranks the gap records by fingerprint, by distinct installs, times recorded and whether the gap blocks a build, scored installs x times x 2 when it blocks, and lists the failed tool outcomes of S1 by profile and code at the largest value of each cumulative series; a value outside the gateway's grammar is not counted, and issues are only planned unless --apply is given."
+
+[[id]]
 id = "PF-01"
 level = "build"
 suite = "profiles"

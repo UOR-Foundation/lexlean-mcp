@@ -91,3 +91,21 @@ Feature: Observability
     Given a host with telemetry and requests whose begin and end calls interleave
     When each request begins with its _meta and ends with its answer, and one runs a tool that fails
     Then each span continues its own trace with its own method, error code and tool class, and S2 counts each request
+
+  @OB-16 @build
+  Scenario: The host records the gaps a request's _meta carries under foundation.uor/prism-gaps (prism/gaps/1) as one INFO log record each in the request's trace, with the kind, construct, code, version and count of the gap and the install ID of the batch; a gap is kept only when every field is in its closed grammar, which admits no digit outside a diagnostic code or a version, a gap that is not one is dropped with every field of it, and a batch whose schema or install ID is not one is dropped whole.
+    Given a request whose _meta carries a batch of fingerprints, and gaps that hold a marker, a number or a field outside its grammar
+    When the host begins the request and every record is read
+    Then each fingerprint is one gap record in the request's trace, and no line holds the marker or the number
+
+  @OB-17 @build
+  Scenario: The tool outcome (S1) and the verify duration and outcome (S4) carry the profile of the draft and the code of the first error of the result as labels: a code is a LexLean or SDK diagnostic code (LL and a letter, or PP, and four digits), none when the result has no error, and other for a text that is not a code, so no result text reaches a label.
+    Given tool outcomes and a verification whose results name a code, no error, or a marker where the code is
+    When the indicators are counted and exported
+    Then S1 and S4 carry the profile and the code, none or other, and no line holds the marker
+
+  @OB-18 @build
+  Scenario: deploy/demand.py reads the gateway's OTLP/JSON lines and ranks the gap records by fingerprint, by distinct installs, times recorded and whether the gap blocks a build, scored installs x times x 2 when it blocks, and lists the failed tool outcomes of S1 by profile and code at the largest value of each cumulative series; a value outside the gateway's grammar is not counted, and issues are only planned unless --apply is given.
+    Given an OTLP file with gap records of two installs, forged records and two exports of S1
+    When the demand report and the issue plan are made from it
+    Then the gaps are ranked by score, the forged records are not counted, S1 counts its largest value and no issue is opened

@@ -5,6 +5,7 @@
 #
 #   verified [GATE]   wait for the gate, then print a verified verdict for a made-up directory
 #   failed            print a failed verdict of class 1
+#   failed-code       print a failed verdict of class 1 whose first error is LLV7002
 #   wait-cancel       wait for `cancel`, then print cancelled with 2 groups ended and 1 not
 #   verified-on-cancel  wait for `cancel`, then print verified (the verdict that raced the cancel)
 #   hang              ignore everything and never end
@@ -53,6 +54,9 @@ case "$mode" in
   verified)
     while [ -n "$gate" ] && [ ! -e "$gate" ]; do sleep 0.05; done
     verified
+    ;;
+  failed-code)
+    printf '{"event":"failed","class":1,"result":{"diagnostics":[{"code":"LLV7002","severity":"error","message":"theorem secretModuleText"}]}}\n'
     ;;
   failed)
     printf '{"event":"failed","class":1,"result":{"diagnostics":[]}}\n'
