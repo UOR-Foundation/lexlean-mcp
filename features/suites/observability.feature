@@ -85,3 +85,9 @@ Feature: Observability
     Given _meta entries with valid and malformed headers
     When the trace context is extracted and every record is read
     Then the context is carried or dropped as the model gives and no record is a notification
+
+  @OB-15 @build
+  Scenario: The host implements the generated host's per-request methods: request_begin continues the trace the request's _meta carries, request_end ends that request's span with its JSON-RPC method, the class of a tool of that request that failed and the protocol error code of its answer, counts the request and its protocol error (S2) and exports the metrics; spans pair by the request's number, so requests whose calls interleave keep their own, and a tool's failure is the request's whose call it was.
+    Given a host with telemetry and requests whose begin and end calls interleave
+    When each request begins with its _meta and ends with its answer, and one runs a tool that fails
+    Then each span continues its own trace with its own method, error code and tool class, and S2 counts each request

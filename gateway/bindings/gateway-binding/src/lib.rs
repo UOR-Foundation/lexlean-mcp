@@ -43,10 +43,13 @@ pub use taskhost::{iso, Clock};
 pub use telemetry::Telemetry;
 pub use verifier::{conclude, Facts, Job, Outcome, Report, State, Verifier};
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::thread::{self, ThreadId};
 use std::time::Instant;
 
 use gateway_signer::client::SignerClient;
+use serde_json::Value;
 
 use gateway_host_api::protocol::{
     attestation_lookup, clock_now, engine_build, engine_check, engine_format, engine_snapshot,
@@ -54,7 +57,8 @@ use gateway_host_api::protocol::{
     verify_control, verify_start, Host, HostError,
 };
 
-/// The host: a store, a verifier, a rate counter, a clock and the table of tasks.
+/// The host: a store, a verifier, a rate counter, a clock, the table of tasks and the requests
+/// in flight.
 pub struct Native {
     config: Config,
     verifier: Verifier,
@@ -62,6 +66,53 @@ pub struct Native {
     clock: Clock,
     tasks: Vec<u8>,
     telemetry: Telemetry,
+    requests: Mutex<InFlight>,
+}
+
+/// The requests the served driver has begun and not ended. Connections are served on threads
+/// that share this host, so the calls of two requests interleave: each span is kept by the
+/// request's number, and since every effect of a request runs on its connection's thread, a
+/// tool that fails is the request's that its thread serves.
+#[derive(Default)]
+struct InFlight {
+    open: HashMap<u64, Open>,
+    serving: HashMap<ThreadId, u64>,
+}
+
+/// A request in flight: its span, and the class of a tool of it that failed.
+struct Open {
+    scope: telemetry::RequestScope,
+    tool: Option<telemetry::ErrorClass>,
+}
+
+/// The JSON-RPC method, `_meta` and arguments of a request body; a body that is not a request
+/// has none of them, as for a request the adapter refused.
+fn request_fields(body: &[u8]) -> (String, Option<Value>, Option<String>) {
+    let Ok(message) = serde_json::from_slice::<Value>(body) else {
+        return (String::new(), None, None);
+    };
+    let method = message["method"].as_str().unwrap_or_default().to_owned();
+    let meta = message["params"]
+        .get("_meta")
+        .filter(|meta| meta.is_object())
+        .cloned();
+    let arguments = message["params"].get("arguments").map(Value::to_string);
+    (method, meta, arguments)
+}
+
+/// The JSON-RPC error code of an answer body: a JSON message, or the messages of an event
+/// stream, of which the last one that answers counts.
+fn protocol_error(body: &[u8]) -> Option<i64> {
+    if let Ok(message) = serde_json::from_slice::<Value>(body) {
+        return message["error"]["code"].as_i64();
+    }
+    let text = String::from_utf8_lossy(body);
+    text.lines()
+        .filter_map(|line| line.strip_prefix("data:"))
+        .filter_map(|data| serde_json::from_str::<Value>(data.trim()).ok())
+        .filter(|message| message.get("result").is_some() || message.get("error").is_some())
+        .last()
+        .and_then(|message| message["error"]["code"].as_i64())
 }
 
 impl Default for Native {
@@ -86,13 +137,28 @@ impl Native {
             clock: Clock::default(),
             tasks: Vec::new(),
             telemetry,
+            requests: Mutex::new(InFlight::default()),
         }
     }
 
-    /// The telemetry of the host. The driver ends a request's span with it (`begin_request`) and
-    /// exports the metrics with `flush`.
+    /// The telemetry of the host. The per-request methods of the generated host begin and end a
+    /// request's span with it and export the metrics after each request.
     pub fn telemetry(&self) -> &Telemetry {
         &self.telemetry
+    }
+
+    /// A tool of the request this thread serves failed with `class`. A tool run outside a
+    /// request (a direct call, as in the tests of the effects) belongs to no span.
+    fn tool_failed(&self, class: telemetry::ErrorClass) {
+        let Ok(mut requests) = self.requests.lock() else {
+            return;
+        };
+        let Some(id) = requests.serving.get(&thread::current().id()).copied() else {
+            return;
+        };
+        if let Some(open) = requests.open.get_mut(&id) {
+            open.tool = Some(class);
+        }
     }
 
     /// The configuration of the host.
@@ -146,6 +212,9 @@ impl Native {
             Err(Unavailable) => Some(telemetry::ErrorClass::Environment),
         };
         self.telemetry.tool_outcome(class);
+        if let Some(failed) = class {
+            self.tool_failed(failed);
+        }
         if matches!(call, Call::Check) {
             let profile =
                 materialize::split_handle(project).map_or("other", |(profile, _)| profile);
@@ -186,6 +255,37 @@ enum EngineRefusal {
 }
 
 impl Host for Native {
+    /// Begin the span of a request, continuing the trace its `_meta` carries (OB-15).
+    fn request_begin(&mut self, id: u64, request: &[u8]) {
+        let (_, meta, arguments) = request_fields(request);
+        let mut scope = self.telemetry.begin_request(meta.as_ref());
+        if let Some(arguments) = arguments {
+            scope.arguments(&arguments);
+        }
+        if let Ok(mut requests) = self.requests.lock() {
+            requests.open.insert(id, Open { scope, tool: None });
+            requests.serving.insert(thread::current().id(), id);
+        }
+    }
+
+    /// End the span of a request with its method, the class of a tool of it that failed and the
+    /// protocol error code of its answer, count it (S2) and export the metrics (OB-15).
+    fn request_end(&mut self, id: u64, request: &[u8], response: &[u8]) {
+        let open = match self.requests.lock() {
+            Ok(mut requests) => {
+                requests.serving.retain(|_, serving| *serving != id);
+                requests.open.remove(&id)
+            }
+            Err(_) => None,
+        };
+        let Some(open) = open else {
+            return;
+        };
+        let (method, _, _) = request_fields(request);
+        open.scope.end(&method, open.tool, protocol_error(response));
+        self.telemetry.flush();
+    }
+
     fn store_get(
         &mut self,
         request: store_get::Request,

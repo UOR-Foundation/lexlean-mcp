@@ -1,4 +1,4 @@
-//! OB-11 to OB-14: the observability runtime of issue #16. The model (`src/Observability.lex.tex`)
+//! OB-11 to OB-15: the observability runtime of issue #16. The model (`src/Observability.lex.tex`)
 //! fixes the indicators, the alerts, the redaction and the trace context; these tests run what
 //! the host emits against it. The verifier is the fake of `common/fake-verifier.sh`.
 
@@ -395,4 +395,114 @@ fn a_lost_verifier_raises_the_internal_class_alert_ob_12() {
     let (task, _) = start_named(&mut host, "t1").expect("a task");
     wait_for(&mut host, &task, State::Failed);
     assert_eq!(alerts(&sink), [Alert::ClassSeventy.name()]);
+}
+
+// OB-15: the host implements the generated host's per-request methods
+
+/// A JSON-RPC request with this method and `_meta`.
+fn request(method: &str, meta: Value) -> Vec<u8> {
+    serde_json::to_vec(&json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": method,
+        "params": {"_meta": meta, "arguments": {"module": SECRET}},
+    }))
+    .expect("a request")
+}
+
+fn spans(sink: &MemorySink) -> Vec<Value> {
+    parsed(sink)
+        .iter()
+        .flat_map(|line| {
+            line["resourceSpans"][0]["scopeSpans"][0]["spans"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+        })
+        .collect()
+}
+
+fn span_attribute(span: &Value, key: &str) -> Option<String> {
+    span["attributes"]
+        .as_array()?
+        .iter()
+        .find(|attribute| attribute["key"] == key)?["value"]["stringValue"]
+        .as_str()
+        .map(str::to_owned)
+}
+
+#[test]
+fn each_request_ends_its_own_span_with_its_method_and_error_ob_15() {
+    use gateway_host_api::protocol::Host;
+    let directory = tempfile::tempdir().expect("a temporary directory");
+    let (telemetry, sink) = memory();
+    let probe = telemetry.clone();
+    let mut host = Native::with_telemetry(
+        gateway_binding::Config::at(directory.path().join("store")),
+        telemetry,
+    );
+    let call = request("tools/call", json!({"traceparent": TRACEPARENT}));
+    let list = request("tools/list", json!({}));
+    // The calls of two requests interleave, as on two connections.
+    host.request_begin(0, &call);
+    host.request_begin(1, &list);
+    host.request_end(1, &list, br#"{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}"#);
+    host.request_end(
+        0,
+        &call,
+        br#"{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"bad"}}"#,
+    );
+    let spans = spans(&sink);
+    assert_eq!(spans.len(), 2, "{spans:?}");
+    assert_eq!(spans[0]["name"], "tools/list");
+    assert_eq!(span_attribute(&spans[0], "rpc.error_code"), None);
+    assert_ne!(spans[0]["traceId"], "4bf92f3577b34da6a3ce929d0e0e4736");
+    assert_eq!(spans[1]["name"], "tools/call");
+    assert_eq!(spans[1]["traceId"], "4bf92f3577b34da6a3ce929d0e0e4736");
+    assert_eq!(spans[1]["parentSpanId"], "00f067aa0ba902b7");
+    assert_eq!(span_attribute(&spans[1], "rpc.error_code").as_deref(), Some("-32602"));
+    // S2: both requests are counted, and the one protocol error by its code.
+    assert_eq!(probe.counter(names::REQUESTS, &[]), 2);
+    assert_eq!(probe.counter(names::PROTOCOL_ERRORS, &[("code", "-32602")]), 1);
+    // The arguments of the call are withheld like every other free text.
+    for line in sink.lines() {
+        assert!(!line.contains(SECRET), "{line}");
+    }
+}
+
+#[test]
+fn a_failed_tool_is_the_class_of_its_own_request_ob_15() {
+    use gateway_host_api::protocol::{engine_check, Host};
+    let directory = tempfile::tempdir().expect("a temporary directory");
+    let (telemetry, sink) = memory();
+    // No engine host: the check fails for the environment (class 3).
+    let mut host = Native::with_telemetry(
+        gateway_binding::Config::at(directory.path().join("store")),
+        telemetry,
+    );
+    install_draft(&host, None);
+    let call = request("tools/call", json!({}));
+    let list = request("tools/list", json!({}));
+    host.request_begin(0, &call);
+    // Another connection's request is in flight on its own thread while the tool runs here.
+    std::thread::scope(|scope| {
+        scope.spawn(|| host.request_begin(1, &list)).join().expect("a thread");
+    });
+    let outcome = host.engine_check(engine_check::Request {
+        project: "tiny".to_string(),
+        selection: 0,
+        files: String::new(),
+    });
+    assert!(outcome.is_err(), "no engine host answers");
+    std::thread::scope(|scope| {
+        scope
+            .spawn(|| host.request_end(1, &list, br#"{"jsonrpc":"2.0","id":1,"result":{}}"#))
+            .join()
+            .expect("a thread");
+    });
+    host.request_end(0, &call, br#"{"jsonrpc":"2.0","id":1,"result":{"isError":true}}"#);
+    let spans = spans(&sink);
+    let named = |name: &str| spans.iter().find(|span| span["name"] == name).cloned().expect(name);
+    assert_eq!(span_attribute(&named("tools/call"), "error.class").as_deref(), Some("3"));
+    assert_eq!(span_attribute(&named("tools/list"), "error.class"), None);
 }
