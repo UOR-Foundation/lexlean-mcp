@@ -111,7 +111,7 @@ fn protocol_error(body: &[u8]) -> Option<i64> {
         .filter_map(|line| line.strip_prefix("data:"))
         .filter_map(|data| serde_json::from_str::<Value>(data.trim()).ok())
         .filter(|message| message.get("result").is_some() || message.get("error").is_some())
-        .last()
+        .next_back()
         .and_then(|message| message["error"]["code"].as_i64())
 }
 
