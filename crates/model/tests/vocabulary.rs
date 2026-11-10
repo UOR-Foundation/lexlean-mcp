@@ -1,4 +1,4 @@
-//! VO-01 to VO-16: the gateway side of issue #8, profiles, vocabulary and provisioning.
+//! VO-01 to VO-17: the gateway side of issue #8, profiles, vocabulary and provisioning.
 //!
 //! The behavior is tested where the host and the core run: `gateway/bindings/gateway-binding`
 //! tests the identity and the operator's commands (`tests/provision.rs`), and
@@ -784,4 +784,32 @@ fn the_planted_defects_are_recorded_vo_16() {
             "each defect records its {word}"
         );
     }
+}
+
+// ---- VO-17 -----------------------------------------------------------------------------------
+
+/// VO-17: `lexlean_lexicon_read` reads the served vocabulary by the ID that search gives, and not a
+/// file of the profile (issue #92).
+#[test]
+fn lexlean_lexicon_read_takes_the_ids_of_search_vo_17() {
+    let vocabulary = tight(&read("gateway/src/Vocabulary.lex.tex"));
+    for needle in ["entryTool", "namedOnto", "qualifiedOnto"] {
+        assert!(vocabulary.contains(needle), "the core has {needle}");
+    }
+    assert!(
+        vocabulary.contains("(GatewayTools::isTool params \"lexlean_lexicon_read\") then (entryTool completed params)"),
+        "the tool is answered from the vocabulary"
+    );
+    let tools = tight(&read("gateway/src/GatewayTools.lex.tex"));
+    assert!(
+        !tools.contains("(isTool params \"lexlean_lexicon_read\")"),
+        "the tool no longer reads a file of the profile"
+    );
+    needs(
+        "VO-17",
+        &[
+            "lexicon_read_takes_the_id_that_search_gives_vo_17",
+            "lexicon_read_misses_are_found_false_and_refusals_are_typed_vo_17",
+        ],
+    );
 }

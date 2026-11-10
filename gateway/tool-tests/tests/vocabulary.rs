@@ -1,4 +1,5 @@
-//! VO-04, VO-09 to VO-15: `lexlean_profiles`, `lexlean_lexicon_search`, the resource template
+//! VO-04, VO-09 to VO-15 and VO-17: `lexlean_profiles`, `lexlean_lexicon_search`,
+//! `lexlean_lexicon_read`, the resource template
 //! `lexlean://profiles/{profile}/lexicon/{package}@{version}` and the completion of its arguments
 //! (issue #8), through the production core with the real host, on a store in a temporary
 //! directory whose profiles the operator's `install` provisioned. Nothing here knows what a tool
@@ -597,6 +598,140 @@ fn the_schema_of_lexlean_lexicon_search_is_closed_vo_10() {
         16,
         "the twelve tools before issue 8, the two of issue 8, and lexlean_present and lexlean_export of issue 12"
     );
+}
+
+// ---- VO-17: lexlean_lexicon_read (issue #92) --------------------------------------------------
+
+fn read_entry(gateway: &mut Gateway, arguments: Value) -> Reply {
+    gateway.call("lexlean_lexicon_read", arguments)
+}
+
+/// The served entries of `vocab` whose ID is `id`, in the order search gives them (the order of
+/// the vocabulary, VO-10).
+fn served_with_id(gateway: &Gateway, id: &str) -> Vec<Value> {
+    vocabulary(gateway, "vocab")["entries"]
+        .as_array()
+        .expect("entries")
+        .iter()
+        .filter(|entry| entry["id"] == id)
+        .cloned()
+        .collect()
+}
+
+#[test]
+fn lexicon_read_takes_the_id_that_search_gives_vo_17() {
+    let mut gateway = stocked();
+    let nat = search(
+        &mut gateway,
+        json!({"profile": "vocab", "package": "lexlean.std.nat", "limit": 100}),
+    );
+    let entries = nat.structured()["entries"]
+        .as_array()
+        .expect("entries")
+        .clone();
+    assert!(!entries.is_empty(), "lexlean.std.nat has entries");
+    let shapes = search(&mut gateway, json!({"profile": "vocab", "query": "shapes"}));
+    let all: Vec<Value> = entries
+        .into_iter()
+        .chain(
+            shapes.structured()["entries"]
+                .as_array()
+                .expect("entries")
+                .clone(),
+        )
+        .collect();
+    for entry in all {
+        let id = entry["id"].as_str().expect("an ID");
+        let package = entry["package"].as_str().expect("a package");
+        // The ID alone gives every entry of that ID, as search has them.
+        let same_id = served_with_id(&gateway, id);
+        let reply = read_entry(&mut gateway, json!({"profile": "vocab", "entry": id}));
+        assert!(!reply.is_error(), "{id}: {}", reply.body);
+        assert_eq!(reply.effects, ["lexicon.read"], "{id}");
+        let structured = reply.structured();
+        assert_eq!(structured["found"], true, "{id}");
+        assert_eq!(structured["profile"], "vocab");
+        assert_eq!(structured["entry"], id);
+        assert_eq!(structured["entries"], json!(same_id), "{id}");
+        assert_eq!(
+            serde_json::from_str::<Value>(reply.text()).expect("JSON"),
+            *structured
+        );
+        // The package, as an argument or as `package::id`, gives the one entry search gave.
+        for arguments in [
+            json!({"profile": "vocab", "entry": id, "package": package}),
+            json!({"profile": "vocab", "entry": format!("{package}::{id}")}),
+        ] {
+            let reply = read_entry(&mut gateway, arguments.clone());
+            assert!(!reply.is_error(), "{arguments}: {}", reply.body);
+            assert_eq!(reply.structured()["entries"], json!([entry]), "{arguments}");
+        }
+    }
+}
+
+#[test]
+fn lexicon_read_misses_are_found_false_and_refusals_are_typed_vo_17() {
+    let mut gateway = stocked();
+    for arguments in [
+        json!({"profile": "vocab", "entry": "no-such-entry"}),
+        json!({"profile": "vocab", "entry": "shapes-circle", "package": "lexlean.std.nat"}),
+        json!({"profile": "vocab", "entry": "lexlean.std.nat::shapes-circle"}),
+        json!({"profile": "vocab", "entry": "shapes.words/shapes-circle"}),
+        json!({"profile": "vocab", "entry": "shapes.words::"}),
+        json!({"profile": "vocab", "entry": "::shapes-circle"}),
+        json!({"profile": "vocab", "entry": "ghost"}),
+    ] {
+        let reply = read_entry(&mut gateway, arguments.clone());
+        assert!(!reply.is_error(), "{arguments}: {}", reply.body);
+        assert_eq!(reply.effects, ["lexicon.read"], "{arguments}");
+        assert_eq!(reply.structured()["found"], false, "{arguments}");
+        assert_eq!(reply.structured()["entries"], json!([]), "{arguments}");
+    }
+    failure(
+        &read_entry(&mut gateway, json!({"profile": "absent", "entry": "x"})),
+        "profile-unknown",
+        &["lexicon.read"],
+    );
+    std::fs::remove_file(gateway.profile("tiny").join("vocabulary")).expect("a removed vocabulary");
+    refusal(
+        &read_entry(&mut gateway, json!({"profile": "tiny", "entry": "x"})),
+        "VocabularyMissing",
+        &["lexicon.read"],
+    );
+    std::fs::write(gateway.profile("tiny").join("vocabulary"), b"{").expect("a vocabulary");
+    refusal(
+        &read_entry(&mut gateway, json!({"profile": "tiny", "entry": "x"})),
+        "VocabularyMalformed",
+        &["lexicon.read"],
+    );
+    write_vocabulary(&gateway, "vocab", &mixed_vocabulary(&gateway));
+    let mixed = read_entry(
+        &mut gateway,
+        json!({"profile": "vocab", "entry": "old-word"}),
+    );
+    assert_eq!(
+        mixed.structured(),
+        &json!({"refusal": "LanguageMismatch", "code": "LLC0103"}),
+        "{}",
+        mixed.body
+    );
+    // The schema is closed: the profile and the entry are required, and no effect is asked.
+    for arguments in [
+        json!({"profile": "vocab"}),
+        json!({"entry": "x"}),
+        json!({"profile": "vocab", "entry": ""}),
+        json!({"profile": "vocab", "entry": "x", "package": ""}),
+        json!({"profile": "vocab", "entry": "x", "extra": true}),
+    ] {
+        let reply = read_entry(&mut gateway, arguments.clone());
+        assert!(reply.is_error(), "{arguments}: {}", reply.body);
+        assert!(
+            reply.text().starts_with("Invalid arguments:"),
+            "{arguments}: {}",
+            reply.body
+        );
+        assert!(reply.effects.is_empty(), "{arguments}: no effect");
+    }
 }
 
 // ---- VO-11: the resource template ------------------------------------------------------------

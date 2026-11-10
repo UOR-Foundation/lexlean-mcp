@@ -58,7 +58,8 @@ tests is the snapshot of `uor-atlas`, 59 MB, whose `check` and `build` results a
 
 ## The vocabulary tools
 
-`lexlean_profiles` and `lexlean_lexicon_search` (F1, F2) are the tools of issue #8. They run no
+`lexlean_profiles`, `lexlean_lexicon_search` and `lexlean_lexicon_read` (F1, F2; the read is
+`VO-17`, issue #92) are the vocabulary tools. They run no
 Engine call and ask for effects already in the set (`store.get` of the catalogue, `lexicon.read`
 of the vocabulary of a profile), so the set stays E1 to E10. Their inputs, results and refusals,
 the resource template and completion are in PROFILES.md ("The gateway side") and in the rows

@@ -1023,6 +1023,12 @@ suite = "vocabulary"
 statement = "Each gate of the profile work rejects its planted defect: a profile file excluded from the identity, a mixed-language package admitted, an Atlas entry missing from the served lexicon, a capability declared that is not served, a profile installed without a review record and a reserved entry copied into a project; PROFILES.md records the command, the diagnostic and the restore of each."
 
 [[id]]
+id = "VO-17"
+level = "build"
+suite = "vocabulary"
+statement = "lexlean_lexicon_read reads the served vocabulary of a profile by the ID that lexlean_lexicon_search gives an entry (issue #92): the ID alone answers every entry of that ID, and the package, as the argument package or as package::id, the one entry of that package, each as search gives it; an ID that names no entry is found false with no entries, not an error, and the refusals are those of search (profile-unknown, VocabularyMissing, VocabularyMalformed, LanguageMismatch LLC0103); the tool asks one lexicon.read of the entry vocabulary and its schema is closed."
+
+[[id]]
 id = "SG-01"
 level = "build"
 suite = "signing"
