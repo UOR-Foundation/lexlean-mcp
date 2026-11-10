@@ -133,8 +133,6 @@ pub enum Refused {
     Value,
     /// The store failed, or the record it holds is not whole.
     Store,
-    /// The module names no rendering of the record, or names none where the record has several.
-    Module,
 }
 
 /// What a lookup returns of a record: the envelope (want 0), the rendering of a module (`PRESENT`)
@@ -183,11 +181,15 @@ pub struct Found {
     pub module: String,
     pub rendering: Vec<u8>,
     pub bundle: String,
+    /// The paths of the renderings of the record, as a JSON array (`PRESENT` and `EXPORT`).
+    pub modules: String,
+    /// The files of the bundle, framed for the core (`EXPORT`), or nothing.
+    pub files: Vec<u8>,
 }
 
 /// The record `value` names, in a view: the envelope (`ENVELOPE`), the envelope and the canonical
-/// LaTeX of `module` (`PRESENT`), or the envelope and the key of the bundle written for it
-/// (`EXPORT`, the only view that writes).
+/// LaTeX of `module` (`PRESENT`), or the envelope, the key of the bundle written for it and its
+/// files (`EXPORT`, the only view that writes); the last two with the renderings of the record.
 pub fn find(
     root: &Path,
     by: u32,
@@ -210,8 +212,18 @@ pub fn find(
         ..Found::default()
     };
     match view {
-        PRESENT => (found.module, found.rendering) = presentation::present(root, &id, module)?,
-        EXPORT => found.bundle = presentation::export(root, &id, &found.envelope)?,
+        PRESENT => {
+            let presented = presentation::present(root, &id, module)?;
+            found.module = presented.module;
+            found.rendering = presented.rendering;
+            found.modules = presented.modules;
+        }
+        EXPORT => {
+            let exported = presentation::export(root, &id, &found.envelope)?;
+            found.bundle = exported.bundle;
+            found.modules = exported.modules;
+            found.files = exported.files;
+        }
         _ => {}
     }
     Ok(Some(found))

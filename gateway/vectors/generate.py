@@ -103,11 +103,15 @@ EFFECTS = [
      ["profile-unknown", "key-refused"], 2 * (4 + KEY) + 8, 1_048_576 + 64),
     # The record a verification left, in a view: the envelope (0), the canonical LaTeX of a module
     # (1, lexlean_present) or the key of the bundle written for the record (2, lexlean_export).
+    # `modules` is the JSON array of the paths of the renderings (views 1 and 2): a module that
+    # names none is answered with an empty `module` and the list, which the core gives the client
+    # with its refusal module-unknown (#94). `files` is the bundle framed for the client (view 2),
+    # at most EMBED_MAXIMUM bytes of files and 8 octets of framing for each of FILES_MAXIMUM files.
     ("attestation.lookup", [("by", "U32"), ("value", "Text"), ("want", "U32"), ("module", "Text")],
      [("found", "Flag"), ("envelope", "Bytes"), ("id", "Text"), ("module", "Text"),
-      ("rendering", "Bytes"), ("bundle", "Text")],
-     ["value-refused", "module-unknown"], 4 + (4 + 128) + 4 + (4 + KEY),
-     2 * 1_048_576 + 64 + 4 * 1_024),
+      ("rendering", "Bytes"), ("bundle", "Text"), ("modules", "Text"), ("files", "Bytes")],
+     ["value-refused"], 4 + (4 + 128) + 4 + (4 + KEY),
+     2 * 1_048_576 + 64 + 4 * 1_024 + (4 + 262_144) + (4 + 4_194_304 + 8 * 1_024)),
     ("rate.calls", [("counted", "Flag")], [("calls", "U32")], [], 8, 16),
     # The entries that the protocol core needs to serve tasks (TASKHOST.md). The core keeps no state:
     # the adapter gives it the time, an identifier a task may take and the table of tasks in the frame

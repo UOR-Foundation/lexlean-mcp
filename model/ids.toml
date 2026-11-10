@@ -1452,7 +1452,7 @@ statement = "AC-06: for the record of nat-add-zero, J1 ends in an embedded resou
 id = "PT-03"
 level = "build"
 suite = "present"
-statement = "lexlean_present by the SHA-256 of a source file the verification covered returns the same resource as by ID; the argument module, a path of the build manifest, selects one rendering of a record that has several, an empty module is the only rendering of a record that has one, and an empty module on several or a module the manifest does not name is the host's refusal module-unknown."
+statement = "lexlean_present by the SHA-256 of a source file the verification covered returns the same resource as by ID; the argument module, a path of the build manifest, selects one rendering of a record that has several, an empty module is the only rendering of a record that has one, and an empty module on several or a module the manifest does not name is the refusal module-unknown."
 
 [[id]]
 id = "PT-04"
@@ -1471,6 +1471,12 @@ id = "PT-06"
 level = "build"
 suite = "present"
 statement = "Each gate of lexlean_present rejects its planted defect: the rendering read from the wrong file, the digest of the rendering not checked, the module not selected, and a present that writes to the store; PRESENT.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "PT-07"
+level = "build"
+suite = "present"
+statement = "lexlean_present takes a module as the client knows it and says which there are (issue #94): the name of a module (B) or the path of its source file (src/B.lex.tex) names its rendering as its path does, when one rendering matches; the structured content lists the paths of the renderings of the record as modules; and no module on several renderings, or a module that names none, is the error result module-unknown whose structured content lists those paths."
 
 [[id]]
 id = "EX-01"
@@ -1507,6 +1513,12 @@ id = "EX-06"
 level = "build"
 suite = "present"
 statement = "Each gate of lexlean_export rejects its planted defect: a rendering left out of the bundle, the key history left out, the envelope replaced by attestation.json, and the evidence not checked before the first write; PRESENT.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "EX-07"
+level = "build"
+suite = "present"
+statement = "lexlean_export returns the bundle to the client that asked for it (issue #94): beside the key of the bundle, each file the store holds below exports/<ID> is an embedded text resource at lexlean://attestation/<ID>/<path>, typed application/json, application/x-tex or text/plain, byte for byte, and a reader checks the returned files offline; embedded is true, and a bundle with a file that is not text, or over 4 MiB, is written to the store and not embedded (embedded false)."
 
 [[id]]
 id = "DP-01"

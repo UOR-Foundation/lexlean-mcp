@@ -653,14 +653,13 @@ impl Host for Native {
                     module: found.module,
                     rendering: found.rendering,
                     bundle: found.bundle,
+                    modules: found.modules,
+                    files: found.files,
                 })
             }
             Err(attestation::Refused::Value) => {
                 Err(HostError::Failed(attestation_lookup::Failure::ValueRefused))
             }
-            Err(attestation::Refused::Module) => Err(HostError::Failed(
-                attestation_lookup::Failure::ModuleUnknown,
-            )),
             Err(attestation::Refused::Store) => Err(HostError::Fault),
         }
     }

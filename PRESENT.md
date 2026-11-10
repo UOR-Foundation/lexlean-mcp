@@ -22,25 +22,34 @@ nothing is typeset or retyped between the attestation and the reader.
 | `EX-04` | A miss or a refusal writes nothing, and a record that is not whole leaves no bundle. |
 | `EX-05` | An export is repeatable; bundles are apart. |
 | `EX-06` | Each gate rejects its planted defect (below). |
+| `PT-07` | A module is named by its path, by its name or by the path of its source file; the structured content lists the paths of the renderings as `modules`, and `module-unknown` lists them too (issue #94). |
+| `EX-07` | The export returns the files of the bundle to the client as embedded text resources, byte for byte as the store holds them, and the returned files check offline; a bundle with a file that is not text, or over 4 MiB, is written and not embedded (issue #94). |
 
 ## What the tools return
 
 Both take `by` (`id` or `digest`) and `value`, as `lexlean_attestation` does. `lexlean_present` takes
-`module` too: a path the build manifest gives to a rendering (`modules/<Prefix>/<Module>.tex`).
+`module` too: a path the build manifest gives to a rendering (`modules/<Prefix>/<Module>.tex`),
+or, when it matches one rendering alone, the name of the module (`Main`, `Foundation/Arch` or
+`Foundation.Arch`) or the path of its source file (`src/Main.lex.tex`) (PT-07).
 
 `lexlean_present` answers a record that exists with one content block of type `resource`: the
 canonical LaTeX as text, at the URI `lexlean://attestation/<attestation ID>/<path>`, with the type
 `application/x-tex`. `structuredContent` is `{"found": true, "attestationId", "module": <path>,
-"envelope": <the envelope, a JSON document>}`. A record that does not exist is `{"found": false}`
+"modules": [<the path of each rendering>], "envelope": <the envelope, a JSON document>}`. A record that does not exist is `{"found": false}`
 with the text `not found`; a refusal of the value is a tool error with `{"failure":
-"value-refused"}`, and of the module `{"failure": "module-unknown"}`.
+"value-refused"}`, and a module that names no rendering, or none where the record has several, is a tool error with `{"failure": "module-unknown", "modules": [<the path of each rendering>]}`: the host answers the lookup with an empty `module` and the list, and the core makes the refusal, so a client is told what it may name.
 
-`lexlean_export` answers with the key of the bundle as its text, `exports/<attestation ID>`, and
-`{"found": true, "attestationId", "bundle"}`; misses and refusals are those of `lexlean_present`.
+`lexlean_export` answers with the key of the bundle as its text, `exports/<attestation ID>`, then one
+embedded text resource for each file of the bundle, at `lexlean://attestation/<attestation ID>/<path>`, typed
+`application/json`, `application/x-tex` or `text/plain` (EX-07), and
+`{"found": true, "attestationId", "bundle", "modules", "embedded"}`. A client that cannot reach the host's
+disk therefore has the bundle. A bundle with a file that is not UTF-8, or whose files are over 4 MiB
+(`EMBED_MAXIMUM`), is written to the store and not embedded: `embedded` is false and the key is
+the only content. Misses and refusals are those of `lexlean_present`.
 
 Both ask the host once, for `attestation.lookup`, which gained a `want` (0 the envelope, 1 the
 canonical LaTeX of a module, 2 the bundle) and a `module`, and answers with the ID, the path and the
-bytes of the rendering, and the key of the bundle besides the envelope. The view is chosen by the
+bytes of the rendering, the key of the bundle, the paths of the renderings as a JSON array (`modules`) and the framed files of the bundle (`files`) besides the envelope. The failure `module-unknown` of the host is gone: the core makes the refusal from `modules`. The view is chosen by the
 tool (the core), never by the client.
 
 ## The bundle and its check offline
@@ -83,12 +92,10 @@ A gate is evidence only after a planted defect shows that it can fail (AGENTS.md
 
 ## Not met
 
-- A record that has several renderings needs `module`: `lexlean_present` returns one rendering and
-  an empty `module` on several is `module-unknown`. The tool does not list the paths.
 - The bundle does not carry a program that checks it; the check is the list above, and its code is
   the test `check`.
-- The export is a directory of the store on the host. Making it reach a client that has no access to
-  the host's disk is not claimed.
+- A bundle over 4 MiB, or with a file that is not text, reaches a client that has no access to the host's
+  disk only as the key of a directory of the store.
 - AC-06 is run on the canonical LaTeX that LexLean wrote for `nat-add-zero`
   (`gateway/tool-tests/fixture/nat-add-zero/`, copied from `examples/nat-add-zero/expected/build` of
   the LexLean at the pin), recorded with `conclude` as the verifier does. The real verification of

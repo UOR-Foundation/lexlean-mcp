@@ -1,4 +1,4 @@
-//! PT-01 to PT-06 and EX-01 to EX-06: the present and export tools of the gateway (issue #12, F9 and F12).
+//! PT-01 to PT-07 and EX-01 to EX-07: the present and export tools of the gateway (issue #12, F9 and F12).
 //!
 //! The behavior is tested where the tool runs: `gateway/tool-tests/tests/present.rs` calls
 //! `lexlean_present` and `lexlean_export` through the production core with the real host on a
@@ -166,4 +166,23 @@ fn each_gate_of_export_rejects_its_planted_defect_ex_06() {
             "the row of `{defect}` lacks its command, its failing test or its restore: {row}"
         );
     }
+}
+
+#[test]
+fn a_module_is_named_as_the_client_knows_it_and_listed_pt_07() {
+    answered_by(
+        "PT-07",
+        &["a_module_is_named_by_its_name_or_its_source_and_a_refusal_lists_the_modules_pt_07"],
+    );
+}
+
+#[test]
+fn the_export_returns_the_bundle_to_the_client_ex_07() {
+    answered_by(
+        "EX-07",
+        &[
+            "the_export_returns_the_files_of_the_bundle_as_embedded_resources_ex_07",
+            "a_bundle_that_is_not_text_is_written_and_not_embedded_ex_07",
+        ],
+    );
 }
