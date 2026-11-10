@@ -31,3 +31,9 @@ Feature: The attestation tool of the gateway
     Given the lookup of the host with one defect planted at a time
     When the tests of AT-01 to AT-04 run
     Then each defect makes the test that answers it fail, with the diagnostic ATTESTATION.md records
+
+  @AT-06 @build
+  Scenario: A record that exists is answered with structured content that names it: found true, the attestation ID, and the envelope as JSON, the envelope in the store, which validates against keys/history and the stored attestation.json; by ID and by the digest of a source file alike, and a miss is found false alone (issue #93).
+    Given a store that holds the signed record of a concluded verification
+    When lexlean_attestation is called by ID, by the digest of a source file, and with a value that names nothing
+    Then the structured content names the attestation ID and holds the envelope in the store, which validates, and the miss is found false alone

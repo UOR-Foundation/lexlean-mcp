@@ -2,7 +2,7 @@
 //! frame, and the adapter asks the host for the three frame effects of the time, the identifier
 //! and the table. A client that declares the tasks extension is given a task for
 //! `lexlean_verify` (TH-07), polls it (TH-08) and cancels it (TH-09); the verifier behind the
-//! host is the oracle of what became of the task.
+//! host is the oracle of what became of the task. A verified task names its attestation (TH-14).
 //!
 //! The adapter is the generated one, served over a real socket (as in `origin.rs`), with the
 //! real host behind a recorder that notes which effect of the host was asked for, in order,
@@ -361,6 +361,107 @@ fn a_verified_task_is_completed_with_the_result_of_the_tool_th_08() {
     assert_eq!(reply.notifications.len(), 1, "{:?}", reply.notifications);
     assert_eq!(reply.notifications[0]["params"]["status"], "completed");
     assert_eq!(table_of(&mut gateway)[0]["task"]["status"], "completed");
+}
+
+/// The result the host gives a verification that ended `verified` (`conclude`), for the record
+/// `attestation`.
+fn verified_result(attestation: &str) -> Vec<u8> {
+    serde_json::to_vec(&json!({
+        "attestation_id": attestation,
+        "build_id": "bb".repeat(32),
+        "keyid": "kk",
+        "modules": ["Tiny"],
+        "semantic_id": "dd".repeat(32),
+        "source_id": "cc".repeat(32),
+    }))
+    .expect("JSON")
+}
+
+/// `lexlean_verify_control` of `task` with a verifier that has reached `state`.
+fn status_when(gateway: &mut Gateway, state: u32, class: u32, result: &[u8]) -> Reply {
+    let mut verdict = Verdict {
+        inner: gateway.take_host(),
+        state,
+        class,
+        result: result.to_vec(),
+        groups_ended: 0,
+        groups_failed: 0,
+    };
+    let reply = gateway.call_with(
+        &mut verdict,
+        "lexlean_verify_control",
+        json!({"task": "t-1", "action": "status"}),
+    );
+    gateway.put_host(verdict.inner);
+    reply
+}
+
+#[test]
+fn the_status_of_a_verified_task_names_its_attestation_th_14() {
+    let mut gateway = with_project();
+    let attestation = "ab".repeat(32);
+    let result = verified_result(&attestation);
+    let reply = status_when(&mut gateway, VERIFIED, 0, &result);
+    assert!(!reply.is_error(), "{}", reply.body);
+    assert_eq!(reply.effects, ["verify.control"]);
+    let structured = reply.structured();
+    assert_eq!(structured["state"], "verified", "{}", reply.body);
+    assert_eq!(
+        structured["attestationId"],
+        attestation.as_str(),
+        "{}",
+        reply.body
+    );
+    assert_eq!(
+        reply.text().as_bytes(),
+        result.as_slice(),
+        "the text is the result"
+    );
+    // Only a verified task names one: a failed result, or a result that is not the record's, does not.
+    for (state, class, result) in [
+        (FAILED, 1, result.clone()),
+        (VERIFIED, 0, b"verified".to_vec()),
+        (VERIFIED, 0, br#"{"attestation_id":7}"#.to_vec()),
+    ] {
+        let reply = status_when(&mut gateway, state, class, &result);
+        assert_eq!(
+            reply.structured().get("attestationId"),
+            None,
+            "{state}: {}",
+            reply.body
+        );
+    }
+}
+
+#[test]
+fn a_verified_task_completes_with_its_attestation_th_14() {
+    let mut gateway = with_project();
+    let handle = created(&mut gateway);
+    let attestation = "cd".repeat(32);
+    let reply = polled_when(
+        &mut gateway,
+        &handle,
+        VERIFIED,
+        0,
+        &verified_result(&attestation),
+    );
+    assert_eq!(effects(&reply), ["verify.control", "task.store"]);
+    let result = reply.result();
+    assert_eq!(result["status"], "completed", "{}", reply.body);
+    assert_eq!(
+        result["result"]["structuredContent"]["attestationId"],
+        attestation.as_str(),
+        "{}",
+        reply.body
+    );
+    // The table keeps it, so a later poll, answered from the table, has it too.
+    let again = gateway.task_rpc("tasks/get", &handle);
+    assert_eq!(
+        again.result()["result"]["structuredContent"]["attestationId"],
+        attestation.as_str(),
+        "{}",
+        again.body
+    );
 }
 
 #[test]

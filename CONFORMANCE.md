@@ -27,6 +27,7 @@ model does not sanction.
 | `AT-03` | `build` | A lookup that finds nothing is not an error and a malformed value is refused: an attestation ID or a digest that names no record, and an empty store, answer found false with the text not found; a value that is not 64 lowercase hexadecimal digits is the host's refusal value-refused; an empty value is refused by the core as bad arguments and the host is not asked. |
 | `AT-04` | `build` | A lookup writes nothing: the store holds the same files with the same bytes after lookups that find, that miss and that are refused. |
 | `AT-05` | `build` | Each gate of the tool rejects its planted defect: the lookup reading the file that the envelope signs instead of the envelope, the digest read as an attestation ID, the check of the value dropped, and a lookup that writes to the store; ATTESTATION.md records the command, the diagnostic and the restore of each. |
+| `AT-06` | `build` | A record that exists is answered with structured content that names it: found true, the attestation ID, and the envelope as JSON, the envelope in the store, which validates against keys/history and the stored attestation.json; by ID and by the digest of a source file alike, and a miss is found false alone (issue #93). |
 
 ## deployment
 
@@ -323,6 +324,7 @@ model does not sanction.
 | `TH-11` | `build` | The task path runs with the real verifier and the Lean toolchain: lexlean_verify by a client that declares the tasks extension, polled with tasks/get, ends completed with the state verified, and its record is found by its ID and validates; tasks/cancel while a program of the toolchain runs reports at least one child group ended and none failed, and leaves no record. |
 | `TH-12` | `build` | Calls over the rate are refused (R4): through the generated adapter over a socket with the real host, the first 100 tools/call requests of a window run and the 101st and the 102nd, which rate.tool_calls does not admit, are answered with status 429 without the tool running, while the adapter counted each of them. |
 | `TH-13` | `build` | A draft over a limit fails alone (R4): with the real verifier and the Lean toolchain, lexlean_verify of a project whose module exceeds a limit of its lexlean.toml, by a client that declares the tasks extension, ends completed with an error result of state failed that names LLS8002, while a verification started before it ends verified with its record and the table holds both tasks as completed. |
+| `TH-14` | `build` | The status of a verified task names its attestation (issue #93): lexlean_verify_control of a task the verifier holds as verified answers the structured content attestationId, the attestation_id of the result the host recorded, and a task polled with tasks/get completes with it and keeps it in the table; a failed task, or a result that names no attestation as text, has no attestationId. |
 
 ## tools
 

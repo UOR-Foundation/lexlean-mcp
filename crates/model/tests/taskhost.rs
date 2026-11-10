@@ -300,6 +300,17 @@ fn a_draft_over_the_limit_fails_alone_th_13() {
 }
 
 #[test]
+fn a_verified_task_names_its_attestation_th_14() {
+    answered_by(
+        "TH-14",
+        &[
+            "the_status_of_a_verified_task_names_its_attestation_th_14",
+            "a_verified_task_completes_with_its_attestation_th_14",
+        ],
+    );
+}
+
+#[test]
 fn each_gate_of_the_task_path_rejects_its_planted_defect_th_11() {
     let document = read("TASKHOST.md");
     let section = document

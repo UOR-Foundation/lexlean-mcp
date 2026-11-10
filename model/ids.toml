@@ -1383,6 +1383,12 @@ suite = "taskhost"
 statement = "A draft over a limit fails alone (R4): with the real verifier and the Lean toolchain, lexlean_verify of a project whose module exceeds a limit of its lexlean.toml, by a client that declares the tasks extension, ends completed with an error result of state failed that names LLS8002, while a verification started before it ends verified with its record and the table holds both tasks as completed."
 
 [[id]]
+id = "TH-14"
+level = "build"
+suite = "taskhost"
+statement = "The status of a verified task names its attestation (issue #93): lexlean_verify_control of a task the verifier holds as verified answers the structured content attestationId, the attestation_id of the result the host recorded, and a task polled with tasks/get completes with it and keeps it in the table; a failed task, or a result that names no attestation as text, has no attestationId."
+
+[[id]]
 id = "AT-01"
 level = "build"
 suite = "attestation"
@@ -1411,6 +1417,12 @@ id = "AT-05"
 level = "build"
 suite = "attestation"
 statement = "Each gate of the tool rejects its planted defect: the lookup reading the file that the envelope signs instead of the envelope, the digest read as an attestation ID, the check of the value dropped, and a lookup that writes to the store; ATTESTATION.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "AT-06"
+level = "build"
+suite = "attestation"
+statement = "A record that exists is answered with structured content that names it: found true, the attestation ID, and the envelope as JSON, the envelope in the store, which validates against keys/history and the stored attestation.json; by ID and by the digest of a source file alike, and a miss is found false alone (issue #93)."
 
 [[id]]
 id = "PT-01"

@@ -1,4 +1,4 @@
-//! AT-01 to AT-04: `lexlean_attestation` (F10, issue #12) calls the production core with the real
+//! AT-01 to AT-04 and AT-06: `lexlean_attestation` (F10, issue #12) calls the production core with the real
 //! host, as a client does, on a store that holds the signed record of a concluded verification.
 //!
 //! The verification itself needs the Lean toolchain (the ignored test of `effects.rs` in the
@@ -152,6 +152,33 @@ fn the_tool_returns_the_same_envelope_by_the_digest_of_a_source_file_at_02() {
         "both ways give the one envelope"
     );
     validated(&gateway, by_digest.text().as_bytes(), &subject);
+}
+
+#[test]
+fn the_structured_content_names_the_attestation_and_holds_its_envelope_at_06() {
+    let mut gateway = with_record();
+    let (envelope, subject) = stored(&gateway);
+    let stored_envelope: Value = serde_json::from_slice(&envelope).expect("JSON");
+    for (by, value) in [("id", id()), ("digest", source_digest())] {
+        let reply = gateway.call("lexlean_attestation", json!({"by": by, "value": value}));
+        assert!(!reply.is_error(), "{by}: {}", reply.body);
+        let structured = reply.structured();
+        assert_eq!(structured["found"], true, "{by}");
+        assert_eq!(structured["attestationId"], id(), "{by}: {}", reply.body);
+        // The envelope of the structured content is the one in the store, which validates.
+        assert_eq!(structured["envelope"], stored_envelope, "{by}");
+        let statement = validated(&gateway, &envelope, &subject);
+        assert_eq!(
+            statement["predicate"]["attestation_id"],
+            structured["attestationId"]
+        );
+    }
+    // A miss names no attestation.
+    let reply = gateway.call(
+        "lexlean_attestation",
+        json!({"by": "id", "value": "00".repeat(32)}),
+    );
+    assert_eq!(reply.structured(), &json!({"found": false}));
 }
 
 #[test]
