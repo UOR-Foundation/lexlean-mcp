@@ -4,7 +4,7 @@ Issue #10 asks that `lexlean_check`, `lexlean_snapshot`, `lexlean_format` and `l
 (F4 to F7) and `lexlean_explain` (F11) agree with the `lexlean` CLI. This file says what each
 tool returns, how an answer of the Engine becomes an MCP result, and how the claim "the tool
 equals the CLI" is tested. The rows are `TL-01` to `TL-09` (F4 to F7) and `TL-10` to `TL-14`
-(F11), and `TL-15` (the running clause of Q2: QUALITY.md), suite `tools`; the tests are `cargo test -p repo-model --test tools` (the register half)
+(F11), `TL-15` (the running clause of Q2: QUALITY.md), `TL-16` and `TL-17` (format on a draft), suite `tools`; the tests are `cargo test -p repo-model --test tools` (the register half)
 and, in the gateway workspace, `cargo test -p gateway-tool-tests` (the behaviour half). The effects are those of
 `src/Effects.lex.tex` and are not changed: `engine.check`, `engine.snapshot`,
 `engine.format` and `engine.build` are E3 to E6, and the set stays E1 to E10.
@@ -26,7 +26,7 @@ them and returns them twice: as the text of the result, and as its `structuredCo
 | --- | --- | --- | --- |
 | `lexlean_check` | `lexlean check` | `project`, `files`, `all` | the command result, `command: "check"` |
 | `lexlean_snapshot` | none (`Engine::snapshot`, SPEC 24.1) | `project`, `files`, `all` | the canonical semantic snapshot when the project checks; the command result of `check`, with `command: "snapshot"`, when it does not |
-| `lexlean_format` | `lexlean fmt` (`fmt --check` for `check_only`) | `project`, `files`, `all`, `check_only` | the command result, `command: "fmt"` |
+| `lexlean_format` | `lexlean fmt` (`fmt --check` for `check_only`) | `project`, `files`, `all`, `check_only` | the command result, `command: "fmt"`; on the handle of a draft, without `check_only`, with the member `draft` (TL-17, below) |
 | `lexlean_build` | `lexlean build` | `project`, `files`, `all` | the command result, `command: "build"`, with `build_id` and the artifact |
 
 `files` selects the files named (a path with a line feed is refused as invalid arguments),
@@ -65,6 +65,27 @@ of the vocabulary of a profile), so the set stays E1 to E10. Their inputs, resul
 the resource template and completion are in PROFILES.md ("The gateway side") and in the rows
 `VO-09` to `VO-12`; a profile that holds a package of another language is refused with `LLC0103`
 (`VO-04`).
+
+## Format on a draft (TL-17, issue #91)
+
+`lexlean fmt` rewrites the files of a project in place. A draft is named by the digest of its
+files (DRAFTS.md, `DR-01`), so it cannot change in place, and the copy the host formats is removed
+when the call ends: before #91 the tool answered success and the formatted bytes were lost. On the
+handle of a draft, a format that succeeds therefore ends with the host reading back the draft's own
+paths from the copy and storing them as a draft of the same profile
+(`gateway-binding/src/materialize.rs`, `redraft`), under the identity of its preimage, which is the
+handle `lexlean_draft_write` gives the same files. The command result is the CLI's with one more
+member, `draft`, the handle of that draft, in its place in the order of the members (after
+`diagnostics`); the output schema of the tool lists it. A draft that is already canonical is its own
+result, and nothing is written. `check_only`, a refused draft and a directory project make no
+draft; a directory project is formatted in place, as the CLI does, and its result is the CLI's
+bytes. Files the formatter wrote outside the draft's own paths (a file of the profile, selected
+with `files` or `all`) are not kept. A draft that could not be stored is `engine-unavailable`.
+
+The `LLL1003` of `fmt --check` names the file in its message and has its primary span at
+`lexlean.toml`, line 1: that is the CLI's own diagnostic (`lexlean --diagnostic-format json fmt
+--check` gives the same span on a directory project), and the tool equals the CLI (`TL-05`), so the
+span is LexLean's to change, not the gateway's.
 
 ## Snapshot
 

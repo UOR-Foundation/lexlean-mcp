@@ -657,3 +657,25 @@ fn the_planted_defects_of_lexlean_explain_are_recorded_tl_14() {
         assert!(planted.contains(kind), "a planted defect is about: {kind}");
     }
 }
+
+/// TL-17: `lexlean_format` on the handle of a draft names the draft it made (issue #91).
+#[test]
+fn formatting_a_draft_names_the_draft_it_made_tl_17() {
+    let source = tight(&read("gateway/src/GatewayTools.lex.tex"));
+    assert!(
+        source.contains("(member \"draft\" (kindProp \"string\"))"),
+        "the output schema of lexlean_format lists the member draft"
+    );
+    let host = read("gateway/bindings/gateway-binding/src/lib.rs");
+    assert!(
+        host.contains("materialize::redraft("),
+        "the host stores what the formatter wrote as a draft"
+    );
+    needs(
+        "TL-17",
+        &[
+            "formatting_a_draft_makes_a_new_draft_of_the_formatted_files_tl_17",
+            "a_draft_the_formatter_refuses_makes_no_draft_tl_17",
+        ],
+    );
+}

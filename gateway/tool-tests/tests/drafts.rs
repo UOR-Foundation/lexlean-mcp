@@ -1,4 +1,4 @@
-//! DR-01 to DR-15: the draft tools of F3 (issue #9). Each test calls `lexlean_draft_write`,
+//! DR-01 to DR-15, and TL-17 (`lexlean_format` on a draft, issue #91): the draft tools of F3 (issue #9). Each test calls `lexlean_draft_write`,
 //! `lexlean_draft_read`, `lexlean_draft_assemble` or an Engine tool through the production core with the real host
 //! (`gateway_binding::Native`), on a store in a temporary directory, as a client does. Nothing
 //! here knows what a tool does: the core does, and the model (`src/Identity.lex.tex`) is the
@@ -12,7 +12,7 @@ use gateway_host_api::protocol::{
     lexicon_read, rate_calls, store_get, store_put, task_id, task_store, task_table,
     verify_control, verify_start, Host, HostError,
 };
-use gateway_tool_tests::{tiny, Gateway, Reply, BUNDLE, SOURCE};
+use gateway_tool_tests::{tiny, validate, Gateway, Reply, BUNDLE, SOURCE};
 use lexlean::sdk::{self, ModuleKind, SourceHeader};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -583,6 +583,97 @@ fn an_engine_tool_on_the_handle_of_a_draft_agrees_with_the_directory_dr_07() {
         json!({"project": "dir", "files": [], "check_only": true}),
     );
     assert_eq!(by_handle.structured(), by_directory.structured());
+}
+
+// ---- TL-17: lexlean_format on the handle of a draft (issue #91) --------------------------------
+
+/// The tiny module with its definition on one line: a module the Engine checks and that is not
+/// canonical, so `fmt --check` refuses it with `LLL1003` and `fmt` rewrites it as the tiny source.
+fn one_line_tiny() -> String {
+    let source = tiny_text();
+    let block = "definition{\n  name: double,\n  parameters: [value : Nat],\n  result: Nat,\n  body: (value + value),\n  executable: true\n}";
+    assert!(source.contains(block), "the tiny source holds the block");
+    source.replace(
+        block,
+        "definition{name: double, parameters: [value : Nat], result: Nat, body: (value + value), executable: true}",
+    )
+}
+
+#[test]
+fn formatting_a_draft_makes_a_new_draft_of_the_formatted_files_tl_17() {
+    let mut gateway = with_profile();
+    let source = one_line_tiny();
+    let draft = handle(&write(&mut gateway, "tiny", &[(SOURCE, &source)]));
+    let checked = gateway.call(
+        "lexlean_format",
+        json!({"project": draft, "check_only": true}),
+    );
+    assert!(checked.is_error(), "{}", checked.body);
+    assert_eq!(checked.structured()["diagnostics"][0]["code"], "LLL1003");
+    assert_eq!(
+        checked.structured().get("draft"),
+        None,
+        "a check makes none"
+    );
+    let formatted = gateway.call("lexlean_format", json!({"project": draft}));
+    assert!(!formatted.is_error(), "{}", formatted.body);
+    assert_eq!(formatted.effects, ["engine.format"]);
+    let made = formatted.structured()["draft"]
+        .as_str()
+        .expect("the handle of the formatted draft")
+        .to_string();
+    assert_ne!(made, draft, "a draft is named by its content");
+    assert_eq!(
+        serde_json::from_str::<Value>(formatted.text()).expect("JSON"),
+        *formatted.structured(),
+        "the text and the structured content are one document"
+    );
+    let listed = gateway.list();
+    let schema = listed.result()["tools"]
+        .as_array()
+        .expect("tools")
+        .iter()
+        .find(|tool| tool["name"] == "lexlean_format")
+        .expect("lexlean_format is listed")["outputSchema"]
+        .clone();
+    validate(&schema, formatted.structured()).expect("the result validates");
+    // The new draft is the draft of the canonical files, as lexlean_draft_write names it, and it
+    // is canonical; the draft that was formatted is as it was.
+    let canonical = handle(&write(&mut gateway, "tiny", &[(SOURCE, &tiny_text())]));
+    assert_eq!(made, canonical);
+    assert_eq!(read(&mut gateway, &made, Some(SOURCE)).text(), tiny_text());
+    let again = gateway.call(
+        "lexlean_format",
+        json!({"project": made, "check_only": true}),
+    );
+    assert!(!again.is_error(), "{}", again.body);
+    assert_eq!(read(&mut gateway, &draft, Some(SOURCE)).text(), source);
+    // A canonical draft is its own result, and nothing is written.
+    let before = stored_drafts(&gateway);
+    let same = gateway.call("lexlean_format", json!({"project": made}));
+    assert!(!same.is_error(), "{}", same.body);
+    assert_eq!(same.structured()["draft"], made.as_str());
+    assert_eq!(stored_drafts(&gateway), before);
+    assert!(builds(&gateway).is_empty(), "{:?}", builds(&gateway));
+    // A directory project is formatted in place, as the CLI does, and names no draft.
+    gateway.install("dir", &tiny());
+    let directory = gateway.call("lexlean_format", json!({"project": "dir"}));
+    assert!(!directory.is_error(), "{}", directory.body);
+    assert_eq!(directory.structured().get("draft"), None);
+}
+
+#[test]
+fn a_draft_the_formatter_refuses_makes_no_draft_tl_17() {
+    let mut gateway = with_profile();
+    let refused = "\\begin{lexlean}{Tiny}\nnonsense\n\\end{lexlean}\n";
+    let draft = handle(&write(&mut gateway, "tiny", &[(SOURCE, refused)]));
+    let before = stored_drafts(&gateway);
+    let reply = gateway.call("lexlean_format", json!({"project": draft}));
+    assert!(reply.is_error(), "{}", reply.body);
+    assert_eq!(reply.structured()["success"], false);
+    assert_eq!(reply.structured().get("draft"), None);
+    assert_eq!(stored_drafts(&gateway), before, "no draft is made");
+    assert!(builds(&gateway).is_empty(), "{:?}", builds(&gateway));
 }
 
 #[test]

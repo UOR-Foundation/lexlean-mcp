@@ -825,6 +825,12 @@ suite = "tools"
 statement = "Every result of a tool that lists an output schema validates against it (R7): lexlean_check, lexlean_snapshot, lexlean_format, lexlean_build and lexlean_explain are called for a success, a refused selection (class 2) and a project over a limit (class 4), the structured content of each result is judged by a validator of the test that is independent of the core, a tool that lists an output schema and has no call fails the test, and the validator rejects a required member removed, an integer given as a string, a constant that differs, a member the schema does not list, a value that is not an array and a diagnostic without its message."
 
 [[id]]
+id = "TL-17"
+level = "build"
+suite = "tools"
+statement = "lexlean_format on the handle of a draft keeps what the formatter wrote (issue #91): a draft is named by its content, so the formatted files of the draft are stored as a new draft of the same profile and paths, named as lexlean_draft_write names the same files, and the command result of fmt carries its handle as the member draft (which the output schema lists); a draft that is already canonical is its own result and nothing is written, the draft that was formatted is unchanged, check_only and a refused draft make none, and a directory project is formatted in place and names none."
+
+[[id]]
 id = "GW-13"
 level = "build"
 suite = "gateway"

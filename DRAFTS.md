@@ -143,7 +143,9 @@ profile with its files, so an author can edit a file the profile holds, such as 
 `src/Main.lex.tex` that `gateway-provision init` writes (#84). The replaced entry is still
 inspected, so a link there is refused as any other; a draft file whose path is a directory of
 the bundle is `project-refused`. Every file, the draft's included, is still created with
-`create_new`, so nothing is written through an entry that was already there. The directory belongs to the call and is removed when the call ends;
+`create_new`, so nothing is written through an entry that was already there. What `lexlean_format`
+writes into the directory is kept as a new draft, whose handle the result names (TOOLS.md, `TL-17`).
+The directory belongs to the call and is removed when the call ends;
 `lexlean_verify` keeps its directory, because the verification outlives the call (`builds` is a
 cache that the lifecycle of the store, `ST-`, can drop). Two calls on one draft are two
 directories and never see each other's files. A draft or a profile that is absent, a draft that

@@ -97,3 +97,9 @@ Feature: Check, snapshot, format and build agree with the CLI
     Given the gateway with the tiny project and a project over a limit
     When tools/list is read and each tool that lists an output schema is called for a success and for two refusals
     Then the structured content of every result validates against the schema listed for its tool, the set of tools that list one is the set the test has calls for, and each planted defect in a result is rejected
+
+  @TL-17 @build
+  Scenario: lexlean_format on the handle of a draft keeps what the formatter wrote (issue #91): a draft is named by its content, so the formatted files of the draft are stored as a new draft of the same profile and paths, named as lexlean_draft_write names the same files, and the command result of fmt carries its handle as the member draft (which the output schema lists); a draft that is already canonical is its own result and nothing is written, the draft that was formatted is unchanged, check_only and a refused draft make none, and a directory project is formatted in place and names none.
+    Given a profile and a draft whose module the Engine checks and that is not canonical
+    When lexlean_format is called on the draft with check_only, then without it, then on the draft it made, and on a draft the Engine refuses
+    Then the check refuses with LLL1003, the format names a new draft of the canonical files that is canonical, the formatted draft is unchanged, and no other call makes a draft
