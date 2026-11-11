@@ -3,19 +3,30 @@
 # the LexLean and cargo evidence that `just vv` will later include, ahead of the
 # SDK binding. Each step reports a failure as an annotation holding the last
 # lines of its output (.github/lexlean-ci/lib.sh, `gate`).
+#
+# Two tiers, as in PrismPM's PR Fast Checks and vv.yml. A pull request runs every
+# gate but the two that repeat a whole verification: 7q `prismpm verify` (about
+# 60 min, a second build and verification of what 7f already verified) and VP-08,
+# the examples beside the CLI (about 70 min). A push to main runs everything, and
+# workflow_dispatch runs everything on any branch, so a pull request that needs
+# the full set before merge can have it.
 name: lexlean
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# A newer push to a pull request cancels its older run. Every other run has a
+# group of its own, so a main run is never cancelled by the next merge, and every
+# merged commit keeps its full verdict.
 concurrency:
-  group: lexlean-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.event_name == 'pull_request' && format('lexlean-pr-{0}', github.event.pull_request.number) || format('lexlean-run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:
@@ -401,7 +412,9 @@ jobs:
           gate "gateway/lay-out-lexlean.sh" gateway/lay-out-lexlean.sh "$RUNNER_TEMP/lexlean-at-the-pin" &&
             export LEXLEAN_SOURCES="$RUNNER_TEMP/lexlean-at-the-pin" &&
             gate "the verify fixtures" gateway_verify_fixtures
+      # Full tier only: a push to main or workflow_dispatch (see the header).
       - name: VP-08. every example but the Atlas verifies beside the CLI (AC-05, Q1)
+        if: github.event_name != 'pull_request'
         run: |
           . .github/lexlean-ci/lib.sh
           export LEXLEAN_SOURCES="$RUNNER_TEMP/lexlean-at-the-pin" &&
@@ -600,11 +613,15 @@ jobs:
         run: |
           . .github/lexlean-ci/lib.sh
           gate "scenario table" gateway_conformance_summary
+      # Full tier only: a push to main or workflow_dispatch (see the header). 7f has already
+      # verified the gateway in this run; 7q builds and verifies it again in the SDK image.
       - name: Free disk for the SDK image
+        if: github.event_name != 'pull_request'
         run: |
           . .github/lexlean-ci/lib.sh
           gate "free runner disk" free_runner_disk
       - name: 7q. prismpm verify, in the locked SDK image
+        if: github.event_name != 'pull_request'
         run: |
           . .github/lexlean-ci/lib.sh
           gate "prismpm verify in the locked SDK image" gateway_verify
