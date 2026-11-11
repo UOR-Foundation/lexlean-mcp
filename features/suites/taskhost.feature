@@ -79,3 +79,9 @@ Feature: The task host of the gateway
     Given the real verifier and the Lean toolchain, a sound project and a project over a limit
     When a verification of the sound project and one of the project over the limit are polled to their ends
     Then the second fails with LLS8002, the first is verified with a record, and the table holds both as completed
+
+  @TH-14 @build
+  Scenario: The status of a verified task names its attestation (issue #93): lexlean_verify_control of a task the verifier holds as verified answers the structured content attestationId, the attestation_id of the result the host recorded, and a task polled with tasks/get completes with it and keeps it in the table; a failed task, or a result that names no attestation as text, has no attestationId.
+    Given a verifier that holds a task as verified with the result of a record, or as failed
+    When the status of the task is read with lexlean_verify_control, and the task is polled with tasks/get
+    Then a verified task names the attestation of its result, the table keeps it, and a failed task names none

@@ -93,7 +93,12 @@ fn tools_list_shows_the_four_tools_with_their_schemas_tl_01() {
         assert_eq!(tool["inputSchema"], expected_input, "{name}: inputSchema");
         let expected_output = match name {
             "lexlean_check" => command_result_schema("check"),
-            "lexlean_format" => command_result_schema("fmt"),
+            // On a draft the result also names the draft the formatter made (TL-17).
+            "lexlean_format" => {
+                let mut schema = command_result_schema("fmt");
+                schema["properties"]["draft"] = json!({"type": "string"});
+                schema
+            }
             "lexlean_build" => command_result_schema("build"),
             _ => json!({
                 "type": "object",

@@ -669,10 +669,123 @@ definition{
 }
 
 definition{
+  name: qualifiedOnto,
+  parameters: [octets : (List Nat), taken : (List Nat)],
+  result: (Option ((List Nat) * (List Nat))),
+  body: (match octets
+    | List.nil => (ctor Option.none [((List Nat) * (List Nat))])
+    | List.cons head rest => (if (head =? 58) then (match rest
+      | List.nil => (ctor Option.none [((List Nat) * (List Nat))])
+      | List.cons next after => (if (next =? 58) then (ctor Option.some [((List Nat) * (List Nat))] ((JsonRead::reverseOnto [Nat] taken (nil Nat)), after)) else (qualifiedOnto rest (cons head taken)))) else (qualifiedOnto rest (cons head taken)))),
+  executable: true,
+  recursive_argument: octets
+}
+
+definition{
+  name: sameText,
+  parameters: [wanted : (Option String), given : String],
+  result: Bool,
+  body: (match wanted | Option.none => false | Option.some text => (prim equal text given : Bool)),
+  executable: true
+}
+
+definition{
+  name: qualifiedMatches,
+  parameters: [entry : String, held : Entry],
+  result: Bool,
+  body: (match (qualifiedOnto (Resources::bytesOfText entry) (nil Nat))
+    | Option.none => false
+    | Option.some parts => ((sameText (prim utf8_decode (JsonText::listToBytes (JsonText::emptyBytes) (first parts)) : (Option String)) (project held package)) && (sameText (prim utf8_decode (JsonText::listToBytes (JsonText::emptyBytes) (second parts)) : (Option String)) (project held id)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: entryNamed,
+  parameters: [entry : String, package : (Option String), held : Entry],
+  result: Bool,
+  body: ((inPackage package held) && ((prim equal entry (project held id) : Bool) || (qualifiedMatches entry held))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: namedOnto,
+  parameters: [
+    entries : (List Entry),
+    entry : String,
+    package : (Option String),
+    built : (List Json::Json)
+  ],
+  result: (List Json::Json),
+  body: (match entries
+    | List.nil => (JsonRead::reverseOnto [Json::Json] built (nil Json::Json))
+    | List.cons head rest => (if (entryNamed entry package head) then (namedOnto rest entry package (cons (project head body) built)) else (namedOnto rest entry package built))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: entries
+}
+
+definition{
+  name: entryDocument,
+  parameters: [profile : String, entry : String, chosen : (List Json::Json)],
+  result: Json::Json,
+  body: (ctor Json::Json.object (cons ("profile", (GatewayTools::textJson profile)) (cons ("entry", (GatewayTools::textJson entry)) (cons ("found", (GatewayTools::flagJson (match chosen
+    | List.nil => false
+    | List.cons head rest => true))) (GatewayTools::member "entries" (ctor Json::Json.array chosen)))))),
+  executable: true
+}
+
+definition{
+  name: entryIn,
+  parameters: [profile : String, entry : String, package : (Option String), bytes : Bytes],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (vocabOf bytes)
+    | Option.none => (typedRefusal "VocabularyMalformed")
+    | Option.some vocab => (match (ProfileLanguage::checkPackages (project vocab language) (declsOnto (project vocab rows) (nil ProfileLanguage::PackageDecl)))
+      | ProfileLanguage::PackageCheck.Refused code => (languageRefusal code)
+      | ProfileLanguage::PackageCheck.Admitted => (jsonReply (entryDocument profile entry (namedOnto (project vocab entries) entry package (nil Json::Json))) false))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: entryWith,
+  parameters: [profile : String, entry : String, package : (Option String), outcome : Bytes],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (fetch outcome)
+    | Fetched.Failed index => (GatewayTools::accepted (GatewayTools::hostFailure (ctor Effects::Effect.LexiconRead) index))
+    | Fetched.Garbled => (GatewayTools::accepted (GatewayTools::malformed))
+    | Fetched.Absent => (typedRefusal "VocabularyMissing")
+    | Fetched.Present bytes => (entryIn profile entry package bytes)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: entryTool,
+  parameters: [completed : (List HostEffect::Completed), params : Methods::CallToolParams],
+  result: (Result Methods::Progressed Refusal::ProviderRefusal),
+  body: (match (GatewayTools::argText params "profile")
+    | Option.none => (GatewayTools::invalid "profile is not a string")
+    | Option.some profile => (match (GatewayTools::argText params "entry")
+      | Option.none => (GatewayTools::invalid "entry is not a string")
+      | Option.some entry => (match (GatewayTools::optionalText params "package")
+        | Option.none => (GatewayTools::invalid "package is not a string")
+        | Option.some package => (match completed
+          | List.nil => (GatewayTools::askingBytes (Drafts::lexiconTag) (vocabularyPayload profile))
+          | List.cons done rest => (match rest
+            | List.nil => (if ((project done tag) =? (Drafts::lexiconTag)) then (entryWith profile entry package (project done outcome)) else (GatewayTools::refused "the host performed another effect"))
+            | List.cons more again => (GatewayTools::refused "the host performed more than one effect")))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
   name: behave,
   parameters: [completed : (List HostEffect::Completed), params : Methods::CallToolParams],
   result: (Result Methods::Progressed Refusal::ProviderRefusal),
-  body: (if (GatewayTools::isTool params "lexlean_profiles") then (profilesTool completed params) else (if (GatewayTools::isTool params "lexlean_lexicon_search") then (searchTool completed params) else (GatewayTools::behave completed params))),
+  body: (if (GatewayTools::isTool params "lexlean_profiles") then (profilesTool completed params) else (if (GatewayTools::isTool params "lexlean_lexicon_search") then (searchTool completed params) else (if (GatewayTools::isTool params "lexlean_lexicon_read") then (entryTool completed params) else (GatewayTools::behave completed params)))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }

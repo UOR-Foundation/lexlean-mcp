@@ -224,8 +224,45 @@ impl Native {
             let elapsed = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
             self.telemetry.check_latency(profile, elapsed);
         }
-        answered.map_err(|Unavailable| EngineRefusal::Engine)
+        let answer = answered.map_err(|Unavailable| EngineRefusal::Engine)?;
+        // A draft is named by its content: what `lexlean fmt` wrote into the copy of a draft is a
+        // new draft, which is stored and named in the result, or it would go with the copy (#91).
+        match (call, materialize::split_handle(project)) {
+            (Call::Format(false), Some((profile, id))) if answer.class == 0 => {
+                let draft = materialize::redraft(
+                    &self.config.store,
+                    profile,
+                    id,
+                    resolved.directory(),
+                    self.config.blob_max_bytes,
+                    DRAFT_MAX_BYTES,
+                )
+                .map_err(|_| EngineRefusal::Engine)?;
+                Ok(Answer {
+                    class: answer.class,
+                    result: with_draft(&answer.result, &draft).ok_or(EngineRefusal::Engine)?,
+                })
+            }
+            _ => Ok(answer),
+        }
     }
+}
+
+/// The command result `result` of `lexlean fmt` with the member `draft`, the handle of the draft it
+/// made, in its place among the members: the CLI writes them in the order of their bytes, and
+/// `draft` comes after `diagnostics` and before `exit_code`. Every other byte is the CLI's.
+fn with_draft(result: &[u8], draft: &str) -> Option<Vec<u8>> {
+    const NEXT: &[u8] = b",\"exit_code\":";
+    let at = result
+        .windows(NEXT.len())
+        .position(|window| window == NEXT)?;
+    let member = serde_json::to_vec(draft).ok()?;
+    let mut out = Vec::with_capacity(result.len() + member.len() + 10);
+    out.extend_from_slice(&result[..at]);
+    out.extend_from_slice(b",\"draft\":");
+    out.extend_from_slice(&member);
+    out.extend_from_slice(&result[at..]);
+    Some(out)
 }
 
 /// The bytes of the file `path` of the draft at `key`, `None` when the draft has no such file,
@@ -616,14 +653,13 @@ impl Host for Native {
                     module: found.module,
                     rendering: found.rendering,
                     bundle: found.bundle,
+                    modules: found.modules,
+                    files: found.files,
                 })
             }
             Err(attestation::Refused::Value) => {
                 Err(HostError::Failed(attestation_lookup::Failure::ValueRefused))
             }
-            Err(attestation::Refused::Module) => Err(HostError::Failed(
-                attestation_lookup::Failure::ModuleUnknown,
-            )),
             Err(attestation::Refused::Store) => Err(HostError::Fault),
         }
     }

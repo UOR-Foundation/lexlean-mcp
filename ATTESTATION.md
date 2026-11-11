@@ -14,12 +14,14 @@ the store. The core was wired to `attestation.lookup` in an earlier slice and th
 | `AT-03` | A record that does not exist is `found: false`, not an error. A value that is not 64 lowercase hexadecimal digits is the host's `value-refused`; an empty value is refused by the core, which does not ask the host. |
 | `AT-04` | A lookup writes nothing to the store. |
 | `AT-05` | Each gate rejects its planted defect (below). |
+| `AT-06` | A record that exists is answered with `structuredContent` that names it: `found`, `attestationId` and the envelope as JSON, which validates against `keys/history` and the stored `attestation.json` (issue #93). |
 
 ## What the tool returns
 
 The arguments are `by` (`id` or `digest`) and `value`. A record that exists is answered with
-`structuredContent` `{"found": true}` and the envelope, a JSON document, as the text of the first
-content block. A record that does not exist is answered with `{"found": false}` and the text
+`structuredContent` `{"found": true, "attestationId", "envelope"}`, the ID of the record and its envelope as a JSON
+document, and with the envelope, byte for byte as the store holds it, as the text of the first content
+block. A record that does not exist is answered with `{"found": false}` and the text
 `not found`. A refusal of the value is a tool error with `structuredContent` `{"failure":
 "value-refused"}`. The tool asks the host once (`attestation.lookup`).
 
@@ -44,8 +46,6 @@ restored. The unplanted tree passes the command (5 passed).
 
 ## Not met
 
-- The envelope is the text of the result. `structuredContent` carries only `found`; the issue asks
-  for the envelope as structured content only of `lexlean_present`.
 - The acceptance row of F10 is the proposal in FEATURES.md ("attestation resolves by ID or file
   digest"); the owner has not confirmed it (FEATURES.md, "Needs owner").
 - No tool lists the attestations of the store, and a lookup does not say which key signed an

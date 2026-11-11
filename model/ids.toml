@@ -825,6 +825,12 @@ suite = "tools"
 statement = "Every result of a tool that lists an output schema validates against it (R7): lexlean_check, lexlean_snapshot, lexlean_format, lexlean_build and lexlean_explain are called for a success, a refused selection (class 2) and a project over a limit (class 4), the structured content of each result is judged by a validator of the test that is independent of the core, a tool that lists an output schema and has no call fails the test, and the validator rejects a required member removed, an integer given as a string, a constant that differs, a member the schema does not list, a value that is not an array and a diagnostic without its message."
 
 [[id]]
+id = "TL-17"
+level = "build"
+suite = "tools"
+statement = "lexlean_format on the handle of a draft keeps what the formatter wrote (issue #91): a draft is named by its content, so the formatted files of the draft are stored as a new draft of the same profile and paths, named as lexlean_draft_write names the same files, and the command result of fmt carries its handle as the member draft (which the output schema lists); a draft that is already canonical is its own result and nothing is written, the draft that was formatted is unchanged, check_only and a refused draft make none, and a directory project is formatted in place and names none."
+
+[[id]]
 id = "GW-13"
 level = "build"
 suite = "gateway"
@@ -1021,6 +1027,12 @@ id = "VO-16"
 level = "build"
 suite = "vocabulary"
 statement = "Each gate of the profile work rejects its planted defect: a profile file excluded from the identity, a mixed-language package admitted, an Atlas entry missing from the served lexicon, a capability declared that is not served, a profile installed without a review record and a reserved entry copied into a project; PROFILES.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "VO-17"
+level = "build"
+suite = "vocabulary"
+statement = "lexlean_lexicon_read reads the served vocabulary of a profile by the ID that lexlean_lexicon_search gives an entry (issue #92): the ID alone answers every entry of that ID, and the package, as the argument package or as package::id, the one entry of that package, each as search gives it; an ID that names no entry is found false with no entries, not an error, and the refusals are those of search (profile-unknown, VocabularyMissing, VocabularyMalformed, LanguageMismatch LLC0103); the tool asks one lexicon.read of the entry vocabulary and its schema is closed."
 
 [[id]]
 id = "SG-01"
@@ -1383,6 +1395,12 @@ suite = "taskhost"
 statement = "A draft over a limit fails alone (R4): with the real verifier and the Lean toolchain, lexlean_verify of a project whose module exceeds a limit of its lexlean.toml, by a client that declares the tasks extension, ends completed with an error result of state failed that names LLS8002, while a verification started before it ends verified with its record and the table holds both tasks as completed."
 
 [[id]]
+id = "TH-14"
+level = "build"
+suite = "taskhost"
+statement = "The status of a verified task names its attestation (issue #93): lexlean_verify_control of a task the verifier holds as verified answers the structured content attestationId, the attestation_id of the result the host recorded, and a task polled with tasks/get completes with it and keeps it in the table; a failed task, or a result that names no attestation as text, has no attestationId."
+
+[[id]]
 id = "AT-01"
 level = "build"
 suite = "attestation"
@@ -1413,6 +1431,12 @@ suite = "attestation"
 statement = "Each gate of the tool rejects its planted defect: the lookup reading the file that the envelope signs instead of the envelope, the digest read as an attestation ID, the check of the value dropped, and a lookup that writes to the store; ATTESTATION.md records the command, the diagnostic and the restore of each."
 
 [[id]]
+id = "AT-06"
+level = "build"
+suite = "attestation"
+statement = "A record that exists is answered with structured content that names it: found true, the attestation ID, and the envelope as JSON, the envelope in the store, which validates against keys/history and the stored attestation.json; by ID and by the digest of a source file alike, and a miss is found false alone (issue #93)."
+
+[[id]]
 id = "PT-01"
 level = "build"
 suite = "present"
@@ -1428,7 +1452,7 @@ statement = "AC-06: for the record of nat-add-zero, J1 ends in an embedded resou
 id = "PT-03"
 level = "build"
 suite = "present"
-statement = "lexlean_present by the SHA-256 of a source file the verification covered returns the same resource as by ID; the argument module, a path of the build manifest, selects one rendering of a record that has several, an empty module is the only rendering of a record that has one, and an empty module on several or a module the manifest does not name is the host's refusal module-unknown."
+statement = "lexlean_present by the SHA-256 of a source file the verification covered returns the same resource as by ID; the argument module, a path of the build manifest, selects one rendering of a record that has several, an empty module is the only rendering of a record that has one, and an empty module on several or a module the manifest does not name is the refusal module-unknown."
 
 [[id]]
 id = "PT-04"
@@ -1447,6 +1471,12 @@ id = "PT-06"
 level = "build"
 suite = "present"
 statement = "Each gate of lexlean_present rejects its planted defect: the rendering read from the wrong file, the digest of the rendering not checked, the module not selected, and a present that writes to the store; PRESENT.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "PT-07"
+level = "build"
+suite = "present"
+statement = "lexlean_present takes a module as the client knows it and says which there are (issue #94): the name of a module (B) or the path of its source file (src/B.lex.tex) names its rendering as its path does, when one rendering matches; the structured content lists the paths of the renderings of the record as modules; and no module on several renderings, or a module that names none, is the error result module-unknown whose structured content lists those paths."
 
 [[id]]
 id = "EX-01"
@@ -1483,6 +1513,12 @@ id = "EX-06"
 level = "build"
 suite = "present"
 statement = "Each gate of lexlean_export rejects its planted defect: a rendering left out of the bundle, the key history left out, the envelope replaced by attestation.json, and the evidence not checked before the first write; PRESENT.md records the command, the diagnostic and the restore of each."
+
+[[id]]
+id = "EX-07"
+level = "build"
+suite = "present"
+statement = "lexlean_export returns the bundle to the client that asked for it (issue #94): beside the key of the bundle, each file the store holds below exports/<ID> is an embedded text resource at lexlean://attestation/<ID>/<path>, typed application/json, application/x-tex or text/plain, byte for byte, and a reader checks the returned files offline; embedded is true, and a bundle with a file that is not text, or over 4 MiB, is written to the store and not embedded (embedded false)."
 
 [[id]]
 id = "DP-01"

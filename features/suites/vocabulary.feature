@@ -97,3 +97,9 @@ Feature: Profiles, vocabulary and provisioning
     Given the sources with one defect planted
     When the gate of the defect is run
     Then the gate fails with its diagnostic and the restored sources pass
+
+  @VO-17 @build
+  Scenario: lexlean_lexicon_read reads the served vocabulary of a profile by the ID that lexlean_lexicon_search gives an entry (issue #92): the ID alone answers every entry of that ID, and the package, as the argument package or as package::id, the one entry of that package, each as search gives it; an ID that names no entry is found false with no entries, not an error, and the refusals are those of search (profile-unknown, VocabularyMissing, VocabularyMalformed, LanguageMismatch LLC0103); the tool asks one lexicon.read of the entry vocabulary and its schema is closed.
+    Given the profiles tiny and vocab installed by the operator
+    When lexlean_lexicon_read is called with each ID that search gives, with its package and as package::id, with IDs that name nothing, and on profiles that are absent, without a vocabulary or of mixed languages
+    Then each entry is read as search gives it, a miss is found false, and each refusal is typed

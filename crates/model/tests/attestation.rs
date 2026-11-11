@@ -1,4 +1,4 @@
-//! AT-01 to AT-05: the attestation tool of the gateway (issue #12, F10).
+//! AT-01 to AT-06: the attestation tool of the gateway (issue #12, F10).
 //!
 //! The behavior is tested where the tool runs: `gateway/tool-tests/tests/attestation.rs` calls
 //! `lexlean_attestation` through the production core with the real host on a store that holds a
@@ -79,6 +79,14 @@ fn a_miss_is_not_an_error_and_a_bad_value_is_refused_at_03() {
 #[test]
 fn a_lookup_writes_nothing_at_04() {
     answered_by("AT-04", &["a_lookup_writes_nothing_to_the_store_at_04"]);
+}
+
+#[test]
+fn the_structured_content_names_the_attestation_at_06() {
+    answered_by(
+        "AT-06",
+        &["the_structured_content_names_the_attestation_and_holds_its_envelope_at_06"],
+    );
 }
 
 #[test]

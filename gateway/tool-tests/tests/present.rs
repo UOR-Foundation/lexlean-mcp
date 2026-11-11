@@ -428,7 +428,125 @@ fn only_what_is_attested_is_presented_pt_05() {
     assert!(!faults(&mut gateway, &evidence.id, 0));
 }
 
+#[test]
+fn a_module_is_named_by_its_name_or_its_source_and_a_refusal_lists_the_modules_pt_07() {
+    let two = Evidence::two_modules();
+    let one = Evidence::tiny();
+    let mut gateway = holding(&[&one, &two]);
+    let listed = json!(["modules/A/A.tex", "modules/B/B.tex"]);
+    // The name of the module, and the path of its source file, name its rendering.
+    for (module, path, bytes) in [
+        ("B", "modules/B/B.tex", "B \\LaTeX\n"),
+        ("src/B.lex.tex", "modules/B/B.tex", "B \\LaTeX\n"),
+        ("A", "modules/A/A.tex", "A \\LaTeX\n"),
+        ("modules/A/A.tex", "modules/A/A.tex", "A \\LaTeX\n"),
+    ] {
+        let reply = gateway.call(
+            "lexlean_present",
+            json!({"by": "id", "value": two.id, "module": module}),
+        );
+        assert!(!reply.is_error(), "{module}: {}", reply.body);
+        assert_eq!(resource(&reply).2, bytes, "{module}");
+        assert_eq!(reply.structured()["module"], path, "{module}");
+        assert_eq!(reply.structured()["modules"], listed, "{module}");
+    }
+    // No module on two renderings, and a module that names none, are module-unknown with the
+    // paths a client may name.
+    for module in [
+        None,
+        Some("C"),
+        Some("src/C.lex.tex"),
+        Some("../keys/history"),
+    ] {
+        let mut arguments = json!({"by": "id", "value": two.id});
+        if let Some(module) = module {
+            arguments["module"] = json!(module);
+        }
+        let reply = gateway.call("lexlean_present", arguments);
+        assert!(reply.is_error(), "{module:?}: {}", reply.body);
+        assert_eq!(reply.effects, ["attestation.lookup"]);
+        assert_eq!(
+            reply.structured(),
+            &json!({"failure": "module-unknown", "modules": listed}),
+            "{module:?}"
+        );
+        assert!(reply.text().contains("modules/B/B.tex"), "{}", reply.text());
+    }
+    // A record of one rendering lists it too.
+    let reply = gateway.call("lexlean_present", json!({"by": "id", "value": one.id}));
+    assert_eq!(
+        reply.structured()["modules"],
+        json!(["modules/Tiny/Tiny.tex"])
+    );
+}
+
 // ---- lexlean_export -------------------------------------------------------------------------
+
+#[test]
+fn the_export_returns_the_files_of_the_bundle_as_embedded_resources_ex_07() {
+    let evidence = Evidence::two_modules();
+    let mut gateway = holding(&[&evidence]);
+    let reply = gateway.call("lexlean_export", json!({"by": "id", "value": evidence.id}));
+    assert!(!reply.is_error(), "{}", reply.body);
+    assert_eq!(reply.structured()["embedded"], true);
+    assert_eq!(
+        reply.structured()["modules"],
+        json!(["modules/A/A.tex", "modules/B/B.tex"])
+    );
+    let bundle = bundle_of(&gateway, &evidence.id);
+    let content = reply.result()["content"].as_array().expect("content");
+    assert_eq!(content[0]["type"], "text");
+    let mut returned = std::collections::BTreeMap::new();
+    for block in &content[1..] {
+        assert_eq!(block["type"], "resource", "{block}");
+        let resource = &block["resource"];
+        let uri = resource["uri"].as_str().expect("a uri");
+        let path = uri
+            .strip_prefix(&format!("lexlean://attestation/{}/", evidence.id))
+            .unwrap_or_else(|| panic!("{uri} is of the attestation"));
+        let mime = resource["mimeType"].as_str().expect("a type");
+        let expected = if path.ends_with(".json") {
+            "application/json"
+        } else if path.ends_with(".tex") {
+            "application/x-tex"
+        } else {
+            "text/plain"
+        };
+        assert_eq!(mime, expected, "{path}");
+        returned.insert(
+            path.to_owned(),
+            resource["text"].as_str().expect("text").as_bytes().to_vec(),
+        );
+    }
+    // The client is given the bundle the store holds, file for file and byte for byte, and a
+    // reader checks it offline from those files alone.
+    assert_eq!(returned, bundle);
+    let copy = tempfile::tempdir().expect("a directory");
+    for (path, bytes) in &returned {
+        write(&copy.path().join(path), bytes);
+    }
+    check(copy.path()).expect("the returned bundle checks offline");
+}
+
+#[test]
+fn a_bundle_that_is_not_text_is_written_and_not_embedded_ex_07() {
+    let mut evidence = Evidence::two_modules();
+    evidence.sources[1].1 = vec![0xff, 0xfe, b'\n'];
+    let mut gateway = holding(&[&evidence]);
+    let reply = gateway.call("lexlean_export", json!({"by": "id", "value": evidence.id}));
+    assert!(!reply.is_error(), "{}", reply.body);
+    assert_eq!(reply.structured()["embedded"], false);
+    assert_eq!(
+        reply.result()["content"].as_array().map(Vec::len),
+        Some(1),
+        "the key alone"
+    );
+    assert_eq!(
+        bundle_of(&gateway, &evidence.id).len(),
+        files_of(&evidence).len(),
+        "the bundle is in the store"
+    );
+}
 
 /// The bundle of a record below `exports/<id>`: its files by path.
 fn bundle_of(gateway: &Gateway, id: &str) -> std::collections::BTreeMap<String, Vec<u8>> {

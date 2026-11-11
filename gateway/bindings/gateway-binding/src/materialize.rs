@@ -110,6 +110,77 @@ pub fn decode(bytes: &[u8]) -> Option<([u8; 32], Rows<'_>)> {
     (reader.at == bytes.len()).then_some((profile, rows))
 }
 
+/// The preimage of a draft of the profile `profile_id` whose rows are `rows`, in their order: the
+/// inverse of `decode`, so `rows` must be in the order of the octets of their paths, as the rows of
+/// a decoded preimage are.
+pub fn encode(profile_id: &[u8; 32], rows: &[(&[u8], &[u8])]) -> Vec<u8> {
+    fn frame(out: &mut Vec<u8>, name: &str, payload: &[u8]) {
+        out.extend_from_slice(&(name.len() as u32).to_be_bytes());
+        out.extend_from_slice(name.as_bytes());
+        out.extend_from_slice(&(payload.len() as u64).to_be_bytes());
+        out.extend_from_slice(payload);
+    }
+    let mut out = Vec::new();
+    frame(&mut out, "domain", DOMAIN);
+    frame(&mut out, "profile", profile_id);
+    out.extend_from_slice(&("sources".len() as u32).to_be_bytes());
+    out.extend_from_slice(b"sources");
+    out.extend_from_slice(&(2 * rows.len() as u64).to_be_bytes());
+    for (path, content) in rows {
+        frame(&mut out, "source", path);
+        frame(&mut out, "source", content);
+    }
+    out
+}
+
+/// The draft that `lexlean fmt` made of the draft `<profile>/<id>` in its materialized `directory`:
+/// the same profile and the same paths, each with the bytes the formatter left in the directory,
+/// stored in the `drafts` area under the identity of its preimage, as any draft is (#91). A draft
+/// is named by its content, so formatting cannot change it in place; the handle of the new draft is
+/// what the caller is given. A draft that was already canonical is its own result and nothing is
+/// written. `limit` is the most bytes a stored draft may have, and `content_limit` the most bytes
+/// of content a draft may hold (`draft.max_bytes`).
+pub fn redraft(
+    root: &Path,
+    profile: &str,
+    id: &str,
+    directory: &Path,
+    limit: usize,
+    content_limit: usize,
+) -> Result<String, Refused> {
+    let blob = store::read(root, 1, &format!("{profile}/{id}"), limit)
+        .map_err(|_| Refused::Draft)?
+        .ok_or(Refused::Draft)?;
+    if hex(&Sha256::digest(&blob)) != id {
+        return Err(Refused::Draft);
+    }
+    let (profile_id, rows) = decode(&blob).ok_or(Refused::Draft)?;
+    let mut formatted = Vec::with_capacity(rows.len());
+    let mut total = 0usize;
+    for (path, _) in &rows {
+        let name = std::str::from_utf8(path).map_err(|_| Refused::Draft)?;
+        let bytes = store::read_in(directory, name, content_limit)
+            .map_err(|_| Refused::Io)?
+            .ok_or(Refused::Io)?;
+        total = total.saturating_add(bytes.len());
+        formatted.push((*path, bytes));
+    }
+    if total > content_limit {
+        return Err(Refused::Draft);
+    }
+    let rows: Vec<(&[u8], &[u8])> = formatted
+        .iter()
+        .map(|(path, bytes)| (*path, bytes.as_slice()))
+        .collect();
+    let preimage = encode(&profile_id, &rows);
+    let made = hex(&Sha256::digest(&preimage));
+    if made != id {
+        store::write(root, 1, &format!("{profile}/{made}"), &preimage, limit)
+            .map_err(|_| Refused::Io)?;
+    }
+    Ok(format!("{profile}/{made}"))
+}
+
 /// Whether `path` is a path the host writes below a project: relative, in components that are
 /// not empty, `.` or `..`, with no NUL, and a `.lex.tex` file.
 fn path_is_safe(path: &str) -> bool {

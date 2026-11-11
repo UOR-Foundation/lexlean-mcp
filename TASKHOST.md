@@ -22,6 +22,7 @@ as before, with the verifier's task name and state in the result of the call.
 | `TH-11` | The task path runs with the real verifier and Lean: a verification polled to `completed` with a record that validates, and a cancel that ends a child group, fails none and leaves no record. |
 | `TH-12` | Calls over `rate.tool_calls` are refused (R4): of 102 `tools/call` requests in one window the first 100 run, and the 101st and the 102nd are answered 429 without the tool running. |
 | `TH-13` | A draft over a limit fails alone (R4): `lexlean_verify` of a project over a limit of its `lexlean.toml` ends `failed` with `LLS8002` while a verification started before it ends `verified` with its record. |
+| `TH-14` | The status of a verified task names its attestation (issue #93): `lexlean_verify_control` answers `attestationId`, the `attestation_id` of the result the host recorded, and a task completed through `tasks/get` keeps it; a failed task names none. |
 
 ## The entries
 
@@ -47,7 +48,7 @@ time to live of 24 hours and a poll interval of 5000 ms, and the core stores it 
 
 `tasks/get` and `tasks/cancel` on a task the table holds as `working` ask `verify.control` once
 (status or cancel) and settle the entry from the answer: `queued` and `running` leave it
-working, `verified` and `failed` complete it with the result of the tool, `cancelled` cancels it
+working, `verified` and `failed` complete it with the result of the tool (whose structured content names the `attestationId` of a verified task, TH-14), `cancelled` cancels it
 with the status message `child groups ended: E failed: F`, and a verifier that no longer knows the
 task fails it. The acknowledgement of `tasks/cancel` is empty, as the protocol has it: the counts are
 in the status notification streamed with it, in a later `tasks/get` and in the table. `E` is 0 when

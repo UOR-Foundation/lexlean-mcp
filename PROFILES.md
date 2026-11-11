@@ -90,6 +90,14 @@ What is served, and how it is held to the model:
   `vocabulary` entry); `resources/templates/list`, `resources/list` and `resources/read` serve
   the template with `cacheScope: public` and the owner's TTL; `completion/complete` completes
   `profile` and `package` (at most 100 values). No effect was added: the set stays E1 to E10.
+- **Reading an entry (VO-17, issue #92).** `lexlean_lexicon_read` takes `profile`, `entry` and an
+  optional `package`, and asks the same one `lexicon.read` of the `vocabulary` entry as search. An
+  entry is named by the ID that search gives it: the ID alone answers every served entry of that ID
+  (IDs are unique within a package, not across packages), and `package`, or `entry` written
+  `package::id` (the form of the snapshot), the one of that package. The result is
+  `{profile, entry, found, entries}`, each entry as search gives it; an ID that names none is
+  `found: false`, not an error. The refusals are those of search. Before #92 the tool read a file
+  of the profile directory by its name, so no ID that search gave could be read.
 - **Capabilities (VO-13).** The gateway declares `tools`, `resources` and `completions`; it does
   not declare `prompts` or `tasks`, because it serves neither.
 - **Atlas (VO-14).** `examples/uor-atlas` of the pinned LexLean installs as a profile of

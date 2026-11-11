@@ -15,7 +15,7 @@ Feature: The present and export tools of the gateway
     Then the embedded resource equals the expected canonical LaTeX and its digest is the one the build manifest names
 
   @PT-03 @build
-  Scenario: lexlean_present by the SHA-256 of a source file the verification covered returns the same resource as by ID; the argument module, a path of the build manifest, selects one rendering of a record that has several, an empty module is the only rendering of a record that has one, and an empty module on several or a module the manifest does not name is the host's refusal module-unknown.
+  Scenario: lexlean_present by the SHA-256 of a source file the verification covered returns the same resource as by ID; the argument module, a path of the build manifest, selects one rendering of a record that has several, an empty module is the only rendering of a record that has one, and an empty module on several or a module the manifest does not name is the refusal module-unknown.
     Given a record with one rendering, a record with two, and the digest of a source file
     When lexlean_present is called by digest, with a module and without
     Then the same resource comes by digest as by ID, a module selects its rendering, and an ambiguous or unnamed module is module-unknown
@@ -73,3 +73,15 @@ Feature: The present and export tools of the gateway
     Given the host with one defect planted at a time
     When the tests of EX-01 to EX-05 run
     Then each defect makes the test that answers it fail, with the diagnostic PRESENT.md records
+
+  @PT-07 @build
+  Scenario: lexlean_present takes a module as the client knows it and says which there are (issue #94): the name of a module (B) or the path of its source file (src/B.lex.tex) names its rendering as its path does, when one rendering matches; the structured content lists the paths of the renderings of the record as modules; and no module on several renderings, or a module that names none, is the error result module-unknown whose structured content lists those paths.
+    Given a record with two renderings and a record with one
+    When lexlean_present is called with the name of a module, the path of its source file, its path, no module and modules that name none
+    Then each name selects its rendering, the modules of the record are listed, and a refusal lists them
+
+  @EX-07 @build
+  Scenario: lexlean_export returns the bundle to the client that asked for it (issue #94): beside the key of the bundle, each file the store holds below exports/<ID> is an embedded text resource at lexlean://attestation/<ID>/<path>, typed application/json, application/x-tex or text/plain, byte for byte, and a reader checks the returned files offline; embedded is true, and a bundle with a file that is not text, or over 4 MiB, is written to the store and not embedded (embedded false).
+    Given a record with two renderings, and one whose source file is not text
+    When lexlean_export is called
+    Then the files of the bundle are returned as embedded resources that check offline, and the bundle that is not text is written and not embedded

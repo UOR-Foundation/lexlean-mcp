@@ -19,6 +19,7 @@
 \importmodule{Methods}
 \importmodule{Numeric}
 \importmodule{Refusal}
+\importmodule{Resources}
 \importmodule{ResultJson}
 \title{LexLean MCP effect tools}
 \begin{semanticmodule}
@@ -277,11 +278,7 @@ definition{
     | Option.none => (ctor Option.none [Plan])
     | Option.some task => (match (argText params "action")
       | Option.none => (ctor Option.none [Plan])
-      | Option.some action => (ctor Option.some [Plan] (record Plan {effect := (ctor Effects::Effect.VerifyControl), payload := (prim append (HostWire::textList task) (Frame::u32List (if (prim equal action "cancel" : Bool) then 1 else 0)) : (List Nat))})))) else (if (isTool params "lexlean_lexicon_read") then (match (argText params "profile")
-    | Option.none => (ctor Option.none [Plan])
-    | Option.some profile => (match (argText params "entry")
-      | Option.none => (ctor Option.none [Plan])
-      | Option.some entry => (ctor Option.some [Plan] (record Plan {effect := (ctor Effects::Effect.LexiconRead), payload := (prim append (HostWire::textList profile) (HostWire::textList entry) : (List Nat))})))) else (if (isTool params "lexlean_attestation") then (lookupPlan params 0 "") else (if (isTool params "lexlean_present") then (lookupPlan params 1 (argTextOr params "module" "")) else (if (isTool params "lexlean_export") then (lookupPlan params 2 "") else (ctor Option.none [Plan]))))))))))),
+      | Option.some action => (ctor Option.some [Plan] (record Plan {effect := (ctor Effects::Effect.VerifyControl), payload := (prim append (HostWire::textList task) (Frame::u32List (if (prim equal action "cancel" : Bool) then 1 else 0)) : (List Nat))})))) else (if (isTool params "lexlean_attestation") then (lookupPlan params 0 "") else (if (isTool params "lexlean_present") then (lookupPlan params 1 (argTextOr params "module" "")) else (if (isTool params "lexlean_export") then (lookupPlan params 2 "") else (ctor Option.none [Plan])))))))))),
   axioms: [Quot.sound, propext],
   executable: true
 }
@@ -311,7 +308,7 @@ definition{
     | Effects::Effect.VerifyStart => (cons "project-refused" (cons "verifier-unavailable" (nil String)))
     | Effects::Effect.VerifyControl => (cons "unknown-task" (nil String))
     | Effects::Effect.LexiconRead => (cons "profile-unknown" (cons "key-refused" (nil String)))
-    | Effects::Effect.AttestationLookup => (cons "value-refused" (cons "module-unknown" (nil String)))),
+    | Effects::Effect.AttestationLookup => (cons "value-refused" (nil String))),
   executable: true
 }
 
@@ -453,12 +450,29 @@ definition{
 }
 
 definition{
+  name: attestationMembers,
+  parameters: [result : Bytes],
+  result: (List (String * Json::Json)),
+  body: (match (JsonRead::readJson result)
+    | Result.error refusal => (nil (String * Json::Json))
+    | Result.ok document => (match (Json::asObject document)
+      | Option.none => (nil (String * Json::Json))
+      | Option.some object => (match (Json::lookup "attestation_id" object)
+        | Json::Lookup.absent => (nil (String * Json::Json))
+        | Json::Lookup.present value => (match (Json::asText value)
+          | Option.none => (nil (String * Json::Json))
+          | Option.some ident => (member "attestationId" (textJson ident)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
   name: controlReply,
   parameters: [outcome : Bytes],
   result: Methods::Progressed,
   body: (match (Frame::chunkAt outcome 12)
     | Option.none => (malformed)
-    | Option.some chunk => (reply (contentText (project chunk bytes)) (ctor Json::Json.object (cons ("state", (textJson (stateName (wordAt outcome 4)))) (cons ("class", (ResultJson::natJson (wordAt outcome 8))) (cons ("groupsEnded", (ResultJson::natJson (wordAt outcome (project chunk next)))) (member "groupsFailed" (ResultJson::natJson (wordAt outcome ((project chunk next) + 4)))))))) (if ((wordAt outcome 8) =? 0) then false else true))),
+    | Option.some chunk => (reply (contentText (project chunk bytes)) (ctor Json::Json.object (cons ("state", (textJson (stateName (wordAt outcome 4)))) (cons ("class", (ResultJson::natJson (wordAt outcome 8))) (cons ("groupsEnded", (ResultJson::natJson (wordAt outcome (project chunk next)))) (cons ("groupsFailed", (ResultJson::natJson (wordAt outcome ((project chunk next) + 4)))) (if ((wordAt outcome 4) =? 2) then (attestationMembers (project chunk bytes)) else (nil (String * Json::Json)))))))) (if ((wordAt outcome 8) =? 0) then false else true))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -492,17 +506,30 @@ definition{
 
 definition{
   name: presented,
-  parameters: [envelope : Bytes, ident : Bytes, path : Bytes, rendering : Bytes],
+  parameters: [envelope : Bytes, ident : Bytes, path : Bytes, rendering : Bytes, modules : Bytes],
   result: Methods::Progressed,
   body: (match (JsonRead::readJson envelope)
     | Result.error refusal => (malformed)
-    | Result.ok document => (match (prim utf8_decode ident : (Option String))
-      | Option.none => (malformed)
-      | Option.some name => (match (prim utf8_decode path : (Option String))
+    | Result.ok document => (match (JsonRead::readJson modules)
+      | Result.error refusal => (malformed)
+      | Result.ok listed => (match (prim utf8_decode ident : (Option String))
         | Option.none => (malformed)
-        | Option.some named => (match (prim utf8_decode rendering : (Option String))
+        | Option.some name => (match (prim utf8_decode path : (Option String))
           | Option.none => (malformed)
-          | Option.some latex => (resourceReply (prim join (cons "lexlean://attestation/" (cons name (cons "/" (cons named (nil String))))) "" : String) latex (ctor Json::Json.object (cons ("found", (flagJson true)) (cons ("attestationId", (textJson name)) (cons ("module", (textJson named)) (member "envelope" document)))))))))),
+          | Option.some named => (match (prim utf8_decode rendering : (Option String))
+            | Option.none => (malformed)
+            | Option.some latex => (resourceReply (prim join (cons "lexlean://attestation/" (cons name (cons "/" (cons named (nil String))))) "" : String) latex (ctor Json::Json.object (cons ("found", (flagJson true)) (cons ("attestationId", (textJson name)) (cons ("module", (textJson named)) (cons ("modules", listed) (member "envelope" document)))))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: moduleUnknown,
+  parameters: [modules : Bytes],
+  result: Methods::Progressed,
+  body: (match (JsonRead::readJson modules)
+    | Result.error refusal => (malformed)
+    | Result.ok listed => (reply (prim join (cons "attestation.lookup failed: module-unknown; the modules of the record are" (cons (contentText modules) (nil String))) " " : String) (ctor Json::Json.object (cons ("failure", (textJson "module-unknown")) (member "modules" listed))) true)),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -519,20 +546,109 @@ definition{
         | Option.none => (malformed)
         | Option.some path => (match (Frame::chunkAt outcome (project path next))
           | Option.none => (malformed)
-          | Option.some rendering => (presented (project envelope bytes) (project ident bytes) (project path bytes) (project rendering bytes))))) else (reply "not found" (ctor Json::Json.object (member "found" (flagJson false))) false))),
+          | Option.some rendering => (match (Frame::chunkAt outcome (project rendering next))
+            | Option.none => (malformed)
+            | Option.some bundle => (match (Frame::chunkAt outcome (project bundle next))
+              | Option.none => (malformed)
+              | Option.some modules => (if ((prim length (project path bytes) : Nat) =? 0) then (moduleUnknown (project modules bytes)) else (presented (project envelope bytes) (project ident bytes) (project path bytes) (project rendering bytes) (project modules bytes)))))))) else (reply "not found" (ctor Json::Json.object (member "found" (flagJson false))) false))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
 
 definition{
+  name: attested,
+  parameters: [envelope : Bytes, ident : Bytes],
+  result: Methods::Progressed,
+  body: (match (JsonRead::readJson envelope)
+    | Result.error refusal => (malformed)
+    | Result.ok document => (match (prim utf8_decode ident : (Option String))
+      | Option.none => (malformed)
+      | Option.some name => (reply (contentText envelope) (ctor Json::Json.object (cons ("found", (flagJson true)) (cons ("attestationId", (textJson name)) (member "envelope" document)))) false))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: attestationReply,
+  parameters: [outcome : Bytes],
+  result: Methods::Progressed,
+  body: (match (Frame::chunkAt outcome 5)
+    | Option.none => (malformed)
+    | Option.some envelope => (if ((JsonText::byteAt outcome 4) =? 1) then (match (Frame::chunkAt outcome (project envelope next))
+      | Option.none => (malformed)
+      | Option.some ident => (attested (project envelope bytes) (project ident bytes))) else (reply "not found" (ctor Json::Json.object (member "found" (flagJson false))) false))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: endsWithText,
+  parameters: [suffix : String, text : String],
+  result: Bool,
+  body: (Resources::startsWith (JsonRead::reverseOnto [Nat] (Resources::bytesOfText suffix) (nil Nat)) (JsonRead::reverseOnto [Nat] (Resources::bytesOfText text) (nil Nat))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: mimeOf,
+  parameters: [path : String],
+  result: String,
+  body: (if (endsWithText ".json" path) then "application/json" else (if (endsWithText ".tex" path) then "application/x-tex" else "text/plain")),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: fileBlock,
+  parameters: [name : String, path : String, text : String],
+  result: Content::ContentBlock,
+  body: (ctor Content::ContentBlock.resource (record Content::EmbeddedResource {resource := (ctor Content::ResourceContents.text (record Content::TextResourceContents {uri := (prim join (cons "lexlean://attestation/" (cons name (cons "/" (cons path (nil String))))) "" : String), mimeType := (ctor Option.some [String] (mimeOf path)), text := text, meta := (ctor Option.none [Json::JsonObject])})), annotations := (ctor Option.none [Common::Annotations]), meta := (ctor Option.none [Json::JsonObject])})),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: filesOnto,
+  parameters: [
+    fuel : Nat,
+    files : Bytes,
+    position : Nat,
+    name : String,
+    built : (List Content::ContentBlock)
+  ],
+  result: (Option (List Content::ContentBlock)),
+  body: (match fuel
+    | Nat.zero => (ctor Option.none [(List Content::ContentBlock)])
+    | Nat.succ below => (if (position =? (prim length files : Nat)) then (ctor Option.some [(List Content::ContentBlock)] (JsonRead::reverseOnto [Content::ContentBlock] built (nil Content::ContentBlock))) else (match (Frame::chunkAt files position)
+      | Option.none => (ctor Option.none [(List Content::ContentBlock)])
+      | Option.some path => (match (Frame::chunkAt files (project path next))
+        | Option.none => (ctor Option.none [(List Content::ContentBlock)])
+        | Option.some content => (match (prim utf8_decode (project path bytes) : (Option String))
+          | Option.none => (ctor Option.none [(List Content::ContentBlock)])
+          | Option.some named => (match (prim utf8_decode (project content bytes) : (Option String))
+            | Option.none => (ctor Option.none [(List Content::ContentBlock)])
+            | Option.some text => (filesOnto below files (project content next) name (cons (fileBlock name named text) built)))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: fuel
+}
+
+definition{
   name: exported,
-  parameters: [ident : Bytes, bundle : Bytes],
+  parameters: [ident : Bytes, bundle : Bytes, modules : Bytes, files : Bytes],
   result: Methods::Progressed,
   body: (match (prim utf8_decode ident : (Option String))
     | Option.none => (malformed)
     | Option.some name => (match (prim utf8_decode bundle : (Option String))
       | Option.none => (malformed)
-      | Option.some key => (reply key (ctor Json::Json.object (cons ("found", (flagJson true)) (cons ("attestationId", (textJson name)) (member "bundle" (textJson key))))) false))),
+      | Option.some key => (match (JsonRead::readJson modules)
+        | Result.error refusal => (malformed)
+        | Result.ok listed => (match (filesOnto 2100 files 0 name (nil Content::ContentBlock))
+          | Option.none => (malformed)
+          | Option.some blocks => (record Methods::Progressed {result := (record Methods::CallToolResult {content := (cons (textBlock key) blocks), structuredContent := (ctor Option.some [Json::Json] (ctor Json::Json.object (cons ("found", (flagJson true)) (cons ("attestationId", (textJson name)) (cons ("bundle", (textJson key)) (cons ("modules", listed) (member "embedded" (flagJson (match blocks
+            | List.nil => false
+            | List.cons head rest => true))))))))), isError := (ctor Option.none [Bool])}), steps := (nil Methods::ProgressStep)}))))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -551,7 +667,11 @@ definition{
           | Option.none => (malformed)
           | Option.some rendering => (match (Frame::chunkAt outcome (project rendering next))
             | Option.none => (malformed)
-            | Option.some bundle => (exported (project ident bytes) (project bundle bytes)))))) else (reply "not found" (ctor Json::Json.object (member "found" (flagJson false))) false))),
+            | Option.some bundle => (match (Frame::chunkAt outcome (project bundle next))
+              | Option.none => (malformed)
+              | Option.some modules => (match (Frame::chunkAt outcome (project modules next))
+                | Option.none => (malformed)
+                | Option.some files => (exported (project ident bytes) (project bundle bytes) (project modules bytes) (project files bytes)))))))) else (reply "not found" (ctor Json::Json.object (member "found" (flagJson false))) false))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -560,7 +680,7 @@ definition{
   name: rendered,
   parameters: [params : Methods::CallToolParams, effect : Effects::Effect, outcome : Bytes],
   result: (Result Methods::Progressed Refusal::ProviderRefusal),
-  body: (if ((wordAt outcome 0) =? 1) then (render effect outcome) else (if (isTool params "lexlean_present") then (accepted (presentReply outcome)) else (if (isTool params "lexlean_export") then (accepted (exportReply outcome)) else (render effect outcome)))),
+  body: (if ((wordAt outcome 0) =? 1) then (render effect outcome) else (if (isTool params "lexlean_present") then (accepted (presentReply outcome)) else (if (isTool params "lexlean_export") then (accepted (exportReply outcome)) else (if (isTool params "lexlean_attestation") then (accepted (attestationReply outcome)) else (render effect outcome))))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -1002,10 +1122,34 @@ definition{
 }
 
 definition{
+  name: commandResultProperties,
+  parameters: [command : String],
+  result: (List (String * Json::Json)),
+  body: (cons ("spec", (constProp "lexlean/command-result/1")) (cons ("command", (constProp command)) (cons ("success", (kindProp "boolean")) (cons ("exit_code", (kindProp "integer")) (cons ("modules", (stringsProp)) (cons ("artifacts", (stringsProp)) (cons ("diagnostics", (diagnosticsProp)) (cons ("source_id", (kindProp "string")) (cons ("semantic_id", (kindProp "string")) (cons ("build_id", (kindProp "string")) (nil (String * Json::Json)))))))))))),
+  executable: true
+}
+
+definition{
+  name: commandResultRequired,
+  parameters: [],
+  result: (List String),
+  body: (cons "spec" (cons "command" (cons "success" (cons "exit_code" (cons "modules" (cons "artifacts" (cons "diagnostics" (nil String)))))))),
+  executable: true
+}
+
+definition{
   name: commandResultSchema,
   parameters: [command : String],
   result: Json::JsonObject,
-  body: (objectOf (cons ("spec", (constProp "lexlean/command-result/1")) (cons ("command", (constProp command)) (cons ("success", (kindProp "boolean")) (cons ("exit_code", (kindProp "integer")) (cons ("modules", (stringsProp)) (cons ("artifacts", (stringsProp)) (cons ("diagnostics", (diagnosticsProp)) (cons ("source_id", (kindProp "string")) (cons ("semantic_id", (kindProp "string")) (cons ("build_id", (kindProp "string")) (nil (String * Json::Json)))))))))))) (cons "spec" (cons "command" (cons "success" (cons "exit_code" (cons "modules" (cons "artifacts" (cons "diagnostics" (nil String))))))))),
+  body: (objectOf (commandResultProperties command) (commandResultRequired)),
+  executable: true
+}
+
+definition{
+  name: formatResultSchema,
+  parameters: [],
+  result: Json::JsonObject,
+  body: (objectOf (prim append (commandResultProperties "fmt") (member "draft" (kindProp "string")) : (List (String * Json::Json))) (commandResultRequired)),
   executable: true
 }
 
@@ -1066,7 +1210,7 @@ definition{
   name: gatewayTools,
   parameters: [],
   result: (List Content::Tool),
-  body: (cons (effectTool "lexlean_draft_write" "Write the files of a draft: the paths are admitted under the source roots of the profile, and the draft is named by its profile and by the digest of its files." (objectOf (cons ("profile", (nonEmptyProp)) (member "files" (draftFilesProp))) (cons "profile" (cons "files" (nil String))))) (cons (effectTool "lexlean_draft_read" "Read a file of a draft, or list the files of the draft when no path is given. The view data gives the module of the file as the data of sdk::read_module, and the view spans the byte ranges of its declarations as sdk::declaration_spans gives them; both are for semantic, tooling and core modules, and a prose document is stored and read as text." (objectOf (cons ("draft", (nonEmptyProp)) (cons ("path", (nonEmptyProp)) (member "view" (choiceThreeProp "text" "data" "spans")))) (cons "draft" (nil String)))) (cons (effectTool "lexlean_draft_assemble" "Assemble a semantic, tooling or core module from its data into a new draft: with kind and header the text is that of sdk::assemble, and without them the file of the draft keeps its form as sdk::write_module keeps it. The draft is named by its profile and by the digest of its files." (objectOf (cons ("profile", (nonEmptyProp)) (cons ("path", (nonEmptyProp)) (cons ("data", (kindProp "object")) (cons ("draft", (nonEmptyProp)) (cons ("kind", (choiceThreeProp "semantic" "tooling" "core")) (member "header" (headerProp))))))) (cons "profile" (cons "path" (cons "data" (nil String)))))) (cons (engineTool "lexlean_check" "Check a project with the LexLean engine: the result is what lexlean check prints with --diagnostic-format json, and a refused project is an error result that carries it." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "check")) (cons (engineTool "lexlean_snapshot" "Take the semantic snapshot of a project with the LexLean engine: the result is the snapshot, and a refused project is an error result with the command result of check." (objectOf (engineProperties) (cons "project" (nil String))) (snapshotSchema)) (cons (engineTool "lexlean_format" "Format a project with the LexLean engine as lexlean fmt does, or check its formatting with check_only." (objectOf (prim append (engineProperties) (member "check_only" (kindProp "boolean")) : (List (String * Json::Json))) (cons "project" (nil String))) (commandResultSchema "fmt")) (cons (engineTool "lexlean_build" "Build a project with the LexLean engine as lexlean build does." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "build")) (cons (engineTool "lexlean_explain" "Explain a diagnostic code of LexLean: the result is what lexlean explain prints with --diagnostic-format json, and a code the registry does not hold is an error result that carries the refusal of the CLI." (objectOf (member "code" (kindProp "string")) (cons "code" (nil String))) (explainResultSchema)) (cons (effectTool "lexlean_verify" "Start the verification of a project and return its task." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify_control" "Read the state of a verification task, or cancel it." (objectOf (cons ("task", (nonEmptyProp)) (member "action" (choiceProp "status" "cancel"))) (cons "task" (cons "action" (nil String))))) (cons (effectTool "lexlean_lexicon_read" "Read an entry of the lexicon of a profile." (objectOf (cons ("profile", (nonEmptyProp)) (member "entry" (nonEmptyProp))) (cons "profile" (cons "entry" (nil String))))) (cons (effectTool "lexlean_present" "Present the attested canonical LaTeX of a verification as an embedded resource, with its attestation ID and its envelope as structured content. The verification is named by its ID or by the digest of one of its source files; module is the path the build manifest gives a rendering, and may be left out when the verification has one." (objectOf (cons ("by", (choiceProp "id" "digest")) (cons ("value", (nonEmptyProp)) (member "module" (nonEmptyProp)))) (cons "by" (cons "value" (nil String))))) (cons (effectTool "lexlean_export" "Write the bundle of a verification below exports/<attestation ID> in the store: the attestation, its envelope, the key history, the build manifest, the canonical renderings and the sources, which a reader checks offline. The verification is named by its ID or by the digest of one of its source files." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (cons (effectTool "lexlean_attestation" "Look an attestation up by its ID or by the digest of its file." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (cons (effectTool "lexlean_profiles" "List the profiles of the gateway, or one profile: the name, the ID, the language, the source roots and the lexicon packages of each. A profile that holds a package of another language is not listed and is refused with LLC0103." (objectOf (member "profile" (nonEmptyProp)) (nil String))) (cons (effectTool "lexlean_lexicon_search" "Search the lexicon of a profile: the entries whose ID or whose spelling of a form contains the query without regard to ASCII case, in the order of the packages and of the entry IDs, a page at a time. The total counts every match." (objectOf (cons ("profile", (nonEmptyProp)) (cons ("query", (kindProp "string")) (cons ("package", (nonEmptyProp)) (cons ("offset", (rangeProp 0 10000)) (member "limit" (rangeProp 1 100)))))) (cons "profile" (nil String)))) (nil Content::Tool))))))))))))))))),
+  body: (cons (effectTool "lexlean_draft_write" "Write the files of a draft: the paths are admitted under the source roots of the profile, and the draft is named by its profile and by the digest of its files." (objectOf (cons ("profile", (nonEmptyProp)) (member "files" (draftFilesProp))) (cons "profile" (cons "files" (nil String))))) (cons (effectTool "lexlean_draft_read" "Read a file of a draft, or list the files of the draft when no path is given. The view data gives the module of the file as the data of sdk::read_module, and the view spans the byte ranges of its declarations as sdk::declaration_spans gives them; both are for semantic, tooling and core modules, and a prose document is stored and read as text." (objectOf (cons ("draft", (nonEmptyProp)) (cons ("path", (nonEmptyProp)) (member "view" (choiceThreeProp "text" "data" "spans")))) (cons "draft" (nil String)))) (cons (effectTool "lexlean_draft_assemble" "Assemble a semantic, tooling or core module from its data into a new draft: with kind and header the text is that of sdk::assemble, and without them the file of the draft keeps its form as sdk::write_module keeps it. The draft is named by its profile and by the digest of its files." (objectOf (cons ("profile", (nonEmptyProp)) (cons ("path", (nonEmptyProp)) (cons ("data", (kindProp "object")) (cons ("draft", (nonEmptyProp)) (cons ("kind", (choiceThreeProp "semantic" "tooling" "core")) (member "header" (headerProp))))))) (cons "profile" (cons "path" (cons "data" (nil String)))))) (cons (engineTool "lexlean_check" "Check a project with the LexLean engine: the result is what lexlean check prints with --diagnostic-format json, and a refused project is an error result that carries it." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "check")) (cons (engineTool "lexlean_snapshot" "Take the semantic snapshot of a project with the LexLean engine: the result is the snapshot, and a refused project is an error result with the command result of check." (objectOf (engineProperties) (cons "project" (nil String))) (snapshotSchema)) (cons (engineTool "lexlean_format" "Format a project with the LexLean engine as lexlean fmt does, or check its formatting with check_only. A draft is named by its content: formatting one makes a new draft, whose handle is the member draft of the result." (objectOf (prim append (engineProperties) (member "check_only" (kindProp "boolean")) : (List (String * Json::Json))) (cons "project" (nil String))) (formatResultSchema)) (cons (engineTool "lexlean_build" "Build a project with the LexLean engine as lexlean build does." (objectOf (engineProperties) (cons "project" (nil String))) (commandResultSchema "build")) (cons (engineTool "lexlean_explain" "Explain a diagnostic code of LexLean: the result is what lexlean explain prints with --diagnostic-format json, and a code the registry does not hold is an error result that carries the refusal of the CLI." (objectOf (member "code" (kindProp "string")) (cons "code" (nil String))) (explainResultSchema)) (cons (effectTool "lexlean_verify" "Start the verification of a project and return its task." (objectOf (projectProperties) (cons "project" (nil String)))) (cons (effectTool "lexlean_verify_control" "Read the state of a verification task, or cancel it. The status of a verified task holds its attestationId." (objectOf (cons ("task", (nonEmptyProp)) (member "action" (choiceProp "status" "cancel"))) (cons "task" (cons "action" (nil String))))) (cons (effectTool "lexlean_lexicon_read" "Read an entry of the lexicon of a profile by the id lexlean_lexicon_search gives it, or by package::id; package narrows the read to one package. Every entry of that id is returned." (objectOf (cons ("profile", (nonEmptyProp)) (cons ("entry", (nonEmptyProp)) (member "package" (nonEmptyProp)))) (cons "profile" (cons "entry" (nil String))))) (cons (effectTool "lexlean_present" "Present the attested canonical LaTeX of a verification as an embedded resource, with its attestation ID and its envelope as structured content. The verification is named by its ID or by the digest of one of its source files; module is the path the build manifest gives a rendering, or the name or the source file of its module, and may be left out when the verification has one; a module that names none is refused with the modules there are." (objectOf (cons ("by", (choiceProp "id" "digest")) (cons ("value", (nonEmptyProp)) (member "module" (nonEmptyProp)))) (cons "by" (cons "value" (nil String))))) (cons (effectTool "lexlean_export" "Write the bundle of a verification below exports/<attestation ID> in the store and return its files as embedded resources: the attestation, its envelope, the key history, the build manifest, the canonical renderings and the sources, which a reader checks offline. The verification is named by its ID or by the digest of one of its source files." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (cons (effectTool "lexlean_attestation" "Look an attestation up by its ID or by the digest of its file: the signed envelope, with its attestationId." (objectOf (cons ("by", (choiceProp "id" "digest")) (member "value" (nonEmptyProp))) (cons "by" (cons "value" (nil String))))) (cons (effectTool "lexlean_profiles" "List the profiles of the gateway, or one profile: the name, the ID, the language, the source roots and the lexicon packages of each. A profile that holds a package of another language is not listed and is refused with LLC0103." (objectOf (member "profile" (nonEmptyProp)) (nil String))) (cons (effectTool "lexlean_lexicon_search" "Search the lexicon of a profile: the entries whose ID or whose spelling of a form contains the query without regard to ASCII case, in the order of the packages and of the entry IDs, a page at a time. The total counts every match." (objectOf (cons ("profile", (nonEmptyProp)) (cons ("query", (kindProp "string")) (cons ("package", (nonEmptyProp)) (cons ("offset", (rangeProp 0 10000)) (member "limit" (rangeProp 1 100)))))) (cons "profile" (nil String)))) (nil Content::Tool))))))))))))))))),
   executable: true
 }
 
