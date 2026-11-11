@@ -7,6 +7,23 @@ acceptance boundary (`VERIFICATION.md`); until the SDK binding lands it fails at
 "Run the template gate through the locked SDK" on every pull request and on
 `main`. This workflow does not replace it and is not a reduced path to release.
 
+## Two tiers
+
+A pull request runs every gate below except two, which repeat a whole verification. Step 7q,
+`prismpm verify`, builds and verifies the gateway again in the locked SDK image, after 7f has
+already verified it in the same run (about 60 minutes). VP-08 verifies every example beside the
+CLI (about 70 minutes). With them, a pull request waited about three hours (run 42645911638:
+178 minutes); without them, the longest remaining path is the build and VP-07, estimated near
+90 minutes plus any runner queue.
+
+Both still run on every push to `main`, and `workflow_dispatch` runs the full set on any branch,
+so a pull request that touches the verification itself can be checked fully before merge. This
+follows PrismPM's split between PR Fast Checks and `vv.yml`. A failure on `main` is fixed forward.
+
+A run on a pull request is cancelled by a newer push to it. A run on `main` or from
+`workflow_dispatch` is never cancelled, so every merged commit keeps its full verdict even when
+merges land minutes apart.
+
 ## Jobs and gates
 
 | Job | Gate |
@@ -15,8 +32,8 @@ acceptance boundary (`VERIFICATION.md`); until the SDK binding lands it fails at
 | `lexlean / verify` | `lexlean fmt` on a scratch copy, compared for every module but the PrismPM copies under `src/Production` (`root_fmt_check`), `lexlean lock --check`, `lexlean check`, `lexlean verify` |
 | `lexlean / export <crate>` | one job per `crates/*/generated/request.json`, found by `find` and never listed: `lexlean production build --request <it>` in a clean `.lexlean/production`, then every exported `rust-std` package is compared with `diff -r` against the package committed beside the request, in both directions (a committed package the request no longer exports, or an export nobody committed, fails by name) |
 | `gateway / prismpm build` | the one `prismpm build` of a run, which the two jobs below need: the MCP sources at `.github/mcp.rev` (`gateway/lay-out-mcp.sh`) and their byte equality to the pin (`gateway/mcp-identities.sh`, AC-03 a); the `prism.arch` lexicon of PrismPM at `.github/prismpm.rev`, laid out whole (`gateway/lay-out-sdk.sh`, not committed), and the two whole-file copies of PrismPM's standard library (`sdk_copies_agree`); `lexlean lock --check` and `check`, and every module that is not a copy canonical; `prismpm build`, which verifies the gateway and whose exported core must equal `gateway/generated/lexlean_mcp_gateway_core` (`diff -r`); then the generated packages as the artifact `gateway-build` |
-| `gateway / prismpm build and verify` | over the packages of that build and against the registry that `gateway/registry.sh` assembles from the pins: `cargo fmt`, `clippy` and the tests of the binding, with its ignored tests run by count; the generated host source free of tool and method names (Q6); `gateway/vectors/generate.py check`; `gateway-host` built and served under MCP's server suite and schema oracle, whose failing scenarios must be exactly `gateway/waiting.json` (GATEWAY-CONFORMANCE.md, `GW-12`); and `prismpm verify`, which builds again in the locked SDK image |
-| `gateway / verify fixtures` | runs VP-07 and VP-08 by name and requires that each ran: the 32 `verify` fixtures through the tool beside the CLI (AC-07), and every example but `uor-atlas` (AC-05). The tests link the packages of that build, and it runs none of the gateway job's other gates. |
+| `gateway / prismpm build and verify` | over the packages of that build and against the registry that `gateway/registry.sh` assembles from the pins: `cargo fmt`, `clippy` and the tests of the binding, with its ignored tests run by count; the generated host source free of tool and method names (Q6); `gateway/vectors/generate.py check`; `gateway-host` built and served under MCP's server suite and schema oracle, whose failing scenarios must be exactly `gateway/waiting.json` (GATEWAY-CONFORMANCE.md, `GW-12`); and, on `main` and `workflow_dispatch` only, `prismpm verify`, which builds again in the locked SDK image |
+| `gateway / verify fixtures` | runs VP-07 and VP-08 by name and requires that each ran: the 32 `verify` fixtures through the tool beside the CLI (AC-07), and, on `main` and `workflow_dispatch` only, every example but `uor-atlas` (AC-05). The tests link the packages of that build, and it runs none of the gateway job's other gates. |
 | `gateway / images` | builds the release programs from that build's packages, then the images of `deploy/images` (IM-01, IM-02), runs the services apart from them and requires every check written in `deploy/images/run.sh` (IM-03 to IM-05). `IMAGES.md`. |
 | `scope / does the change reach the gateway` | publishes whether the gateway job and the job of the verify fixtures run, and so the build that either needs: on a pull request, only when a changed file matches `GATEWAY_INPUTS` or `VERIFY_FIXTURES_INPUTS` in `.github/lexlean-ci/lib.sh` (the files each job reads); on a push to `main`, always |
 | `prepare / compiler and toolchains` | builds `lexlean`, installs the Lean toolchain, checks that the compiler is the one `lexlean.lock` was made with, and publishes the job matrix |
@@ -251,3 +268,40 @@ The vectors of the four Engine effects are answered by `gateway-engine-host` (EN
 `gateway_verify` starts it beside the container of `prismpm verify`, on the same store, and hands
 its socket to the replay with `LEXLEAN_MCP_ENGINE` through a directory both can reach. The replay
 inherits that variable as it inherits `LEXLEAN_MCP_STORE`.
+
+## Releases
+
+`.github/workflows/release-please.yml` turns Conventional Commit subjects on `main` into a release
+pull request, and a merged release pull request into a tag and a GitHub Release, as PrismPM does for
+its v0.4 line. Nobody edits `CHANGELOG.md` or the version by hand.
+
+1. Run the `release-please` workflow by hand on `main`. It refuses until the version in
+   `.release-please-manifest.json` is tagged, then opens or updates the release pull request: the
+   new `CHANGELOG.md` entry, the version in `Cargo.toml` and, in a second commit, `Cargo.lock`, which
+   release-please cannot update and every `--locked` gate reads.
+2. Merge it when its checks and the last full `lexlean` run on `main` are green.
+3. The merge changes the manifest, which starts the `tag` job: it cuts `v<version>` and the GitHub
+   Release from the changelog entry.
+
+Below 1.0 a breaking change (`feat(scope)!:` or a `BREAKING CHANGE:` footer) is a minor bump and
+everything else a patch bump. History starts at `v0.1.0-rc.1` (`bootstrap-sha`), and `release-as`
+makes the first release 0.1.0. Remove `release-as` in the pull request after that release, or
+release-please proposes 0.1.0 again.
+
+`RELEASE_PLEASE_TOKEN`, a token for this repository with contents and pull requests write, should
+be set as a secret. Without it the workflow falls back to `GITHUB_TOKEN`, and what that token
+creates starts no workflow: the release pull request gets no checks, and the tag gets no
+`bootstrap` run, which is the acceptance boundary for a release (`VERIFICATION.md`). Then run
+`bootstrap` on the tag by hand before announcing it. Nothing here publishes to crates.io.
+
+`.github/workflows/conventional-commits.yml` holds every pull request title, and a lone commit's
+subject, to the types in `release-please-config.json`, because release-please skips a subject it
+cannot parse and a breaking change under a free-form title would ship as a patch. A lone commit
+counts because the repository keeps its subject over the title on a squash merge. The script and
+its tests are under `.github/release/`, outside `GATEWAY_INPUTS`, so a change to them does not start
+the gateway job.
+
+Planted defect: the title `Add the thing` with that single commit exits 1 with `pull request title:
+"Add the thing" is not "type(scope): subject"` and the same for the only commit; restored to
+`feat(gateway): add the thing`, it exits 0. Of the last 77 non-merge subjects on `main`, only
+`Initial commit` does not conform.

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "78dc5ebb9ecdd0f9376c4cae9068dd67330f96da",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "include-v-in-tag": true,
+  "changelog-sections": [
+    { "type": "feat", "section": "Features Added" },
+    { "type": "fix", "section": "Bugs Fixed" },
+    { "type": "perf", "section": "Other Changes" },
+    { "type": "refactor", "section": "Other Changes" },
+    { "type": "docs", "section": "Other Changes" },
+    { "type": "test", "section": "Other Changes" },
+    { "type": "build", "section": "Other Changes" },
+    { "type": "ci", "section": "Other Changes" },
+    { "type": "style", "section": "Other Changes" },
+    { "type": "chore", "section": "Other Changes" },
+    { "type": "revert", "section": "Other Changes" }
+  ],
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "component": "lexlean-mcp",
+      "include-component-in-tag": false,
+      "changelog-path": "CHANGELOG.md",
+      "release-as": "0.1.0",
+      "extra-files": [
+        { "type": "toml", "path": "Cargo.toml", "jsonpath": "$.workspace.package.version" },
+        { "type": "toml", "path": "Cargo.toml", "jsonpath": "$.workspace.dependencies.repo-model.version" },
+        { "type": "toml", "path": "Cargo.toml", "jsonpath": "$.workspace.dependencies.repo-conformance.version" }
+      ]
+    }
+  }
+}

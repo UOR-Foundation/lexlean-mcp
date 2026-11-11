@@ -1,0 +1,111 @@
+name: release-please
+
+# Turns Conventional Commit subjects on main into a release pull request, and a
+# merged release pull request into a tag and a GitHub Release, as PrismPM does for
+# its v0.4 line. Below 1.0 a breaking change is a minor bump and everything else a
+# patch bump (release-please-config.json). CI.md, "Releases", has the whole flow.
+#
+#   Run by hand on main        opens or updates the release pull request.
+#   Push to main that changes  a release pull request was merged, because only it
+#   the manifest               changes the manifest: cut its tag and GitHub Release.
+#
+# Nothing here publishes to crates.io or a registry. A tag is evidence only after the
+# bootstrap workflow, the acceptance boundary, has run on it; a tag pushed with
+# GITHUB_TOKEN starts no workflow, so RELEASE_PLEASE_TOKEN is used when it is set.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .release-please-manifest.json
+
+permissions: {}
+
+concurrency:
+  group: release-please-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: tag a merged release pull request
+    if: github.event_name == 'push' && github.repository == 'UOR-Foundation/lexlean-mcp'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Cut the tag and the GitHub Release
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          target-branch: main
+          skip-github-pull-request: true
+
+  open-pr:
+    name: open the release pull request
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.ref == 'refs/heads/main' && github.repository == 'UOR-Foundation/lexlean-mcp'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # A release on top of a version that was never tagged would skip that version and
+      # link its changelog entry to a compare page that does not exist.
+      - name: Refuse until the manifest's version is tagged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="v$(jq -r '."."' .release-please-manifest.json)"
+          if ! gh api "repos/$REPOSITORY/git/ref/tags/$tag" --silent; then
+            echo "::error::tag $tag does not exist: cut it first"
+            exit 1
+          fi
+      # A pull request opened with GITHUB_TOKEN starts no CI, so it could be merged without
+      # the gates. RELEASE_PLEASE_TOKEN, scoped to this repository with contents and pull
+      # requests write, gives it the same checks as any other pull request.
+      - name: Open or update the release pull request
+        id: release
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          target-branch: main
+          skip-github-release: true
+      # release-please's toml updater bumps Cargo.toml but cannot reach Cargo.lock, and every
+      # cargo gate runs --locked, so without this the release pull request fails its own CI.
+      - name: Update Cargo.lock on the release branch
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          PR: ${{ steps.release.outputs.pr }}
+          TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          branch=$(jq -r '.headBranchName' <<<"$PR")
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin "+refs/heads/$branch:refs/remotes/origin/$branch"
+          git switch --force-create "$branch" "origin/$branch"
+          cargo update --workspace
+          if ! git diff --quiet; then
+            git commit --all --message 'chore(release): update Cargo.lock'
+            # The checkout keeps no credentials, so the token is given to this push only.
+            git push "https://x-access-token:${TOKEN}@github.com/${REPOSITORY}.git" "HEAD:refs/heads/$branch"
+          fi
