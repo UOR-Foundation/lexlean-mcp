@@ -14,7 +14,7 @@ nfc-tables = { version = "0.1.0", path = "../nfc-tables" }
 repo-model = { workspace = true }
 sha2 = "0.11.1"
 serde_json = "1.0.151"
-unicode-normalization = "=0.1.25"
+unicode-normalization = "=0.1.26"
 
 [lints]
 workspace = true
