@@ -268,3 +268,40 @@ The vectors of the four Engine effects are answered by `gateway-engine-host` (EN
 `gateway_verify` starts it beside the container of `prismpm verify`, on the same store, and hands
 its socket to the replay with `LEXLEAN_MCP_ENGINE` through a directory both can reach. The replay
 inherits that variable as it inherits `LEXLEAN_MCP_STORE`.
+
+## Releases
+
+`.github/workflows/release-please.yml` turns Conventional Commit subjects on `main` into a release
+pull request, and a merged release pull request into a tag and a GitHub Release, as PrismPM does for
+its v0.4 line. Nobody edits `CHANGELOG.md` or the version by hand.
+
+1. Run the `release-please` workflow by hand on `main`. It refuses until the version in
+   `.release-please-manifest.json` is tagged, then opens or updates the release pull request: the
+   new `CHANGELOG.md` entry, the version in `Cargo.toml` and, in a second commit, `Cargo.lock`, which
+   release-please cannot update and every `--locked` gate reads.
+2. Merge it when its checks and the last full `lexlean` run on `main` are green.
+3. The merge changes the manifest, which starts the `tag` job: it cuts `v<version>` and the GitHub
+   Release from the changelog entry.
+
+Below 1.0 a breaking change (`feat(scope)!:` or a `BREAKING CHANGE:` footer) is a minor bump and
+everything else a patch bump. History starts at `v0.1.0-rc.1` (`bootstrap-sha`), and `release-as`
+makes the first release 0.1.0. Remove `release-as` in the pull request after that release, or
+release-please proposes 0.1.0 again.
+
+`RELEASE_PLEASE_TOKEN`, a token for this repository with contents and pull requests write, should
+be set as a secret. Without it the workflow falls back to `GITHUB_TOKEN`, and what that token
+creates starts no workflow: the release pull request gets no checks, and the tag gets no
+`bootstrap` run, which is the acceptance boundary for a release (`VERIFICATION.md`). Then run
+`bootstrap` on the tag by hand before announcing it. Nothing here publishes to crates.io.
+
+`.github/workflows/conventional-commits.yml` holds every pull request title, and a lone commit's
+subject, to the types in `release-please-config.json`, because release-please skips a subject it
+cannot parse and a breaking change under a free-form title would ship as a patch. A lone commit
+counts because the repository keeps its subject over the title on a squash merge. The script and
+its tests are under `.github/release/`, outside `GATEWAY_INPUTS`, so a change to them does not start
+the gateway job.
+
+Planted defect: the title `Add the thing` with that single commit exits 1 with `pull request title:
+"Add the thing" is not "type(scope): subject"` and the same for the only commit; restored to
+`feat(gateway): add the thing`, it exits 0. Of the last 77 non-merge subjects on `main`, only
+`Initial commit` does not conform.

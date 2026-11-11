@@ -1,0 +1,45 @@
+name: conventional commits
+
+# Holds the pull request title, and a lone commit's subject, to Conventional
+# Commits. release-please reads those subjects on main to choose the version and
+# write the changelog, and skips any it cannot parse, so a breaking change under a
+# free-form subject would ship as a patch. The rule and why a lone commit counts are
+# in .github/release/conventional-commits.mjs. The token here can only read, and the
+# job uses no third-party action, so a pull request from a fork runs it safely.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: conventional-commits-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  subjects:
+    name: pull request title and commit subjects
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out the exact event revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The check's own tests
+        run: node --test .github/release/conventional-commits.test.mjs
+      - name: Check the title and the commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ github.event.pull_request.title }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api --paginate --slurp "repos/$REPOSITORY/pulls/$PULL_REQUEST/commits" |
+            jq '[.[][].commit.message]' > "$RUNNER_TEMP/commits.json"
+          node .github/release/conventional-commits.mjs --title "$TITLE" --commits "$RUNNER_TEMP/commits.json"
