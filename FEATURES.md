@@ -23,7 +23,7 @@ definitions in this repository's source graph.
   applies the same rules independently, so a rule is not trusted to a single
   implementation.
 - **`prismpm check` validates the 13 features and 6 journeys**, which is the acceptance line of
-  #18, on the development SDK image of `prismpm.lock` (PrismPM main `3b1cca75`), in `just vv`
+  #18, on the development SDK image of `prismpm.lock` (PrismPM main `15f630aa`), in `just vv`
   (MC-01). A planted defect of each rule PP2014 to PP2018 is refused (MODEL-CHECK.md).
 
 The vocabulary (`language/prism.arch/`, `src/Foundation/Arch.lex.tex`) is a byte-identical
