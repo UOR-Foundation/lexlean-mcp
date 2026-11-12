@@ -284,9 +284,8 @@ its v0.4 line. Nobody edits `CHANGELOG.md` or the version by hand.
    Release from the changelog entry.
 
 Below 1.0 a breaking change (`feat(scope)!:` or a `BREAKING CHANGE:` footer) is a minor bump and
-everything else a patch bump. History starts at `v0.1.0-rc.1` (`bootstrap-sha`), and `release-as`
-makes the first release 0.1.0. Remove `release-as` in the pull request after that release, or
-release-please proposes 0.1.0 again.
+everything else a patch bump. The first release, 0.1.0, was forced with `release-as` and counted
+history from `v0.1.0-rc.1` (`bootstrap-sha`); each release since starts from the last tag.
 
 `RELEASE_PLEASE_TOKEN`, a token for this repository with contents and pull requests write, should
 be set as a secret. Without it the workflow falls back to `GITHUB_TOKEN`, and what that token
