@@ -19,7 +19,7 @@ gateway-host-api = { path = "../../gateway-host-api" }
 gateway-engine-host = { path = "../gateway-engine-host" }
 gateway-signer = { path = "../gateway-signer" }
 gateway-verifier-host = { path = "../gateway-verifier-host" }
-lexlean = "0.3.0"
+lexlean = "0.4.0"
 serde_json = "1"
 camino = "1"
 sha2 = "0.10"

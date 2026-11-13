@@ -7,10 +7,9 @@
 # Development imports upstream commits; a release pins only upstream releases. This pin
 # moves to the MCP release tag before lexlean-mcp v0.1.0.
 #
-# Currently: UOR-Foundation/MCP main at c53816e, the merge of PR #46 (the requestState key
-# supplied by the host). Its core serves the tasks extension (MCP#12) and asks the host for
-# the time, a fresh identifier and the table of tasks, which the gateway answers (issue #11,
-# TASKHOST.md). Its `language/mcp.core` differs from the previous pin, 39a7d8e, so the
-# gateway's lock (`tree_sha256` of `mcp.core`) and its export change with this pin. The pin
-# moves to the MCP release tag before lexlean-mcp v0.1.0.
-rev = c53816e24e16051b60fb6557b5d8ac456330c569
+# Currently: UOR-Foundation/MCP main at 5b34b26, the merge of PR #49: MCP moves to LexLean
+# release/v0.4 at 5dccf9e5b and to PrismPM main, and makes conformance/ its Prism project
+# root. The gateway reads `src` and `language/mcp.core` only, and `language/mcp.core` is
+# unchanged since c53816e (PR #46), so the gateway's lock changes only in the compiler that
+# MCP now names. The pin moves to the MCP release tag before lexlean-mcp v0.1.0.
+rev = 5b34b2633e2707993221019b81fae2bf9c4103d6

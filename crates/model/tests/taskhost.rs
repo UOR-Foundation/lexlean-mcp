@@ -191,7 +191,7 @@ fn the_core_serves_the_vectors_with_the_new_frame_th_05() {
     // The pin is the one MCP's tasks are in.
     let pin = read(".github/mcp.rev");
     assert!(
-        pin.contains("rev = c53816e"),
+        pin.contains("rev = 5b34b26"),
         "the pin of MCP is the commit that serves tasks"
     );
 }

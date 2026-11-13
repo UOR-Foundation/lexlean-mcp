@@ -41,10 +41,18 @@ pub const TOOLS: [&str; 4] = [
     "lexlean_build",
 ];
 
-/// The fixtures of the pinned LexLean that the register (`crates/negative-fixtures`) does not
-/// hold: the register is bound to v0.4.0 at e0b74b8, and the commit of
+/// The fixtures of F4 and F7 at the pin that the register (`crates/negative-fixtures`) does
+/// not hold: the register is bound to v0.4.0 at e0b74b8, and the commit of
 /// `gateway/mcp/lexlean.rev` has these names besides its 298.
-pub const NOT_IN_THE_REGISTER: [&str; 1] = ["induction-nested-type"];
+pub const NOT_IN_THE_REGISTER: [&str; 2] = ["induction-nested-type", "text-window-zero-capacity"];
+
+/// The fixtures the pin has besides the register's that are in no class of issue #10: they run
+/// `production`, which no tool of the gateway exposes, so nothing compares them with the CLI.
+pub const OUT_OF_SCOPE_FIXTURES: [&str; 3] = [
+    "gnaf-certificate-malformed",
+    "gnaf-request-malformed",
+    "production-package-name-keyword",
+];
 
 /// The examples whose `expected/build` the CLI at the pin does not reproduce (measured with the
 /// CLI itself, TOOLS.md): the tool gives the same tree as the CLI for them too.
@@ -81,7 +89,7 @@ pub const REGISTERED_CODES: usize = 86;
 
 /// The fixtures that run `check` and that issue #10 puts in F4: the register's 252 and the
 /// names it lacks.
-pub const F4_FIXTURES: usize = 253;
+pub const F4_FIXTURES: usize = 254;
 
 /// The fixtures that run `build` and that issue #10 puts in F7.
 pub const F7_FIXTURES: usize = 1;
@@ -1056,20 +1064,23 @@ pub fn register() -> BTreeMap<String, String> {
 }
 
 /// The class of a fixture of the pinned tree: the register's, else the one its command gives
-/// (`check` is F4, `build` is F7, `verify` is `#11`), for a name the register lacks.
+/// (`check` is F4, `build` is F7, `verify` is `#11`, `production` is its own), for a name the
+/// register lacks.
 pub fn class_of(fixture: &Fixture, register: &BTreeMap<String, String>) -> String {
     if let Some(class) = register.get(&fixture.name) {
         return class.clone();
     }
     assert!(
-        NOT_IN_THE_REGISTER.contains(&fixture.name.as_str()),
-        "{} is in neither the register nor NOT_IN_THE_REGISTER: the pin moved",
+        NOT_IN_THE_REGISTER.contains(&fixture.name.as_str())
+            || OUT_OF_SCOPE_FIXTURES.contains(&fixture.name.as_str()),
+        "{} is in neither the register nor the names the pin adds: the pin moved",
         fixture.name
     );
     match fixture.command.as_str() {
         "check" => "F4",
         "build" => "F7",
         "verify" => "#11",
+        "production" => "production",
         other => panic!("{}: the command {other} has no class", fixture.name),
     }
     .to_string()
