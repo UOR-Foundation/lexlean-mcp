@@ -55,21 +55,10 @@ pub const OUT_OF_SCOPE_FIXTURES: [&str; 3] = [
 ];
 
 /// The examples whose `expected/build` the CLI at the pin does not reproduce (measured with the
-/// CLI itself, TOOLS.md): the tool gives the same tree as the CLI for them too.
-pub const EXAMPLES_OFF_THE_EXPECTED_TREE: &[&str] = &[
-    "collections",
-    "fold-laws",
-    "helpdesk",
-    "higher-order",
-    "language-1.2",
-    "models",
-    "nested-induction",
-    "production",
-    "production-coverage",
-    "reasoning",
-    "recursion",
-    "recursive-data",
-];
+/// CLI itself, TOOLS.md): the tool gives the same tree as the CLI for them too. At the head of
+/// `release/v0.4` the CLI reproduces every one, so the list is empty; the test fails when an
+/// example is added to it or leaves it without this list saying so.
+pub const EXAMPLES_OFF_THE_EXPECTED_TREE: &[&str] = &[];
 
 /// The example that VP-08 leaves out: on the runner of a job it takes about three hours and 14.9 GB
 /// of one side, so it needs jobs of its own (QUALITY.md, Q1). LexLean's own CI splits it too.

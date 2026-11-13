@@ -48,8 +48,8 @@ scope. The model now states 285, and `QM-07` recomputes it from the register.
 **What it does not show.** `lexlean_verify` against the CLI on `uor-atlas`, which takes about three
 hours and 14.9 GB on each side, so the two do not fit one job. The measure of Q1 asks for every
 example, so that clause is in `pendingClauses`, the evidence of Q1 names it, and it waits on #15. The equality holds at the gateway's pin (`gateway/mcp/lexlean.rev`),
-whose fixture locks are rewritten for its compiler (TOOLS.md); 12 examples build to a tree that
-differs from their committed `expected/build`, the same for the tool and the CLI.
+whose fixture locks are rewritten for its compiler (TOOLS.md); every example builds to its
+committed `expected/build`, the same for the tool and the CLI.
 
 ## Q4: no child process
 

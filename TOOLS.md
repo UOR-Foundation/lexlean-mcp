@@ -135,12 +135,12 @@ The tests therefore write the lock that `lexlean lock` makes into the staged cop
 project (both sides get the same bytes), when it differs from the committed one in nothing
 but that identity and the fixture is not about a lock itself; they then require the CLI to
 give the fixture's `expected_exit` and the diagnostic codes of its `expected/`, and the tool
-to equal the CLI. For the examples the same relock is done, and the trees they publish still
-differ from `expected/build` in 12 of 18 (the identities are in the manifest and the maps):
-`EXAMPLES_OFF_THE_EXPECTED_TREE` names them, the test fails when the list changes, and the
-tool's tree equals the CLI's for every one of the 18. AC-04 as the issue words it ("the
-examples build to their `expected/build`") is therefore not shown at this pin for 12 examples
-(PR body, "Not met").
+to equal the CLI. For the examples the same relock is done, and at this pin the trees they
+publish equal `expected/build` for every one of the 18: `EXAMPLES_OFF_THE_EXPECTED_TREE` is
+empty, the test fails when an example is added to it, and the tool's tree equals the CLI's
+for every one. AC-04 as the issue words it ("the examples build to their `expected/build`")
+is therefore shown at this pin; at the pin before it, 12 examples differed (the identities are
+in the manifest and the maps) and it was "Not met".
 
 ## `lexlean_explain` (F11)
 
