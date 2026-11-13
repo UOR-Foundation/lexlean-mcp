@@ -246,7 +246,7 @@ fn the_host_reproduces_the_models_review_framing_vo_01() {
 #[test]
 fn the_toolchain_of_the_id_is_the_compilers_vo_01() {
     let lock_bytes = std::fs::read(fixtures().join("vocab/lexlean.lock")).expect("a lock");
-    let wanted = "compiler_semantics 81a5f530241bed4ca42585e2345d91be731fe46121284fbe4c199ea356489b10\nlean_toolchain leanprover/lean4:v4.32.1\n";
+    let wanted = "compiler_semantics 635a25acb886587f8777525e778092e9599d1f2df26da59403ee39e9e299151a\nlean_toolchain leanprover/lean4:v4.32.1\n";
     assert_eq!(toolchain(&lock_bytes), Some(wanted.as_bytes().to_vec()));
     assert_eq!(
         toolchain(b"spec = \"lexlean/lock/2\"\n"),

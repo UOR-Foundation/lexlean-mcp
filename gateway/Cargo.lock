@@ -430,9 +430,9 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "lexlean"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8712195e816e155e2b84dc35a989c2042a9fdbddf4a1535b39baee2ed5feec04"
+checksum = "d172aee0f4256e6e82177b5eb43e14d66b2a7d0f13fdcd05b10613100afcca75"
 dependencies = [
  "camino",
  "clap",

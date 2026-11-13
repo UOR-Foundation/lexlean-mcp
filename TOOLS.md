@@ -117,27 +117,30 @@ protocol errors, the instrument for Q4) run in every `cargo test`.
 ### The pin of the register and the pin of the gateway
 
 The register is bound to LexLean v0.4.0 (298 fixtures); the gateway is compiled by the
-LexLean commit MCP names (`gateway/mcp/lexlean.rev`, SM-37 `0b0c95d96`), whose
-`tests/negative` has 298. The extra fixture, `induction-nested-type`, is not in the
-register (`NOT_IN_THE_REGISTER` in `gateway/tool-tests/src/lib.rs`, with the counts asserted
-by `TL-03`), and the expected files of the register are not compared byte for byte at the
-second pin, because 290 trees differ there. The comparison that matters is the one the
-tests make: the tool against the CLI of the same commit, on the same project.
+LexLean commit MCP names (`gateway/mcp/lexlean.rev`, the head of `release/v0.4` at
+`5dccf9e5b`), whose `tests/negative` has 303. Five names are not in the register
+(`gateway/tool-tests/src/lib.rs`, with the counts asserted by `TL-03`): two run `check` and
+are in F4 (`NOT_IN_THE_REGISTER`), and three run `production`, which no tool exposes, so
+they are in no class of issue #10 and nothing compares them with the CLI
+(`OUT_OF_SCOPE_FIXTURES`). The expected files of the register are not compared byte for byte
+at the second pin; 8 of the 298 trees differ there. The comparison that matters is the one
+the tests make: the tool against the CLI of the same commit, on the same project.
 
-The locks of the fixtures and of the examples at that commit record a compiler-semantics
-identity (`30c58...` for language 1.2) that is not the one of the compiler built from the
-same commit (`81a5f...`, the one `gateway/lexlean.lock` records), so `lexlean check` on a
-fixture as committed answers `LLC0102` and exit code 2 where the fixture expects 1 or 4.
+At this pin the locks of the fixtures and of the examples record the compiler-semantics
+identity of the compiler built from the same commit (`635a2...` for language 1.2, the one
+`gateway/lexlean.lock` records), so the relock below changes nothing; at the pin before it
+they recorded another identity, and `lexlean check` on a fixture as committed answered
+`LLC0102` and exit code 2 where the fixture expects 1 or 4.
 The tests therefore write the lock that `lexlean lock` makes into the staged copy of a
 project (both sides get the same bytes), when it differs from the committed one in nothing
 but that identity and the fixture is not about a lock itself; they then require the CLI to
 give the fixture's `expected_exit` and the diagnostic codes of its `expected/`, and the tool
-to equal the CLI. For the examples the same relock is done, and the trees they publish still
-differ from `expected/build` in 12 of 18 (the identities are in the manifest and the maps):
-`EXAMPLES_OFF_THE_EXPECTED_TREE` names them, the test fails when the list changes, and the
-tool's tree equals the CLI's for every one of the 18. AC-04 as the issue words it ("the
-examples build to their `expected/build`") is therefore not shown at this pin for 12 examples
-(PR body, "Not met").
+to equal the CLI. For the examples the same relock is done, and at this pin the trees they
+publish equal `expected/build` for every one of the 18: `EXAMPLES_OFF_THE_EXPECTED_TREE` is
+empty, the test fails when an example is added to it, and the tool's tree equals the CLI's
+for every one. AC-04 as the issue words it ("the examples build to their `expected/build`")
+is therefore shown at this pin; at the pin before it, 12 examples differed (the identities are
+in the manifest and the maps) and it was "Not met".
 
 ## `lexlean_explain` (F11)
 
