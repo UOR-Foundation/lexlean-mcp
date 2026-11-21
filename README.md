@@ -1,4 +1,14 @@
+![lexlean-mcp provisional UOR Foundation illustration, not an approved project mark](assets/readme-banner-PLACEHOLDER.png)
+
+*Illustrative PNG placeholder; project branding pending UOR Foundation review.*
+
 # LexLean MCP
+
+**A model-driven MCP interface for LexLean, with implementation and verification boundaries recorded in the repository.** The model is broader than the currently demonstrated executable functionality.
+
+[Current status](#status) · [Product model](#model) · [Repository guide](#repository) · [Tools](TOOLS.md) · [Threat model](SECURITY.md) · [Evidence](VERIFICATION.md)
+
+[![Product maturity: evolving](https://img.shields.io/badge/product-evolving-718096)](#status) [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-718096)](LICENSE-MIT)
 
 LexLean MCP serves [LexLean](https://github.com/UOR-Foundation/LexLean) to LLM
 clients over the Model Context Protocol. LexLean establishes meaning over the
